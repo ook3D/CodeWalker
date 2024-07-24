@@ -2101,7 +2101,7 @@ namespace CodeWalker
                 }
             }
         }
-        private void ExportXml()
+        private async Task ExportXmlAsync()
         {
             bool needfolder = false;//need a folder to output ytd XML to, for the texture .dds files
             if (MainListView.SelectedIndices.Count == 1)
@@ -2125,7 +2125,7 @@ namespace CodeWalker
                 {
                     if (CanExportXml(file))
                     {
-                        byte[] data = GetFileData(file);
+                        byte[] data = await Task.Run(() => GetFileData(file));
                         if (data == null)
                         {
                             MessageBox.Show("Unable to extract file: " + file.Path);
@@ -2180,7 +2180,7 @@ namespace CodeWalker
                     {
                         if (!CanExportXml(file)) continue;
 
-                        var data = GetFileData(file);
+                        var data = await Task.Run(() => GetFileData(file));
                         if (data == null)
                         {
                             errors.AppendLine("Unable to extract file: " + file.Path);
@@ -3532,7 +3532,7 @@ namespace CodeWalker
             UpdateSelectionUI(); //need to use this instead of SelectedIndexChanged because of shift-click bug :/
         }
 
-        private void MainListView_KeyDown(object sender, KeyEventArgs e)
+        async private void MainListView_KeyDown(object sender, KeyEventArgs e)
         {
             var ctrl = (e.Control && !e.Shift);
             var ctrlshft = (e.Control && e.Shift);
@@ -3547,7 +3547,7 @@ namespace CodeWalker
                     if (ctrl) ViewSelectedHex();
                     break;
                 case Keys.S:
-                    if (ctrl) ExportXml();
+                    if (ctrl) await ExportXmlAsync();
                     break;
                 case Keys.E:
                     if (ctrlshft) ExtractAll();
@@ -3920,9 +3920,9 @@ namespace CodeWalker
             ViewSelectedHex();
         }
 
-        private void ListContextExportXmlMenu_Click(object sender, EventArgs e)
+        async private void ListContextExportXmlMenu_Click(object sender, EventArgs e)
         {
-            ExportXml();
+            await ExportXmlAsync();
         }
 
         private void ListContextExtractRawMenu_Click(object sender, EventArgs e)
@@ -4035,9 +4035,9 @@ namespace CodeWalker
             ViewSelectedHex();
         }
 
-        private void EditExportXmlMenu_Click(object sender, EventArgs e)
+        async private void EditExportXmlMenu_Click(object sender, EventArgs e)
         {
-            ExportXml();
+            await ExportXmlAsync();
         }
 
         private void EditExtractRawMenu_Click(object sender, EventArgs e)
