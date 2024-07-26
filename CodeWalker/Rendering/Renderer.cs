@@ -2135,55 +2135,29 @@ namespace CodeWalker.Rendering
                 dist = camera.OrthographicSize / MapViewDetail;
             }
 
+            ref var cEntityDef = ref ent._CEntityDef;
+            float loddist = cEntityDef.lodDist <= 0.0f
+                ? (ent.Archetype?.LodDist ?? 0) * renderworldLodDistMult
+                : cEntityDef.lodDist * ((cEntityDef.lodLevel == rage__eLodType.LODTYPES_DEPTH_ORPHANHD)
+                    ? renderworldDetailDistMult * 1.5f
+                    : renderworldLodDistMult);
 
-            var loddist = ent._CEntityDef.lodDist;
-            var cloddist = ent._CEntityDef.childLodDist;
-
-            if (loddist <= 0.0f)//usually -1 or -2
-            {
-                if (ent.Archetype != null)
-                {
-                    loddist = ent.Archetype.LodDist * renderworldLodDistMult;
-                }
-            }
-            else if (ent._CEntityDef.lodLevel == rage__eLodType.LODTYPES_DEPTH_ORPHANHD)
-            {
-                loddist *= renderworldDetailDistMult * 1.5f; //orphan view dist adjustment...
-            }
-            else
-            {
-                loddist *= renderworldLodDistMult;
-            }
-
-
-            if (cloddist <= 0)
-            {
-                if (ent.Archetype != null)
-                {
-                    cloddist = ent.Archetype.LodDist * renderworldLodDistMult;
-                }
-            }
-            else
-            {
-                cloddist *= renderworldLodDistMult;
-            }
-
+            float cloddist = cEntityDef.childLodDist <= 0
+                ? (ent.Archetype?.LodDist ?? 0) * renderworldLodDistMult
+                : cEntityDef.childLodDist * renderworldLodDistMult;
 
             ent.Distance = dist;
-            ent.IsVisible = (dist <= loddist);
-            ent.ChildrenVisible = (dist <= cloddist) && (ent._CEntityDef.numChildren > 0);
-
-
+            ent.IsVisible = dist <= loddist;
+            ent.ChildrenVisible = dist <= cloddist && cEntityDef.numChildren > 0;
 
             if (renderworldMaxLOD != rage__eLodType.LODTYPES_DEPTH_ORPHANHD)
             {
-                if ((ent._CEntityDef.lodLevel == rage__eLodType.LODTYPES_DEPTH_ORPHANHD) ||
-                    (ent._CEntityDef.lodLevel < renderworldMaxLOD))
+                if (cEntityDef.lodLevel == rage__eLodType.LODTYPES_DEPTH_ORPHANHD || cEntityDef.lodLevel < renderworldMaxLOD)
                 {
                     ent.IsVisible = false;
                     ent.ChildrenVisible = false;
                 }
-                if (ent._CEntityDef.lodLevel == renderworldMaxLOD)
+                if (cEntityDef.lodLevel == renderworldMaxLOD)
                 {
                     ent.ChildrenVisible = false;
                 }
@@ -2192,176 +2166,171 @@ namespace CodeWalker.Rendering
         private void RenderWorldRecurseCalcEntityVisibility(YmapEntityDef ent)
         {
             RenderWorldCalcEntityVisibility(ent);
-            if (ent.ChildrenVisible)
+
+            if (!ent.ChildrenVisible || ent.Children == null) return;
+
+            Parallel.ForEach(ent.Children, child =>
             {
-                if (ent.Children != null)
+                if (child.Ymap == ent.Ymap)
                 {
-                    for (int i = 0; i < ent.Children.Length; i++)
-                    {
-                        var child = ent.Children[i];
-                        if (child.Ymap == ent.Ymap)
-                        {
-                            RenderWorldRecurseCalcEntityVisibility(child);
-                        }
-                    }
+                    RenderWorldRecurseCalcEntityVisibility(child);
                 }
-            }
+            });
         }
         private void RenderWorldRecurseAddEntities(YmapEntityDef ent)
         {
             bool hide = ent.ChildrenVisible;
-            bool force = (ent.Parent != null) && ent.Parent.ChildrenVisible && !hide;
+            bool force = ent.Parent is { ChildrenVisible: true } && !hide;
+
             if (force || (ent.IsVisible && !hide))
             {
                 if (ent.Archetype != null)
                 {
                     if (!RenderIsEntityFinalRender(ent)) return;
 
-
                     if (!camera.ViewFrustum.ContainsAABBNoClip(ref ent.BBCenter, ref ent.BBExtent))
-                    {
                         return;
-                    }
-
 
                     renderworldentities.Add(ent);
 
-
-                    if (renderinteriors && ent.IsMlo && (ent.MloInstance != null)) //render Mlo child entities...
+                    if (renderinteriors && ent.IsMlo && ent.MloInstance != null)
                     {
                         RenderWorldAddInteriorEntities(ent);
                     }
-
                 }
             }
-            if (ent.IsVisible && ent.ChildrenVisible && (ent.Children != null))
+
+            if (ent.IsVisible && ent.ChildrenVisible && ent.Children != null)
             {
-                for (int i = 0; i < ent.Children.Length; i++)
+                Parallel.ForEach(ent.Children, child =>
                 {
-                    var child = ent.Children[i];
                     if (child.Ymap == ent.Ymap)
                     {
-                        RenderWorldRecurseAddEntities(ent.Children[i]);
+                        RenderWorldRecurseAddEntities(child);
                     }
-                }
+                });
             }
         }
 
         private bool RenderWorldYmapIsVisible(YmapFile ymap)
         {
-            if (!ShowScriptedYmaps)
-            {
-                if ((ymap._CMapData.flags & 1) > 0)
-                    return false;
-            }
+            if (!ShowScriptedYmaps && (ymap._CMapData.flags & 1) > 0)
+                return false;
 
-            if (!ymap.HasChanged)//don't cull edited project ymaps, because extents may not have been updated!
+            if (!ymap.HasChanged)
             {
                 var eemin = ymap._CMapData.entitiesExtentsMin;
                 var eemax = ymap._CMapData.entitiesExtentsMax;
-                bool visible = false;
-                if (MapViewEnabled)//don't do front clipping in 2D mode
-                {
-                    visible = camera.ViewFrustum.ContainsAABBNoFrontClipNoOpt(ref eemin, ref eemax);
-                }
-                else
-                {
-                    visible = camera.ViewFrustum.ContainsAABBNoClipNoOpt(ref eemin, ref eemax);
-                }
+                bool visible = MapViewEnabled
+                    ? camera.ViewFrustum.ContainsAABBNoFrontClipNoOpt(ref eemin, ref eemax)
+                    : camera.ViewFrustum.ContainsAABBNoClipNoOpt(ref eemin, ref eemax);
+
                 if (!visible)
-                {
                     return false;
-                }
             }
 
             return true;
         }
         private void RenderWorldAddInteriorEntities(YmapEntityDef ent)
         {
-            if (ent?.MloInstance?.Entities != null)
+            if (ent?.MloInstance == null) return;
+
+            var entities = ent.MloInstance.Entities;
+            if (entities != null)
             {
-                for (int j = 0; j < ent.MloInstance.Entities.Length; j++)
+                Parallel.ForEach(entities, intent =>
                 {
-                    var intent = ent.MloInstance.Entities[j];
-                    if (intent?.Archetype == null) continue; //missing archetype...
-                    if (!RenderIsEntityFinalRender(intent)) continue; //proxy or something..
+                    if (intent?.Archetype == null || !RenderIsEntityFinalRender(intent)) return;
 
                     intent.IsVisible = true;
 
                     if (!camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent))
+                        return;
+
+                    lock (renderworldentities)
                     {
-                        continue; //frustum cull interior ents
+                        renderworldentities.Add(intent);
                     }
-
-                    renderworldentities.Add(intent);
-                }
+                });
             }
-            if (ent?.MloInstance?.EntitySets != null)
-            {
-                for (int e = 0; e < ent.MloInstance.EntitySets.Length; e++)
-                {
-                    var entityset = ent.MloInstance.EntitySets[e];
-                    if ((entityset == null) || (!entityset.VisibleOrForced)) continue;
 
-                    var entities = entityset.Entities;
-                    if (entities == null) continue;
-                    for (int i = 0; i < entities.Count; i++)
+            var entitySets = ent.MloInstance.EntitySets;
+            if (entitySets != null)
+            {
+                Parallel.ForEach(entitySets, entityset =>
+                {
+                    if (entityset == null || !entityset.VisibleOrForced) return;
+
+                    var esEntities = entityset.Entities;
+                    if (esEntities == null) return;
+
+                    Parallel.ForEach(esEntities, intent =>
                     {
-                        var intent = entities[i];
-                        if (intent?.Archetype == null) continue; //missing archetype...
-                        if (!RenderIsEntityFinalRender(intent)) continue; //proxy or something..
+                        if (intent?.Archetype == null || !RenderIsEntityFinalRender(intent)) return;
 
                         intent.IsVisible = true;
 
                         if (!camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent))
+                            return;
+
+                        lock (renderworldentities)
                         {
-                            continue; //frustum cull interior ents
+                            renderworldentities.Add(intent);
                         }
-
-                        renderworldentities.Add(intent);
-
-                    }
-                }
+                    });
+                });
             }
         }
         private void RenderWorldAdjustMapViewCamera()
         {
-            if (MapViewEnabled)
-            {
-                //find the max Z value for positioning camera in map view, to help shadows
-                //float minZ = float.MaxValue;
-                float maxZ = float.MinValue;
-                float cvwidth = camera.OrthographicSize * camera.AspectRatio * 0.5f;
-                float cvheight = camera.OrthographicSize * 0.5f;
-                float cvwmin = camera.Position.X - cvwidth; //TODO:make all these vars global...
-                float cvwmax = camera.Position.X + cvwidth;
-                float cvhmin = camera.Position.Y - cvheight;
-                float cvhmax = camera.Position.Y + cvheight;
+            if (!MapViewEnabled) return;
 
-                for (int y = 0; y < VisibleYmaps.Count; y++)
+            // Precompute camera view bounds
+            float cvwidth = camera.OrthographicSize * camera.AspectRatio * 0.5f;
+            float cvheight = camera.OrthographicSize * 0.5f;
+            float cvwmin = camera.Position.X - cvwidth;
+            float cvwmax = camera.Position.X + cvwidth;
+            float cvhmin = camera.Position.Y - cvheight;
+            float cvhmax = camera.Position.Y + cvheight;
+
+            // Initialize maxZ with float.MinValue
+            float maxZ = float.MinValue;
+
+            Parallel.For(0, VisibleYmaps.Count, y =>
+            {
+                var ymap = VisibleYmaps[y];
+                if (ymap.AllEntities == null) return;
+
+                foreach (var ent in ymap.AllEntities)
                 {
-                    var ymap = VisibleYmaps[y];
-                    if (ymap.AllEntities != null)
+                    if (ent.Position.Z >= 1000.0f || ent.BSRadius >= 500.0f) continue;
+
+                    if (ent.BBMax.X > cvwmin && ent.BBMin.X < cvwmax &&
+                        ent.BBMax.Y > cvhmin && ent.BBMin.Y < cvhmax)
                     {
-                        for (int i = 0; i < ymap.AllEntities.Length; i++)//this is bad
-                        {
-                            var ent = ymap.AllEntities[i];
-                            if ((ent.Position.Z < 1000.0f) && (ent.BSRadius < 500.0f))
-                            {
-                                if ((ent.BBMax.X > cvwmin) && (ent.BBMin.X < cvwmax) && (ent.BBMax.Y > cvhmin) && (ent.BBMin.Y < cvhmax))
-                                {
-                                    //minZ = Math.Min(minZ, ent.BBMin.Z);
-                                    maxZ = Math.Max(maxZ, ent.BBMax.Z + 50.0f);//add some bias to avoid clipping things...
-                                }
-                            }
-                        }
+                        float adjustedMaxZ = ent.BBMax.Z + 50.0f;
+                        InterlockedExtensions.Max(ref maxZ, adjustedMaxZ);
                     }
                 }
+            });
 
-                //move the camera closer to the geometry, to help shadows in map view.
-                if (maxZ == float.MinValue) maxZ = 1000.0f;
-                camera.Position.Z = Math.Min(maxZ, 1000.0f);
-                camera.ViewFrustum.Position = camera.Position;
+            // Adjust camera position
+            if (maxZ == float.MinValue) maxZ = 1000.0f;
+            camera.Position.Z = Math.Min(maxZ, 1000.0f);
+            camera.ViewFrustum.Position = camera.Position;
+        }
+
+        public static class InterlockedExtensions
+        {
+            // Extension method to safely update maxZ using Interlocked.CompareExchange
+            public static void Max(ref float location, float value)
+            {
+                float initialValue, newValue;
+                do
+                {
+                    initialValue = location;
+                    newValue = Math.Max(initialValue, value);
+                } while (initialValue != Interlocked.CompareExchange(ref location, newValue, initialValue));
             }
         }
         private void RenderWorldYmapExtras()
@@ -2581,76 +2550,54 @@ namespace CodeWalker.Rendering
             ymap.EnsureChildYmaps(gameFileCache);
 
             Archetype arch = entity.Archetype;
-            if (arch != null)
+            if (arch == null) return false;
+
+            bool timed = arch.Type == MetaName.CTimeArchetypeDef;
+            if (timed && (!rendertimedents || (!rendertimedentsalways && !arch.IsActive(timeofday))))
+                return false;
+
+            Vector3 camrel = entity.Position - camera.Position;
+            float dist = (camrel + entity.BSCenter).Length();
+            entity.Distance = dist;
+            float rad = arch.BSRadius;
+            float loddist = entity._CEntityDef.lodDist < 1.0f ? 200.0f : entity._CEntityDef.lodDist;
+            float mindist = Math.Max(dist - rad, 1.0f) * lodthreshold;
+
+            if (mindist >= loddist)
             {
-                bool timed = (arch.Type == MetaName.CTimeArchetypeDef);
-                if (!timed || (rendertimedents && (rendertimedentsalways || arch.IsActive(timeofday))))
-                {
-                    bool usechild = false;
-                    Vector3 camrel = entity.Position - camera.Position;
-                    float dist = (camrel + entity.BSCenter).Length();
-                    entity.Distance = dist;
-                    float rad = arch.BSRadius;
-                    float loddist = entity._CEntityDef.lodDist;
-                    if (loddist < 1.0f)
-                    {
-                        loddist = 200.0f;
-                    }
-                    float mindist = Math.Max(dist - rad, 1.0f) * lodthreshold;
-                    if (mindist < loddist)
-                    {
-                        //recurse...
-                        var children = entity.ChildrenMerged;
-                        if ((children != null))
-                        {
-                            usechild = true;
-                            for (int i = 0; i < children.Length; i++)
-                            {
-                                var childe = children[i];
-                                if (!RenderYmapLOD(childe.Ymap, childe))
-                                {
-                                    if (waitforchildrentoload)
-                                    {
-                                        usechild = false; //might cause some overlapping, but should reduce things disappearing
-                                    }
-                                }
-                            }
-                        }
-                        if (!entity.ChildrenRendered)
-                        {
-                            entity.ChildrenRendered = usechild;
-                        }
-                    }
-                    else
-                    {
-                        entity.ChildrenRendered = false;
-                    }
-                    if (!usechild && !entity.ChildrenRendered)
-                    {
-
-                        if (renderinteriors && entity.IsMlo) //render Mlo child entities...
-                        {
-                            if ((entity.MloInstance != null) && (entity.MloInstance.Entities != null))
-                            {
-                                for (int j = 0; j < entity.MloInstance.Entities.Length; j++)
-                                {
-                                    var intent = entity.MloInstance.Entities[j];
-                                    var intarch = intent.Archetype;
-                                    if (intarch == null) continue; //missing archetype...
-                                    if (!RenderIsEntityFinalRender(intent)) continue; //proxy or something..
-                                    RenderArchetype(intarch, intent);
-                                }
-                            }
-                        }
-
-
-                        return RenderArchetype(arch, entity);
-                    }
-                    return true;
-                }
-
+                entity.ChildrenRendered = false;
+                return RenderArchetype(arch, entity);
             }
-            return false;
+
+            bool usechild = false;
+            var children = entity.ChildrenMerged;
+            if (children != null)
+            {
+                usechild = true;
+                foreach (var childe in children)
+                {
+                    if (!RenderYmapLOD(childe.Ymap, childe) && waitforchildrentoload)
+                    {
+                        usechild = false; //might cause some overlapping, but should reduce things disappearing
+                    }
+                }
+                entity.ChildrenRendered = usechild;
+            }
+
+            if (!usechild && !entity.ChildrenRendered)
+            {
+                if (renderinteriors && entity.IsMlo && entity.MloInstance?.Entities != null)
+                {
+                    foreach (var intent in entity.MloInstance.Entities)
+                    {
+                        if (intent.Archetype == null || !RenderIsEntityFinalRender(intent)) continue;
+                        RenderArchetype(intent.Archetype, intent);
+                    }
+                }
+                return RenderArchetype(arch, entity);
+            }
+
+            return true;
         }
 
 

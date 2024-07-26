@@ -240,40 +240,53 @@ namespace CodeWalker.GameFiles
         }
         public void Init(Action<string> updateStatus, Action<string> errorLog, List<RpfFile> allRpfs)
         {
-            UpdateStatus = updateStatus;
-            ErrorLog = errorLog;
+            UpdateStatus = updateStatus ?? throw new ArgumentNullException(nameof(updateStatus));
+            ErrorLog = errorLog ?? throw new ArgumentNullException(nameof(errorLog));
 
             Clear();
 
             PreloadedMode = true;
-            EnableDlc = true;//just so everything (mainly archetypes) will load..
+            EnableDlc = true;
             EnableMods = false;
-            RpfMan = new RpfManager(); //try not to use this in this mode...
+
+            RpfMan = new RpfManager();
             RpfMan.Init(allRpfs);
 
             AllRpfs = allRpfs;
             BaseRpfs = allRpfs;
             DlcRpfs = new List<RpfFile>();
 
-            UpdateStatus("Building global dictionaries...");
-            InitGlobalDicts();
+            var tasks = new (Action<string> StatusUpdater, Action Task)[]
+            {
+                (UpdateStatus, InitGlobalDicts),
+                (UpdateStatus, InitManifestDicts),
+                (UpdateStatus, InitGtxds),
+                (UpdateStatus, InitArchetypeDicts),
+                (UpdateStatus, InitStringDicts),
+                (UpdateStatus, InitAudio)
+            };
 
-            UpdateStatus("Loading manifests...");
-            InitManifestDicts();
-
-            UpdateStatus("Loading global texture list...");
-            InitGtxds();
-
-            UpdateStatus("Loading archetypes...");
-            InitArchetypeDicts();
-
-            UpdateStatus("Loading strings...");
-            InitStringDicts();
-
-            UpdateStatus("Loading audio...");
-            InitAudio();
+            // Perform initialization tasks
+            foreach (var (statusUpdater, task) in tasks)
+            {
+                statusUpdater(GetStatusMessage(task));
+                task();
+            }
 
             IsInited = true;
+        }
+        private string GetStatusMessage(Action task)
+        {
+            return task switch
+            {
+                var t when t == InitGlobalDicts => "Building global dictionaries...",
+                var t when t == InitManifestDicts => "Loading manifests...",
+                var t when t == InitGtxds => "Loading global texture list...",
+                var t when t == InitArchetypeDicts => "Loading archetypes...",
+                var t when t == InitStringDicts => "Loading strings...",
+                var t when t == InitAudio => "Loading audio...",
+                _ => "Unknown task"
+            };
         }
 
         private void InitGlobal()
@@ -288,40 +301,27 @@ namespace CodeWalker.GameFiles
 
         private void InitDlc()
         {
+            var actions = new (Action Action, string Status)[]
+            {
+                (InitDlcList, "Building DLC List..."),
+                (InitActiveMapRpfFiles, "Building active RPF dictionary..."),
+                (InitMapDicts, "Building map dictionaries..."),
+                (InitManifestDicts, "Loading manifests..."),
+                (InitGtxds, "Loading global texture list..."),
+                (InitMapCaches, "Loading cache..."),
+                (InitArchetypeDicts, "Loading archetypes..."),
+                (InitStringDicts, "Loading strings..."),
+                (InitVehicles, "Loading vehicles..."),
+                (InitPeds, "Loading peds..."),
+                (InitAudio, "Loading audio...")
+            };
 
-            UpdateStatus("Building DLC List...");
-            InitDlcList();
-
-            UpdateStatus("Building active RPF dictionary...");
-            InitActiveMapRpfFiles();
-
-            UpdateStatus("Building map dictionaries...");
-            InitMapDicts();
-
-            UpdateStatus("Loading manifests...");
-            InitManifestDicts();
-
-            UpdateStatus("Loading global texture list...");
-            InitGtxds();
-
-            UpdateStatus("Loading cache...");
-            InitMapCaches();
-
-            UpdateStatus("Loading archetypes...");
-            InitArchetypeDicts();
-
-            UpdateStatus("Loading strings...");
-            InitStringDicts();
-
-            UpdateStatus("Loading vehicles...");
-            InitVehicles();
-
-            UpdateStatus("Loading peds...");
-            InitPeds();
-
-            UpdateStatus("Loading audio...");
-            InitAudio();
-
+            // Execute each action with status update
+            foreach (var (action, status) in actions)
+            {
+                UpdateStatus(status);
+                action();
+            }
         }
 
         private void InitDlcList()
