@@ -1,6 +1,5 @@
 ﻿using CodeWalker.GameFiles;
 using CodeWalker.Utils;
-
 using FastColoredTextBoxNS;
 using System;
 using System.Collections.Generic;

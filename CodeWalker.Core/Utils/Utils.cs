@@ -190,12 +190,12 @@ namespace CodeWalker
         }
         public static string GetHalf2String(Half2 v, string d = ", ")
         {
-            var f = Half.ConvertToFloat(new[] { v.X, v.Y });
+            var f = SharpDX.Half.ConvertToFloat(new[] { v.X, v.Y });
             return ToString(f[0]) + d + ToString(f[1]);
         }
         public static string GetHalf4String(Half4 v, string d = ", ")
         {
-            var f = Half.ConvertToFloat(new[] { v.X, v.Y, v.Z, v.W });
+            var f = SharpDX.Half.ConvertToFloat(new[] { v.X, v.Y, v.Z, v.W });
             return ToString(f[0]) + d + ToString(f[1]) + d + ToString(f[2]) + d + ToString(f[3]);
         }
         public static string GetColourString(Color v, string d = ", ")
