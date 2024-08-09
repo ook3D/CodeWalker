@@ -5367,7 +5367,7 @@ namespace CodeWalker.GameFiles
         public float PedDensityScalar { get; set; }
         public float MaxWindInfluence { get; set; }
         public float MinWindInfluence { get; set; }
-        public uint WindElevationSounds { get; set; }
+        public MetaHash WindElevationSounds { get; set; }
         public MetaHash EnvironmentRule { get; set; }
         public MetaHash AudioScene { get; set; }
         public float UnderwaterCreakFactor { get; set; }
@@ -5594,7 +5594,7 @@ namespace CodeWalker.GameFiles
             RelXml.ValueTag(sb, indent, "PedDensityScalar", FloatUtil.ToString(PedDensityScalar));
             RelXml.ValueTag(sb, indent, "MaxWindInfluence", FloatUtil.ToString(MaxWindInfluence));
             RelXml.ValueTag(sb, indent, "MinWindInfluence", FloatUtil.ToString(MinWindInfluence));
-            RelXml.ValueTag(sb, indent, "WindElevationSounds", WindElevationSounds.ToString());
+            RelXml.ValueTag(sb, indent, "WindElevationSounds", RelXml.HashString(WindElevationSounds));
             RelXml.StringTag(sb, indent, "EnvironmentRule", RelXml.HashString(EnvironmentRule));
             RelXml.StringTag(sb, indent, "AudioScene", RelXml.HashString(AudioScene));
             RelXml.ValueTag(sb, indent, "UnderwaterCreakFactor", FloatUtil.ToString(UnderwaterCreakFactor));
@@ -5626,7 +5626,7 @@ namespace CodeWalker.GameFiles
             PedDensityScalar = Xml.GetChildFloatAttribute(node, "PedDensityScalar", "value");
             MaxWindInfluence = Xml.GetChildFloatAttribute(node, "MaxWindInfluence", "value");
             MinWindInfluence = Xml.GetChildFloatAttribute(node, "MinWindInfluence", "value");
-            WindElevationSounds = Xml.GetChildUIntAttribute(node, "WindElevationSounds", "value");
+            WindElevationSounds = XmlRel.GetHash(Xml.GetChildInnerText(node, "WindElevationSounds"));
             EnvironmentRule = XmlRel.GetHash(Xml.GetChildInnerText(node, "EnvironmentRule"));
             AudioScene = XmlRel.GetHash(Xml.GetChildInnerText(node, "AudioScene"));
             UnderwaterCreakFactor = Xml.GetChildFloatAttribute(node, "UnderwaterCreakFactor", "value");
