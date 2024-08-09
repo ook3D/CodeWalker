@@ -22686,13 +22686,13 @@ namespace CodeWalker.GameFiles
     {
         public MetaHash Category { get; set; }
         public short Volume { get; set; }
-        public byte Unk03 { get; set; }
+        public byte VolumeInvert { get; set; }
         public short LPFCutoff { get; set; }
         public short HPFCutoff { get; set; }
         public short Pitch { get; set; }
-        public float Unk09 { get; set; }
-        public byte Unk10 { get; set; }
-        public float DistanceRollOffScale { get; set; }
+        public float Frequency { get; set; }
+        public byte PitchInvert { get; set; }
+        public float Rolloff { get; set; }
 
         public Dat15PatchItem()
         { }
@@ -22700,61 +22700,61 @@ namespace CodeWalker.GameFiles
         {
             Category = br.ReadUInt32();
             Volume = br.ReadInt16();
-            Unk03 = br.ReadByte();
+            VolumeInvert = br.ReadByte();
             LPFCutoff = br.ReadInt16();
             HPFCutoff = br.ReadInt16();
             Pitch = br.ReadInt16();
-            Unk09 = br.ReadSingle();
-            Unk10 = br.ReadByte();
-            DistanceRollOffScale = br.ReadSingle();
+            Frequency = br.ReadSingle();
+            PitchInvert = br.ReadByte();
+            Rolloff = br.ReadSingle();
         }
         public void Write(BinaryWriter bw)
         {
             bw.Write(Category);
             bw.Write(Volume);
-            bw.Write(Unk03);
+            bw.Write(VolumeInvert);
             bw.Write(LPFCutoff);
             bw.Write(HPFCutoff);
             bw.Write(Pitch);
-            bw.Write(Unk09);
-            bw.Write(Unk10);
-            bw.Write(DistanceRollOffScale);
+            bw.Write(Frequency);
+            bw.Write(PitchInvert);
+            bw.Write(Rolloff);
         }
         public void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.StringTag(sb, indent, "Category", RelXml.HashString(Category));
             RelXml.ValueTag(sb, indent, "Volume", Volume.ToString());
-            RelXml.ValueTag(sb, indent, "Unk03", Unk03.ToString());
+            RelXml.ValueTag(sb, indent, "VolumeInvert", VolumeInvert.ToString());
             RelXml.ValueTag(sb, indent, "LPFCutoff", LPFCutoff.ToString());
             RelXml.ValueTag(sb, indent, "HPFCutoff", HPFCutoff.ToString());
             RelXml.ValueTag(sb, indent, "Pitch", Pitch.ToString());
-            RelXml.ValueTag(sb, indent, "Unk09", FloatUtil.ToString(Unk09));
-            RelXml.ValueTag(sb, indent, "Unk10", Unk10.ToString());
-            RelXml.ValueTag(sb, indent, "DistanceRollOffScale", FloatUtil.ToString(DistanceRollOffScale));
+            RelXml.ValueTag(sb, indent, "Frequency", FloatUtil.ToString(Frequency));
+            RelXml.ValueTag(sb, indent, "PitchInvert", PitchInvert.ToString());
+            RelXml.ValueTag(sb, indent, "Rolloff", FloatUtil.ToString(Rolloff));
         }
         public void ReadXml(XmlNode node)
         {
             Category = XmlRel.GetHash(Xml.GetChildInnerText(node, "Category"));
             Volume = (short)Xml.GetChildIntAttribute(node, "Volume", "value");
-            Unk03 = (byte)Xml.GetChildUIntAttribute(node, "Unk03", "value");
+            VolumeInvert = (byte)Xml.GetChildUIntAttribute(node, "VolumeInvert", "value");
             LPFCutoff = (short)Xml.GetChildIntAttribute(node, "LPFCutoff", "value");
             HPFCutoff = (short)Xml.GetChildIntAttribute(node, "HPFCutoff", "value");
             Pitch = (short)Xml.GetChildIntAttribute(node, "Pitch", "value");
-            Unk09 = Xml.GetChildFloatAttribute(node, "Unk09", "value");
-            Unk10 = (byte)Xml.GetChildIntAttribute(node, "Unk10", "value");
-            DistanceRollOffScale = Xml.GetChildFloatAttribute(node, "DistanceRollOffScale", "value");
+            Frequency = Xml.GetChildFloatAttribute(node, "Frequency", "value");
+            PitchInvert = (byte)Xml.GetChildIntAttribute(node, "PitchInvert", "value");
+            Rolloff = Xml.GetChildFloatAttribute(node, "Rolloff", "value");
         }
         public override string ToString()
         {
             return Category.ToString() + ": " +
                 Volume.ToString() + ", " +
-                Unk03.ToString() + ", " +
+                VolumeInvert.ToString() + ", " +
                 LPFCutoff.ToString() + ", " +
                 HPFCutoff.ToString() + ", " +
                 Pitch.ToString() + ", " +
-                Unk09.ToString() + ", " +
-                Unk10.ToString() + ", " +
-                DistanceRollOffScale.ToString();
+                Frequency.ToString() + ", " +
+                PitchInvert.ToString() + ", " +
+                Rolloff.ToString();
         }
     }
 
@@ -23117,9 +23117,9 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat15SceneTransitionModuleSettings : Dat15RelData
     {
-        public byte Unk01 { get; set; }//could be an array count?
-        public float Unk02 { get; set; }
-        public MetaHash Unk03 { get; set; }//what is this?
+        public byte Input { get; set; }//could be an array count?
+        public float Threshold { get; set; }
+        public MetaHash Transition { get; set; }//what is this?
 
         public Dat15SceneTransitionModuleSettings(RelFile rel) : base(rel)
         {
@@ -23128,39 +23128,39 @@ namespace CodeWalker.GameFiles
         }
         public Dat15SceneTransitionModuleSettings(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk01 = br.ReadByte();
-            Unk02 = br.ReadSingle();
-            Unk03 = br.ReadUInt32();
+            Input = br.ReadByte();
+            Threshold = br.ReadSingle();
+            Transition = br.ReadUInt32();
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffsetAndFlags(bw);
 
-            bw.Write(Unk01);
-            bw.Write(Unk02);
-            bw.Write(Unk03);
+            bw.Write(Input);
+            bw.Write(Threshold);
+            bw.Write(Transition);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
-            RelXml.ValueTag(sb, indent, "Unk01", Unk01.ToString());
-            RelXml.ValueTag(sb, indent, "Unk02", FloatUtil.ToString(Unk02));
-            RelXml.StringTag(sb, indent, "Unk03", RelXml.HashString(Unk03));
+            RelXml.ValueTag(sb, indent, "Input", Input.ToString());
+            RelXml.ValueTag(sb, indent, "Threshold", FloatUtil.ToString(Threshold));
+            RelXml.StringTag(sb, indent, "Transition", RelXml.HashString(Transition));
         }
         public override void ReadXml(XmlNode node)
         {
             Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            Unk01 = (byte)Xml.GetChildUIntAttribute(node, "Unk01", "value");
-            Unk02 = Xml.GetChildFloatAttribute(node, "Unk02", "value");
-            Unk03 = XmlRel.GetHash(Xml.GetChildInnerText(node, "Unk03"));
+            Input = (byte)Xml.GetChildUIntAttribute(node, "Input", "value");
+            Threshold = Xml.GetChildFloatAttribute(node, "Threshold", "value");
+            Transition = XmlRel.GetHash(Xml.GetChildInnerText(node, "Transition"));
         }
     }
 
     [TC(typeof(EXP))] 
     public class Dat15VehicleCollisionModuleSettings : Dat15RelData
     {
-        public byte Unk01 { get; set; }
-        public MetaHash Unk02 { get; set; }
+        public byte Input { get; set; }
+        public MetaHash Transition { get; set; }
 
         public Dat15VehicleCollisionModuleSettings(RelFile rel) : base(rel)
         {
@@ -23169,31 +23169,31 @@ namespace CodeWalker.GameFiles
         }
         public Dat15VehicleCollisionModuleSettings(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk01 = br.ReadByte();
-            Unk02 = br.ReadUInt32();
+            Input = br.ReadByte();
+            Transition = br.ReadUInt32();
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffsetAndFlags(bw);
 
-            bw.Write(Unk01);
-            bw.Write(Unk02);
+            bw.Write(Input);
+            bw.Write(Transition);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
-            RelXml.ValueTag(sb, indent, "Unk01", Unk01.ToString());
-            RelXml.StringTag(sb, indent, "Unk02", RelXml.HashString(Unk02));
+            RelXml.ValueTag(sb, indent, "Input", Input.ToString());
+            RelXml.StringTag(sb, indent, "Transition", RelXml.HashString(Transition));
         }
         public override void ReadXml(XmlNode node)
         {
             Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            Unk01 = (byte)Xml.GetChildUIntAttribute(node, "Unk01", "value");
-            Unk02 = XmlRel.GetHash(Xml.GetChildInnerText(node, "Unk02"));
+            Input = (byte)Xml.GetChildUIntAttribute(node, "Input", "value");
+            Transition = XmlRel.GetHash(Xml.GetChildInnerText(node, "Transition"));
         }
         public override MetaHash[] GetSoundHashes()
         {
-            return new[] { Unk02 };
+            return new[] { Transition };
         }
     }
 
@@ -24034,24 +24034,24 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat22Category : Dat22RelData
     {
-        public short Unk01 { get; set; }
+        public ushort ParentOverrideValue { get; set; }
         public short Volume { get; set; }
-        public short Unk03 { get; set; }
-        public short LPFCutoff { get; set; }
+        public short Pitch { get; set; }
+        public ushort LPFCutoff { get; set; }
         public MetaHash LPFCutoffCurve { get; set; }
-        public short HPFCutoff { get; set; }
+        public ushort HPFCutoff { get; set; }
         public MetaHash HPFCutoffCurve { get; set; }
-        public short Unk08 { get; set; }
-        public short Unk09 { get; set; }
-        public short Unk10 { get; set; }
-        public short Unk11 { get; set; }
-        public short Unk12 { get; set; }
-        public short Unk13 { get; set; }
-        public short Unk14 { get; set; }
-        public short Unk15 { get; set; }
-        public short Unk16 { get; set; }
-        public short Unk17 { get; set; }
-        public byte Unk18 { get; set; }
+        public ushort DistanceRollOffScale { get; set; }
+        public ushort PlateauRollOffScale { get; set; }
+        public ushort OcclusionDamping { get; set; }
+        public ushort EnvironmentalFilterDamping { get; set; }
+        public ushort SourceReverbDamping { get; set; }
+        public ushort DistanceReverbDamping { get; set; }
+        public ushort nteriorReverbDamping { get; set; }
+        public ushort EnvironmentalLoudness { get; set; }
+        public ushort UnderwaterWetLevel { get; set; }
+        public ushort StonedWetLevel { get; set; }
+        public byte Timer { get; set; }
         public byte SubCategoryCount { get; set; }
         public MetaHash[] SubCategories { get; set; }
 
@@ -24062,109 +24062,105 @@ namespace CodeWalker.GameFiles
         }
         public Dat22Category(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk01 = br.ReadInt16();
+            ParentOverrideValue = br.ReadUInt16();
             Volume = br.ReadInt16();
-            Unk03 = br.ReadInt16();
-            LPFCutoff = br.ReadInt16();
+            Pitch = br.ReadInt16();
+            LPFCutoff = br.ReadUInt16();
             LPFCutoffCurve = br.ReadUInt32();
-            HPFCutoff = br.ReadInt16();
+            HPFCutoff = br.ReadUInt16();
             HPFCutoffCurve = br.ReadUInt32();
-            Unk08 = br.ReadInt16();
-            Unk09 = br.ReadInt16();
-            Unk10 = br.ReadInt16();
-            Unk11 = br.ReadInt16();
-            Unk12 = br.ReadInt16();
-            Unk13 = br.ReadInt16();
-            Unk14 = br.ReadInt16();
-            Unk15 = br.ReadInt16();
-            Unk16 = br.ReadInt16();
-            Unk17 = br.ReadInt16();
-            Unk18 = br.ReadByte();
+            DistanceRollOffScale = br.ReadUInt16();
+            PlateauRollOffScale = br.ReadUInt16();
+            OcclusionDamping = br.ReadUInt16();
+            EnvironmentalFilterDamping = br.ReadUInt16();
+            SourceReverbDamping = br.ReadUInt16();
+            DistanceReverbDamping = br.ReadUInt16();
+            nteriorReverbDamping = br.ReadUInt16();
+            EnvironmentalLoudness = br.ReadUInt16();
+            UnderwaterWetLevel = br.ReadUInt16();
+            StonedWetLevel = br.ReadUInt16();
+            Timer = br.ReadByte();
+
             SubCategoryCount = br.ReadByte();
             SubCategories = new MetaHash[SubCategoryCount];
             for (int i = 0; i < SubCategoryCount; i++)
             {
                 SubCategories[i] = br.ReadUInt32();
             }
-
-            if (LPFCutoffCurve != 1757063444)
-            { }
-            if (HPFCutoffCurve != 741353067)
-            { }
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffsetAndFlags(bw);
 
-            bw.Write(Unk01);
+            bw.Write(ParentOverrideValue);
             bw.Write(Volume);
-            bw.Write(Unk03);
+            bw.Write(Pitch);
             bw.Write(LPFCutoff);
             bw.Write(LPFCutoffCurve);
             bw.Write(HPFCutoff);
             bw.Write(HPFCutoffCurve);
-            bw.Write(Unk08);
-            bw.Write(Unk09);
-            bw.Write(Unk10);
-            bw.Write(Unk11);
-            bw.Write(Unk12);
-            bw.Write(Unk13);
-            bw.Write(Unk14);
-            bw.Write(Unk15);
-            bw.Write(Unk16);
-            bw.Write(Unk17);
-            bw.Write(Unk18);
+            bw.Write(DistanceRollOffScale);
+            bw.Write(PlateauRollOffScale);
+            bw.Write(OcclusionDamping);
+            bw.Write(EnvironmentalFilterDamping);
+            bw.Write(SourceReverbDamping);
+            bw.Write(DistanceReverbDamping);
+            bw.Write(nteriorReverbDamping);
+            bw.Write(EnvironmentalLoudness);
+            bw.Write(UnderwaterWetLevel);
+            bw.Write(StonedWetLevel);
+            bw.Write(Timer);
+
             bw.Write(SubCategoryCount);
             for (int i = 0; i < SubCategoryCount; i++)
             {
                 bw.Write(SubCategories[i]);
             }
-
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
-            RelXml.ValueTag(sb, indent, "Unk01", Unk01.ToString());
+            RelXml.ValueTag(sb, indent, "ParentOverrideValue", ParentOverrideValue.ToString());
             RelXml.ValueTag(sb, indent, "Volume", Volume.ToString());
-            RelXml.ValueTag(sb, indent, "Unk03", Unk03.ToString());
+            RelXml.ValueTag(sb, indent, "Pitch", Pitch.ToString());
             RelXml.ValueTag(sb, indent, "LPFCutoff", LPFCutoff.ToString());
             RelXml.StringTag(sb, indent, "LPFCutoffCurve", RelXml.HashString(LPFCutoffCurve));
             RelXml.ValueTag(sb, indent, "HPFCutoff", HPFCutoff.ToString());
             RelXml.StringTag(sb, indent, "HPFCutoffCurve", RelXml.HashString(HPFCutoffCurve));
-            RelXml.ValueTag(sb, indent, "Unk08", Unk08.ToString());
-            RelXml.ValueTag(sb, indent, "Unk09", Unk09.ToString());
-            RelXml.ValueTag(sb, indent, "Unk10", Unk10.ToString());
-            RelXml.ValueTag(sb, indent, "Unk11", Unk11.ToString());
-            RelXml.ValueTag(sb, indent, "Unk12", Unk12.ToString());
-            RelXml.ValueTag(sb, indent, "Unk13", Unk13.ToString());
-            RelXml.ValueTag(sb, indent, "Unk14", Unk14.ToString());
-            RelXml.ValueTag(sb, indent, "Unk15", Unk15.ToString());
-            RelXml.ValueTag(sb, indent, "Unk16", Unk16.ToString());
-            RelXml.ValueTag(sb, indent, "Unk17", Unk17.ToString());
-            RelXml.ValueTag(sb, indent, "Unk18", Unk18.ToString());
+            RelXml.ValueTag(sb, indent, "DistanceRollOffScale", DistanceRollOffScale.ToString());
+            RelXml.ValueTag(sb, indent, "PlateauRollOffScale", PlateauRollOffScale.ToString());
+            RelXml.ValueTag(sb, indent, "OcclusionDamping", OcclusionDamping.ToString());
+            RelXml.ValueTag(sb, indent, "EnvironmentalFilterDamping", EnvironmentalFilterDamping.ToString());
+            RelXml.ValueTag(sb, indent, "SourceReverbDamping", SourceReverbDamping.ToString());
+            RelXml.ValueTag(sb, indent, "DistanceReverbDamping", DistanceReverbDamping.ToString());
+            RelXml.ValueTag(sb, indent, "nteriorReverbDamping", nteriorReverbDamping.ToString());
+            RelXml.ValueTag(sb, indent, "EnvironmentalLoudness", EnvironmentalLoudness.ToString());
+            RelXml.ValueTag(sb, indent, "UnderwaterWetLevel", UnderwaterWetLevel.ToString());
+            RelXml.ValueTag(sb, indent, "StonedWetLevel", StonedWetLevel.ToString());
+            RelXml.ValueTag(sb, indent, "Timer", Timer.ToString());
             RelXml.WriteHashItemArray(sb, SubCategories, indent, "SubCategories");
         }
         public override void ReadXml(XmlNode node)
         {
             Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            Unk01 = (short)Xml.GetChildIntAttribute(node, "Unk01", "value");
+            ParentOverrideValue = (ushort)Xml.GetChildUIntAttribute(node, "ParentOverrideValue", "value");
             Volume = (short)Xml.GetChildIntAttribute(node, "Volume", "value");
-            Unk03 = (short)Xml.GetChildIntAttribute(node, "Unk03", "value");
-            LPFCutoff = (short)Xml.GetChildIntAttribute(node, "LPFCutoff", "value");
+            Pitch = (short)Xml.GetChildIntAttribute(node, "Pitch", "value");
+            LPFCutoff = (ushort)Xml.GetChildUIntAttribute(node, "LPFCutoff", "value");
             LPFCutoffCurve = XmlRel.GetHash(Xml.GetChildInnerText(node, "LPFCutoffCurve"));
-            HPFCutoff = (short)Xml.GetChildIntAttribute(node, "HPFCutoff", "value");
+            HPFCutoff = (ushort)Xml.GetChildUIntAttribute(node, "HPFCutoff", "value");
             HPFCutoffCurve = XmlRel.GetHash(Xml.GetChildInnerText(node, "HPFCutoffCurve"));
-            Unk08 = (short)Xml.GetChildIntAttribute(node, "Unk08", "value");
-            Unk09 = (short)Xml.GetChildIntAttribute(node, "Unk09", "value");
-            Unk10 = (short)Xml.GetChildIntAttribute(node, "Unk10", "value");
-            Unk11 = (short)Xml.GetChildIntAttribute(node, "Unk11", "value");
-            Unk12 = (short)Xml.GetChildIntAttribute(node, "Unk12", "value");
-            Unk13 = (short)Xml.GetChildIntAttribute(node, "Unk13", "value");
-            Unk14 = (short)Xml.GetChildIntAttribute(node, "Unk14", "value");
-            Unk15 = (short)Xml.GetChildIntAttribute(node, "Unk15", "value");
-            Unk16 = (short)Xml.GetChildIntAttribute(node, "Unk16", "value");
-            Unk17 = (short)Xml.GetChildIntAttribute(node, "Unk17", "value");
-            Unk18 = (byte)Xml.GetChildUIntAttribute(node, "Unk18", "value");
+            DistanceRollOffScale = (ushort)Xml.GetChildUIntAttribute(node, "DistanceRollOffScale", "value");
+            PlateauRollOffScale = (ushort)Xml.GetChildUIntAttribute(node, "PlateauRollOffScale", "value");
+            OcclusionDamping = (ushort)Xml.GetChildUIntAttribute(node, "OcclusionDamping", "value");
+            EnvironmentalFilterDamping = (ushort)Xml.GetChildUIntAttribute(node, "EnvironmentalFilterDamping", "value");
+            SourceReverbDamping = (ushort)Xml.GetChildUIntAttribute(node, "SourceReverbDamping", "value");
+            DistanceReverbDamping = (ushort)Xml.GetChildUIntAttribute(node, "DistanceReverbDamping", "value");
+            nteriorReverbDamping = (ushort)Xml.GetChildUIntAttribute(node, "nteriorReverbDamping", "value");
+            EnvironmentalLoudness = (ushort)Xml.GetChildUIntAttribute(node, "EnvironmentalLoudness", "value");
+            UnderwaterWetLevel = (ushort)Xml.GetChildUIntAttribute(node, "UnderwaterWetLevel", "value");
+            StonedWetLevel = (ushort)Xml.GetChildUIntAttribute(node, "StonedWetLevel", "value");
+            Timer = (byte)Xml.GetChildUIntAttribute(node, "Timer", "value");
             SubCategories = XmlRel.ReadHashItemArray(node, "SubCategories");
             SubCategoryCount = (byte)(SubCategories?.Length ?? 0);
         }
