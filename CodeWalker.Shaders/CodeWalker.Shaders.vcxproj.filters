@@ -271,6 +271,9 @@
     <FxCompile Include="LightPS_MS.hlsl">
       <Filter>Lights</Filter>
     </FxCompile>
+    <FxCompile Include="PPVHS.hlsl">
+      <Filter>PostProcessor</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicPS.hlsli">
