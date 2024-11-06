@@ -110,8 +110,6 @@ namespace CodeWalker.Rendering
     {
         public Vector4 invPixelCount;
     }
-
-
     public class PostProcessor
     {
         ComputeShader ReduceTo1DCS;
@@ -119,6 +117,7 @@ namespace CodeWalker.Rendering
         ComputeShader LumBlendCS;
         ComputeShader BloomFilterBPHCS;
         ComputeShader BloomFilterVCS;
+        PixelShader VHSFilterPP;
         PixelShader CopyPixelsPS;
         VertexShader FinalPassVS;
         PixelShader FinalPassPS;
@@ -194,12 +193,14 @@ namespace CodeWalker.Rendering
             byte[] bCopyPixelsPS = PathUtil.ReadAllBytes("Shaders\\PPCopyPixelsPS.cso");
             byte[] bFinalPassVS = PathUtil.ReadAllBytes("Shaders\\PPFinalPassVS.cso");
             byte[] bFinalPassPS = PathUtil.ReadAllBytes("Shaders\\PPFinalPassPS.cso");
+            byte[] bVHSPS = PathUtil.ReadAllBytes("Shaders\\PPVHS.cso"); 
 
             ReduceTo1DCS = new ComputeShader(device, bReduceTo1DCS);
             ReduceTo0DCS = new ComputeShader(device, bReduceTo0DCS);
             LumBlendCS = new ComputeShader(device, bLumBlendCS);
             BloomFilterBPHCS = new ComputeShader(device, bBloomFilterBPHCS);
             BloomFilterVCS = new ComputeShader(device, bBloomFilterVCS);
+            VHSFilterPP = new PixelShader(device, bVHSPS);
             CopyPixelsPS = new PixelShader(device, bCopyPixelsPS);
             FinalPassVS = new VertexShader(device, bFinalPassVS);
             FinalPassPS = new PixelShader(device, bFinalPassPS);
@@ -209,6 +210,8 @@ namespace CodeWalker.Rendering
                 new InputElement("POSITION", 0, Format.R32G32B32A32_Float, 0, 0),
                 new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0),
             });
+
+
 
 
             ReduceCSVars = new GpuVarsBuffer<PostProcessorReduceCSVars>(device);
@@ -227,6 +230,7 @@ namespace CodeWalker.Rendering
 
             GetSampleWeights(ref FilterVCSVars.Vars.avSampleWeights, 3.0f, 1.25f); //init sample weights
             FilterBPHCSVars.Vars.avSampleWeights = FilterVCSVars.Vars.avSampleWeights;
+
         }
         public void Dispose()
         {
@@ -321,6 +325,11 @@ namespace CodeWalker.Rendering
             {
                 ReduceTo1DCS.Dispose();
                 ReduceTo1DCS = null;
+            }
+            if (VHSFilterPP != null)
+            {
+                VHSFilterPP.Dispose();
+                VHSFilterPP = null;
             }
         }
 
@@ -456,6 +465,8 @@ namespace CodeWalker.Rendering
             dxman.SetDefaultRenderTarget(context);
             context.OutputMerger.SetBlendState(BlendState, null, 0xFFFFFFFF);
             FinalPass(context);
+            ProcessVHS(context);
+
         }
 
 
@@ -564,6 +575,35 @@ namespace CodeWalker.Rendering
 
             CopyPixels(context, Width / 8, Height / 8, Bloom0.SRV, Bloom.RTV);
 
+        }
+
+        private void ProcessVHS(DeviceContext context)
+        {
+            // Configura el contexto para no escribir en ningún RTV
+            //context.OutputMerger.SetRenderTargets((RenderTargetView)null);
+
+            // Configura el shader
+            context.PixelShader.Set(VHSFilterPP);
+
+            // Configura la textura de entrada
+            context.PixelShader.SetShaderResource(0, SceneColourSRV); // Esto es t0 en tu shader
+
+            // Configura el sampler state
+            context.PixelShader.SetSampler(0, SampleStatePoint); // Esto es s0 en tu shader
+
+            // Dibujar el quad o aplicar el shader a la pantalla completa
+            context.Rasterizer.SetViewport(Viewport);
+            context.VertexShader.Set(FinalPassVS); // Usamos el mismo vertex shader si es aplicable
+            context.InputAssembler.InputLayout = FinalPassLayout;
+            FinalPassQuad.Draw(context);
+
+            // Limpia las configuraciones
+            context.VertexShader.Set(null);
+            context.PixelShader.Set(null);
+            ShaderResourceView[] nullSRVs = new ShaderResourceView[3] { null, null, null };
+            context.PixelShader.SetShaderResources(0, nullSRVs);
+            context.PixelShader.SetConstantBuffer(0, null);
+            context.PixelShader.SetSampler(0, null);
         }
         private void FinalPass(DeviceContext context)
         {
