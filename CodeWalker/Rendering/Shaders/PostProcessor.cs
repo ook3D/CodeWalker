@@ -469,10 +469,10 @@ namespace CodeWalker.Rendering
             context.OutputMerger.SetRenderTargets((RenderTargetView)null);
             ProcessLuminance(context);
             ProcessBloom(context);
+            dxman.SetDefaultRenderTarget(context);
             context.OutputMerger.SetBlendState(BlendState, null, 0xFFFFFFFF);
             FinalPass(context);
             ProcessVHS(context);
-            dxman.SetDefaultRenderTarget(context);
 
         }
 
