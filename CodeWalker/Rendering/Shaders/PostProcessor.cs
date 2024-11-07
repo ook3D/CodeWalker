@@ -110,6 +110,13 @@ namespace CodeWalker.Rendering
     {
         public Vector4 invPixelCount;
     }
+    public struct PostProcessorVHSVars
+    {
+        public float time;
+        public float time2;
+        public float time3;
+        public float time4;
+    }
     public class PostProcessor
     {
         ComputeShader ReduceTo1DCS;
@@ -128,6 +135,7 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<PostProcessorFilterBPHCSVars> FilterBPHCSVars;
         GpuVarsBuffer<PostProcessorFilterVCSVars> FilterVCSVars;
         GpuVarsBuffer<PostProcessorFinalPSVars> FinalPSVars;
+        GpuVarsBuffer<PostProcessorVHSVars> VHSVars;
 
         GpuTexture Primary;
 
@@ -219,6 +227,7 @@ namespace CodeWalker.Rendering
             FilterBPHCSVars = new GpuVarsBuffer<PostProcessorFilterBPHCSVars>(device);
             FilterVCSVars = new GpuVarsBuffer<PostProcessorFilterVCSVars>(device);
             FinalPSVars = new GpuVarsBuffer<PostProcessorFinalPSVars>(device);
+            VHSVars = new GpuVarsBuffer<PostProcessorVHSVars>(device);
 
             TextureAddressMode a = TextureAddressMode.Clamp;
             Color4 b = new Color4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -458,14 +467,12 @@ namespace CodeWalker.Rendering
             }
 
             context.OutputMerger.SetRenderTargets((RenderTargetView)null);
-
             ProcessLuminance(context);
             ProcessBloom(context);
-
-            dxman.SetDefaultRenderTarget(context);
             context.OutputMerger.SetBlendState(BlendState, null, 0xFFFFFFFF);
             FinalPass(context);
             ProcessVHS(context);
+            dxman.SetDefaultRenderTarget(context);
 
         }
 
@@ -579,25 +586,20 @@ namespace CodeWalker.Rendering
 
         private void ProcessVHS(DeviceContext context)
         {
-            // Configura el contexto para no escribir en ningún RTV
-            //context.OutputMerger.SetRenderTargets((RenderTargetView)null);
 
-            // Configura el shader
             context.PixelShader.Set(VHSFilterPP);
+            VHSVars.Vars.time = ElapsedTime;
+            VHSVars.Update(context);
+            context.PixelShader.SetConstantBuffer(0, VHSVars.Buffer);
+            context.PixelShader.SetShaderResource(0, SceneColourSRV);
 
-            // Configura la textura de entrada
-            context.PixelShader.SetShaderResource(0, SceneColourSRV); // Esto es t0 en tu shader
+            context.PixelShader.SetSampler(0, SampleStatePoint);
 
-            // Configura el sampler state
-            context.PixelShader.SetSampler(0, SampleStatePoint); // Esto es s0 en tu shader
-
-            // Dibujar el quad o aplicar el shader a la pantalla completa
             context.Rasterizer.SetViewport(Viewport);
-            context.VertexShader.Set(FinalPassVS); // Usamos el mismo vertex shader si es aplicable
+            context.VertexShader.Set(FinalPassVS);
             context.InputAssembler.InputLayout = FinalPassLayout;
             FinalPassQuad.Draw(context);
 
-            // Limpia las configuraciones
             context.VertexShader.Set(null);
             context.PixelShader.Set(null);
             ShaderResourceView[] nullSRVs = new ShaderResourceView[3] { null, null, null };
