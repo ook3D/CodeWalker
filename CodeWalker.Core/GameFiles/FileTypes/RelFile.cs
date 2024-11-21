@@ -693,7 +693,7 @@ namespace CodeWalker.GameFiles
                 case Dat151RelType.SpeechParams: return new Dat151SpeechParams(d, br);
                 case Dat151RelType.MeleeCombatSettings: return new Dat151MeleeCombatSettings(d, br);
                 case Dat151RelType.TriggeredSpeechContext: return new Dat151TriggeredSpeechContext(d, br);
-                case Dat151RelType.SpeechContext: return new Dat151SpeechContext(d, br);
+                case Dat151RelType.SpeechContextSettings: return new Dat151SpeechContextSettings(d, br);
                 case Dat151RelType.SpeechContextVirtual: return new Dat151SpeechContextVirtual(d, br);
                 case Dat151RelType.SpeechContextList: return new Dat151SpeechContextList(d, br);
                 case Dat151RelType.ShoeAudioSettings: return new Dat151ShoeAudioSettings(d, br);
@@ -861,7 +861,7 @@ namespace CodeWalker.GameFiles
                         case Dat151RelType.SpeechParams: return new Dat151SpeechParams(this);
                         case Dat151RelType.MeleeCombatSettings: return new Dat151MeleeCombatSettings(this);
                         case Dat151RelType.TriggeredSpeechContext: return new Dat151TriggeredSpeechContext(this);
-                        case Dat151RelType.SpeechContext: return new Dat151SpeechContext(this);
+                        case Dat151RelType.SpeechContextSettings: return new Dat151SpeechContextSettings(this);
                         case Dat151RelType.SpeechContextVirtual: return new Dat151SpeechContextVirtual(this);
                         case Dat151RelType.SpeechContextList: return new Dat151SpeechContextList(this);
                         case Dat151RelType.ShoeAudioSettings: return new Dat151ShoeAudioSettings(this);
@@ -5070,7 +5070,7 @@ namespace CodeWalker.GameFiles
         HeliAudioSettings = 8,
         MeleeCombatSettings = 9, //melee_combat
         TriggeredSpeechContext = 11, //eg. default_speech_context, provoke, apologise, run, etc. contains reference to SpeechContext
-        SpeechContext = 12, //eg. default_speech_context_sc, SpeechChat? SpeechController..? child of TriggeredSpeechContext, Unk13
+        SpeechContextSettings = 12, //eg. default_speech_context_sc, SpeechChat? SpeechController..? child of TriggeredSpeechContext, Unk13
         SpeechContextVirtual = 13, //eg. greet_virtual_sc (has TriggeredSpeechContext children eg. greeting_evening, morning) - TriggeredSpeechContextVirtual..? also can have SpeechContext children instead
         SpeechParams = 14, //speech_params
         SpeechContextList = 15, //contains a list of TriggeredSpeechContext objects. greetings, insults, reactions, provoke, etc. dlc_btl_nightclub_scl, dlc_btl_nightclub_queue_scl
@@ -14586,56 +14586,56 @@ namespace CodeWalker.GameFiles
     }
 
     [TC(typeof(EXP))]
-    public class Dat151SpeechContext : Dat151RelData
+    public class Dat151SpeechContextSettings : Dat151RelData
     {
         public FlagsUint Flags { get; set; }
-        public MetaHash Unk01 { get; set; }
-        public int Unk02 { get; set; }
-        public int Unk03 { get; set; }
-        public byte Unk04 { get; set; }
-        public byte Unk05 { get; set; }
-        public byte Unk06 { get; set; }
-        public byte Unk07 { get; set; }
-        public MetaHash Unk08 { get; set; }
-        public MetaHash Unk09 { get; set; }
-        public byte Unk10 { get; set; }
-        public byte Unk11 { get; set; }
-        public byte Unk12 { get; set; }
-        public byte Unk13 { get; set; }
-        public byte Unk14 { get; set; }
-        public byte Unk15 { get; set; }
-        public byte Unk16 { get; set; }
-        public byte Unk17 { get; set; }
+        public MetaHash ContextName { get; set; }
+        public int RepeatTime { get; set; }
+        public int RepeatTimeOnSameVoice { get; set; }
+        public byte VolumeType { get; set; }
+        public byte Audibility { get; set; }
+        public byte padding00 { get; set; }
+        public byte padding01 { get; set; }
+        public MetaHash GenderNonSpecificVersion { get; set; }
+        public uint TimeCanNextPlay { get; set; }
+        public byte Priority { get; set; }
+        public byte numFakeGestures { get; set; }
+        public byte FakeGesture1 { get; set; }
+        public byte FakeGesture2 { get; set; }
+        public byte FakeGesture3 { get; set; }
+        public byte FakeGesture4 { get; set; }
+        public byte padding02 { get; set; }
+        public byte padding03 { get; set; }
 
 
-        public Dat151SpeechContext(RelFile rel) : base(rel)
+        public Dat151SpeechContextSettings(RelFile rel) : base(rel)
         {
-            Type = Dat151RelType.SpeechContext;
+            Type = Dat151RelType.SpeechContextSettings;
             TypeID = (byte)Type;
         }
-        public Dat151SpeechContext(RelData d, BinaryReader br) : base(d, br)
+        public Dat151SpeechContextSettings(RelData d, BinaryReader br) : base(d, br)
         {
             Flags = br.ReadUInt32();
-            Unk01 = br.ReadUInt32();
-            Unk02 = br.ReadInt32();
-            Unk03 = br.ReadInt32();
-            Unk04 = br.ReadByte();
-            Unk05 = br.ReadByte();
-            Unk06 = br.ReadByte();
-            Unk07 = br.ReadByte();
-            Unk08 = br.ReadUInt32();
-            Unk09 = br.ReadUInt32();
-            Unk10 = br.ReadByte();
-            Unk11 = br.ReadByte();
-            Unk12 = br.ReadByte();
-            Unk13 = br.ReadByte();
+            ContextName = br.ReadUInt32();
+            RepeatTime = br.ReadInt32();
+            RepeatTimeOnSameVoice = br.ReadInt32();
+            VolumeType = br.ReadByte();
+            Audibility = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadByte();
+            GenderNonSpecificVersion = br.ReadUInt32();
+            TimeCanNextPlay = br.ReadUInt32();
+            Priority = br.ReadByte();
+            numFakeGestures = br.ReadByte();
+            FakeGesture1 = br.ReadByte();
+            FakeGesture2 = br.ReadByte();
 
-            if (Unk11 > 2)
+            if (numFakeGestures > 2)
             {
-                Unk14 = br.ReadByte();
-                Unk15 = br.ReadByte();
-                Unk16 = br.ReadByte();
-                Unk17 = br.ReadByte();
+                FakeGesture3 = br.ReadByte();
+                FakeGesture4 = br.ReadByte();
+                padding02 = br.ReadByte();
+                padding03 = br.ReadByte();
             }
         }
         public override void Write(BinaryWriter bw)
@@ -14643,73 +14643,66 @@ namespace CodeWalker.GameFiles
             WriteTypeAndOffset(bw);
 
             bw.Write(Flags);
-            bw.Write(Unk01);
-            bw.Write(Unk02);
-            bw.Write(Unk03);
-            bw.Write(Unk04);
-            bw.Write(Unk05);
-            bw.Write(Unk06);
-            bw.Write(Unk07);
-            bw.Write(Unk08);
-            bw.Write(Unk09);
-            bw.Write(Unk10);
-            bw.Write(Unk11);
-            bw.Write(Unk12);
-            bw.Write(Unk13);
-            if (Unk11 > 2)
+            bw.Write(ContextName);
+            bw.Write(RepeatTime);
+            bw.Write(RepeatTimeOnSameVoice);
+            bw.Write(VolumeType);
+            bw.Write(Audibility);
+            bw.Write(padding00);
+            bw.Write(padding01);
+            bw.Write(GenderNonSpecificVersion);
+            bw.Write(TimeCanNextPlay);
+            bw.Write(Priority);
+            bw.Write(numFakeGestures);
+            bw.Write(FakeGesture1);
+            bw.Write(FakeGesture2);
+
+            if (numFakeGestures > 2)
             {
-                bw.Write(Unk14);
-                bw.Write(Unk15);
-                bw.Write(Unk16);
-                bw.Write(Unk17);
+                bw.Write(FakeGesture3);
+                bw.Write(FakeGesture4);
+                bw.Write(padding02);
+                bw.Write(padding03);
             }
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
-            RelXml.StringTag(sb, indent, "Unk01", RelXml.HashString(Unk01));
-            RelXml.ValueTag(sb, indent, "Unk02", Unk02.ToString());
-            RelXml.ValueTag(sb, indent, "Unk03", Unk03.ToString());
-            RelXml.ValueTag(sb, indent, "Unk04", Unk04.ToString());
-            RelXml.ValueTag(sb, indent, "Unk05", Unk05.ToString());
-            RelXml.ValueTag(sb, indent, "Unk06", Unk06.ToString());
-            RelXml.ValueTag(sb, indent, "Unk07", Unk07.ToString());
-            RelXml.StringTag(sb, indent, "Unk08", RelXml.HashString(Unk08));
-            RelXml.StringTag(sb, indent, "Unk09", RelXml.HashString(Unk09));
-            RelXml.ValueTag(sb, indent, "Unk10", Unk10.ToString());
-            RelXml.ValueTag(sb, indent, "Unk11", Unk11.ToString());
-            RelXml.ValueTag(sb, indent, "Unk12", Unk12.ToString());
-            RelXml.ValueTag(sb, indent, "Unk13", Unk13.ToString());
-            if (Unk11 > 2)
+            RelXml.StringTag(sb, indent, "ContextName", RelXml.HashString(ContextName));
+            RelXml.ValueTag(sb, indent, "RepeatTime", RepeatTime.ToString());
+            RelXml.ValueTag(sb, indent, "RepeatTimeOnSameVoice", RepeatTimeOnSameVoice.ToString());
+            RelXml.ValueTag(sb, indent, "VolumeType", VolumeType.ToString());
+            RelXml.ValueTag(sb, indent, "Audibility", Audibility.ToString());
+            RelXml.StringTag(sb, indent, "GenderNonSpecificVersion", RelXml.HashString(GenderNonSpecificVersion));
+            RelXml.ValueTag(sb, indent, "TimeCanNextPlay", TimeCanNextPlay.ToString());
+            RelXml.ValueTag(sb, indent, "Priority", Priority.ToString());
+            RelXml.ValueTag(sb, indent, "numFakeGestures", numFakeGestures.ToString());
+            RelXml.ValueTag(sb, indent, "FakeGesture1", FakeGesture1.ToString());
+            RelXml.ValueTag(sb, indent, "FakeGesture2", FakeGesture2.ToString());
+            if (numFakeGestures > 2)
             {
-                RelXml.ValueTag(sb, indent, "Unk14", Unk14.ToString());
-                RelXml.ValueTag(sb, indent, "Unk15", Unk15.ToString());
-                RelXml.ValueTag(sb, indent, "Unk16", Unk16.ToString());
-                RelXml.ValueTag(sb, indent, "Unk17", Unk17.ToString());
+                RelXml.ValueTag(sb, indent, "FakeGesture3", FakeGesture3.ToString());
+                RelXml.ValueTag(sb, indent, "FakeGesture4", FakeGesture4.ToString());
             }
         }
         public override void ReadXml(XmlNode node)
         {
             Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            Unk01 = XmlRel.GetHash(Xml.GetChildInnerText(node, "Unk01"));
-            Unk02 = Xml.GetChildIntAttribute(node, "Unk02", "value");
-            Unk03 = Xml.GetChildIntAttribute(node, "Unk03", "value");
-            Unk04 = (byte)Xml.GetChildUIntAttribute(node, "Unk04", "value");
-            Unk05 = (byte)Xml.GetChildUIntAttribute(node, "Unk05", "value");
-            Unk06 = (byte)Xml.GetChildUIntAttribute(node, "Unk06", "value");
-            Unk07 = (byte)Xml.GetChildUIntAttribute(node, "Unk07", "value");
-            Unk08 = XmlRel.GetHash(Xml.GetChildInnerText(node, "Unk08"));
-            Unk09 = XmlRel.GetHash(Xml.GetChildInnerText(node, "Unk09"));
-            Unk10 = (byte)Xml.GetChildUIntAttribute(node, "Unk10", "value");
-            Unk11 = (byte)Xml.GetChildUIntAttribute(node, "Unk11", "value");
-            Unk12 = (byte)Xml.GetChildUIntAttribute(node, "Unk12", "value");
-            Unk13 = (byte)Xml.GetChildUIntAttribute(node, "Unk13", "value");
-            if (Unk11 > 2)
+            ContextName = XmlRel.GetHash(Xml.GetChildInnerText(node, "ContextName"));
+            RepeatTime = Xml.GetChildIntAttribute(node, "RepeatTime", "value");
+            RepeatTimeOnSameVoice = Xml.GetChildIntAttribute(node, "RepeatTimeOnSameVoice", "value");
+            VolumeType = (byte)Xml.GetChildUIntAttribute(node, "VolumeType", "value");
+            Audibility = (byte)Xml.GetChildUIntAttribute(node, "Audibility", "value");
+            GenderNonSpecificVersion = XmlRel.GetHash(Xml.GetChildInnerText(node, "GenderNonSpecificVersion"));
+            TimeCanNextPlay = Xml.GetChildUIntAttribute(node, "TimeCanNextPlay", "value");
+            Priority = (byte)Xml.GetChildUIntAttribute(node, "Priority", "value");
+            numFakeGestures = (byte)Xml.GetChildUIntAttribute(node, "numFakeGestures", "value");
+            FakeGesture1 = (byte)Xml.GetChildUIntAttribute(node, "FakeGesture1", "value");
+            FakeGesture2 = (byte)Xml.GetChildUIntAttribute(node, "FakeGesture2", "value");
+            if (numFakeGestures > 2)
             {
-                Unk14 = (byte)Xml.GetChildUIntAttribute(node, "Unk14", "value");
-                Unk15 = (byte)Xml.GetChildUIntAttribute(node, "Unk15", "value");
-                Unk16 = (byte)Xml.GetChildUIntAttribute(node, "Unk16", "value");
-                Unk17 = (byte)Xml.GetChildUIntAttribute(node, "Unk17", "value");
+                FakeGesture3 = (byte)Xml.GetChildUIntAttribute(node, "FakeGesture3", "value");
+                FakeGesture4 = (byte)Xml.GetChildUIntAttribute(node, "FakeGesture4", "value");
             }
         }
     }
@@ -23119,13 +23112,14 @@ namespace CodeWalker.GameFiles
         }
     }
 
-    [TC(typeof(EXP))] 
+    [TC(typeof(EXP))]
     public class Dat15SceneVariableModuleSettings : Dat15RelData
     {
         public MetaHash SceneVariable { get; set; }//what is this?
         public MetaHash InputOutputCurve { get; set; }
-        public byte ItemCount { get; set; }
-        public float[] Items { get; set; }
+        public byte Input { get; set; }
+        public float ScaleMin { get; set; }
+        public float ScaleMax { get; set; }
 
         public Dat15SceneVariableModuleSettings(RelFile rel) : base(rel)
         {
@@ -23136,12 +23130,9 @@ namespace CodeWalker.GameFiles
         {
             SceneVariable = br.ReadUInt32();
             InputOutputCurve = br.ReadUInt32();
-            ItemCount = br.ReadByte();
-            Items = new float[ItemCount];
-            for (int i = 0; i < ItemCount; i++)
-            {
-                Items[i] = br.ReadSingle();
-            }
+            Input = br.ReadByte();
+            ScaleMin = br.ReadSingle();
+            ScaleMax = br.ReadSingle();
         }
         public override void Write(BinaryWriter bw)
         {
@@ -23149,26 +23140,27 @@ namespace CodeWalker.GameFiles
 
             bw.Write(SceneVariable);
             bw.Write(InputOutputCurve);
-            bw.Write(ItemCount);
-            for (int i = 0; i < ItemCount; i++)
-            {
-                bw.Write(Items[i]);
-            }
+            bw.Write(Input);
+            bw.Write(ScaleMin);
+            bw.Write(ScaleMax);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
             RelXml.StringTag(sb, indent, "SceneVariable", RelXml.HashString(SceneVariable));
             RelXml.StringTag(sb, indent, "InputOutputCurve", RelXml.HashString(InputOutputCurve));
-            RelXml.WriteRawArray(sb, Items, indent, "Items", "", FloatUtil.ToString, 1);
+            RelXml.ValueTag(sb, indent, "Input", Input.ToString());
+            RelXml.ValueTag(sb, indent, "ScaleMin", ScaleMin.ToString());
+            RelXml.ValueTag(sb, indent, "ScaleMax", ScaleMax.ToString());
         }
         public override void ReadXml(XmlNode node)
         {
             Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
             SceneVariable = XmlRel.GetHash(Xml.GetChildInnerText(node, "SceneVariable"));
             InputOutputCurve = XmlRel.GetHash(Xml.GetChildInnerText(node, "InputOutputCurve"));
-            Items = Xml.GetChildRawFloatArray(node, "Items");
-            ItemCount = (byte)(Items?.Length ?? 0);
+            Input = (byte)Xml.GetChildUIntAttribute(node, "Input", "value");
+            ScaleMin = Xml.GetChildFloatAttribute(node, "ScaleMin", "value");
+            ScaleMax = Xml.GetChildFloatAttribute(node, "ScaleMax", "value");
         }
         public override MetaHash[] GetCurveHashes()
         {
