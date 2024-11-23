@@ -8442,8 +8442,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat151VehicleCollisionSettings : Dat151RelData
     {
-        public uint MediumIntensity { get; set; }
-        public uint HighIntensity { get; set; }
+        public MetaHash MediumIntensity { get; set; }
+        public MetaHash HighIntensity { get; set; }
         public MetaHash SmallScrapeImpact { get; set; }
         public MetaHash SlowScrapeImpact { get; set; }
         public MetaHash SlowScrapeLoop { get; set; }
@@ -8495,6 +8495,8 @@ namespace CodeWalker.GameFiles
         public byte NumMeleeMaterialOverrides { get; set; }
         public byte padding00 { get; set; }
         public short padding01 { get; set; }
+        public Dat151VehicleCollisionSettingsItem[] MeleeMaterialOverrides { get; set; }
+
 
         public Dat151VehicleCollisionSettings(RelFile rel) : base(rel)
         {
@@ -8556,6 +8558,11 @@ namespace CodeWalker.GameFiles
             NumMeleeMaterialOverrides = br.ReadByte();
             padding00 = br.ReadByte();
             padding01 = br.ReadInt16();
+            MeleeMaterialOverrides = new Dat151VehicleCollisionSettingsItem[NumMeleeMaterialOverrides];
+            for (int i = 0; i < NumMeleeMaterialOverrides; i++)
+            {
+                MeleeMaterialOverrides[i] = new Dat151VehicleCollisionSettingsItem(br);
+            }
         }
         public override void Write(BinaryWriter bw)
         {
@@ -8614,6 +8621,10 @@ namespace CodeWalker.GameFiles
             bw.Write(NumMeleeMaterialOverrides);
             bw.Write(padding00);
             bw.Write(padding01);
+            for (int i = 0; i < NumMeleeMaterialOverrides; i++)
+            {
+                MeleeMaterialOverrides[i].Write(bw);
+            }
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
@@ -8667,7 +8678,7 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "WaveImpactLoop", RelXml.HashString(WaveImpactLoop));
             RelXml.StringTag(sb, indent, "FragMaterial", RelXml.HashString(FragMaterial));
             RelXml.StringTag(sb, indent, "WheelFragMaterial", RelXml.HashString(WheelFragMaterial));
-            RelXml.ValueTag(sb, indent, "NumMeleeMaterialOverrides", NumMeleeMaterialOverrides.ToString());
+            RelXml.WriteItemArray(sb, MeleeMaterialOverrides, indent, "MeleeMaterialOverrides");
 
         }
         public override void ReadXml(XmlNode node)
@@ -8722,7 +8733,8 @@ namespace CodeWalker.GameFiles
             WaveImpactLoop = XmlRel.GetHash(Xml.GetChildInnerText(node, "WaveImpactLoop"));
             FragMaterial = XmlRel.GetHash(Xml.GetChildInnerText(node, "FragMaterial"));
             WheelFragMaterial = XmlRel.GetHash(Xml.GetChildInnerText(node, "WheelFragMaterial"));
-            NumMeleeMaterialOverrides = (byte)Xml.GetChildUIntAttribute(node, "NumMeleeMaterialOverrides", "value");
+            MeleeMaterialOverrides = XmlRel.ReadItemArray<Dat151VehicleCollisionSettingsItem>(node, "MeleeMaterialOverrides");
+            NumMeleeMaterialOverrides = (byte)(MeleeMaterialOverrides?.Length ?? 0);
         }
         public override uint[] GetHashTableOffsets()
         {
@@ -8744,6 +8756,40 @@ namespace CodeWalker.GameFiles
         public override MetaHash[] GetGameHashes()
         {
             return new[] { VehicleMaterialSettings, FragMaterial, WheelFragMaterial };
+        }
+    }
+
+    [TC(typeof(EXP))]
+    public class Dat151VehicleCollisionSettingsItem : IMetaXmlItem
+    {
+        public MetaHash Material { get; set; }
+        public MetaHash Override { get; set; }
+
+        public Dat151VehicleCollisionSettingsItem()
+        { }
+        public Dat151VehicleCollisionSettingsItem(BinaryReader br)
+        {
+            Material = br.ReadUInt32();
+            Override = br.ReadUInt32();
+        }
+        public void Write(BinaryWriter bw)
+        {
+            bw.Write(Material);
+            bw.Write(Override);
+        }
+        public void WriteXml(StringBuilder sb, int indent)
+        {
+            RelXml.StringTag(sb, indent, "Material", RelXml.HashString(Material));
+            RelXml.StringTag(sb, indent, "Override", RelXml.HashString(Override));
+        }
+        public void ReadXml(XmlNode node)
+        {
+            Material = XmlRel.GetHash(Xml.GetChildInnerText(node, "Material"));
+            Override = XmlRel.GetHash(Xml.GetChildInnerText(node, "Override"));
+        }
+        public override string ToString()
+        {
+            return Material.ToString() + ": " + Override.ToString();
         }
     }
 
