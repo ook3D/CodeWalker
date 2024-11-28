@@ -5645,7 +5645,7 @@ namespace CodeWalker.GameFiles
         }
         public override MetaHash[] GetGameHashes()
         {
-            var hashes = new List<MetaHash> { EnvironmentRule };
+            var hashes = new List<MetaHash> { EnvironmentRule, WindElevationSounds };
             if (Rules != null)
                 hashes.AddRange(Rules);
             if (DirAmbiences != null)
