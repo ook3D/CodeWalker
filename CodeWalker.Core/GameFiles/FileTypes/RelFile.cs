@@ -5778,11 +5778,6 @@ namespace CodeWalker.GameFiles
                 if (brem > 0)
                 {
                     byte[] brema = br.ReadBytes(brem);
-                    //for (int i = 0; i < brem; i++)
-                    //{
-                    //    if (brema[i] != 0)
-                    //    { } //check all remaining bytes are 0 - never hit here
-                    //}
                 }
             }
 
@@ -6398,9 +6393,6 @@ namespace CodeWalker.GameFiles
 
             padding00 = br.ReadUInt16();
 
-            if (padding00 != 0)
-            { }
-
             NumTrackList = br.ReadUInt32();
             var tracks = new MetaHash[NumTrackList];
             for (int i = 0; i < NumTrackList; i++)
@@ -6939,8 +6931,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//BarConstraint
-        public MetaHash Beat { get; set; }//not used but follows same pattern as TrackAction items.
+        public MetaHash Bar { get; set; }  // BarConstraint
+        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
         public float Unk3 { get; set; }
         public int Unk4 { get; set; }
 
@@ -7164,8 +7156,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//BarConstraint
-        public MetaHash Beat { get; set; }//not used but follows same pattern as TrackAction items.
+        public MetaHash Bar { get; set; }  // BarConstraint
+        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
         public float Unk3 { get; set; }
         public MetaHash Mood { get; set; }
         public float Unk4 { get; set; }
@@ -7306,8 +7298,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//BarConstraint
-        public MetaHash Beat { get; set; }//not used but follows same pattern as TrackAction items.
+        public MetaHash Bar { get; set; }  // BarConstraint
+        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
         public float Unk3 { get; set; }
         public MetaHash Sound { get; set; }
         public int Unk5 { get; set; }
@@ -7399,8 +7391,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//BarConstraint
-        public MetaHash Beat { get; set; }//not used but follows same pattern as TrackAction items.
+        public MetaHash Bar { get; set; }  // BarConstraint
+        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
         public int Unk3 { get; set; }
 
         public Dat151StopOneShotAction(RelFile rel) : base(rel)
@@ -7463,8 +7455,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//BarConstraint
-        public MetaHash Beat { get; set; }//not used but follows same pattern as TrackAction items.
+        public MetaHash Bar { get; set; }  // BarConstraint
+        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
         public float Unk3 { get; set; }
         public float Unk4 { get; set; }
 
@@ -7532,8 +7524,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//BarConstraint
-        public MetaHash Beat { get; set; }//not used but follows same pattern as TrackAction items.
+        public MetaHash Bar { get; set; }  // BarConstraint
+        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
         public float Unk3 { get; set; }
         public float Unk4 { get; set; }
 
@@ -7818,6 +7810,7 @@ namespace CodeWalker.GameFiles
             return list.ToArray();
         }
     }
+
     [TC(typeof(EXP))]
     public struct Dat151ModelAudioCollisionSettingsMaterialItem : IMetaXmlItem
     {
@@ -7983,8 +7976,8 @@ namespace CodeWalker.GameFiles
         public MetaHash PedSlideSound { get; set; }
         public MetaHash PedRollSound { get; set; }
         public float TimeInAirToTriggerBigLand { get; set; }
-        public MetaHash MeleeOverideMaterial { get; set; }//another CollisionMaterialSettings
-        public MetaHash SelfName { get; set; }//self reference
+        public MetaHash MeleeOverideMaterial { get; set; }  // another CollisionMaterialSettings
+        public MetaHash SelfName { get; set; }              // self reference
         public MetaHash SlowMoHardImpact { get; set; }
         public MetaHash SlowMoBulletImpactSound { get; set; }
         public MetaHash SlowMoAutomaticBulletImpactSound { get; set; }
@@ -8087,9 +8080,11 @@ namespace CodeWalker.GameFiles
             OffRoadRumbleSound = br.ReadUInt32();
             StealthSweetener = br.ReadUInt32();
             Scuff = br.ReadUInt32();
+
             MaterialType = br.ReadByte();
             SurfacePriority = br.ReadByte();
             padding06 = br.ReadInt16();
+
             WheelSpinLoop = br.ReadUInt32();
             BicycleTyreGritSound = br.ReadUInt32();
             PedSlideSound = br.ReadUInt32();
@@ -8196,9 +8191,11 @@ namespace CodeWalker.GameFiles
             bw.Write(OffRoadRumbleSound);
             bw.Write(StealthSweetener);
             bw.Write(Scuff);
+
             bw.Write(MaterialType);
             bw.Write(SurfacePriority);
             bw.Write(padding06);
+
             bw.Write(WheelSpinLoop);
             bw.Write(BicycleTyreGritSound);
             bw.Write(PedSlideSound);
@@ -8298,7 +8295,7 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "StealthSweetener", RelXml.HashString(StealthSweetener));
             RelXml.StringTag(sb, indent, "Scuff", RelXml.HashString(Scuff));
             RelXml.ValueTag(sb, indent, "MaterialType", MaterialType.ToString());
-            RelXml.StringTag(sb, indent, "SurfacePriority", SurfacePriority.ToString());
+            RelXml.ValueTag(sb, indent, "SurfacePriority", SurfacePriority.ToString());
             RelXml.StringTag(sb, indent, "WheelSpinLoop", RelXml.HashString(WheelSpinLoop));
             RelXml.StringTag(sb, indent, "BicycleTyreGritSound", RelXml.HashString(BicycleTyreGritSound));
             RelXml.StringTag(sb, indent, "PedSlideSound", RelXml.HashString(PedSlideSound));
@@ -8471,7 +8468,7 @@ namespace CodeWalker.GameFiles
         public float FakeImpactSweetenerThreshold { get; set; }
         public MetaHash DamageVolCurve { get; set; }
         public MetaHash JumpLandVolCurve { get; set; }
-        public MetaHash VehicleMaterialSettings { get; set; }//CollisionMaterialSettings
+        public MetaHash VehicleMaterialSettings { get; set; }  // CollisionMaterialSettings
         public MetaHash DeformationSound { get; set; }
         public MetaHash ImpactDebris { get; set; }
         public MetaHash GlassDebris { get; set; }
@@ -8797,7 +8794,7 @@ namespace CodeWalker.GameFiles
     public class Dat151DoorAudioSettings : Dat151RelData
     {
         public MetaHash Sounds { get; set; }
-        public MetaHash TuningParams { get; set; }//type Dat151DoorTuningParams
+        public MetaHash TuningParams { get; set; }  // Dat151DoorTuningParams
         public float MaxOcclusion { get; set; }
 
         public Dat151DoorAudioSettings(RelFile rel) : base(rel)
@@ -8943,8 +8940,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//unused
-        public MetaHash Beat { get; set; }//unused
+        public MetaHash Bar { get; set; }
+        public MetaHash Beat { get; set; }
         public float Unk3 { get; set; }
         public MetaHash RadioStation { get; set; }
         public int Unk5 { get; set; }
@@ -9049,8 +9046,8 @@ namespace CodeWalker.GameFiles
         public FlagsUint Unk0 { get; set; }
         public int Unk1 { get; set; }
         public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//unused
-        public MetaHash Beat { get; set; }//unused
+        public MetaHash Bar { get; set; }
+        public MetaHash Beat { get; set; }
         public float Unk3 { get; set; }
         public MetaHash RadioStation { get; set; }
         public int Unk5 { get; set; }
@@ -9216,7 +9213,7 @@ namespace CodeWalker.GameFiles
     public class Dat151DoorList : Dat151RelData
     {
         public uint DoorsCount { get; set; }
-        public Dat151DoorListItem[] Doors { get; set; }// prop name, Door
+        public Dat151DoorListItem[] Doors { get; set; }  // prop name, Door
 
         public Dat151DoorList(RelFile rel) : base(rel)
         {
@@ -9311,7 +9308,7 @@ namespace CodeWalker.GameFiles
     public class Dat151ShoeList : Dat151RelData
     {
         public uint ShoesCount { get; set; }
-        public Dat151ShoeListItem[] Shoes { get; set; }//types: name?, Shoe
+        public Dat151ShoeListItem[] Shoes { get; set; }  // ShoeAudioSettings
 
         public Dat151ShoeList(RelFile rel) : base(rel)
         {
@@ -9406,7 +9403,7 @@ namespace CodeWalker.GameFiles
     public class Dat151ClothList : Dat151RelData
     {
         public uint ClothesCount { get; set; }
-        public Dat151ClothListItem[] Clothes { get; set; }//types
+        public Dat151ClothListItem[] Clothes { get; set; } // ClothAudioSettings
 
         public Dat151ClothList(RelFile rel) : base(rel)
         {
@@ -9501,7 +9498,7 @@ namespace CodeWalker.GameFiles
     public class Dat151CarRecordingList : Dat151RelData
     {
         public uint CarRecordingsCount { get; set; }
-        public Dat151CarRecordingListItem[] CarRecordings { get; set; }//types: ???, CarRecording
+        public Dat151CarRecordingListItem[] CarRecordings { get; set; }  // CarRecordingAudioSettings
 
         public Dat151CarRecordingList(RelFile rel) : base(rel)
         {
@@ -9596,7 +9593,7 @@ namespace CodeWalker.GameFiles
     public class Dat151WeatherTypeAudioSettingsAudioReference : Dat151RelData
     {
         public uint WeatherTypesCount { get; set; }
-        public Dat151WeatherTypeAudioSettingsAudioReferenceItem[] WeatherTypes { get; set; }//types: name, WeatherType
+        public Dat151WeatherTypeAudioSettingsAudioReferenceItem[] WeatherTypes { get; set; }   // WeatherAudioSettings
 
         public Dat151WeatherTypeAudioSettingsAudioReference(RelFile rel) : base(rel)
         {
@@ -10106,7 +10103,9 @@ namespace CodeWalker.GameFiles
             return ShoreLines;
         }
     }
-    [TC(typeof(EXP))] public class Dat151RadioTrackTextIDs : Dat151RelData
+
+    [TC(typeof(EXP))] 
+    public class Dat151RadioTrackTextIDs : Dat151RelData
     {
         public uint EventCount { get; set; }
         public EventData[] Events { get; set; }
@@ -14142,8 +14141,7 @@ namespace CodeWalker.GameFiles
         }
 
         public Dat151AnimalParamsItem()
-        {
-        }
+        { }
         public Dat151AnimalParamsItem(BinaryReader br)
         {
             var data = br.ReadBytes(32);
@@ -15441,19 +15439,19 @@ namespace CodeWalker.GameFiles
     public class Dat151PedRaceToPedVoiceGroup : Dat151RelData
     {
         public FlagsUint Flags { get; set; }
-        public MetaHash Universal { get; set; }//uni
-        public MetaHash White { get; set; }//whi
-        public MetaHash Black { get; set; }//bla
-        public MetaHash Chinese { get; set; }//chi
-        public MetaHash Latino { get; set; }//lat
-        public MetaHash Arabic { get; set; }//ara
-        public MetaHash Baltic { get; set; }//bal
-        public MetaHash Jamaican { get; set; }//jam
-        public MetaHash Korean { get; set; }//kor
-        public MetaHash Italian { get; set; }//ita
-        public MetaHash Pakistani { get; set; }//pak
+        public MetaHash Universal { get; set; }  // uni
+        public MetaHash White { get; set; }      // whi
+        public MetaHash Black { get; set; }      // bla
+        public MetaHash Chinese { get; set; }    // chi
+        public MetaHash Latino { get; set; }     // lat
+        public MetaHash Arabic { get; set; }     // ara
+        public MetaHash Baltic { get; set; }     // bal
+        public MetaHash Jamaican { get; set; }   // jam
+        public MetaHash Korean { get; set; }     // kor
+        public MetaHash Italian { get; set; }    // ita
+        public MetaHash Pakistani { get; set; }  // pak
         public int FriendGroupsCount { get; set; }
-        public MetaHash[] FriendGroups { get; set; }//FriendGroup
+        public MetaHash[] FriendGroups { get; set; }  // FriendGroup
 
         public Dat151PedRaceToPedVoiceGroup(RelFile rel) : base(rel)
         {
@@ -15681,7 +15679,6 @@ namespace CodeWalker.GameFiles
         public Dat151ScannerSpecificLocationSounds()
         { }
 
-
         public Dat151ScannerSpecificLocationSounds(BinaryReader br)
         {
             Sound = br.ReadUInt32();
@@ -15838,8 +15835,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat151AmbientSlotMapItem : IMetaXmlItem
     {
-        public MetaHash WaveSlot { get; set; }//eg. amb_stream_bird_01  (from audioconfig)
-        public MetaHash BankName { get; set; }//eg. streamed_birds  (also in AmbientBankMap)
+        public MetaHash WaveSlot { get; set; }  // eg. amb_stream_bird_01  (from audioconfig)
+        public MetaHash BankName { get; set; }  // eg. streamed_birds  (also in AmbientBankMap)
         public int Priority { get; set; }
 
         public Dat151AmbientSlotMapItem()
@@ -17765,7 +17762,7 @@ namespace CodeWalker.GameFiles
     }
 
     [TC(typeof(EXP))] 
-    public class Dat151RadioTrackSettings : Dat151RelData //_rts, _radio_settings (plays a specific radio track song)
+    public class Dat151RadioTrackSettings : Dat151RelData // _rts, _radio_settings (plays a specific radio track song)
     {
         public MetaHash Sound { get; set; }
         public int Category { get; set; }
@@ -18749,11 +18746,6 @@ namespace CodeWalker.GameFiles
 
             var brem = (4 - ((ItemCount + 1) % 4)) % 4;
             var pads = br.ReadBytes(brem);
-            foreach (var b in pads)
-            {
-                if (b != 0)
-                { }
-            }
         }
         public override void Write(BinaryWriter bw)
         {
@@ -19814,7 +19806,7 @@ namespace CodeWalker.GameFiles
     }
 
     [TC(typeof(EXP))]
-    public class Dat151FoliageSettings : Dat151RelData //prop_bush_lrg_02
+    public class Dat151FoliageSettings : Dat151RelData
     {
         public MetaHash Run { get; set; }
         public MetaHash Sprint { get; set; }
@@ -19858,7 +19850,7 @@ namespace CodeWalker.GameFiles
     }
 
     [TC(typeof(EXP))] 
-    public class Dat151ModelAudioCollisionSettingsOverrideList : Dat151RelData //macs_models_overrides
+    public class Dat151ModelAudioCollisionSettingsOverrideList : Dat151RelData
     {
         public int ItemCount { get; set; }
         public Dat151ModelAudioCollisionSettingsOverrideListItem[] Items { get; set; }
