@@ -693,7 +693,7 @@ namespace CodeWalker.GameFiles
                 case Dat151RelType.SpeechParams: return new Dat151SpeechParams(d, br);
                 case Dat151RelType.MeleeCombatSettings: return new Dat151MeleeCombatSettings(d, br);
                 case Dat151RelType.TriggeredSpeechContext: return new Dat151TriggeredSpeechContext(d, br);
-                case Dat151RelType.SpeechContextSettings: return new Dat151SpeechContextSettings(d, br);
+                case Dat151RelType.SpeechContext: return new Dat151SpeechContext(d, br);
                 case Dat151RelType.SpeechContextVirtual: return new Dat151SpeechContextVirtual(d, br);
                 case Dat151RelType.SpeechContextList: return new Dat151SpeechContextList(d, br);
                 case Dat151RelType.ShoeAudioSettings: return new Dat151ShoeAudioSettings(d, br);
@@ -861,7 +861,7 @@ namespace CodeWalker.GameFiles
                         case Dat151RelType.SpeechParams: return new Dat151SpeechParams(this);
                         case Dat151RelType.MeleeCombatSettings: return new Dat151MeleeCombatSettings(this);
                         case Dat151RelType.TriggeredSpeechContext: return new Dat151TriggeredSpeechContext(this);
-                        case Dat151RelType.SpeechContextSettings: return new Dat151SpeechContextSettings(this);
+                        case Dat151RelType.SpeechContext: return new Dat151SpeechContext(this);
                         case Dat151RelType.SpeechContextVirtual: return new Dat151SpeechContextVirtual(this);
                         case Dat151RelType.SpeechContextList: return new Dat151SpeechContextList(this);
                         case Dat151RelType.ShoeAudioSettings: return new Dat151ShoeAudioSettings(this);
@@ -5069,8 +5069,9 @@ namespace CodeWalker.GameFiles
         EntityEmitter = 7, //ee_, entity emitters for props such as fans, radars, etc
         HeliAudioSettings = 8,
         MeleeCombatSettings = 9, //melee_combat
+        SpeechContextSettings = 10,
         TriggeredSpeechContext = 11, //eg. default_speech_context, provoke, apologise, run, etc. contains reference to SpeechContext
-        SpeechContextSettings = 12, //eg. default_speech_context_sc, SpeechChat? SpeechController..? child of TriggeredSpeechContext, Unk13
+        SpeechContext = 12, //eg. default_speech_context_sc, SpeechChat? SpeechController..? child of TriggeredSpeechContext, Unk13
         SpeechContextVirtual = 13, //eg. greet_virtual_sc (has TriggeredSpeechContext children eg. greeting_evening, morning) - TriggeredSpeechContextVirtual..? also can have SpeechContext children instead
         SpeechParams = 14, //speech_params
         SpeechContextList = 15, //contains a list of TriggeredSpeechContext objects. greetings, insults, reactions, provoke, etc. dlc_btl_nightclub_scl, dlc_btl_nightclub_queue_scl
@@ -14638,7 +14639,7 @@ namespace CodeWalker.GameFiles
     }
 
     [TC(typeof(EXP))]
-    public class Dat151SpeechContextSettings : Dat151RelData
+    public class Dat151SpeechContext : Dat151RelData
     {
         public FlagsUint Flags { get; set; }
         public MetaHash ContextName { get; set; }
@@ -14660,12 +14661,12 @@ namespace CodeWalker.GameFiles
         public byte padding03 { get; set; }
 
 
-        public Dat151SpeechContextSettings(RelFile rel) : base(rel)
+        public Dat151SpeechContext(RelFile rel) : base(rel)
         {
-            Type = Dat151RelType.SpeechContextSettings;
+            Type = Dat151RelType.SpeechContext;
             TypeID = (byte)Type;
         }
-        public Dat151SpeechContextSettings(RelData d, BinaryReader br) : base(d, br)
+        public Dat151SpeechContext(RelData d, BinaryReader br) : base(d, br)
         {
             Flags = br.ReadUInt32();
             ContextName = br.ReadUInt32();
