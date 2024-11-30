@@ -13306,7 +13306,9 @@ namespace CodeWalker.GameFiles
         public MetaHash ScannerModel { get; set; }
         public MetaHash ScannerCategory { get; set; }
         public MetaHash ScannerVehicleSettings { get; set; }
-        public int RadioType { get; set; }
+        public byte RadioType { get; set; }
+        public byte RadioGenre { get; set; }
+        public short padding0 { get; set; }
         public MetaHash DoorOpen { get; set; }
         public MetaHash DoorClose { get; set; }
         public MetaHash DoorLimit { get; set; }
@@ -13411,7 +13413,9 @@ namespace CodeWalker.GameFiles
             ScannerModel = br.ReadUInt32();
             ScannerCategory = br.ReadUInt32();
             ScannerVehicleSettings = br.ReadUInt32();
-            RadioType = br.ReadInt32();
+            RadioType = br.ReadByte();
+            RadioGenre = br.ReadByte();
+            padding0 = br.ReadInt16();
             DoorOpen = br.ReadUInt32();
             DoorClose = br.ReadUInt32();
             DoorLimit = br.ReadUInt32();
@@ -13520,6 +13524,8 @@ namespace CodeWalker.GameFiles
             bw.Write(ScannerCategory);
             bw.Write(ScannerVehicleSettings);
             bw.Write(RadioType);
+            bw.Write(RadioGenre);
+            bw.Write(padding0);
             bw.Write(DoorOpen);
             bw.Write(DoorClose);
             bw.Write(DoorLimit);
@@ -13621,6 +13627,7 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "ScannerCategory", RelXml.HashString(ScannerCategory));
             RelXml.StringTag(sb, indent, "ScannerVehicleSettings", RelXml.HashString(ScannerVehicleSettings));
             RelXml.ValueTag(sb, indent, "RadioType", RadioType.ToString());
+            RelXml.ValueTag(sb, indent, "RadioGenre", RadioGenre.ToString());
             RelXml.StringTag(sb, indent, "DoorOpen", RelXml.HashString(DoorOpen));
             RelXml.StringTag(sb, indent, "DoorClose", RelXml.HashString(DoorClose));
             RelXml.StringTag(sb, indent, "DoorLimit", RelXml.HashString(DoorLimit));
@@ -13721,7 +13728,8 @@ namespace CodeWalker.GameFiles
             ScannerModel = XmlRel.GetHash(Xml.GetChildInnerText(node, "ScannerModel"));
             ScannerCategory = XmlRel.GetHash(Xml.GetChildInnerText(node, "ScannerCategory"));
             ScannerVehicleSettings = XmlRel.GetHash(Xml.GetChildInnerText(node, "ScannerVehicleSettings"));
-            RadioType = Xml.GetChildIntAttribute(node, "RadioType", "value");
+            RadioType = (byte)Xml.GetChildIntAttribute(node, "RadioType", "value");
+            RadioGenre = (byte)Xml.GetChildIntAttribute(node, "RadioGenre", "value");
             DoorOpen = XmlRel.GetHash(Xml.GetChildInnerText(node, "DoorOpen"));
             DoorClose = XmlRel.GetHash(Xml.GetChildInnerText(node, "DoorClose"));
             DoorLimit = XmlRel.GetHash(Xml.GetChildInnerText(node, "DoorLimit"));
