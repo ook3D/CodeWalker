@@ -14361,7 +14361,7 @@ namespace CodeWalker.GameFiles
             RelXml.ValueTag(sb, indent, "PreloadTimeoutInMs", PreloadTimeoutInMs.ToString());
             RelXml.ValueTag(sb, indent, "RequestedVolume", RequestedVolume.ToString());
             RelXml.ValueTag(sb, indent, "Audibility", Audibility.ToString());
-            RelXml.StringTag(sb, indent, "RepeatTime", RepeatTime.ToString());
+            RelXml.ValueTag(sb, indent, "RepeatTime", RepeatTime.ToString());
             RelXml.ValueTag(sb, indent, "RepeatTimeOnSameVoice", RepeatTimeOnSameVoice.ToString());
         }
         public override void ReadXml(XmlNode node)
