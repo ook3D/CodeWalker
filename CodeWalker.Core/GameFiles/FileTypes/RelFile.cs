@@ -679,7 +679,7 @@ namespace CodeWalker.GameFiles
                 case Dat151RelType.VehicleEngineAudioSettings: return new Dat151VehicleEngineAudioSettings(d, br);
                 case Dat151RelType.ScannerVehicleParams: return new Dat151ScannerVehicleParams(d, br);
                 case Dat151RelType.StaticEmitter: return new Dat151StaticEmitter(d, br);
-                case Dat151RelType.WeaponAudioSettings: return new Dat151WeaponAudioSettings(d, br);
+                case Dat151RelType.WeaponSettings: return new Dat151WeaponSettings(d, br);
                 case Dat151RelType.ExplosionAudioSettings: return new Dat151ExplosionAudioSettings(d, br);
                 case Dat151RelType.PedVoiceGroups: return new Dat151PedVoiceGroups(d, br);
                 case Dat151RelType.EntityEmitter: return new Dat151EntityEmitter(d, br);
@@ -847,7 +847,7 @@ namespace CodeWalker.GameFiles
                         case Dat151RelType.VehicleEngineAudioSettings: return new Dat151VehicleEngineAudioSettings(this);
                         case Dat151RelType.ScannerVehicleParams: return new Dat151ScannerVehicleParams(this);
                         case Dat151RelType.StaticEmitter: return new Dat151StaticEmitter(this);
-                        case Dat151RelType.WeaponAudioSettings: return new Dat151WeaponAudioSettings(this);
+                        case Dat151RelType.WeaponSettings: return new Dat151WeaponSettings(this);
                         case Dat151RelType.ExplosionAudioSettings: return new Dat151ExplosionAudioSettings(this);
                         case Dat151RelType.PedVoiceGroups: return new Dat151PedVoiceGroups(this);
                         case Dat151RelType.EntityEmitter: return new Dat151EntityEmitter(this);
@@ -1092,7 +1092,7 @@ namespace CodeWalker.GameFiles
                             case Dat151RelType.AmbientBankMap:
                             case Dat151RelType.TrailerAudioSettings:
                             case Dat151RelType.StaticEmitterList:
-                            case Dat151RelType.WeaponAudioSettings:
+                            case Dat151RelType.WeaponSettings:
                             case Dat151RelType.CarAudioSettings:
                             case Dat151RelType.StopTrackAction:
                                 while ((ms.Position & 3) != 0) bw.Write((byte)0); //align these to nearest 4 bytes
@@ -5076,7 +5076,7 @@ namespace CodeWalker.GameFiles
         SpeechParams = 14, //speech_params
         SpeechContextList = 15, //contains a list of TriggeredSpeechContext objects. greetings, insults, reactions, provoke, etc. dlc_btl_nightclub_scl, dlc_btl_nightclub_queue_scl
         BoatAudioSettings = 16, //and submarines
-        WeaponAudioSettings = 17,//individual weapons (and _npc weapons)
+        WeaponSettings = 17,//individual weapons (and _npc weapons)
         ShoeAudioSettings = 18, //footsteps_generic, shoe_, etc.
         ModelPhysicsParams = 22, //player/creature foostep tuning stuff
         SkiAudioSettings = 23, //skis_generic, listed under some CollisionMaterialSettings but obviously unused :(
@@ -11409,7 +11409,7 @@ namespace CodeWalker.GameFiles
     }
 
     [TC(typeof(EXP))] 
-    public class Dat151WeaponAudioSettings : Dat151RelData
+    public class Dat151WeaponSettings : Dat151RelData
     {
         public FlagsUint Flags { get; set; }
         public MetaHash FireSound { get; set; }
@@ -11457,8 +11457,8 @@ namespace CodeWalker.GameFiles
         public MetaHash SlowMoBigAnimalStrikeSoundPresuck { get; set; }
         public MetaHash SlowMoSmallAnimalStrikeSound { get; set; }
         public MetaHash SlowMoSmallAnimalStrikeSoundPresuck { get; set; }
-        public MetaHash SlowMoFireSoundPresuckTime { get; set; }
-        public MetaHash SlowMoSuppressedFireSoundPresuckTime { get; set; }
+        public int SlowMoFireSoundPresuckTime { get; set; }
+        public int SlowMoSuppressedFireSoundPresuckTime { get; set; }
         public int SlowMoPedStrikeSoundPresuckTime { get; set; }
         public int SlowMoBigAnimalStrikeSoundPresuckTime { get; set; }
         public int SlowMoSmallAnimalStrikeSoundPresuckTime { get; set; }
@@ -11483,12 +11483,12 @@ namespace CodeWalker.GameFiles
         public int Version { get; set; }
 
 
-        public Dat151WeaponAudioSettings(RelFile rel) : base(rel)
+        public Dat151WeaponSettings(RelFile rel) : base(rel)
         {
-            Type = Dat151RelType.WeaponAudioSettings;
+            Type = Dat151RelType.WeaponSettings;
             TypeID = (byte)Type;
         }
-        public Dat151WeaponAudioSettings(RelData d, BinaryReader br) : base(d, br)
+        public Dat151WeaponSettings(RelData d, BinaryReader br) : base(d, br)
         {
             Flags = br.ReadUInt32();
             FireSound = br.ReadUInt32();
@@ -11546,8 +11546,8 @@ namespace CodeWalker.GameFiles
                     SlowMoBigAnimalStrikeSoundPresuck = br.ReadUInt32();
                     SlowMoSmallAnimalStrikeSound = br.ReadUInt32();
                     SlowMoSmallAnimalStrikeSoundPresuck = br.ReadUInt32();
-                    SlowMoFireSoundPresuckTime = br.ReadUInt32();
-                    SlowMoSuppressedFireSoundPresuckTime = br.ReadUInt32();
+                    SlowMoFireSoundPresuckTime = br.ReadInt32();
+                    SlowMoSuppressedFireSoundPresuckTime = br.ReadInt32();
 
                     if (bytesleft >= 64) // if bytes left is greater than or equal to 64, read values
                     {
@@ -11721,8 +11721,8 @@ namespace CodeWalker.GameFiles
                 RelXml.StringTag(sb, indent, "SlowMoBigAnimalStrikeSoundPresuck", RelXml.HashString(SlowMoBigAnimalStrikeSoundPresuck));
                 RelXml.StringTag(sb, indent, "SlowMoSmallAnimalStrikeSound", RelXml.HashString(SlowMoSmallAnimalStrikeSound));
                 RelXml.StringTag(sb, indent, "SlowMoSmallAnimalStrikeSoundPresuck", RelXml.HashString(SlowMoSmallAnimalStrikeSoundPresuck));
-                RelXml.StringTag(sb, indent, "SlowMoFireSoundPresuckTime", RelXml.HashString(SlowMoFireSoundPresuckTime));
-                RelXml.StringTag(sb, indent, "SlowMoSuppressedFireSoundPresuckTime", RelXml.HashString(SlowMoSuppressedFireSoundPresuckTime));
+                RelXml.ValueTag(sb, indent, "SlowMoFireSoundPresuckTime", SlowMoFireSoundPresuckTime.ToString());
+                RelXml.ValueTag(sb, indent, "SlowMoSuppressedFireSoundPresuckTime", SlowMoSuppressedFireSoundPresuckTime.ToString());
 
                 if (Version >= 2)
                 {
@@ -11805,8 +11805,8 @@ namespace CodeWalker.GameFiles
                 SlowMoBigAnimalStrikeSoundPresuck = XmlRel.GetHash(Xml.GetChildInnerText(node, "SlowMoBigAnimalStrikeSoundPresuck"));
                 SlowMoSmallAnimalStrikeSound = XmlRel.GetHash(Xml.GetChildInnerText(node, "SlowMoSmallAnimalStrikeSound"));
                 SlowMoSmallAnimalStrikeSoundPresuck = XmlRel.GetHash(Xml.GetChildInnerText(node, "SlowMoSmallAnimalStrikeSoundPresuck"));
-                SlowMoFireSoundPresuckTime = XmlRel.GetHash(Xml.GetChildInnerText(node, "SlowMoFireSoundPresuckTime"));
-                SlowMoSuppressedFireSoundPresuckTime = XmlRel.GetHash(Xml.GetChildInnerText(node, "SlowMoSuppressedFireSoundPresuckTime"));
+                SlowMoFireSoundPresuckTime = Xml.GetChildIntAttribute(node, "SlowMoFireSoundPresuckTime", "value");
+                SlowMoSuppressedFireSoundPresuckTime = Xml.GetChildIntAttribute(node, "SlowMoSuppressedFireSoundPresuckTime", "value");
 
                 if (Version >= 2)
                 {
@@ -11841,7 +11841,7 @@ namespace CodeWalker.GameFiles
         {
             return new[] { FireSound, SuppressedFireSound, AutoSound, ReportSound, EchoSound, SuppressedEchoSound, ShellCasingSound, SwipeSound, GeneralStrikeSound, PedStrikeSound, HeftSound, PutDownSound, RattleSound, RattleLandSound, PickupSound,
                 SafetyOn, SafetyOff, SpecialWeaponSoundSet, BankSound, InteriorShotSound, ReloadSounds, IntoCoverSound, OutOfCoverSound, RattleAimSound, SmallAnimalStrikeSound, BigAnimalStrikeSound, SlowMoFireSound, HitPedSound, SlowMoFireSoundPresuck, SlowMoSuppressedFireSound, SlowMoSuppressedFireSoundPresuck, SlowMoReportSound,
-                SlowMoInteriorShotSound, SlowMoPedStrikeSound, SlowMoPedStrikeSoundPresuck, SlowMoBigAnimalStrikeSound, SlowMoBigAnimalStrikeSoundPresuck, SlowMoSmallAnimalStrikeSound, SlowMoSmallAnimalStrikeSoundPresuck, SlowMoFireSoundPresuckTime, SlowMoSuppressedFireSoundPresuckTime, SuperSlowMoFireSound, SuperSlowMoFireSoundPresuck, SuperSlowMoSuppressedFireSound, SuperSlowMoSuppressedFireSoundPresuck, SuperSlowMoReportSound, SuperSlowMoInteriorShotSound, SuperSlowMoPedStrikeSound, SuperSlowMoPedStrikeSoundPresuck, SuperSlowMoBigAnimalStrikeSound, SuperSlowMoBigAnimalStrikeSoundPresuck, SuperSlowMoSmallAnimalStrikeSound, SuperSlowMoSmallAnimalStrikeSoundPresuck };
+                SlowMoInteriorShotSound, SlowMoPedStrikeSound, SlowMoPedStrikeSoundPresuck, SlowMoBigAnimalStrikeSound, SlowMoBigAnimalStrikeSoundPresuck, SlowMoSmallAnimalStrikeSound, SlowMoSmallAnimalStrikeSoundPresuck, SuperSlowMoFireSound, SuperSlowMoFireSoundPresuck, SuperSlowMoSuppressedFireSound, SuperSlowMoSuppressedFireSoundPresuck, SuperSlowMoReportSound, SuperSlowMoInteriorShotSound, SuperSlowMoPedStrikeSound, SuperSlowMoPedStrikeSoundPresuck, SuperSlowMoBigAnimalStrikeSound, SuperSlowMoBigAnimalStrikeSoundPresuck, SuperSlowMoSmallAnimalStrikeSound, SuperSlowMoSmallAnimalStrikeSoundPresuck };
         }
     }
 
@@ -12444,8 +12444,8 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "HornLoop", RelXml.HashString(HornLoop));
             RelXml.StringTag(sb, indent, "IgnitionOneShot", RelXml.HashString(IgnitionOneShot));
             RelXml.StringTag(sb, indent, "ShutdownOneShot", RelXml.HashString(ShutdownOneShot));
-            RelXml.StringTag(sb, indent, "EngineVolPostSubmix", EngineVolPostSubmix.ToString());
-            RelXml.StringTag(sb, indent, "ExhaustVolPostSubmix", ExhaustVolPostSubmix.ToString());
+            RelXml.ValueTag(sb, indent, "EngineVolPostSubmix", EngineVolPostSubmix.ToString());
+            RelXml.ValueTag(sb, indent, "ExhaustVolPostSubmix", ExhaustVolPostSubmix.ToString());
             RelXml.StringTag(sb, indent, "EngineSynthDef", RelXml.HashString(EngineSynthDef));
             RelXml.StringTag(sb, indent, "EngineSynthPreset", RelXml.HashString(EngineSynthPreset));
             RelXml.StringTag(sb, indent, "ExhaustSynthDef", RelXml.HashString(ExhaustSynthDef));
@@ -15229,13 +15229,13 @@ namespace CodeWalker.GameFiles
         public override void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.StringTag(sb, indent, "StraightSound", RelXml.HashString(StraightSound));
-            RelXml.StringTag(sb, indent, "MinSpeed", FloatUtil.ToString(MinSpeed));
+            RelXml.ValueTag(sb, indent, "MinSpeed", FloatUtil.ToString(MinSpeed));
             RelXml.ValueTag(sb, indent, "MaxSpeed", FloatUtil.ToString(MaxSpeed));
             RelXml.StringTag(sb, indent, "TurnSound", RelXml.HashString(TurnSound));
-            RelXml.StringTag(sb, indent, "MinTurn", FloatUtil.ToString(MinTurn));
+            RelXml.ValueTag(sb, indent, "MinTurn", FloatUtil.ToString(MinTurn));
             RelXml.ValueTag(sb, indent, "MaxTurn", FloatUtil.ToString(MaxTurn));
             RelXml.StringTag(sb, indent, "TurnEdgeSound", RelXml.HashString(TurnEdgeSound));
-            RelXml.StringTag(sb, indent, "MinSlopeEdge", FloatUtil.ToString(MinSlopeEdge));
+            RelXml.ValueTag(sb, indent, "MinSlopeEdge", FloatUtil.ToString(MinSlopeEdge));
             RelXml.ValueTag(sb, indent, "MaxSlopeEdge", FloatUtil.ToString(MaxSlopeEdge));
         }
         public override void ReadXml(XmlNode node)
