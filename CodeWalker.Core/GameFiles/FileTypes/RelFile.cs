@@ -13868,12 +13868,12 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "LinkStressSound", RelXml.HashString(LinkStressSound));
             RelXml.StringTag(sb, indent, "ModelCollisionSettings", RelXml.HashString(ModelCollisionSettings));
             RelXml.StringTag(sb, indent, "FireAudio", RelXml.HashString(FireAudio));
-            RelXml.StringTag(sb, indent, "TrailerBumpVolumeBoost", TrailerBumpVolumeBoost.ToString());
+            RelXml.ValueTag(sb, indent, "TrailerBumpVolumeBoost", TrailerBumpVolumeBoost.ToString());
             RelXml.ValueTag(sb, indent, "ClatterSensitivityScalar", FloatUtil.ToString(ClatterSensitivityScalar));
             RelXml.ValueTag(sb, indent, "ClatterVolumeBoost", ClatterVolumeBoost.ToString());
             RelXml.ValueTag(sb, indent, "ChassisStressSensitivityScalar", FloatUtil.ToString(ChassisStressSensitivityScalar));
             RelXml.ValueTag(sb, indent, "ChassisStressVolumeBoost", ChassisStressVolumeBoost.ToString());
-            RelXml.StringTag(sb, indent, "LinkStressVolumeBoost", LinkStressVolumeBoost.ToString());
+            RelXml.ValueTag(sb, indent, "LinkStressVolumeBoost", LinkStressVolumeBoost.ToString());
             RelXml.ValueTag(sb, indent, "LinkStressSensitivityScalar", FloatUtil.ToString(LinkStressSensitivityScalar));
         }
         public override void ReadXml(XmlNode node)
@@ -16172,7 +16172,7 @@ namespace CodeWalker.GameFiles
         {
             RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
             RelXml.ValueTag(sb, indent, "OpenThresh", FloatUtil.ToString(OpenThresh));
-            RelXml.StringTag(sb, indent, "HeadingThresh", FloatUtil.ToString(HeadingThresh));
+            RelXml.ValueTag(sb, indent, "HeadingThresh", FloatUtil.ToString(HeadingThresh));
             RelXml.ValueTag(sb, indent, "ClosedThresh", FloatUtil.ToString(ClosedThresh));
             RelXml.ValueTag(sb, indent, "SpeedThresh", FloatUtil.ToString(SpeedThresh));
             RelXml.ValueTag(sb, indent, "SpeedScale", FloatUtil.ToString(SpeedScale));
@@ -17915,15 +17915,15 @@ namespace CodeWalker.GameFiles
             RelXml.ValueTag(sb, indent, "DragScuffProbability", FloatUtil.ToString(DragScuffProbability));
             RelXml.ValueTag(sb, indent, "DirtVolumeOffset", FloatUtil.ToString(DirtVolumeOffset));
             RelXml.ValueTag(sb, indent, "DirtLPFCutoff", DirtLPFCutoff.ToString());
-            RelXml.StringTag(sb, indent, "DirtAttackTime", DirtAttackTime.ToString());
+            RelXml.ValueTag(sb, indent, "DirtAttackTime", DirtAttackTime.ToString());
             RelXml.StringTag(sb, indent, "DirtSweetenerCurve", RelXml.HashString(DirtSweetenerCurve));
             RelXml.ValueTag(sb, indent, "CreakVolumeOffset", FloatUtil.ToString(CreakVolumeOffset));
             RelXml.ValueTag(sb, indent, "CreakLPFCutoff", CreakLPFCutoff.ToString());
-            RelXml.StringTag(sb, indent, "CreakAttackTime", CreakAttackTime.ToString());
+            RelXml.ValueTag(sb, indent, "CreakAttackTime", CreakAttackTime.ToString());
             RelXml.StringTag(sb, indent, "CreakSweetenerCurve", RelXml.HashString(CreakSweetenerCurve));
             RelXml.ValueTag(sb, indent, "GlassVolumeOffset", FloatUtil.ToString(GlassVolumeOffset));
             RelXml.ValueTag(sb, indent, "GlassLPFCutoff", GlassLPFCutoff.ToString());
-            RelXml.StringTag(sb, indent, "GlassAttackTime", GlassAttackTime.ToString());
+            RelXml.ValueTag(sb, indent, "GlassAttackTime", GlassAttackTime.ToString());
             RelXml.StringTag(sb, indent, "GlassSweetenerCurve", RelXml.HashString(GlassSweetenerCurve));
             RelXml.ValueTag(sb, indent, "WetVolumeOffset", FloatUtil.ToString(WetVolumeOffset));
             RelXml.ValueTag(sb, indent, "WetLPFCutoff", WetLPFCutoff.ToString());
@@ -17931,7 +17931,7 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "WetSweetenerCurve", RelXml.HashString(WetSweetenerCurve));
             RelXml.ValueTag(sb, indent, "CustomVolumeOffset", FloatUtil.ToString(CustomVolumeOffset));
             RelXml.ValueTag(sb, indent, "CustomLPFCutoff", CustomLPFCutoff.ToString());
-            RelXml.StringTag(sb, indent, "CustomAttackTime", CustomAttackTime.ToString());
+            RelXml.ValueTag(sb, indent, "CustomAttackTime", CustomAttackTime.ToString());
             RelXml.ValueTag(sb, indent, "MaterialImpactImpulseScale", FloatUtil.ToString(MaterialImpactImpulseScale));
         }
         public void ReadXml(XmlNode node)
