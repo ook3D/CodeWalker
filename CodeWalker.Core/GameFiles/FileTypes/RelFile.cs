@@ -11986,7 +11986,8 @@ namespace CodeWalker.GameFiles
         public Dat151PedVoiceGroupsItem[] MiniVoices { get; set; }
         public byte GangVoicesCount { get; set; }
         public Dat151PedVoiceGroupsItem[] GangVoices { get; set; }
-        public byte BackupPVGs { get; set; }
+        public byte BackupPVGCount { get; set; }
+        public Dat151PedVoiceGroupsItem[] BackupPVGs { get; set; }
 
 
         public Dat151PedVoiceGroups(RelFile rel) : base(rel)
@@ -12022,7 +12023,12 @@ namespace CodeWalker.GameFiles
                 GangVoices[i] = new Dat151PedVoiceGroupsItem(br);
             }
 
-            BackupPVGs = br.ReadByte();
+            BackupPVGCount = br.ReadByte();
+            BackupPVGs = new Dat151PedVoiceGroupsItem[BackupPVGCount];
+            for (int i = 0; i < BackupPVGCount; i++)
+            {
+                BackupPVGs[i] = new Dat151PedVoiceGroupsItem(br);
+            }
         }
         public override void Write(BinaryWriter bw)
         {
@@ -12047,7 +12053,11 @@ namespace CodeWalker.GameFiles
             {
                 GangVoices[i].Write(bw);
             }
-            bw.Write(BackupPVGs);
+            bw.Write(BackupPVGCount);
+            for (int i = 0; i < BackupPVGCount; i++)
+            {
+                BackupPVGs[i].Write(bw);
+            }
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
@@ -12058,7 +12068,7 @@ namespace CodeWalker.GameFiles
             RelXml.WriteItemArray(sb, PrimaryVoices, indent, "PrimaryVoices");
             RelXml.WriteItemArray(sb, MiniVoices, indent, "MiniVoices");
             RelXml.WriteItemArray(sb, GangVoices, indent, "GangVoices");
-            RelXml.ValueTag(sb, indent, "BackupPVGs", BackupPVGs.ToString());
+            RelXml.WriteItemArray(sb, BackupPVGs, indent, "BackupPVGs");
         }
         public override void ReadXml(XmlNode node)
         {
@@ -12072,7 +12082,8 @@ namespace CodeWalker.GameFiles
             MiniVoicesCount = (byte)(MiniVoices?.Length ?? 0);
             GangVoices = XmlRel.ReadItemArray<Dat151PedVoiceGroupsItem>(node, "GangVoices");
             GangVoicesCount = (byte)(GangVoices?.Length ?? 0);
-            BackupPVGs = (byte)Xml.GetChildUIntAttribute(node, "BackupPVGs", "value");
+            BackupPVGs = XmlRel.ReadItemArray<Dat151PedVoiceGroupsItem>(node, "BackupPVGs");
+            BackupPVGCount = (byte)(BackupPVGs?.Length ?? 0);
         }
         public override MetaHash[] GetSpeechHashes()
         {
@@ -12094,6 +12105,13 @@ namespace CodeWalker.GameFiles
             if (GangVoices != null)
             {
                 foreach (var item in GangVoices)
+                {
+                    list.Add(item.VoiceName);
+                }
+            }
+            if (BackupPVGs != null)
+            {
+                foreach (var item in BackupPVGs)
                 {
                     list.Add(item.VoiceName);
                 }
@@ -15717,19 +15735,17 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat151ScannerSpecificLocation : Dat151RelData
     {
-        public MetaHash padding00 { get; set; }
-        public MetaHash padding01 { get; set; }
-        public MetaHash padding02 { get; set; }
+        public uint padding00 { get; set; }
+        public uint padding01 { get; set; }
+        public uint padding02 { get; set; }
         public Vector3 Position { get; set; }
-        public MetaHash padding03 { get; set; }
+        public uint padding03 { get; set; }
         public float Radius { get; set; }
         public float ProbOfPlaying { get; set; }
         public int NumSounds { get; set; }
-        public MetaHash Sound { get; set; }
-        public MetaHash Location { get; set; }
-        public MetaHash padding04 { get; set; }
-        public MetaHash padding05 { get; set; }
-        public MetaHash padding06 { get; set; }
+        public MetaHash[] Sound { get; set; }
+        public uint padding06 { get; set; }
+
 
         public Dat151ScannerSpecificLocation(RelFile rel) : base(rel)
         {
@@ -15745,11 +15761,14 @@ namespace CodeWalker.GameFiles
             padding03 = br.ReadUInt32();
             Radius = br.ReadSingle();
             ProbOfPlaying = br.ReadSingle();
+
             NumSounds = br.ReadInt32();
-            Sound = br.ReadUInt32();
-            Location = br.ReadUInt32();
-            padding04 = br.ReadUInt32();
-            padding05 = br.ReadUInt32();
+            Sound = new MetaHash[NumSounds];
+            for (int i = 0; i < NumSounds; i++)
+            {
+                Sound[i] = br.ReadUInt32();
+            }
+
             padding06 = br.ReadUInt32();
         }
         public override void Write(BinaryWriter bw)
@@ -15765,11 +15784,12 @@ namespace CodeWalker.GameFiles
             bw.Write(padding03);
             bw.Write(Radius);
             bw.Write(ProbOfPlaying);
+
             bw.Write(NumSounds);
-            bw.Write(Sound);
-            bw.Write(Location);
-            bw.Write(padding04);
-            bw.Write(padding05);
+            for (int i = 0; i < NumSounds; i++)
+            {
+                bw.Write(Sound[i]);
+            }
             bw.Write(padding06);
         }
         public override void WriteXml(StringBuilder sb, int indent)
@@ -15777,22 +15797,20 @@ namespace CodeWalker.GameFiles
             RelXml.SelfClosingTag(sb, indent, "Position " + FloatUtil.GetVector3XmlString(Position));
             RelXml.ValueTag(sb, indent, "Radius", FloatUtil.ToString(Radius));
             RelXml.ValueTag(sb, indent, "ProbOfPlaying", FloatUtil.ToString(ProbOfPlaying));
-            RelXml.ValueTag(sb, indent, "NumSounds", NumSounds.ToString());
-            RelXml.StringTag(sb, indent, "Sound", RelXml.HashString(Sound));
-            RelXml.StringTag(sb, indent, "Location", RelXml.HashString(Location));
+            RelXml.WriteHashItemArray(sb, Sound, indent, "Sound");
         }
         public override void ReadXml(XmlNode node)
         {
             Position = Xml.GetChildVector3Attributes(node, "Position");
             Radius = Xml.GetChildFloatAttribute(node, "Radius", "value");
             ProbOfPlaying = Xml.GetChildFloatAttribute(node, "ProbOfPlaying", "value");
-            NumSounds = Xml.GetChildIntAttribute(node, "NumSounds", "value");
-            Sound = XmlRel.GetHash(Xml.GetChildInnerText(node, "Sound"));
-            Location = XmlRel.GetHash(Xml.GetChildInnerText(node, "Location"));
+
+            Sound = XmlRel.ReadHashItemArray(node, "Sound");
+            NumSounds = (Sound?.Length ?? 0);
         }
         public override MetaHash[] GetSoundHashes()
         {
-            return new[] { Sound, Location };
+            return Sound;
         }
     }
 
