@@ -13963,7 +13963,7 @@ namespace CodeWalker.GameFiles
         public MetaHash VehicleCollisions { get; set; }
         public float ShockwaveIntensityScale { get; set; }
         public float ShockwaveRadiusScale { get; set; }
-
+        public int Version { get; set; }
 
         public Dat151TrainAudioSettings(RelFile rel) : base(rel)
         {
@@ -14010,8 +14010,23 @@ namespace CodeWalker.GameFiles
             TrackRumbleDistanceToIntensity = br.ReadUInt32();
             TrainDistanceToRollOffScale = br.ReadUInt32();
             VehicleCollisions = br.ReadUInt32();
-            ShockwaveIntensityScale = br.ReadSingle();
-            ShockwaveRadiusScale = br.ReadSingle();
+            Version = 0;
+
+            var bytesleft = br.BaseStream.Length - br.BaseStream.Position;
+            switch(bytesleft)
+            {
+                case 8:
+                    Version = 1;
+                    ShockwaveIntensityScale = br.ReadSingle();
+                    if (bytesleft >= 4)
+                    {
+                        Version = 2;
+                        ShockwaveRadiusScale = br.ReadSingle();
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
         public override void Write(BinaryWriter bw)
         {
@@ -14055,11 +14070,19 @@ namespace CodeWalker.GameFiles
             bw.Write(TrackRumbleDistanceToIntensity);
             bw.Write(TrainDistanceToRollOffScale);
             bw.Write(VehicleCollisions);
-            bw.Write(ShockwaveIntensityScale);
-            bw.Write(ShockwaveRadiusScale);
+
+            if (Version >= 1)
+            {
+                bw.Write(ShockwaveIntensityScale);
+            }
+            if (Version >= 2)
+            {
+                bw.Write(ShockwaveRadiusScale);
+            }
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
+            RelXml.ValueTag(sb, indent, "Version", Version.ToString());
             RelXml.StringTag(sb, indent, "DriveTone", RelXml.HashString(DriveTone));
             RelXml.StringTag(sb, indent, "DriveToneSynth", RelXml.HashString(DriveToneSynth));
             RelXml.StringTag(sb, indent, "IdleLoop", RelXml.HashString(IdleLoop));
@@ -14098,11 +14121,19 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "TrackRumbleDistanceToIntensity", RelXml.HashString(TrackRumbleDistanceToIntensity));
             RelXml.StringTag(sb, indent, "TrainDistanceToRollOffScale", RelXml.HashString(TrainDistanceToRollOffScale));
             RelXml.StringTag(sb, indent, "VehicleCollisions", RelXml.HashString(VehicleCollisions));
-            RelXml.ValueTag(sb, indent, "ShockwaveIntensityScale", FloatUtil.ToString(ShockwaveIntensityScale));
-            RelXml.ValueTag(sb, indent, "ShockwaveRadiusScale", FloatUtil.ToString(ShockwaveRadiusScale));
+
+            if (Version >= 1)
+            {
+                RelXml.ValueTag(sb, indent, "ShockwaveIntensityScale", FloatUtil.ToString(ShockwaveIntensityScale));
+            }
+            if (Version >= 2)
+            {
+                RelXml.ValueTag(sb, indent, "ShockwaveRadiusScale", FloatUtil.ToString(ShockwaveRadiusScale));
+            }
         }
         public override void ReadXml(XmlNode node)
         {
+            Version = Xml.GetChildIntAttribute(node, "Version", "value");
             DriveTone = XmlRel.GetHash(Xml.GetChildInnerText(node, "DriveTone"));
             DriveToneSynth = XmlRel.GetHash(Xml.GetChildInnerText(node, "DriveToneSynth"));
             IdleLoop = XmlRel.GetHash(Xml.GetChildInnerText(node, "IdleLoop"));
@@ -14141,8 +14172,16 @@ namespace CodeWalker.GameFiles
             TrackRumbleDistanceToIntensity = XmlRel.GetHash(Xml.GetChildInnerText(node, "TrackRumbleDistanceToIntensity"));
             TrainDistanceToRollOffScale = XmlRel.GetHash(Xml.GetChildInnerText(node, "TrainDistanceToRollOffScale"));
             VehicleCollisions = XmlRel.GetHash(Xml.GetChildInnerText(node, "VehicleCollisions"));
-            ShockwaveIntensityScale = Xml.GetChildFloatAttribute(node, "ShockwaveIntensityScale", "value");
-            ShockwaveRadiusScale = Xml.GetChildFloatAttribute(node, "ShockwaveRadiusScale", "value");
+
+            if (Version >= 1)
+            {
+                ShockwaveIntensityScale = Xml.GetChildFloatAttribute(node, "ShockwaveIntensityScale", "value");
+            }
+
+            if (Version >= 2)
+            {
+                ShockwaveRadiusScale = Xml.GetChildFloatAttribute(node, "ShockwaveRadiusScale", "value");
+            }
         }
         public override MetaHash[] GetCurveHashes()
         {
