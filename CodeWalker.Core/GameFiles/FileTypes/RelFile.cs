@@ -11972,6 +11972,7 @@ namespace CodeWalker.GameFiles
             return VoiceName.ToString() + ", " + ReferenceCount.Value.ToString() + ", " + RunningTab.Value.ToString();
         }
     }
+ 
 
     [TC(typeof(EXP))]
     public class Dat151PedVoiceGroups : Dat151RelData
@@ -11987,7 +11988,7 @@ namespace CodeWalker.GameFiles
         public byte GangVoicesCount { get; set; }
         public Dat151PedVoiceGroupsItem[] GangVoices { get; set; }
         public byte BackupPVGCount { get; set; }
-        public Dat151PedVoiceGroupsItem[] BackupPVGs { get; set; }
+        public MetaHash[] BackupPVGs { get; set; }
 
 
         public Dat151PedVoiceGroups(RelFile rel) : base(rel)
@@ -12024,10 +12025,10 @@ namespace CodeWalker.GameFiles
             }
 
             BackupPVGCount = br.ReadByte();
-            BackupPVGs = new Dat151PedVoiceGroupsItem[BackupPVGCount];
+            BackupPVGs = new MetaHash[BackupPVGCount];
             for (int i = 0; i < BackupPVGCount; i++)
             {
-                BackupPVGs[i] = new Dat151PedVoiceGroupsItem(br);
+                BackupPVGs[i] = br.ReadUInt32();
             }
         }
         public override void Write(BinaryWriter bw)
@@ -12056,7 +12057,7 @@ namespace CodeWalker.GameFiles
             bw.Write(BackupPVGCount);
             for (int i = 0; i < BackupPVGCount; i++)
             {
-                BackupPVGs[i].Write(bw);
+                bw.Write(BackupPVGs[i]);
             }
         }
         public override void WriteXml(StringBuilder sb, int indent)
@@ -12068,7 +12069,7 @@ namespace CodeWalker.GameFiles
             RelXml.WriteItemArray(sb, PrimaryVoices, indent, "PrimaryVoices");
             RelXml.WriteItemArray(sb, MiniVoices, indent, "MiniVoices");
             RelXml.WriteItemArray(sb, GangVoices, indent, "GangVoices");
-            RelXml.WriteItemArray(sb, BackupPVGs, indent, "BackupPVGs");
+            RelXml.WriteHashItemArray(sb, BackupPVGs, indent, "BackupPVGs");
         }
         public override void ReadXml(XmlNode node)
         {
@@ -12082,7 +12083,7 @@ namespace CodeWalker.GameFiles
             MiniVoicesCount = (byte)(MiniVoices?.Length ?? 0);
             GangVoices = XmlRel.ReadItemArray<Dat151PedVoiceGroupsItem>(node, "GangVoices");
             GangVoicesCount = (byte)(GangVoices?.Length ?? 0);
-            BackupPVGs = XmlRel.ReadItemArray<Dat151PedVoiceGroupsItem>(node, "BackupPVGs");
+            BackupPVGs = XmlRel.ReadHashItemArray(node, "BackupPVGs");
             BackupPVGCount = (byte)(BackupPVGs?.Length ?? 0);
         }
         public override MetaHash[] GetSpeechHashes()
@@ -12111,9 +12112,9 @@ namespace CodeWalker.GameFiles
             }
             if (BackupPVGs != null)
             {
-                foreach (var item in BackupPVGs)
+                foreach (var hash in BackupPVGs)
                 {
-                    list.Add(item.VoiceName);
+                    list.Add(hash);
                 }
             }
             return list.ToArray();
@@ -13960,6 +13961,8 @@ namespace CodeWalker.GameFiles
         public MetaHash TrackRumbleDistanceToIntensity { get; set; }
         public MetaHash TrainDistanceToRollOffScale { get; set; }
         public MetaHash VehicleCollisions { get; set; }
+        public float ShockwaveIntensityScale { get; set; }
+        public float ShockwaveRadiusScale { get; set; }
 
 
         public Dat151TrainAudioSettings(RelFile rel) : base(rel)
@@ -14007,6 +14010,8 @@ namespace CodeWalker.GameFiles
             TrackRumbleDistanceToIntensity = br.ReadUInt32();
             TrainDistanceToRollOffScale = br.ReadUInt32();
             VehicleCollisions = br.ReadUInt32();
+            ShockwaveIntensityScale = br.ReadSingle();
+            ShockwaveRadiusScale = br.ReadSingle();
         }
         public override void Write(BinaryWriter bw)
         {
@@ -14050,6 +14055,8 @@ namespace CodeWalker.GameFiles
             bw.Write(TrackRumbleDistanceToIntensity);
             bw.Write(TrainDistanceToRollOffScale);
             bw.Write(VehicleCollisions);
+            bw.Write(ShockwaveIntensityScale);
+            bw.Write(ShockwaveRadiusScale);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
@@ -14091,6 +14098,8 @@ namespace CodeWalker.GameFiles
             RelXml.StringTag(sb, indent, "TrackRumbleDistanceToIntensity", RelXml.HashString(TrackRumbleDistanceToIntensity));
             RelXml.StringTag(sb, indent, "TrainDistanceToRollOffScale", RelXml.HashString(TrainDistanceToRollOffScale));
             RelXml.StringTag(sb, indent, "VehicleCollisions", RelXml.HashString(VehicleCollisions));
+            RelXml.ValueTag(sb, indent, "ShockwaveIntensityScale", FloatUtil.ToString(ShockwaveIntensityScale));
+            RelXml.ValueTag(sb, indent, "ShockwaveRadiusScale", FloatUtil.ToString(ShockwaveRadiusScale));
         }
         public override void ReadXml(XmlNode node)
         {
@@ -14132,6 +14141,8 @@ namespace CodeWalker.GameFiles
             TrackRumbleDistanceToIntensity = XmlRel.GetHash(Xml.GetChildInnerText(node, "TrackRumbleDistanceToIntensity"));
             TrainDistanceToRollOffScale = XmlRel.GetHash(Xml.GetChildInnerText(node, "TrainDistanceToRollOffScale"));
             VehicleCollisions = XmlRel.GetHash(Xml.GetChildInnerText(node, "VehicleCollisions"));
+            ShockwaveIntensityScale = Xml.GetChildFloatAttribute(node, "ShockwaveIntensityScale", "value");
+            ShockwaveRadiusScale = Xml.GetChildFloatAttribute(node, "ShockwaveRadiusScale", "value");
         }
         public override MetaHash[] GetCurveHashes()
         {
