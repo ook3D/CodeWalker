@@ -6765,21 +6765,23 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat151StartTrackAction : Dat151RelData
     {
-        public FlagsUint Unk0 { get; set; }
-        public int Unk1 { get; set; }
-        public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }//BarConstraint
-        public MetaHash Beat { get; set; }//not used but follows same pattern as TrackAction items.
-        public float Unk3 { get; set; }
-        public MetaHash Track { get; set; }
+        public FlagsUint Flags { get; set; }
+        public byte Constrain { get; set; }
+        public byte padding00 { get; set; }
+        public short padding01 { get; set; }
+        public int numTimingConstraints { get; set; }
+        public MetaHash TimingConstraint1 { get; set; }
+        public MetaHash TimingConstraint2 { get; set; }
+        public float DelayTime { get; set; }
+        public MetaHash Song { get; set; }
         public MetaHash Mood { get; set; }
-        public float Unk5 { get; set; }
-        public int Unk6 { get; set; }
-        public int Unk7 { get; set; }
-        public float Unk8 { get; set; }
-        public int Unk9 { get; set; }
-        public uint TracksCount { get; set; }
-        public Dat151StartTrackActionItem[] Tracks { get; set; }
+        public float VolumeOffset { get; set; }
+        public int FadeInTime { get; set; }
+        public int FadeOutTime { get; set; }
+        public float StartOffsetScalar { get; set; }
+        public int LastSong { get; set; }
+        public uint AltSongsCount { get; set; }
+        public Dat151StartTrackActionItem[] AltSongs { get; set; }
 
 
         public Dat151StartTrackAction(RelFile rel) : base(rel)
@@ -6789,87 +6791,91 @@ namespace CodeWalker.GameFiles
         }
         public Dat151StartTrackAction(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk0 = br.ReadUInt32();
-            Unk1 = br.ReadInt32();
-            Unk2 = br.ReadInt32();
-            Bar = br.ReadUInt32();
-            Beat = br.ReadUInt32();
-            Unk3 = br.ReadSingle();
-            Track = br.ReadUInt32();
+            Flags = br.ReadUInt32();
+            Constrain = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadInt16();
+            numTimingConstraints = br.ReadInt32();
+            TimingConstraint1 = br.ReadUInt32();
+            TimingConstraint2 = br.ReadUInt32();
+            DelayTime = br.ReadSingle();
+            Song = br.ReadUInt32();
             Mood = br.ReadUInt32();
-            Unk5 = br.ReadSingle();
-            Unk6 = br.ReadInt32();
-            Unk7 = br.ReadInt32();
-            Unk8 = br.ReadSingle();
-            Unk9 = br.ReadInt32();
-            TracksCount = br.ReadUInt32();
+            VolumeOffset = br.ReadSingle();
+            FadeInTime = br.ReadInt32();
+            FadeOutTime = br.ReadInt32();
+            StartOffsetScalar = br.ReadSingle();
+            LastSong = br.ReadInt32();
+            AltSongsCount = br.ReadUInt32();
 
-            Dat151StartTrackActionItem[] items = new Dat151StartTrackActionItem[TracksCount];
-            for (int i = 0; i < TracksCount; i++)
+            Dat151StartTrackActionItem[] items = new Dat151StartTrackActionItem[AltSongsCount];
+            for (int i = 0; i < AltSongsCount; i++)
             {
                 items[i] = new Dat151StartTrackActionItem(br);
             }
-            this.Tracks = items;
+            this.AltSongs = items;
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffset(bw);
 
-            bw.Write(Unk0);
-            bw.Write(Unk1);
-            bw.Write(Unk2);
-            bw.Write(Bar);
-            bw.Write(Beat);
-            bw.Write(Unk3);
-            bw.Write(Track);
+            bw.Write(Flags);
+            bw.Write(Constrain);
+            bw.Write(padding00);
+            bw.Write(padding01);
+            bw.Write(numTimingConstraints);
+            bw.Write(TimingConstraint1);
+            bw.Write(TimingConstraint2);
+            bw.Write(DelayTime);
+            bw.Write(Song);
             bw.Write(Mood);
-            bw.Write(Unk5);
-            bw.Write(Unk6);
-            bw.Write(Unk7);
-            bw.Write(Unk8);
-            bw.Write(Unk9);
-            bw.Write(TracksCount);
+            bw.Write(VolumeOffset);
+            bw.Write(FadeInTime);
+            bw.Write(FadeOutTime);
+            bw.Write(StartOffsetScalar);
+            bw.Write(LastSong);
+            bw.Write(AltSongsCount);
 
-            for (int i = 0; i < TracksCount; i++)
+            for (int i = 0; i < AltSongsCount; i++)
             {
-                Tracks[i].Write(bw);
+                AltSongs[i].Write(bw);
             }
 
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.ValueTag(sb, indent, "Unk0", "0x" + Unk0.Hex);
-            RelXml.ValueTag(sb, indent, "Unk1", Unk1.ToString());
-            RelXml.ValueTag(sb, indent, "Unk2", Unk2.ToString());
-            RelXml.StringTag(sb, indent, "Bar", RelXml.HashString(Bar));
-            RelXml.StringTag(sb, indent, "Beat", RelXml.HashString(Beat));
-            RelXml.ValueTag(sb, indent, "Unk3", FloatUtil.ToString(Unk3));
-            RelXml.StringTag(sb, indent, "Track", RelXml.HashString(Track));
+            RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
+            RelXml.ValueTag(sb, indent, "Constrain", Constrain.ToString());
+            RelXml.ValueTag(sb, indent, "numTimingConstraints", numTimingConstraints.ToString());
+            RelXml.StringTag(sb, indent, "TimingConstraint1", RelXml.HashString(TimingConstraint1));
+            RelXml.StringTag(sb, indent, "TimingConstraint2", RelXml.HashString(TimingConstraint2));
+            RelXml.ValueTag(sb, indent, "DelayTime", FloatUtil.ToString(DelayTime));
+            RelXml.StringTag(sb, indent, "Song", RelXml.HashString(Song));
             RelXml.StringTag(sb, indent, "Mood", RelXml.HashString(Mood));
-            RelXml.ValueTag(sb, indent, "Unk5", FloatUtil.ToString(Unk5));
-            RelXml.ValueTag(sb, indent, "Unk6", Unk6.ToString());
-            RelXml.ValueTag(sb, indent, "Unk7", Unk7.ToString());
-            RelXml.ValueTag(sb, indent, "Unk8", FloatUtil.ToString(Unk8));
-            RelXml.ValueTag(sb, indent, "Unk9", Unk9.ToString());
-            RelXml.WriteItemArray(sb, Tracks, indent, "Tracks");
+            RelXml.ValueTag(sb, indent, "VolumeOffset", FloatUtil.ToString(VolumeOffset));
+            RelXml.ValueTag(sb, indent, "FadeInTime", FadeInTime.ToString());
+            RelXml.ValueTag(sb, indent, "FadeOutTime", FadeOutTime.ToString());
+            RelXml.ValueTag(sb, indent, "StartOffsetScalar", FloatUtil.ToString(StartOffsetScalar));
+            RelXml.ValueTag(sb, indent, "LastSong", LastSong.ToString());
+            RelXml.WriteItemArray(sb, AltSongs, indent, "AltSongs");
         }
         public override void ReadXml(XmlNode node)
         {
-            Unk0 = Xml.GetChildUIntAttribute(node, "Unk0", "value");
-            Unk1 = Xml.GetChildIntAttribute(node, "Unk1", "value");
-            Unk2 = Xml.GetChildIntAttribute(node, "Unk2", "value");
-            Bar = XmlRel.GetHash(Xml.GetChildInnerText(node, "Bar"));
-            Beat = XmlRel.GetHash(Xml.GetChildInnerText(node, "Beat"));
-            Unk3 = Xml.GetChildFloatAttribute(node, "Unk3", "value");
-            Track = XmlRel.GetHash(Xml.GetChildInnerText(node, "Track"));
+            Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
+            Constrain = (byte)Xml.GetChildIntAttribute(node, "Constrain", "value");
+            numTimingConstraints = Xml.GetChildIntAttribute(node, "numTimingConstraints", "value");
+            TimingConstraint1 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint1"));
+            TimingConstraint2 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint2"));
+            DelayTime = Xml.GetChildFloatAttribute(node, "DelayTime", "value");
+            Song = XmlRel.GetHash(Xml.GetChildInnerText(node, "Song"));
             Mood = XmlRel.GetHash(Xml.GetChildInnerText(node, "Mood"));
-            Unk5 = Xml.GetChildFloatAttribute(node, "Unk5", "value");
-            Unk6 = Xml.GetChildIntAttribute(node, "Unk6", "value");
-            Unk7 = Xml.GetChildIntAttribute(node, "Unk7", "value");
-            Unk8 = Xml.GetChildFloatAttribute(node, "Unk8", "value");
-            Unk9 = Xml.GetChildIntAttribute(node, "Unk9", "value");
-            Tracks = XmlRel.ReadItemArray<Dat151StartTrackActionItem>(node, "Tracks");
-            TracksCount = (uint)(Tracks?.Length ?? 0);
+            VolumeOffset = Xml.GetChildFloatAttribute(node, "VolumeOffset", "value");
+            FadeInTime = Xml.GetChildIntAttribute(node, "FadeInTime", "value");
+            FadeOutTime = Xml.GetChildIntAttribute(node, "FadeOutTime", "value");
+            StartOffsetScalar = Xml.GetChildFloatAttribute(node, "StartOffsetScalar", "value");
+            LastSong = Xml.GetChildIntAttribute(node, "LastSong", "value");
+            AltSongs = XmlRel.ReadItemArray<Dat151StartTrackActionItem>(node, "AltSongs");
+            AltSongsCount = (uint)(AltSongs?.Length ?? 0);
         }
         public override uint[] GetHashTableOffsets()
         {
@@ -6877,17 +6883,17 @@ namespace CodeWalker.GameFiles
         }
         public override MetaHash[] GetGameHashes()
         {
-            return new[] { Bar, Beat, Mood };
+            return new[] { TimingConstraint1, TimingConstraint2, Mood };
         }
         public override MetaHash[] GetSoundHashes()
         {
             var list = new List<MetaHash>();
-            list.Add(Track);
-            if (Tracks != null)
+            list.Add(Song);
+            if (AltSongs != null)
             {
-                foreach (var t in Tracks)
+                foreach (var t in AltSongs)
                 {
-                    list.Add(t.Track);
+                    list.Add(t.Song);
                 }
             }
             return list.ToArray();
@@ -6897,45 +6903,53 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public struct Dat151StartTrackActionItem : IMetaXmlItem
     {
-        public MetaHash Track { get; set; }
-        public FlagsUint Flags { get; set; }
+        public MetaHash Song { get; set; }
+        public byte ValidArea { get; set; }
+        public byte padding00 { get; set; }
+        public short padding01 { get; set; }
 
         public Dat151StartTrackActionItem(BinaryReader br)
         {
-            Track = br.ReadUInt32();
-            Flags = br.ReadUInt32();
+            Song = br.ReadUInt32();
+            ValidArea = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadInt16();
         }
         public void Write(BinaryWriter bw)
         {
-            bw.Write(Track);
-            bw.Write(Flags);
+            bw.Write(Song);
+            bw.Write(ValidArea);
+            bw.Write(padding00);
+            bw.Write(padding01);
         }
         public void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.StringTag(sb, indent, "Track", RelXml.HashString(Track));
-            RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
+            RelXml.StringTag(sb, indent, "Track", RelXml.HashString(Song));
+            RelXml.ValueTag(sb, indent, "ValidArea", ValidArea.ToString());
         }
         public void ReadXml(XmlNode node)
         {
-            Track = XmlRel.GetHash(Xml.GetChildInnerText(node, "Track"));
-            Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
+            Song = XmlRel.GetHash(Xml.GetChildInnerText(node, "Track"));
+            ValidArea = (byte)Xml.GetChildIntAttribute(node, "ValidArea", "value");
         }
         public override string ToString()
         {
-            return Track.ToString() + ": " + Flags.ToString();
+            return Song.ToString() + ": " + ValidArea.ToString();
         }
     }
 
     [TC(typeof(EXP))]
     public class Dat151StopTrackAction : Dat151RelData
     {
-        public FlagsUint Unk0 { get; set; }
-        public int Unk1 { get; set; }
-        public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }  // BarConstraint
-        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
-        public float Unk3 { get; set; }
-        public int Unk4 { get; set; }
+        public FlagsUint Flags { get; set; }
+        public byte Constrain { get; set; }
+        public byte padding00 { get; set; }
+        public short padding01 { get; set; }
+        public int numTimingConstraints { get; set; }
+        public MetaHash TimingConstraint1 { get; set; }
+        public MetaHash TimingConstraint2 { get; set; }
+        public float DelayTime { get; set; }
+        public int FadeTime { get; set; }
 
         public Dat151StopTrackAction(RelFile rel) : base(rel)
         {
@@ -6944,45 +6958,49 @@ namespace CodeWalker.GameFiles
         }
         public Dat151StopTrackAction(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk0 = br.ReadUInt32();
-            Unk1 = br.ReadInt32();
-            Unk2 = br.ReadInt32();
-            Bar = br.ReadUInt32();
-            Beat = br.ReadUInt32();
-            Unk3 = br.ReadSingle();
-            Unk4 = br.ReadInt32();
+            Flags = br.ReadUInt32();
+            Constrain = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadInt16();
+            numTimingConstraints = br.ReadInt32();
+            TimingConstraint1 = br.ReadUInt32();
+            TimingConstraint2 = br.ReadUInt32();
+            DelayTime = br.ReadSingle();
+            FadeTime = br.ReadInt32();
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffset(bw);
 
-            bw.Write(Unk0);
-            bw.Write(Unk1);
-            bw.Write(Unk2);
-            bw.Write(Bar);
-            bw.Write(Beat);
-            bw.Write(Unk3);
-            bw.Write(Unk4);
+            bw.Write(Flags);
+            bw.Write(Constrain);
+            bw.Write(padding00);
+            bw.Write(padding01);
+            bw.Write(numTimingConstraints);
+            bw.Write(TimingConstraint1);
+            bw.Write(TimingConstraint2);
+            bw.Write(DelayTime);
+            bw.Write(FadeTime);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.ValueTag(sb, indent, "Unk0", "0x" + Unk0.Hex);
-            RelXml.ValueTag(sb, indent, "Unk1", Unk1.ToString());
-            RelXml.ValueTag(sb, indent, "Unk2", Unk2.ToString());
-            RelXml.StringTag(sb, indent, "Bar", RelXml.HashString(Bar));
-            RelXml.StringTag(sb, indent, "Beat", RelXml.HashString(Beat));
-            RelXml.ValueTag(sb, indent, "Unk3", FloatUtil.ToString(Unk3));
-            RelXml.ValueTag(sb, indent, "Unk4", Unk4.ToString());
+            RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
+            RelXml.ValueTag(sb, indent, "Constrain", Constrain.ToString());
+            RelXml.ValueTag(sb, indent, "numTimingConstraints", numTimingConstraints.ToString());
+            RelXml.StringTag(sb, indent, "TimingConstraint1", RelXml.HashString(TimingConstraint1));
+            RelXml.StringTag(sb, indent, "TimingConstraint2", RelXml.HashString(TimingConstraint2));
+            RelXml.ValueTag(sb, indent, "DelayTime", FloatUtil.ToString(DelayTime));
+            RelXml.ValueTag(sb, indent, "FadeTime", FadeTime.ToString());
         }
         public override void ReadXml(XmlNode node)
         {
-            Unk0 = Xml.GetChildUIntAttribute(node, "Unk0", "value");
-            Unk1 = Xml.GetChildIntAttribute(node, "Unk1", "value");
-            Unk2 = Xml.GetChildIntAttribute(node, "Unk2", "value");
-            Bar = XmlRel.GetHash(Xml.GetChildInnerText(node, "Bar"));
-            Beat = XmlRel.GetHash(Xml.GetChildInnerText(node, "Beat"));
-            Unk3 = Xml.GetChildFloatAttribute(node, "Unk3", "value");
-            Unk4 = Xml.GetChildIntAttribute(node, "Unk4", "value");
+            Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
+            Constrain = (byte)Xml.GetChildIntAttribute(node, "Constrain", "value");
+            numTimingConstraints = Xml.GetChildIntAttribute(node, "numTimingConstraints", "value");
+            TimingConstraint1 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint1"));
+            TimingConstraint2 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint2"));
+            DelayTime = Xml.GetChildFloatAttribute(node, "DelayTime", "value");
+            FadeTime = Xml.GetChildIntAttribute(node, "FadeTime", "value");
         }
         public override uint[] GetHashTableOffsets()
         {
@@ -6990,7 +7008,7 @@ namespace CodeWalker.GameFiles
         }
         public override MetaHash[] GetGameHashes()
         {
-            return new[] { Bar, Beat };
+            return new[] { TimingConstraint1, TimingConstraint2 };
         }
     }
 
@@ -6998,12 +7016,12 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat151InteractiveMusicMood : Dat151RelData
     {
-        public FlagsUint Unk0 { get; set; }
-        public ushort FadeIn { get; set; }
-        public ushort FadeOut { get; set; }
-        public float Unk3 { get; set; }
-        public uint MoodsCount { get; set; }
-        public Dat151InteractiveMusicMoodItem[] Moods { get; set; }
+        public FlagsUint Flags { get; set; }
+        public ushort FadeInTime { get; set; }
+        public ushort FadeOutTime { get; set; }
+        public float AmbMusicDuckingVol { get; set; }
+        public uint StemMixesCount { get; set; }
+        public Dat151InteractiveMusicMoodItem[] StemMixes { get; set; }
 
         public Dat151InteractiveMusicMood(RelFile rel) : base(rel)
         {
@@ -7012,53 +7030,51 @@ namespace CodeWalker.GameFiles
         }
         public Dat151InteractiveMusicMood(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk0 = br.ReadUInt32();
-            FadeIn = br.ReadUInt16();
-            FadeOut = br.ReadUInt16();
-            Unk3 = br.ReadSingle();
-            MoodsCount = br.ReadUInt32();
-            var items = new Dat151InteractiveMusicMoodItem[MoodsCount];
-            for (int i = 0; i < MoodsCount; i++)
+            Flags = br.ReadUInt32();
+            FadeInTime = br.ReadUInt16();
+            FadeOutTime = br.ReadUInt16();
+            AmbMusicDuckingVol = br.ReadSingle();
+            StemMixesCount = br.ReadUInt32();
+            var items = new Dat151InteractiveMusicMoodItem[StemMixesCount];
+            for (int i = 0; i < StemMixesCount; i++)
             {
                 items[i] = new Dat151InteractiveMusicMoodItem(br);
             }
-            Moods = items;
+            StemMixes = items;
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffset(bw);
 
-            bw.Write(Unk0);
-            bw.Write(FadeIn);
-            bw.Write(FadeOut);
-            bw.Write(Unk3);
-            bw.Write(MoodsCount);
-            for (int i = 0; i < MoodsCount; i++)
+            bw.Write(Flags);
+            bw.Write(FadeInTime);
+            bw.Write(FadeOutTime);
+            bw.Write(AmbMusicDuckingVol);
+            bw.Write(StemMixesCount);
+            for (int i = 0; i < StemMixesCount; i++)
             {
-                Moods[i].Write(bw);
+                StemMixes[i].Write(bw);
             }
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.ValueTag(sb, indent, "Unk0", "0x" + Unk0.Hex);
-            RelXml.ValueTag(sb, indent, "FadeIn", FadeIn.ToString());
-            RelXml.ValueTag(sb, indent, "FadeOut", FadeOut.ToString());
-            RelXml.ValueTag(sb, indent, "Unk3", FloatUtil.ToString(Unk3));
-            RelXml.WriteItemArray(sb, Moods, indent, "Moods");
+            RelXml.ValueTag(sb, indent, "FadeInTime", FadeInTime.ToString());
+            RelXml.ValueTag(sb, indent, "FadeOutTime", FadeOutTime.ToString());
+            RelXml.ValueTag(sb, indent, "AmbMusicDuckingVol", FloatUtil.ToString(AmbMusicDuckingVol));
+            RelXml.WriteItemArray(sb, StemMixes, indent, "StemMixes");
         }
         public override void ReadXml(XmlNode node)
         {
-            Unk0 = Xml.GetChildUIntAttribute(node, "Unk0", "value");
-            FadeIn = (ushort)Xml.GetChildUIntAttribute(node, "FadeIn", "value");
-            FadeOut = (ushort)Xml.GetChildUIntAttribute(node, "FadeOut", "value");
-            Unk3 = Xml.GetChildFloatAttribute(node, "Unk3", "value");
-            Moods = XmlRel.ReadItemArray<Dat151InteractiveMusicMoodItem>(node, "Moods");
-            MoodsCount = (uint)(Moods?.Length ?? 0);
+            FadeInTime = (ushort)Xml.GetChildUIntAttribute(node, "FadeInTime", "value");
+            FadeOutTime = (ushort)Xml.GetChildUIntAttribute(node, "FadeOutTime", "value");
+            AmbMusicDuckingVol = Xml.GetChildFloatAttribute(node, "AmbMusicDuckingVol", "value");
+            StemMixes = XmlRel.ReadItemArray<Dat151InteractiveMusicMoodItem>(node, "StemMixes");
+            StemMixesCount = (uint)(StemMixes?.Length ?? 0);
         }
         public override uint[] GetHashTableOffsets()
         {
             var offsets = new List<uint>();
-            for (uint i = 0; i < MoodsCount; i++)
+            for (uint i = 0; i < StemMixesCount; i++)
             {
                 var offs = 16 + i * 32; //offsets for each mood item's subitems
                 offsets.Add(offs);
@@ -7071,12 +7087,12 @@ namespace CodeWalker.GameFiles
         public override MetaHash[] GetGameHashes()
         {
             var list = new List<MetaHash>();
-            if (Moods != null)
+            if (StemMixes != null)
             {
-                foreach (var item in Moods)
+                foreach (var item in StemMixes)
                 {
                     list.Add(item.StemMix);
-                    list.Add(item.StopAction);
+                    list.Add(item.OnTriggerAction);
                     list.Add(item.Bar);
                     list.Add(item.Beat);
                 }
@@ -7089,11 +7105,11 @@ namespace CodeWalker.GameFiles
     public class Dat151InteractiveMusicMoodItem : IMetaXmlItem
     {
         public MetaHash StemMix { get; set; }
-        public MetaHash StopAction { get; set; }
-        public float Unk1 { get; set; }
-        public float Unk2 { get; set; }
-        public float Unk3 { get; set; }
-        public float Unk4 { get; set; }
+        public MetaHash OnTriggerAction { get; set; }
+        public float MinDuration { get; set; }
+        public float MaxDuration { get; set; }
+        public float FadeTime { get; set; }
+        public float Constrain { get; set; }
         public MetaHash Bar { get; set; }
         public MetaHash Beat { get; set; }
 
@@ -7108,44 +7124,44 @@ namespace CodeWalker.GameFiles
         public Dat151InteractiveMusicMoodItem(BinaryReader br)
         {
             StemMix = br.ReadUInt32();
-            StopAction = br.ReadUInt32();
-            Unk1 = br.ReadSingle();
-            Unk2 = br.ReadSingle();
-            Unk3 = br.ReadSingle();
-            Unk4 = br.ReadSingle();
+            OnTriggerAction = br.ReadUInt32();
+            MinDuration = br.ReadSingle();
+            MaxDuration = br.ReadSingle();
+            FadeTime = br.ReadSingle();
+            Constrain = br.ReadSingle();
             Bar = br.ReadUInt32();
             Beat = br.ReadUInt32();
         }
         public void Write(BinaryWriter bw)
         {
             bw.Write(StemMix);
-            bw.Write(StopAction);
-            bw.Write(Unk1);
-            bw.Write(Unk2);
-            bw.Write(Unk3);
-            bw.Write(Unk4);
+            bw.Write(OnTriggerAction);
+            bw.Write(MinDuration);
+            bw.Write(MaxDuration);
+            bw.Write(FadeTime);
+            bw.Write(Constrain);
             bw.Write(Bar);
             bw.Write(Beat);
         }
         public void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.StringTag(sb, indent, "StemMix", RelXml.HashString(StemMix));
-            RelXml.StringTag(sb, indent, "StopAction", RelXml.HashString(StopAction));
-            RelXml.ValueTag(sb, indent, "Unk1", FloatUtil.ToString(Unk1));
-            RelXml.ValueTag(sb, indent, "Unk2", FloatUtil.ToString(Unk2));
-            RelXml.ValueTag(sb, indent, "Unk3", FloatUtil.ToString(Unk3));
-            RelXml.ValueTag(sb, indent, "Unk4", FloatUtil.ToString(Unk4));
+            RelXml.StringTag(sb, indent, "OnTriggerAction", RelXml.HashString(OnTriggerAction));
+            RelXml.ValueTag(sb, indent, "MinDuration", FloatUtil.ToString(MinDuration));
+            RelXml.ValueTag(sb, indent, "MaxDuration", FloatUtil.ToString(MaxDuration));
+            RelXml.ValueTag(sb, indent, "FadeTime", FloatUtil.ToString(FadeTime));
+            RelXml.ValueTag(sb, indent, "Constrain", FloatUtil.ToString(Constrain));
             RelXml.StringTag(sb, indent, "Bar", RelXml.HashString(Bar));
             RelXml.StringTag(sb, indent, "Beat", RelXml.HashString(Beat));
         }
         public void ReadXml(XmlNode node)
         {
             StemMix = XmlRel.GetHash(Xml.GetChildInnerText(node, "StemMix"));
-            StopAction = XmlRel.GetHash(Xml.GetChildInnerText(node, "StopAction"));
-            Unk1 = Xml.GetChildFloatAttribute(node, "Unk1", "value");
-            Unk2 = Xml.GetChildFloatAttribute(node, "Unk2", "value");
-            Unk3 = Xml.GetChildFloatAttribute(node, "Unk3", "value");
-            Unk4 = Xml.GetChildFloatAttribute(node, "Unk4", "value");
+            OnTriggerAction = XmlRel.GetHash(Xml.GetChildInnerText(node, "OnTriggerAction"));
+            MinDuration = Xml.GetChildFloatAttribute(node, "MinDuration", "value");
+            MaxDuration = Xml.GetChildFloatAttribute(node, "MaxDuration", "value");
+            FadeTime = Xml.GetChildFloatAttribute(node, "FadeTime", "value");
+            Constrain = Xml.GetChildFloatAttribute(node, "Constrain", "value");
             Bar = XmlRel.GetHash(Xml.GetChildInnerText(node, "Bar"));
             Beat = XmlRel.GetHash(Xml.GetChildInnerText(node, "Beat"));
         }
@@ -7154,16 +7170,18 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat151SetMoodAction : Dat151RelData
     {
-        public FlagsUint Unk0 { get; set; }
-        public int Unk1 { get; set; }
-        public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }  // BarConstraint
-        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
-        public float Unk3 { get; set; }
+        public FlagsUint Flags { get; set; }
+        public byte Constrain { get; set; }
+        public byte padding00 { get; set; }
+        public short padding01 { get; set; }
+        public int numTimingConstraints { get; set; }
+        public MetaHash TimingConstraint1 { get; set; }
+        public MetaHash TimingConstraint2 { get; set; }
+        public float DelayTime { get; set; }
         public MetaHash Mood { get; set; }
-        public float Unk4 { get; set; }
-        public int FadeIn { get; set; }
-        public int FadeOut { get; set; }
+        public float VolumeOffset { get; set; }
+        public int FadeInTime { get; set; }
+        public int FadeOutTime { get; set; }
 
         public Dat151SetMoodAction(RelFile rel) : base(rel)
         {
@@ -7172,57 +7190,59 @@ namespace CodeWalker.GameFiles
         }
         public Dat151SetMoodAction(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk0 = br.ReadUInt32();
-            Unk1 = br.ReadInt32();
-            Unk2 = br.ReadInt32();
-            Bar = br.ReadUInt32();
-            Beat = br.ReadUInt32();
-            Unk3 = br.ReadSingle();
+            Flags = br.ReadUInt32();
+            Constrain = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadInt16();
+            numTimingConstraints = br.ReadInt32();
+            TimingConstraint1 = br.ReadUInt32();
+            TimingConstraint2 = br.ReadUInt32();
+            DelayTime = br.ReadSingle();
             Mood = br.ReadUInt32();
-            Unk4 = br.ReadSingle();
-            FadeIn = br.ReadInt32();
-            FadeOut = br.ReadInt32();
+            VolumeOffset = br.ReadSingle();
+            FadeInTime = br.ReadInt32();
+            FadeOutTime = br.ReadInt32();
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffset(bw);
 
-            bw.Write(Unk0);
-            bw.Write(Unk1);
-            bw.Write(Unk2);
-            bw.Write(Bar);
-            bw.Write(Beat);
-            bw.Write(Unk3);
+            bw.Write(Flags);
+            bw.Write(Constrain);
+            bw.Write(padding00);
+            bw.Write(padding01);
+            bw.Write(numTimingConstraints);
+            bw.Write(TimingConstraint1);
+            bw.Write(TimingConstraint2);
+            bw.Write(DelayTime);
             bw.Write(Mood);
-            bw.Write(Unk4);
-            bw.Write(FadeIn);
-            bw.Write(FadeOut);
+            bw.Write(VolumeOffset);
+            bw.Write(FadeInTime);
+            bw.Write(FadeOutTime);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.ValueTag(sb, indent, "Unk0", "0x" + Unk0.Hex);
-            RelXml.ValueTag(sb, indent, "Unk1", Unk1.ToString());
-            RelXml.ValueTag(sb, indent, "Unk2", Unk2.ToString());
-            RelXml.StringTag(sb, indent, "Bar", RelXml.HashString(Bar));
-            RelXml.StringTag(sb, indent, "Beat", RelXml.HashString(Beat));
-            RelXml.ValueTag(sb, indent, "Unk3", FloatUtil.ToString(Unk3));
+            RelXml.ValueTag(sb, indent, "Constrain", Constrain.ToString());
+            RelXml.ValueTag(sb, indent, "numTimingConstraints", numTimingConstraints.ToString());
+            RelXml.StringTag(sb, indent, "TimingConstraint1", RelXml.HashString(TimingConstraint1));
+            RelXml.StringTag(sb, indent, "TimingConstraint2", RelXml.HashString(TimingConstraint2));
+            RelXml.ValueTag(sb, indent, "DelayTime", FloatUtil.ToString(DelayTime));
             RelXml.StringTag(sb, indent, "Mood", RelXml.HashString(Mood));
-            RelXml.ValueTag(sb, indent, "Unk4", FloatUtil.ToString(Unk4));
-            RelXml.ValueTag(sb, indent, "FadeIn", FadeIn.ToString());
-            RelXml.ValueTag(sb, indent, "FadeOut", FadeOut.ToString());
+            RelXml.ValueTag(sb, indent, "VolumeOffset", FloatUtil.ToString(VolumeOffset));
+            RelXml.ValueTag(sb, indent, "FadeInTime", FadeInTime.ToString());
+            RelXml.ValueTag(sb, indent, "FadeOutTime", FadeOutTime.ToString());
         }
         public override void ReadXml(XmlNode node)
         {
-            Unk0 = Xml.GetChildUIntAttribute(node, "Unk0", "value");
-            Unk1 = Xml.GetChildIntAttribute(node, "Unk1", "value");
-            Unk2 = Xml.GetChildIntAttribute(node, "Unk2", "value");
-            Bar = XmlRel.GetHash(Xml.GetChildInnerText(node, "Bar"));
-            Beat = XmlRel.GetHash(Xml.GetChildInnerText(node, "Beat"));
-            Unk3 = Xml.GetChildFloatAttribute(node, "Unk3", "value");
+            Constrain = (byte)Xml.GetChildIntAttribute(node, "Constrain", "value");
+            numTimingConstraints = Xml.GetChildIntAttribute(node, "numTimingConstraints", "value");
+            TimingConstraint1 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint1"));
+            TimingConstraint2 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint2"));
+            DelayTime = Xml.GetChildFloatAttribute(node, "DelayTime", "value");
             Mood = XmlRel.GetHash(Xml.GetChildInnerText(node, "Mood"));
-            Unk4 = Xml.GetChildFloatAttribute(node, "Unk4", "value");
-            FadeIn = Xml.GetChildIntAttribute(node, "FadeIn", "value");
-            FadeOut = Xml.GetChildIntAttribute(node, "FadeOut", "value");
+            VolumeOffset = Xml.GetChildFloatAttribute(node, "VolumeOffset", "value");
+            FadeInTime = Xml.GetChildIntAttribute(node, "FadeInTime", "value");
+            FadeOutTime = Xml.GetChildIntAttribute(node, "FadeOutTime", "value");
         }
         public override uint[] GetHashTableOffsets()
         {
@@ -7230,7 +7250,7 @@ namespace CodeWalker.GameFiles
         }
         public override MetaHash[] GetGameHashes()
         {
-            return new[] { Bar, Beat, Mood };
+            return new[] { TimingConstraint1, TimingConstraint2, Mood };
         }
     }
 
@@ -7238,8 +7258,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat151MusicEvent : Dat151RelData
     {
-        public uint AudioTrackCount { get; set; }
-        public MetaHash[] AudioTracks { get; set; }
+        public uint ActionsCount { get; set; }
+        public MetaHash[] Actions { get; set; }
 
         public Dat151MusicEvent(RelFile rel) : base(rel)
         {
@@ -7248,38 +7268,38 @@ namespace CodeWalker.GameFiles
         }
         public Dat151MusicEvent(RelData d, BinaryReader br) : base(d, br)
         {
-            AudioTrackCount = br.ReadUInt32();
-            var tracks = new MetaHash[AudioTrackCount];
-            for (int i = 0; i < AudioTrackCount; i++)
+            ActionsCount = br.ReadUInt32();
+            var tracks = new MetaHash[ActionsCount];
+            for (int i = 0; i < ActionsCount; i++)
             {
                 tracks[i] = br.ReadUInt32();
             }
-            AudioTracks = tracks;
+            Actions = tracks;
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffset(bw);
 
-            bw.Write(AudioTrackCount);
-            for (int i = 0; i < AudioTrackCount; i++)
+            bw.Write(ActionsCount);
+            for (int i = 0; i < ActionsCount; i++)
             {
-                bw.Write(AudioTracks[i]);
+                bw.Write(Actions[i]);
             }
 
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.WriteHashItemArray(sb, AudioTracks, indent, "ChildSounds");
+            RelXml.WriteHashItemArray(sb, Actions, indent, "Actions");
         }
         public override void ReadXml(XmlNode node)
         {
-            AudioTracks = XmlRel.ReadHashItemArray(node, "ChildSounds");
-            AudioTrackCount = (uint)(AudioTracks?.Length ?? 0);
+            Actions = XmlRel.ReadHashItemArray(node, "Actions");
+            ActionsCount = (uint)(Actions?.Length ?? 0);
         }
         public override uint[] GetHashTableOffsets()
         {
             var offsets = new List<uint>();
-            for (uint i = 0; i < AudioTrackCount; i++)
+            for (uint i = 0; i < ActionsCount; i++)
             {
                 var offs = 4 + i * 4; //offsets for each audio track
                 offsets.Add(offs);
@@ -7288,7 +7308,7 @@ namespace CodeWalker.GameFiles
         }
         public override MetaHash[] GetGameHashes()
         {
-            return AudioTracks;
+            return Actions;
         }
     }
 
@@ -7296,17 +7316,21 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat151StartOneShotAction : Dat151RelData
     {
-        public FlagsUint Unk0 { get; set; }
-        public int Unk1 { get; set; }
-        public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }  // BarConstraint
-        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
-        public float Unk3 { get; set; }
+        public FlagsUint Flags { get; set; }
+        public byte Constrain { get; set; }
+        public byte padding00 { get; set; }
+        public short padding01 { get; set; }
+        public int numTimingConstraints { get; set; }
+        public MetaHash TimingConstraint1 { get; set; }
+        public MetaHash TimingConstraint2 { get; set; }
+        public float DelayTime { get; set; }
         public MetaHash Sound { get; set; }
-        public int Unk5 { get; set; }
-        public int Unk6 { get; set; }
-        public int Unk7 { get; set; }
-        public int Unk8 { get; set; }
+        public int PreDelay { get; set; }
+        public int FadeInTime { get; set; }
+        public int FadeOutTime { get; set; }
+        public byte SyncMarker { get; set; }
+        public byte padding02 { get; set; }
+        public short padding03 { get; set; }
 
         public Dat151StartOneShotAction(RelFile rel) : base(rel)
         {
@@ -7315,61 +7339,69 @@ namespace CodeWalker.GameFiles
         }
         public Dat151StartOneShotAction(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk0 = br.ReadUInt32();
-            Unk1 = br.ReadInt32();
-            Unk2 = br.ReadInt32();
-            Bar = br.ReadUInt32();
-            Beat = br.ReadUInt32();
-            Unk3 = br.ReadSingle();
+            Flags = br.ReadUInt32();
+            Constrain = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadInt16();
+            numTimingConstraints = br.ReadInt32();
+            TimingConstraint1 = br.ReadUInt32();
+            TimingConstraint2 = br.ReadUInt32();
+            DelayTime = br.ReadSingle();
             Sound = br.ReadUInt32();
-            Unk5 = br.ReadInt32();
-            Unk6 = br.ReadInt32();
-            Unk7 = br.ReadInt32();
-            Unk8 = br.ReadInt32();
+            PreDelay = br.ReadInt32();
+            FadeInTime = br.ReadInt32();
+            FadeOutTime = br.ReadInt32();
+            SyncMarker = br.ReadByte();
+            padding02 = br.ReadByte();
+            padding03 = br.ReadInt16();
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffset(bw);
 
-            bw.Write(Unk0);
-            bw.Write(Unk1);
-            bw.Write(Unk2);
-            bw.Write(Bar);
-            bw.Write(Beat);
-            bw.Write(Unk3);
+            bw.Write(Flags);
+            bw.Write(Constrain);
+            bw.Write(padding00);
+            bw.Write(padding01);
+            bw.Write(numTimingConstraints);
+            bw.Write(TimingConstraint1);
+            bw.Write(TimingConstraint2);
+            bw.Write(DelayTime);
             bw.Write(Sound);
-            bw.Write(Unk5);
-            bw.Write(Unk6);
-            bw.Write(Unk7);
-            bw.Write(Unk8);
+            bw.Write(PreDelay);
+            bw.Write(FadeInTime);
+            bw.Write(FadeOutTime);
+            bw.Write(SyncMarker);
+            bw.Write(padding02);
+            bw.Write(padding03);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.ValueTag(sb, indent, "Unk0", "0x" + Unk0.Hex);
-            RelXml.ValueTag(sb, indent, "Unk1", Unk1.ToString());
-            RelXml.ValueTag(sb, indent, "Unk2", Unk2.ToString());
-            RelXml.StringTag(sb, indent, "Bar", RelXml.HashString(Bar));
-            RelXml.StringTag(sb, indent, "Beat", RelXml.HashString(Beat));
-            RelXml.ValueTag(sb, indent, "Unk3", FloatUtil.ToString(Unk3));
+            RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
+            RelXml.ValueTag(sb, indent, "Constrain", Constrain.ToString());
+            RelXml.ValueTag(sb, indent, "numTimingConstraints", numTimingConstraints.ToString());
+            RelXml.StringTag(sb, indent, "TimingConstraint1", RelXml.HashString(TimingConstraint1));
+            RelXml.StringTag(sb, indent, "TimingConstraint2", RelXml.HashString(TimingConstraint2));
+            RelXml.ValueTag(sb, indent, "DelayTime", FloatUtil.ToString(DelayTime));
             RelXml.StringTag(sb, indent, "Sound", RelXml.HashString(Sound));
-            RelXml.ValueTag(sb, indent, "Unk5", Unk5.ToString());
-            RelXml.ValueTag(sb, indent, "Unk6", Unk6.ToString());
-            RelXml.ValueTag(sb, indent, "Unk7", Unk7.ToString());
-            RelXml.ValueTag(sb, indent, "Unk8", Unk8.ToString());
+            RelXml.ValueTag(sb, indent, "PreDelay", PreDelay.ToString());
+            RelXml.ValueTag(sb, indent, "FadeInTime", FadeInTime.ToString());
+            RelXml.ValueTag(sb, indent, "FadeOutTime", FadeOutTime.ToString());
+            RelXml.ValueTag(sb, indent, "SyncMarker", SyncMarker.ToString());
         }
         public override void ReadXml(XmlNode node)
         {
-            Unk0 = Xml.GetChildUIntAttribute(node, "Unk0", "value");
-            Unk1 = Xml.GetChildIntAttribute(node, "Unk1", "value");
-            Unk2 = Xml.GetChildIntAttribute(node, "Unk2", "value");
-            Bar = XmlRel.GetHash(Xml.GetChildInnerText(node, "Bar"));
-            Beat = XmlRel.GetHash(Xml.GetChildInnerText(node, "Beat"));
-            Unk3 = Xml.GetChildFloatAttribute(node, "Unk3", "value");
+            Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
+            Constrain = (byte)Xml.GetChildIntAttribute(node, "Constrain", "value");
+            numTimingConstraints = Xml.GetChildIntAttribute(node, "numTimingConstraints", "value");
+            TimingConstraint1 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint1"));
+            TimingConstraint2 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint2"));
+            DelayTime = Xml.GetChildFloatAttribute(node, "DelayTime", "value");
             Sound = XmlRel.GetHash(Xml.GetChildInnerText(node, "Sound"));
-            Unk5 = Xml.GetChildIntAttribute(node, "Unk5", "value");
-            Unk6 = Xml.GetChildIntAttribute(node, "Unk6", "value");
-            Unk7 = Xml.GetChildIntAttribute(node, "Unk7", "value");
-            Unk8 = Xml.GetChildIntAttribute(node, "Unk8", "value");
+            PreDelay = Xml.GetChildIntAttribute(node, "PreDelay", "value");
+            FadeInTime = Xml.GetChildIntAttribute(node, "FadeInTime", "value");
+            FadeOutTime = Xml.GetChildIntAttribute(node, "FadeOutTime", "value");
+            SyncMarker = (byte)Xml.GetChildIntAttribute(node, "SyncMarker", "value");
         }
         public override uint[] GetHashTableOffsets()
         {
@@ -7381,7 +7413,7 @@ namespace CodeWalker.GameFiles
         }
         public override MetaHash[] GetGameHashes()
         {
-            return new[] { Bar, Beat };
+            return new[] { TimingConstraint1, TimingConstraint2 };
         }
     }
 
@@ -7389,12 +7421,14 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat151StopOneShotAction : Dat151RelData
     {
-        public FlagsUint Unk0 { get; set; }
-        public int Unk1 { get; set; }
-        public int Unk2 { get; set; }
-        public MetaHash Bar { get; set; }  // BarConstraint
-        public MetaHash Beat { get; set; } // not used but follows same pattern as TrackAction items.
-        public int Unk3 { get; set; }
+        public FlagsUint Flags { get; set; }
+        public byte Constrain { get; set; }
+        public byte padding00 { get; set; }
+        public short padding01 { get; set; }
+        public int numTimingConstraints { get; set; }
+        public MetaHash TimingConstraint1 { get; set; }
+        public MetaHash TimingConstraint2 { get; set; }
+        public int DelayTime { get; set; }
 
         public Dat151StopOneShotAction(RelFile rel) : base(rel)
         {
@@ -7403,41 +7437,43 @@ namespace CodeWalker.GameFiles
         }
         public Dat151StopOneShotAction(RelData d, BinaryReader br) : base(d, br)
         {
-            Unk0 = br.ReadUInt32();
-            Unk1 = br.ReadInt32();
-            Unk2 = br.ReadInt32();
-            Bar = br.ReadUInt32();
-            Beat = br.ReadUInt32();
-            Unk3 = br.ReadInt32();
+            Flags = br.ReadUInt32();
+            Constrain = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadInt16();
+            numTimingConstraints = br.ReadInt32();
+            TimingConstraint1 = br.ReadUInt32();
+            TimingConstraint2 = br.ReadUInt32();
+            DelayTime = br.ReadInt32();
         }
         public override void Write(BinaryWriter bw)
         {
             WriteTypeAndOffset(bw);
 
-            bw.Write(Unk0);
-            bw.Write(Unk1);
-            bw.Write(Unk2);
-            bw.Write(Bar);
-            bw.Write(Beat);
-            bw.Write(Unk3);
+            bw.Write(Flags);
+            bw.Write(Constrain);
+            bw.Write(padding00);
+            bw.Write(padding01);
+            bw.Write(numTimingConstraints);
+            bw.Write(TimingConstraint1);
+            bw.Write(TimingConstraint2);
+            bw.Write(DelayTime);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            RelXml.ValueTag(sb, indent, "Unk0", "0x" + Unk0.Hex);
-            RelXml.ValueTag(sb, indent, "Unk1", Unk1.ToString());
-            RelXml.ValueTag(sb, indent, "Unk2", Unk2.ToString());
-            RelXml.StringTag(sb, indent, "Bar", RelXml.HashString(Bar));
-            RelXml.StringTag(sb, indent, "Beat", RelXml.HashString(Beat));
-            RelXml.ValueTag(sb, indent, "Unk3", Unk3.ToString());
+            RelXml.ValueTag(sb, indent, "Constrain", Constrain.ToString());
+            RelXml.ValueTag(sb, indent, "numTimingConstraints", numTimingConstraints.ToString());
+            RelXml.StringTag(sb, indent, "TimingConstraint1", RelXml.HashString(TimingConstraint1));
+            RelXml.StringTag(sb, indent, "TimingConstraint2", RelXml.HashString(TimingConstraint2));
+            RelXml.ValueTag(sb, indent, "DelayTime", DelayTime.ToString());
         }
         public override void ReadXml(XmlNode node)
         {
-            Unk0 = Xml.GetChildUIntAttribute(node, "Unk0", "value");
-            Unk1 = Xml.GetChildIntAttribute(node, "Unk1", "value");
-            Unk2 = Xml.GetChildIntAttribute(node, "Unk2", "value");
-            Bar = XmlRel.GetHash(Xml.GetChildInnerText(node, "Bar"));
-            Beat = XmlRel.GetHash(Xml.GetChildInnerText(node, "Beat"));
-            Unk3 = Xml.GetChildIntAttribute(node, "Unk3", "value");
+            Constrain = (byte)Xml.GetChildIntAttribute(node, "Constrain", "value");
+            numTimingConstraints = Xml.GetChildIntAttribute(node, "numTimingConstraints", "value");
+            TimingConstraint1 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint1"));
+            TimingConstraint2 = XmlRel.GetHash(Xml.GetChildInnerText(node, "TimingConstraint2"));
+            DelayTime = Xml.GetChildIntAttribute(node, "DelayTime", "value");
         }
         public override uint[] GetHashTableOffsets()
         {
@@ -7445,7 +7481,7 @@ namespace CodeWalker.GameFiles
         }
         public override MetaHash[] GetGameHashes()
         {
-            return new[] { Bar, Beat };
+            return new[] { TimingConstraint1, TimingConstraint2 };
         }
     }
 
