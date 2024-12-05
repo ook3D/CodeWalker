@@ -11895,7 +11895,7 @@ namespace CodeWalker.GameFiles
         public MetaHash SlowMoExplosionSound { get; set; }
         public MetaHash SlowMoExplosionPreSuckSound { get; set; }
         public int SlowMoExplosionPreSuckSoundTime { get; set; }
-        public uint SlowMoExplosionPreSuckMixerScene { get; set; }
+        public MetaHash SlowMoExplosionPreSuckMixerScene { get; set; }
 
         public Dat151ExplosionAudioSettings(RelFile rel) : base(rel)
         {
@@ -11967,6 +11967,10 @@ namespace CodeWalker.GameFiles
         public override MetaHash[] GetSoundHashes()
         {
             return new[] { ExplosionSound, DebrisSound, SlowMoExplosionSound, SlowMoExplosionPreSuckSound };
+        }
+        public override MetaHash[] GetMixerHashes()
+        {
+            return new[] { SlowMoExplosionPreSuckMixerScene };
         }
     }
 
