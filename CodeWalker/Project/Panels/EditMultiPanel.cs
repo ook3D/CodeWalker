@@ -1,133 +1,100 @@
-﻿using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿using System;
+using SharpDX;
 
-namespace CodeWalker.Project.Panels
+namespace CodeWalker.Project.Panels;
+
+public partial class EditMultiPanel : ProjectPanel
 {
-    public partial class EditMultiPanel : ProjectPanel
+    public MapSelection MultiItem;
+
+    private bool populatingui;
+    public ProjectForm ProjectForm;
+
+    public EditMultiPanel(ProjectForm owner)
     {
-        public ProjectForm ProjectForm;
-        public MapSelection[] Items { get; set; }
-        public MapSelection MultiItem;
+        ProjectForm = owner;
+        InitializeComponent();
+    }
 
-        private bool populatingui = false;
+    public MapSelection[] Items { get; set; }
 
-        public EditMultiPanel(ProjectForm owner)
+    public void SetItems(MapSelection[] items)
+    {
+        Items = items;
+        Tag = items;
+        LoadItems();
+        UpdateFormTitle();
+    }
+
+    private void UpdateFormTitle()
+    {
+        Text = (Items?.Length ?? 0) + " item" + (Items?.Length == 1 ? "" : "s");
+    }
+
+
+    private void LoadItems()
+    {
+        MultiItem = new MapSelection();
+        MultiItem.WorldForm = ProjectForm.WorldForm;
+        MultiItem.Clear();
+        MultiItem.SetMultipleSelectionItems(Items);
+
+        if (Items == null)
         {
-            ProjectForm = owner;
-            InitializeComponent();
+            PositionTextBox.Text = string.Empty;
+            RotationQuatBox.Value = Quaternion.Identity;
+            ScaleTextBox.Text = string.Empty;
+            ItemsListBox.Items.Clear();
         }
-
-        public void SetItems(MapSelection[] items)
+        else
         {
-            Items = items;
-            Tag = items;
-            LoadItems();
-            UpdateFormTitle();
+            populatingui = true;
+
+
+            PositionTextBox.Text = FloatUtil.GetVector3String(MultiItem.MultipleSelectionCenter);
+            RotationQuatBox.Value = MultiItem.MultipleSelectionRotation;
+            ScaleTextBox.Text = FloatUtil.GetVector3String(MultiItem.MultipleSelectionScale);
+            ItemsListBox.Items.Clear();
+            foreach (var item in Items) ItemsListBox.Items.Add(item);
+
+            populatingui = false;
         }
+    }
 
-        private void UpdateFormTitle()
-        {
-            Text = (Items?.Length ?? 0).ToString() + " item" + ((Items?.Length == 1) ? "" : "s");
-        }
+    private void PositionTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (Items == null) return;
+        if (populatingui) return;
+        var v = FloatUtil.ParseVector3String(PositionTextBox.Text);
 
+        var wf = ProjectForm.WorldForm;
+        if (wf != null)
+            wf.BeginInvoke(() => { wf.ChangeMultiPosition(Items, v); });
+    }
 
-        private void LoadItems()
-        {
-            MultiItem = new MapSelection();
-            MultiItem.WorldForm = ProjectForm.WorldForm;
-            MultiItem.Clear();
-            MultiItem.SetMultipleSelectionItems(Items);
+    private void RotationQuatBox_ValueChanged(object sender, EventArgs e)
+    {
+        if (Items == null) return;
+        if (populatingui) return;
+        var q = RotationQuatBox.Value;
 
-            if (Items == null)
-            {
-                PositionTextBox.Text = string.Empty;
-                RotationQuatBox.Value = Quaternion.Identity;
-                ScaleTextBox.Text = string.Empty;
-                ItemsListBox.Items.Clear();
-            }
-            else
-            {
-                populatingui = true;
+        var wf = ProjectForm.WorldForm;
+        if (wf != null)
+            wf.BeginInvoke(() => { wf.ChangeMultiRotation(Items, q); });
+    }
 
+    private void ScaleTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (Items == null) return;
+        if (populatingui) return;
+        var v = FloatUtil.ParseVector3String(ScaleTextBox.Text);
 
-                PositionTextBox.Text = FloatUtil.GetVector3String(MultiItem.MultipleSelectionCenter);
-                RotationQuatBox.Value = MultiItem.MultipleSelectionRotation;
-                ScaleTextBox.Text = FloatUtil.GetVector3String(MultiItem.MultipleSelectionScale);
-                ItemsListBox.Items.Clear();
-                foreach (var item in Items)
-                {
-                    ItemsListBox.Items.Add(item);
-                }
+        var wf = ProjectForm.WorldForm;
+        if (wf != null)
+            wf.BeginInvoke(() => { wf.ChangeMultiScale(Items, v); });
+    }
 
-                populatingui = false;
-
-
-            }
-
-
-        }
-
-        private void PositionTextBox_TextChanged(object sender, EventArgs e)
-        {
-            if (Items == null) return;
-            if (populatingui) return;
-            var v = FloatUtil.ParseVector3String(PositionTextBox.Text);
-
-            var wf = ProjectForm.WorldForm;
-            if (wf != null)
-            {
-                wf.BeginInvoke(new Action(() =>
-                {
-                    wf.ChangeMultiPosition(Items, v, false);
-                }));
-            }
-
-        }
-
-        private void RotationQuatBox_ValueChanged(object sender, EventArgs e)
-        {
-            if (Items == null) return;
-            if (populatingui) return;
-            var q = RotationQuatBox.Value;
-
-            var wf = ProjectForm.WorldForm;
-            if (wf != null)
-            {
-                wf.BeginInvoke(new Action(() =>
-                {
-                    wf.ChangeMultiRotation(Items, q, false);
-                }));
-            }
-        }
-
-        private void ScaleTextBox_TextChanged(object sender, EventArgs e)
-        {
-            if (Items == null) return;
-            if (populatingui) return;
-            var v = FloatUtil.ParseVector3String(ScaleTextBox.Text);
-
-            var wf = ProjectForm.WorldForm;
-            if (wf != null)
-            {
-                wf.BeginInvoke(new Action(() =>
-                {
-                    wf.ChangeMultiScale(Items, v, false);
-                }));
-            }
-
-        }
-
-        private void ItemsListBox_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-        }
+    private void ItemsListBox_SelectedIndexChanged(object sender, EventArgs e)
+    {
     }
 }

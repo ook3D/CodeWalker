@@ -1,50 +1,44 @@
-﻿using SharpDX.D3DCompiler;
-using System;
+﻿using System;
+using SharpDX.D3DCompiler;
 
-namespace CodeWalker.GameFiles
+namespace CodeWalker.GameFiles;
+
+public static class FxcParser
 {
-
-    public static class FxcParser
+    public static bool ParseShader(FxcShader shader)
     {
+        ShaderBytecode ByteCodeObj;
+        ShaderProfile ShaderProfile;
 
-        public static bool ParseShader(FxcShader shader)
+        try
         {
-            ShaderBytecode ByteCodeObj;
-            ShaderProfile ShaderProfile;
+            ByteCodeObj = new ShaderBytecode(shader.ByteCode);
 
-            try
+            ShaderProfile = ByteCodeObj.GetVersion();
+
+
+            switch (ShaderProfile.Version)
             {
-                ByteCodeObj = new ShaderBytecode(shader.ByteCode);
-
-                ShaderProfile = ByteCodeObj.GetVersion();
-
-
-                switch (ShaderProfile.Version)
-                {
-                    case ShaderVersion.VertexShader:
-                    case ShaderVersion.PixelShader:
-                    case ShaderVersion.GeometryShader:
-                        //VersionMajor = br.ReadByte();//4,5 //appears to be shader model version
-                        //VersionMinor = br.ReadByte(); //perhaps shader minor version
-                        break;
-                    default:
-                        shader.VersionMajor = (byte)ShaderProfile.Major;
-                        shader.VersionMinor = (byte)ShaderProfile.Minor;
-                        break;
-                }
-
-                shader.Disassembly = ByteCodeObj.Disassemble();
-
-            }
-            catch (Exception ex)
-            {
-                shader.LastError += ex.ToString() + "\r\n";
-                return false;
+                case ShaderVersion.VertexShader:
+                case ShaderVersion.PixelShader:
+                case ShaderVersion.GeometryShader:
+                    //VersionMajor = br.ReadByte();//4,5 //appears to be shader model version
+                    //VersionMinor = br.ReadByte(); //perhaps shader minor version
+                    break;
+                default:
+                    shader.VersionMajor = (byte)ShaderProfile.Major;
+                    shader.VersionMinor = (byte)ShaderProfile.Minor;
+                    break;
             }
 
-            return true;
+            shader.Disassembly = ByteCodeObj.Disassemble();
+        }
+        catch (Exception ex)
+        {
+            shader.LastError += ex + "\r\n";
+            return false;
         }
 
+        return true;
     }
-
 }

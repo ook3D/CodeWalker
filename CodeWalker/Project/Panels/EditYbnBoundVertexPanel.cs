@@ -1,114 +1,106 @@
-﻿using CodeWalker.GameFiles;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿using System;
+using CodeWalker.GameFiles;
 
-namespace CodeWalker.Project.Panels
+namespace CodeWalker.Project.Panels;
+
+public partial class EditYbnBoundVertexPanel : ProjectPanel
 {
-    public partial class EditYbnBoundVertexPanel : ProjectPanel
+    private bool populatingui;
+    public ProjectForm ProjectForm;
+    private bool waschanged;
+
+    public EditYbnBoundVertexPanel(ProjectForm projectForm)
     {
-        public ProjectForm ProjectForm;
-        public BoundVertex CollisionVertex { get; set; }
+        ProjectForm = projectForm;
+        InitializeComponent();
+    }
 
-        private bool populatingui = false;
-        private bool waschanged = false;
+    public BoundVertex CollisionVertex { get; set; }
 
-        public EditYbnBoundVertexPanel(ProjectForm projectForm)
+    public void SetCollisionVertex(BoundVertex v)
+    {
+        CollisionVertex = v;
+        Tag = v;
+        UpdateFormTitle();
+        UpdateUI();
+        waschanged = v?.Owner?.HasChanged ?? false;
+    }
+
+    public void UpdateFormTitleYbnChanged()
+    {
+        var changed = CollisionVertex?.Owner?.HasChanged ?? false;
+        if (!waschanged && changed)
         {
-            ProjectForm = projectForm;
-            InitializeComponent();
-        }
-
-        public void SetCollisionVertex(BoundVertex v)
-        {
-            CollisionVertex = v;
-            Tag = v;
             UpdateFormTitle();
-            UpdateUI();
-            waschanged = v?.Owner?.HasChanged ?? false;
+            waschanged = true;
         }
-
-        public void UpdateFormTitleYbnChanged()
+        else if (waschanged && !changed)
         {
-            bool changed = CollisionVertex?.Owner?.HasChanged ?? false;
-            if (!waschanged && changed)
-            {
-                UpdateFormTitle();
-                waschanged = true;
-            }
-            else if (waschanged && !changed)
-            {
-                UpdateFormTitle();
-                waschanged = false;
-            }
+            UpdateFormTitle();
+            waschanged = false;
         }
-        private void UpdateFormTitle()
+    }
+
+    private void UpdateFormTitle()
+    {
+        var fn = CollisionVertex?.Title ?? "untitled";
+        Text = fn + (CollisionVertex?.Owner?.HasChanged ?? false ? "*" : "");
+    }
+
+
+    public void UpdateUI()
+    {
+        if (CollisionVertex == null)
         {
-            string fn = CollisionVertex?.Title ?? "untitled";
-            Text = fn + ((CollisionVertex?.Owner?.HasChanged ?? false) ? "*" : "");
+            AddToProjectButton.Enabled = false;
+            DeleteButton.Enabled = false;
+            PositionTextBox.Text = string.Empty;
+            ColourTextBox.Text = string.Empty;
         }
-
-
-        public void UpdateUI()
+        else
         {
-            if (CollisionVertex == null)
-            {
-                AddToProjectButton.Enabled = false;
-                DeleteButton.Enabled = false;
-                PositionTextBox.Text = string.Empty;
-                ColourTextBox.Text = string.Empty;
-            }
-            else
-            {
-                populatingui = true;
+            populatingui = true;
 
-                PositionTextBox.Text = FloatUtil.GetVector3String(CollisionVertex.Position);
-                ColourTextBox.Text = CollisionVertex.Colour.ToString();
+            PositionTextBox.Text = FloatUtil.GetVector3String(CollisionVertex.Position);
+            ColourTextBox.Text = CollisionVertex.Colour.ToString();
 
-                var ybn = CollisionVertex.Owner?.GetRootYbn();
-                AddToProjectButton.Enabled = (ybn != null) ? !ProjectForm.YbnExistsInProject(ybn) : false;
-                DeleteButton.Enabled = !AddToProjectButton.Enabled;
+            var ybn = CollisionVertex.Owner?.GetRootYbn();
+            AddToProjectButton.Enabled = ybn != null ? !ProjectForm.YbnExistsInProject(ybn) : false;
+            DeleteButton.Enabled = !AddToProjectButton.Enabled;
 
-                populatingui = false;
-            }
+            populatingui = false;
         }
+    }
 
-        private void PositionTextBox_TextChanged(object sender, EventArgs e)
+    private void PositionTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (CollisionVertex == null) return;
+        if (populatingui) return;
+        var v = FloatUtil.ParseVector3String(PositionTextBox.Text);
+        lock (ProjectForm.ProjectSyncRoot)
         {
-            if (CollisionVertex == null) return;
-            if (populatingui) return;
-            var v = FloatUtil.ParseVector3String(PositionTextBox.Text);
-            lock (ProjectForm.ProjectSyncRoot)
+            if (CollisionVertex.Position != v)
             {
-                if (CollisionVertex.Position != v)
-                {
-                    CollisionVertex.Position = v;
-                    ProjectForm.SetYbnHasChanged(true);
-                }
+                CollisionVertex.Position = v;
+                ProjectForm.SetYbnHasChanged(true);
             }
         }
+    }
 
-        private void ColourTextBox_TextChanged(object sender, EventArgs e)
-        {
-            //TODO!!
-        }
+    private void ColourTextBox_TextChanged(object sender, EventArgs e)
+    {
+        //TODO!!
+    }
 
-        private void AddToProjectButton_Click(object sender, EventArgs e)
-        {
-            ProjectForm.SetProjectItem(CollisionVertex);
-            ProjectForm.AddCollisionVertexToProject();
-        }
+    private void AddToProjectButton_Click(object sender, EventArgs e)
+    {
+        ProjectForm.SetProjectItem(CollisionVertex);
+        ProjectForm.AddCollisionVertexToProject();
+    }
 
-        private void DeleteButton_Click(object sender, EventArgs e)
-        {
-            ProjectForm.SetProjectItem(CollisionVertex);
-            ProjectForm.DeleteCollisionVertex();
-        }
+    private void DeleteButton_Click(object sender, EventArgs e)
+    {
+        ProjectForm.SetProjectItem(CollisionVertex);
+        ProjectForm.DeleteCollisionVertex();
     }
 }

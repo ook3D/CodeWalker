@@ -1,63 +1,55 @@
 ﻿using CodeWalker.GameFiles;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
-namespace CodeWalker.Project.Panels
+namespace CodeWalker.Project.Panels;
+
+public partial class EditYtypPanel : ProjectPanel
 {
-    public partial class EditYtypPanel : ProjectPanel
+    public ProjectForm ProjectForm;
+
+    //private bool populatingui = false;
+    private bool waschanged;
+
+    public EditYtypPanel(ProjectForm projectForm)
     {
-        public ProjectForm ProjectForm;
-        public YtypFile Ytyp { get; set; }
+        ProjectForm = projectForm;
+        InitializeComponent();
+    }
 
-        //private bool populatingui = false;
-        private bool waschanged = false;
+    public YtypFile Ytyp { get; set; }
 
-        public EditYtypPanel(ProjectForm projectForm)
+    public void SetYtyp(YtypFile ytyp)
+    {
+        Ytyp = ytyp;
+        Tag = ytyp;
+        UpdateFormTitle();
+        UpdateYtypUI();
+        waschanged = ytyp?.HasChanged ?? false;
+    }
+
+    public void UpdateFormTitleYtypChanged()
+    {
+        var changed = Ytyp.HasChanged;
+        if (!waschanged && changed)
         {
-            ProjectForm = projectForm;
-            InitializeComponent();
-        }
-
-        public void SetYtyp(YtypFile ytyp)
-        {
-            Ytyp = ytyp;
-            Tag = ytyp;
             UpdateFormTitle();
-            UpdateYtypUI();
-            waschanged = ytyp?.HasChanged ?? false;
+            waschanged = true;
         }
+        else if (waschanged && !changed)
+        {
+            UpdateFormTitle();
+            waschanged = false;
+        }
+    }
 
-        public void UpdateFormTitleYtypChanged()
-        {
-            bool changed = Ytyp.HasChanged;
-            if (!waschanged && changed)
-            {
-                UpdateFormTitle();
-                waschanged = true;
-            }
-            else if (waschanged && !changed)
-            {
-                UpdateFormTitle();
-                waschanged = false;
-            }
-        }
-        private void UpdateFormTitle()
-        {
-            string fn = Ytyp.RpfFileEntry?.Name ?? Ytyp.Name;
-            if (string.IsNullOrEmpty(fn)) fn = "untitled.ytyp";
-            Text = fn + (Ytyp.HasChanged ? "*" : "");
-        }
+    private void UpdateFormTitle()
+    {
+        var fn = Ytyp.RpfFileEntry?.Name ?? Ytyp.Name;
+        if (string.IsNullOrEmpty(fn)) fn = "untitled.ytyp";
+        Text = fn + (Ytyp.HasChanged ? "*" : "");
+    }
 
 
-        public void UpdateYtypUI()
-        {
-        }
+    public void UpdateYtypUI()
+    {
     }
 }

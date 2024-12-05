@@ -1,146 +1,142 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using CodeWalker.GameFiles;
+﻿using CodeWalker.GameFiles;
+using CodeWalker.World;
 using SharpDX;
 using SharpDX.Direct3D11;
-using System.IO;
 using SharpDX.DXGI;
 using Device = SharpDX.Direct3D11.Device;
-using Buffer = SharpDX.Direct3D11.Buffer;
-using MapFlags = SharpDX.Direct3D11.MapFlags;
-using CodeWalker.World;
 
-namespace CodeWalker.Rendering
+namespace CodeWalker.Rendering;
+
+public struct DistantLightsShaderVSSceneVars
 {
-    public struct DistantLightsShaderVSSceneVars
+    public Matrix ViewProj;
+    public Matrix ViewInv;
+    public Vector3 CamPos;
+    public float Pad0;
+}
+
+public class DistantLightsShader : Shader
+{
+    private bool disposed;
+
+    private readonly InputLayout layout;
+    private readonly PixelShader lightsps;
+
+    private readonly VertexShader lightsvs;
+
+    private readonly UnitQuad quad;
+
+    private readonly SamplerState texsampler;
+
+    private readonly GpuVarsBuffer<DistantLightsShaderVSSceneVars> VSSceneVars;
+
+
+    public DistantLightsShader(Device device)
     {
-        public Matrix ViewProj;
-        public Matrix ViewInv;
-        public Vector3 CamPos;
-        public float Pad0;
+        var vsbytes = PathUtil.ReadAllBytes("Shaders\\DistantLightsVS.cso");
+        var psbytes = PathUtil.ReadAllBytes("Shaders\\DistantLightsPS.cso");
+
+        lightsvs = new VertexShader(device, vsbytes);
+        lightsps = new PixelShader(device, psbytes);
+
+        layout = new InputLayout(device, vsbytes, new[]
+        {
+            new InputElement("POSITION", 0, Format.R32G32B32A32_Float, 0, 0),
+            new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0)
+        });
+
+
+        texsampler = new SamplerState(device, new SamplerStateDescription
+        {
+            AddressU = TextureAddressMode.Clamp,
+            AddressV = TextureAddressMode.Clamp,
+            AddressW = TextureAddressMode.Clamp,
+            BorderColor = Color.Transparent,
+            ComparisonFunction = Comparison.Always,
+            Filter = Filter.MinMagMipLinear,
+            MaximumAnisotropy = 1,
+            MaximumLod = float.MaxValue,
+            MinimumLod = 0,
+            MipLodBias = 0
+        });
+
+
+        quad = new UnitQuad(device);
+
+        VSSceneVars = new GpuVarsBuffer<DistantLightsShaderVSSceneVars>(device);
     }
 
-    public class DistantLightsShader : Shader
+    public override void SetShader(DeviceContext context)
     {
-        bool disposed = false;
+        context.VertexShader.Set(lightsvs);
+        context.PixelShader.Set(lightsps);
+        SetInputLayout(context, VertexType.PT);
+    }
 
-        VertexShader lightsvs;
-        PixelShader lightsps;
+    public override bool SetInputLayout(DeviceContext context, VertexType type)
+    {
+        context.InputAssembler.InputLayout = layout;
+        return true;
+    }
 
-        InputLayout layout;
+    public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap,
+        ShaderGlobalLights lights)
+    {
+        VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
+        VSSceneVars.Vars.ViewInv = Matrix.Transpose(camera.ViewInvMatrix);
+        VSSceneVars.Vars.CamPos = camera.Position;
+        VSSceneVars.Update(context);
+        VSSceneVars.SetVSCBuffer(context, 0);
+    }
 
-        SamplerState texsampler;
+    public override void SetEntityVars(DeviceContext context, ref RenderableInst rend)
+    {
+    }
 
-        UnitQuad quad;
+    public override void SetModelVars(DeviceContext context, RenderableModel model)
+    {
+    }
 
-        GpuVarsBuffer<DistantLightsShaderVSSceneVars> VSSceneVars;
+    public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
+    {
+    }
 
-
-        public DistantLightsShader(Device device)
-        {
-            byte[] vsbytes = PathUtil.ReadAllBytes("Shaders\\DistantLightsVS.cso");
-            byte[] psbytes = PathUtil.ReadAllBytes("Shaders\\DistantLightsPS.cso");
-
-            lightsvs = new VertexShader(device, vsbytes);
-            lightsps = new PixelShader(device, psbytes);
-
-            layout = new InputLayout(device, vsbytes, new[]
-            {
-                new InputElement("POSITION", 0, Format.R32G32B32A32_Float, 0, 0),
-                new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0),
-            });
-
-
-            texsampler = new SamplerState(device, new SamplerStateDescription()
-            {
-                AddressU = TextureAddressMode.Clamp,
-                AddressV = TextureAddressMode.Clamp,
-                AddressW = TextureAddressMode.Clamp,
-                BorderColor = Color.Transparent,
-                ComparisonFunction = Comparison.Always,
-                Filter = Filter.MinMagMipLinear,
-                MaximumAnisotropy = 1,
-                MaximumLod = float.MaxValue,
-                MinimumLod = 0,
-                MipLodBias = 0,
-            });
+    public override void UnbindResources(DeviceContext context)
+    {
+        context.VertexShader.SetConstantBuffer(0, null);
+        context.VertexShader.SetShaderResource(0, null);
+        context.PixelShader.SetShaderResource(0, null);
+        context.PixelShader.SetSampler(0, null);
+    }
 
 
-            quad = new UnitQuad(device);
+    public void RenderBatch(DeviceContext context, RenderableDistantLODLights lights)
+    {
+        context.VertexShader.SetShaderResource(0, lights.InstanceBuffer.SRV);
+        context.PixelShader.SetShaderResource(0, lights.Texture.ShaderResourceView);
+        context.PixelShader.SetSampler(0, texsampler);
 
-            VSSceneVars = new GpuVarsBuffer<DistantLightsShaderVSSceneVars>(device);
-
-        }
-
-        public override void SetShader(DeviceContext context)
-        {
-            context.VertexShader.Set(lightsvs);
-            context.PixelShader.Set(lightsps);
-            SetInputLayout(context, VertexType.PT);
-        }
-        public override bool SetInputLayout(DeviceContext context, VertexType type)
-        {
-            context.InputAssembler.InputLayout = layout;
-            return true;
-        }
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
-        {
-            VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
-            VSSceneVars.Vars.ViewInv = Matrix.Transpose(camera.ViewInvMatrix);
-            VSSceneVars.Vars.CamPos = camera.Position;
-            VSSceneVars.Update(context);
-            VSSceneVars.SetVSCBuffer(context, 0);
-        }
-        public override void SetEntityVars(DeviceContext context, ref RenderableInst rend)
-        {
-        }
-        public override void SetModelVars(DeviceContext context, RenderableModel model)
-        {
-        }
-        public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
-        {
-        }
-        public override void UnbindResources(DeviceContext context)
-        {
-            context.VertexShader.SetConstantBuffer(0, null);
-            context.VertexShader.SetShaderResource(0, null);
-            context.PixelShader.SetShaderResource(0, null);
-            context.PixelShader.SetSampler(0, null);
-        }
+        quad.DrawInstanced(context, lights.InstanceCount);
+    }
 
 
-        public void RenderBatch(DeviceContext context, RenderableDistantLODLights lights)
-        {
-            context.VertexShader.SetShaderResource(0, lights.InstanceBuffer.SRV);
-            context.PixelShader.SetShaderResource(0, lights.Texture.ShaderResourceView);
-            context.PixelShader.SetSampler(0, texsampler);
+    public void Dispose()
+    {
+        if (disposed) return;
 
-            quad.DrawInstanced(context, lights.InstanceCount);
-        }
+        VSSceneVars.Dispose();
 
+        quad.Dispose();
 
-        public void Dispose()
-        {
-            if (disposed) return;
+        texsampler.Dispose();
 
-            VSSceneVars.Dispose();
+        layout.Dispose();
 
-            quad.Dispose();
+        //VSSceneVars.Dispose();
 
-            texsampler.Dispose();
+        lightsps.Dispose();
+        lightsvs.Dispose();
 
-            layout.Dispose();
-
-            //VSSceneVars.Dispose();
-
-            lightsps.Dispose();
-            lightsvs.Dispose();
-
-            disposed = true;
-        }
-
+        disposed = true;
     }
 }

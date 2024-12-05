@@ -1,613 +1,597 @@
-﻿using CodeWalker.GameFiles;
-using CodeWalker.World;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
+﻿using System;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using CodeWalker.GameFiles;
+using CodeWalker.World;
+using SharpDX;
 
-namespace CodeWalker.Project.Panels
+namespace CodeWalker.Project.Panels;
+
+public partial class EditAudioStaticEmitterPanel : ProjectPanel
 {
-    public partial class EditAudioStaticEmitterPanel : ProjectPanel
+    private bool populatingui;
+    public ProjectForm ProjectForm;
+
+
+    public EditAudioStaticEmitterPanel(ProjectForm owner)
     {
-        public ProjectForm ProjectForm;
-        public AudioPlacement CurrentEmitter { get; set; }
+        ProjectForm = owner;
+        InitializeComponent();
+    }
 
-        private bool populatingui = false;
+    public AudioPlacement CurrentEmitter { get; set; }
+
+    public void SetEmitter(AudioPlacement emitter)
+    {
+        CurrentEmitter = emitter;
+        Tag = emitter;
+        UpdateFormTitle();
+        UpdateUI();
+    }
+
+    private void UpdateFormTitle()
+    {
+        Text = CurrentEmitter?.NameHash.ToString() ?? "";
+    }
 
 
-        public EditAudioStaticEmitterPanel(ProjectForm owner)
+    private void UpdateUI()
+    {
+        if (CurrentEmitter?.StaticEmitter == null)
         {
-            ProjectForm = owner;
-            InitializeComponent();
+            AddToProjectButton.Enabled = false;
+            DeleteButton.Enabled = false;
+
+            populatingui = true;
+            NameTextBox.Text = string.Empty;
+            FlagsTextBox.Text = string.Empty;
+            PositionTextBox.Text = string.Empty;
+            InnerRadiusTextBox.Text = string.Empty;
+            OuterRadiusTextBox.Text = string.Empty;
+            ChildSoundTextBox.Text = string.Empty;
+            RadioStationTextBox.Text = string.Empty;
+            RadioScoreTextBox.Text = string.Empty;
+            InteriorTextBox.Text = string.Empty;
+            RoomTextBox.Text = string.Empty;
+            AlarmTextBox.Text = string.Empty;
+            OnBreakTextBox.Text = string.Empty;
+            VolumeTextBox.Text = string.Empty;
+            StartTimeUpDown.Value = 0;
+            EndTimeUpDown.Value = 0;
+            LPFCutoffUpDown.Value = 0;
+            HPFCutoffUpDown.Value = 0;
+            RolloffFactorUpDown.Value = 0;
+            MaxLeakageTextBox.Text = string.Empty;
+            MinLeakageDistUpDown.Value = 0;
+            MaxLeakageDistUpDown.Value = 0;
+            MaxPathDepthUpDown.Value = 0;
+            SmallReverbUpDown.Value = 0;
+            MediumReverbUpDown.Value = 0;
+            LargeReverbUpDown.Value = 0;
+            BrokenHealthTextBox.Text = string.Empty;
+            UndamagedHealthTextBox.Text = string.Empty;
+            populatingui = false;
         }
-
-        public void SetEmitter(AudioPlacement emitter)
+        else
         {
-            CurrentEmitter = emitter;
-            Tag = emitter;
+            AddToProjectButton.Enabled = CurrentEmitter?.RelFile != null
+                ? !ProjectForm.AudioFileExistsInProject(CurrentEmitter.RelFile)
+                : false;
+            DeleteButton.Enabled = !AddToProjectButton.Enabled;
+
+            populatingui = true;
+            var e = CurrentEmitter.StaticEmitter;
+            NameTextBox.Text = e.NameHash.ToString();
+            FlagsTextBox.Text = e.Flags.Hex;
+            PositionTextBox.Text = FloatUtil.GetVector3String(e.Position);
+            InnerRadiusTextBox.Text = FloatUtil.ToString(e.MinDistance);
+            OuterRadiusTextBox.Text = FloatUtil.ToString(e.MaxDistance);
+            ChildSoundTextBox.Text = e.ChildSound.ToString();
+            RadioStationTextBox.Text = e.RadioStation.ToString();
+            RadioScoreTextBox.Text = e.RadioStationForScore.ToString();
+            InteriorTextBox.Text = e.Interior.ToString();
+            RoomTextBox.Text = e.Room.ToString();
+            AlarmTextBox.Text = e.Alarm.ToString();
+            OnBreakTextBox.Text = e.OnBreakOneShot.ToString();
+            VolumeTextBox.Text = e.EmittedVolume.ToString();
+            StartTimeUpDown.Value = e.MinTimeMinutes;
+            EndTimeUpDown.Value = e.MaxTimeMinutes;
+            LPFCutoffUpDown.Value = e.LPFCutoff;
+            HPFCutoffUpDown.Value = e.HPFCutoff;
+            RolloffFactorUpDown.Value = e.RolloffFactor;
+            MaxLeakageTextBox.Text = FloatUtil.ToString(e.MaxLeakage);
+            MinLeakageDistUpDown.Value = e.MinLeakageDistance;
+            MaxLeakageDistUpDown.Value = e.MaxLeakageDistance;
+            MaxPathDepthUpDown.Value = e.MaxPathDepth;
+            SmallReverbUpDown.Value = e.SmallReverbSend;
+            MediumReverbUpDown.Value = e.MediumReverbSend;
+            LargeReverbUpDown.Value = e.LargeReverbSend;
+            BrokenHealthTextBox.Text = FloatUtil.ToString(e.BrokenHealth);
+            UndamagedHealthTextBox.Text = FloatUtil.ToString(e.UndamagedHealth);
+
+            populatingui = false;
+
+            if (ProjectForm.WorldForm != null) ProjectForm.WorldForm.SelectObject(CurrentEmitter);
+        }
+    }
+
+    private void ProjectItemChanged()
+    {
+        CurrentEmitter?.UpdateFromStaticEmitter(); //also update the placement wrapper
+
+        if (CurrentEmitter?.RelFile != null) ProjectForm.SetAudioFileHasChanged(true);
+    }
+
+
+    private void NameTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint hash = 0;
+        var name = NameTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
+        {
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
+        }
+        //NameHashLabel.Text = "Hash: " + hash.ToString();
+
+        if (CurrentEmitter.StaticEmitter.NameHash != hash)
+        {
+            CurrentEmitter.StaticEmitter.Name = NameTextBox.Text;
+            CurrentEmitter.StaticEmitter.NameHash = hash;
+
+            ProjectItemChanged();
             UpdateFormTitle();
-            UpdateUI();
         }
+    }
 
-        private void UpdateFormTitle()
+    private void PositionTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var vec = FloatUtil.ParseVector3String(PositionTextBox.Text);
+        if (CurrentEmitter.StaticEmitter.Position != vec)
         {
-            Text = CurrentEmitter?.NameHash.ToString() ?? "";
+            CurrentEmitter.StaticEmitter.Position = vec;
+
+            ProjectItemChanged();
+
+            //var wf = ProjectForm.WorldForm;
+            //if (wf != null)
+            //{
+            //    wf.BeginInvoke(new Action(() =>
+            //    {
+            //        wf.SetWidgetPosition(CurrentEmitter.Position, true);
+            //    }));
+            //}
         }
+    }
 
+    private void InnerRadiusTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
 
-        private void UpdateUI()
+        var rad = FloatUtil.Parse(InnerRadiusTextBox.Text);
+        if (CurrentEmitter.StaticEmitter.MinDistance != rad)
         {
-            if (CurrentEmitter?.StaticEmitter == null)
-            {
-                AddToProjectButton.Enabled = false;
-                DeleteButton.Enabled = false;
+            CurrentEmitter.StaticEmitter.MinDistance = rad;
 
-                populatingui = true;
-                NameTextBox.Text = string.Empty;
-                FlagsTextBox.Text = string.Empty;
-                PositionTextBox.Text = string.Empty;
-                InnerRadiusTextBox.Text = string.Empty;
-                OuterRadiusTextBox.Text = string.Empty;
-                ChildSoundTextBox.Text = string.Empty;
-                RadioStationTextBox.Text = string.Empty;
-                RadioScoreTextBox.Text = string.Empty;
-                InteriorTextBox.Text = string.Empty;
-                RoomTextBox.Text = string.Empty;
-                AlarmTextBox.Text = string.Empty;
-                OnBreakTextBox.Text = string.Empty;
-                VolumeTextBox.Text = string.Empty;
-                StartTimeUpDown.Value = 0;
-                EndTimeUpDown.Value = 0;
-                LPFCutoffUpDown.Value = 0;
-                HPFCutoffUpDown.Value = 0;
-                RolloffFactorUpDown.Value = 0;
-                MaxLeakageTextBox.Text = string.Empty;
-                MinLeakageDistUpDown.Value = 0;
-                MaxLeakageDistUpDown.Value = 0;
-                MaxPathDepthUpDown.Value = 0;
-                SmallReverbUpDown.Value = 0;
-                MediumReverbUpDown.Value = 0;
-                LargeReverbUpDown.Value = 0;
-                BrokenHealthTextBox.Text = string.Empty;
-                UndamagedHealthTextBox.Text = string.Empty;
-                populatingui = false;
-            }
-            else
-            {
-                AddToProjectButton.Enabled = CurrentEmitter?.RelFile != null ? !ProjectForm.AudioFileExistsInProject(CurrentEmitter.RelFile) : false;
-                DeleteButton.Enabled = !AddToProjectButton.Enabled;
-
-                populatingui = true;
-                var e = CurrentEmitter.StaticEmitter;
-                NameTextBox.Text = e.NameHash.ToString();
-                FlagsTextBox.Text = e.Flags.Hex;
-                PositionTextBox.Text = FloatUtil.GetVector3String(e.Position);
-                InnerRadiusTextBox.Text = FloatUtil.ToString(e.MinDistance);
-                OuterRadiusTextBox.Text = FloatUtil.ToString(e.MaxDistance);
-                ChildSoundTextBox.Text = e.ChildSound.ToString();
-                RadioStationTextBox.Text = e.RadioStation.ToString();
-                RadioScoreTextBox.Text = e.RadioStationForScore.ToString();
-                InteriorTextBox.Text = e.Interior.ToString();
-                RoomTextBox.Text = e.Room.ToString();
-                AlarmTextBox.Text = e.Alarm.ToString();
-                OnBreakTextBox.Text = e.OnBreakOneShot.ToString();
-                VolumeTextBox.Text = e.EmittedVolume.ToString();
-                StartTimeUpDown.Value = e.MinTimeMinutes;
-                EndTimeUpDown.Value = e.MaxTimeMinutes;
-                LPFCutoffUpDown.Value = e.LPFCutoff;
-                HPFCutoffUpDown.Value = e.HPFCutoff;
-                RolloffFactorUpDown.Value = e.RolloffFactor;
-                MaxLeakageTextBox.Text = FloatUtil.ToString(e.MaxLeakage);
-                MinLeakageDistUpDown.Value = e.MinLeakageDistance;
-                MaxLeakageDistUpDown.Value = e.MaxLeakageDistance;
-                MaxPathDepthUpDown.Value = e.MaxPathDepth;
-                SmallReverbUpDown.Value = e.SmallReverbSend;
-                MediumReverbUpDown.Value = e.MediumReverbSend;
-                LargeReverbUpDown.Value = e.LargeReverbSend;
-                BrokenHealthTextBox.Text = FloatUtil.ToString(e.BrokenHealth);
-                UndamagedHealthTextBox.Text = FloatUtil.ToString(e.UndamagedHealth);
-
-                populatingui = false;
-
-                if (ProjectForm.WorldForm != null)
-                {
-                    ProjectForm.WorldForm.SelectObject(CurrentEmitter);
-                }
-
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void ProjectItemChanged()
+    private void OuterRadiusTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var rad = FloatUtil.Parse(OuterRadiusTextBox.Text);
+        if (CurrentEmitter.StaticEmitter.MaxDistance != rad)
         {
-            CurrentEmitter?.UpdateFromStaticEmitter();//also update the placement wrapper
+            CurrentEmitter.StaticEmitter.MaxDistance = rad;
 
-            if (CurrentEmitter?.RelFile != null)
-            {
-                ProjectForm.SetAudioFileHasChanged(true);
-            }
+            ProjectItemChanged();
         }
+    }
 
+    private void ChildSoundTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
 
-
-        private void NameTextBox_TextChanged(object sender, EventArgs e)
+        uint hash = 0;
+        var name = ChildSoundTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            uint hash = 0;
-            string name = NameTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //NameHashLabel.Text = "Hash: " + hash.ToString();
-
-            if (CurrentEmitter.StaticEmitter.NameHash != hash)
-            {
-                CurrentEmitter.StaticEmitter.Name = NameTextBox.Text;
-                CurrentEmitter.StaticEmitter.NameHash = hash;
-
-                ProjectItemChanged();
-                UpdateFormTitle();
-            }
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
         }
+        //HashLabel.Text = "Hash: " + hash.ToString();
 
-        private void PositionTextBox_TextChanged(object sender, EventArgs e)
+        if (CurrentEmitter.StaticEmitter.ChildSound != hash)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.ChildSound = hash;
 
-            var vec = FloatUtil.ParseVector3String(PositionTextBox.Text);
-            if (CurrentEmitter.StaticEmitter.Position != vec)
-            {
-                CurrentEmitter.StaticEmitter.Position = vec;
-
-                ProjectItemChanged();
-
-                //var wf = ProjectForm.WorldForm;
-                //if (wf != null)
-                //{
-                //    wf.BeginInvoke(new Action(() =>
-                //    {
-                //        wf.SetWidgetPosition(CurrentEmitter.Position, true);
-                //    }));
-                //}
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void InnerRadiusTextBox_TextChanged(object sender, EventArgs e)
+    private void RadioStationTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint hash = 0;
+        var name = RadioStationTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            float rad = FloatUtil.Parse(InnerRadiusTextBox.Text);
-            if (CurrentEmitter.StaticEmitter.MinDistance != rad)
-            {
-                CurrentEmitter.StaticEmitter.MinDistance = rad;
-
-                ProjectItemChanged();
-            }
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
         }
+        //HashLabel.Text = "Hash: " + hash.ToString();
 
-        private void OuterRadiusTextBox_TextChanged(object sender, EventArgs e)
+        if (CurrentEmitter.StaticEmitter.RadioStation != hash)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.RadioStation = hash;
 
-            float rad = FloatUtil.Parse(OuterRadiusTextBox.Text);
-            if (CurrentEmitter.StaticEmitter.MaxDistance != rad)
-            {
-                CurrentEmitter.StaticEmitter.MaxDistance = rad;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void ChildSoundTextBox_TextChanged(object sender, EventArgs e)
+    private void RadioScoreTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint hash = 0;
+        var name = RadioScoreTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            uint hash = 0;
-            string name = ChildSoundTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //HashLabel.Text = "Hash: " + hash.ToString();
-
-            if (CurrentEmitter.StaticEmitter.ChildSound != hash)
-            {
-                CurrentEmitter.StaticEmitter.ChildSound = hash;
-
-                ProjectItemChanged();
-            }
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
         }
+        //HashLabel.Text = "Hash: " + hash.ToString();
 
-        private void RadioStationTextBox_TextChanged(object sender, EventArgs e)
+        if (CurrentEmitter.StaticEmitter.RadioStationForScore != hash)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.RadioStationForScore = hash;
 
-            uint hash = 0;
-            string name = RadioStationTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //HashLabel.Text = "Hash: " + hash.ToString();
-
-            if (CurrentEmitter.StaticEmitter.RadioStation != hash)
-            {
-                CurrentEmitter.StaticEmitter.RadioStation = hash;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void RadioScoreTextBox_TextChanged(object sender, EventArgs e)
+    private void InteriorTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint hash = 0;
+        var name = InteriorTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            uint hash = 0;
-            string name = RadioScoreTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //HashLabel.Text = "Hash: " + hash.ToString();
-
-            if (CurrentEmitter.StaticEmitter.RadioStationForScore != hash)
-            {
-                CurrentEmitter.StaticEmitter.RadioStationForScore = hash;
-
-                ProjectItemChanged();
-            }
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
         }
+        //HashLabel.Text = "Hash: " + hash.ToString();
 
-        private void InteriorTextBox_TextChanged(object sender, EventArgs e)
+        if (CurrentEmitter.StaticEmitter.Interior != hash)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.Interior = hash;
 
-            uint hash = 0;
-            string name = InteriorTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //HashLabel.Text = "Hash: " + hash.ToString();
-
-            if (CurrentEmitter.StaticEmitter.Interior != hash)
-            {
-                CurrentEmitter.StaticEmitter.Interior = hash;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void RoomTextBox_TextChanged(object sender, EventArgs e)
+    private void RoomTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint hash = 0;
+        var name = RoomTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
+        }
+        //HashLabel.Text = "Hash: " + hash.ToString();
 
-            uint hash = 0;
-            string name = RoomTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //HashLabel.Text = "Hash: " + hash.ToString();
+        if (CurrentEmitter.StaticEmitter.Room != hash)
+        {
+            CurrentEmitter.StaticEmitter.Room = hash;
 
-            if (CurrentEmitter.StaticEmitter.Room != hash)
+            ProjectItemChanged();
+        }
+    }
+
+    private void AlarmTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint hash = 0;
+        var name = AlarmTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
+        {
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
+        }
+        //HashLabel.Text = "Hash: " + hash.ToString();
+
+        if (CurrentEmitter.StaticEmitter.Alarm != hash)
+        {
+            CurrentEmitter.StaticEmitter.Alarm = hash;
+
+            ProjectItemChanged();
+        }
+    }
+
+    private void OnBreakTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint hash = 0;
+        var name = OnBreakTextBox.Text;
+        if (!uint.TryParse(name, out hash)) //don't re-hash hashes
+        {
+            hash = JenkHash.GenHash(name);
+            JenkIndex.Ensure(name);
+        }
+        //HashLabel.Text = "Hash: " + hash.ToString();
+
+        if (CurrentEmitter.StaticEmitter.OnBreakOneShot != hash)
+        {
+            CurrentEmitter.StaticEmitter.OnBreakOneShot = hash;
+
+            ProjectItemChanged();
+        }
+    }
+
+    private void VolumeTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        int.TryParse(VolumeTextBox.Text, out var val);
+        if (CurrentEmitter.StaticEmitter.EmittedVolume != val)
+        {
+            CurrentEmitter.StaticEmitter.EmittedVolume = val;
+
+            ProjectItemChanged();
+        }
+    }
+
+    private void StartTimeUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (ushort)StartTimeUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.MinTimeMinutes != val)
+        {
+            CurrentEmitter.StaticEmitter.MinTimeMinutes = val;
+
+            ProjectItemChanged();
+        }
+    }
+
+    private void EndTimeUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (ushort)EndTimeUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.MaxTimeMinutes != val)
+        {
+            CurrentEmitter.StaticEmitter.MaxTimeMinutes = val;
+
+            ProjectItemChanged();
+        }
+    }
+
+    private void FlagsTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        uint flags = 0;
+        if (uint.TryParse(FlagsTextBox.Text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out flags))
+            if (CurrentEmitter.StaticEmitter.Flags != flags)
             {
-                CurrentEmitter.StaticEmitter.Room = hash;
+                CurrentEmitter.StaticEmitter.Flags = flags;
 
                 ProjectItemChanged();
             }
-        }
+    }
 
-        private void AlarmTextBox_TextChanged(object sender, EventArgs e)
+    private void LPFCutoffUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (ushort)LPFCutoffUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.LPFCutoff != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.LPFCutoff = val;
 
-            uint hash = 0;
-            string name = AlarmTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //HashLabel.Text = "Hash: " + hash.ToString();
-
-            if (CurrentEmitter.StaticEmitter.Alarm != hash)
-            {
-                CurrentEmitter.StaticEmitter.Alarm = hash;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void OnBreakTextBox_TextChanged(object sender, EventArgs e)
+    private void HPFCutoffUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (ushort)HPFCutoffUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.HPFCutoff != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.HPFCutoff = val;
 
-            uint hash = 0;
-            string name = OnBreakTextBox.Text;
-            if (!uint.TryParse(name, out hash))//don't re-hash hashes
-            {
-                hash = JenkHash.GenHash(name);
-                JenkIndex.Ensure(name);
-            }
-            //HashLabel.Text = "Hash: " + hash.ToString();
-
-            if (CurrentEmitter.StaticEmitter.OnBreakOneShot != hash)
-            {
-                CurrentEmitter.StaticEmitter.OnBreakOneShot = hash;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void VolumeTextBox_TextChanged(object sender, EventArgs e)
+    private void RolloffFactorUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (ushort)RolloffFactorUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.RolloffFactor != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.RolloffFactor = val;
 
-            int.TryParse(VolumeTextBox.Text, out var val);
-            if (CurrentEmitter.StaticEmitter.EmittedVolume != val)
-            {
-                CurrentEmitter.StaticEmitter.EmittedVolume = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void StartTimeUpDown_ValueChanged(object sender, EventArgs e)
+    private void MaxLeakageTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = FloatUtil.Parse(MaxLeakageTextBox.Text);
+        if (CurrentEmitter.StaticEmitter.MaxLeakage != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.MaxLeakage = val;
 
-            var val = (ushort)StartTimeUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.MinTimeMinutes != val)
-            {
-                CurrentEmitter.StaticEmitter.MinTimeMinutes = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void EndTimeUpDown_ValueChanged(object sender, EventArgs e)
+    private void MinLeakageDistUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (ushort)MinLeakageDistUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.MinLeakageDistance != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.MinLeakageDistance = val;
 
-            var val = (ushort)EndTimeUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.MaxTimeMinutes != val)
-            {
-                CurrentEmitter.StaticEmitter.MaxTimeMinutes = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void FlagsTextBox_TextChanged(object sender, EventArgs e)
+    private void MaxLeakageDistUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (ushort)MaxLeakageDistUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.MaxLeakageDistance != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.MaxLeakageDistance = val;
 
-            uint flags = 0;
-            if (uint.TryParse(FlagsTextBox.Text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out flags))
-            {
-                if (CurrentEmitter.StaticEmitter.Flags != flags)
-                {
-                    CurrentEmitter.StaticEmitter.Flags = flags;
-
-                    ProjectItemChanged();
-                }
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void LPFCutoffUpDown_ValueChanged(object sender, EventArgs e)
+    private void MaxPathDepthUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (byte)MaxPathDepthUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.MaxPathDepth != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.MaxPathDepth = val;
 
-            var val = (ushort)LPFCutoffUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.LPFCutoff != val)
-            {
-                CurrentEmitter.StaticEmitter.LPFCutoff = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void HPFCutoffUpDown_ValueChanged(object sender, EventArgs e)
+    private void SmallReverbUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (byte)SmallReverbUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.SmallReverbSend != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.SmallReverbSend = val;
 
-            var val = (ushort)HPFCutoffUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.HPFCutoff != val)
-            {
-                CurrentEmitter.StaticEmitter.HPFCutoff = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void RolloffFactorUpDown_ValueChanged(object sender, EventArgs e)
+    private void MediumReverbUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (byte)MediumReverbUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.MediumReverbSend != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.MediumReverbSend = val;
 
-            var val = (ushort)RolloffFactorUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.RolloffFactor != val)
-            {
-                CurrentEmitter.StaticEmitter.RolloffFactor = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void MaxLeakageTextBox_TextChanged(object sender, EventArgs e)
+    private void LargeReverbUpDown_ValueChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = (byte)LargeReverbUpDown.Value;
+        if (CurrentEmitter.StaticEmitter.LargeReverbSend != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.LargeReverbSend = val;
 
-            var val = FloatUtil.Parse(MaxLeakageTextBox.Text);
-            if (CurrentEmitter.StaticEmitter.MaxLeakage != val)
-            {
-                CurrentEmitter.StaticEmitter.MaxLeakage = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void MinLeakageDistUpDown_ValueChanged(object sender, EventArgs e)
+    private void BrokenHealthTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = FloatUtil.Parse(BrokenHealthTextBox.Text);
+        if (CurrentEmitter.StaticEmitter.BrokenHealth != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.BrokenHealth = val;
 
-            var val = (ushort)MinLeakageDistUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.MinLeakageDistance != val)
-            {
-                CurrentEmitter.StaticEmitter.MinLeakageDistance = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void MaxLeakageDistUpDown_ValueChanged(object sender, EventArgs e)
+    private void UndamagedHealthTextBox_TextChanged(object sender, EventArgs e)
+    {
+        if (populatingui) return;
+        if (CurrentEmitter?.StaticEmitter == null) return;
+
+        var val = FloatUtil.Parse(UndamagedHealthTextBox.Text);
+        if (CurrentEmitter.StaticEmitter.UndamagedHealth != val)
         {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+            CurrentEmitter.StaticEmitter.UndamagedHealth = val;
 
-            var val = (ushort)MaxLeakageDistUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.MaxLeakageDistance != val)
-            {
-                CurrentEmitter.StaticEmitter.MaxLeakageDistance = val;
-
-                ProjectItemChanged();
-            }
+            ProjectItemChanged();
         }
+    }
 
-        private void MaxPathDepthUpDown_ValueChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
+    private void GoToButton_Click(object sender, EventArgs e)
+    {
+        if (CurrentEmitter == null) return;
+        if (ProjectForm.WorldForm == null) return;
+        ProjectForm.WorldForm.GoToPosition(CurrentEmitter.Position, Vector3.One * CurrentEmitter.InnerRadius * 2.0f);
+    }
 
-            var val = (byte)MaxPathDepthUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.MaxPathDepth != val)
-            {
-                CurrentEmitter.StaticEmitter.MaxPathDepth = val;
+    private void AddToProjectButton_Click(object sender, EventArgs e)
+    {
+        ProjectForm.SetProjectItem(CurrentEmitter);
+        ProjectForm.AddAudioFileToProject(CurrentEmitter.RelFile);
+    }
 
-                ProjectItemChanged();
-            }
-        }
-
-        private void SmallReverbUpDown_ValueChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            var val = (byte)SmallReverbUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.SmallReverbSend != val)
-            {
-                CurrentEmitter.StaticEmitter.SmallReverbSend = val;
-
-                ProjectItemChanged();
-            }
-        }
-
-        private void MediumReverbUpDown_ValueChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            var val = (byte)MediumReverbUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.MediumReverbSend != val)
-            {
-                CurrentEmitter.StaticEmitter.MediumReverbSend = val;
-
-                ProjectItemChanged();
-            }
-        }
-
-        private void LargeReverbUpDown_ValueChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            var val = (byte)LargeReverbUpDown.Value;
-            if (CurrentEmitter.StaticEmitter.LargeReverbSend != val)
-            {
-                CurrentEmitter.StaticEmitter.LargeReverbSend = val;
-
-                ProjectItemChanged();
-            }
-        }
-
-        private void BrokenHealthTextBox_TextChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            var val = FloatUtil.Parse(BrokenHealthTextBox.Text);
-            if (CurrentEmitter.StaticEmitter.BrokenHealth != val)
-            {
-                CurrentEmitter.StaticEmitter.BrokenHealth = val;
-
-                ProjectItemChanged();
-            }
-        }
-
-        private void UndamagedHealthTextBox_TextChanged(object sender, EventArgs e)
-        {
-            if (populatingui) return;
-            if (CurrentEmitter?.StaticEmitter == null) return;
-
-            var val = FloatUtil.Parse(UndamagedHealthTextBox.Text);
-            if (CurrentEmitter.StaticEmitter.UndamagedHealth != val)
-            {
-                CurrentEmitter.StaticEmitter.UndamagedHealth = val;
-
-                ProjectItemChanged();
-            }
-        }
-
-        private void GoToButton_Click(object sender, EventArgs e)
-        {
-            if (CurrentEmitter == null) return;
-            if (ProjectForm.WorldForm == null) return;
-            ProjectForm.WorldForm.GoToPosition(CurrentEmitter.Position, SharpDX.Vector3.One * CurrentEmitter.InnerRadius * 2.0f);
-        }
-
-        private void AddToProjectButton_Click(object sender, EventArgs e)
-        {
-            ProjectForm.SetProjectItem(CurrentEmitter);
-            ProjectForm.AddAudioFileToProject(CurrentEmitter.RelFile);
-        }
-
-        private void DeleteButton_Click(object sender, EventArgs e)
-        {
-            ProjectForm.SetProjectItem(CurrentEmitter);
-            ProjectForm.DeleteAudioStaticEmitter();
-        }
+    private void DeleteButton_Click(object sender, EventArgs e)
+    {
+        ProjectForm.SetProjectItem(CurrentEmitter);
+        ProjectForm.DeleteAudioStaticEmitter();
     }
 }
