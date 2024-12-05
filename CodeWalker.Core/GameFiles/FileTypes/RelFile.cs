@@ -17497,7 +17497,7 @@ namespace CodeWalker.GameFiles
     public class Dat151CarRecordingAudioSettings : Dat151RelData
     {
         public MetaHash Group { get; set; }
-        public int Duration { get; set; }
+        public int VehicleModelId { get; set; }
         public int ItemCount { get; set; }
         public Dat151CarRecordingAudioSettingsItem[] Items { get; set; }
         public int ItemCount2 { get; set; }
@@ -17511,7 +17511,7 @@ namespace CodeWalker.GameFiles
         public Dat151CarRecordingAudioSettings(RelData d, BinaryReader br) : base(d, br)
         {
             Group = br.ReadUInt32();
-            Duration = br.ReadInt32();
+            VehicleModelId = br.ReadInt32();
             ItemCount = br.ReadInt32();
             Items = new Dat151CarRecordingAudioSettingsItem[ItemCount];
             for (int i = 0; i < ItemCount; i++)
@@ -17533,7 +17533,7 @@ namespace CodeWalker.GameFiles
             WriteTypeAndOffset(bw);
 
             bw.Write(Group);
-            bw.Write(Duration);
+            bw.Write(VehicleModelId);
             bw.Write(ItemCount);
             for (int i = 0; i < ItemCount; i++)
             {
@@ -17551,7 +17551,7 @@ namespace CodeWalker.GameFiles
         public override void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.StringTag(sb, indent, "Group", RelXml.HashString(Group));
-            RelXml.ValueTag(sb, indent, "Duration", Duration.ToString());
+            RelXml.ValueTag(sb, indent, "VehicleModelId", VehicleModelId.ToString());
             RelXml.WriteItemArray(sb, Items, indent, "Items");
             if (ItemCount > 0)
             {
@@ -17561,7 +17561,7 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             Group = XmlRel.GetHash(Xml.GetChildInnerText(node, "Group"));
-            Duration = Xml.GetChildIntAttribute(node, "Duration", "value");
+            VehicleModelId = Xml.GetChildIntAttribute(node, "VehicleModelId", "value");
             Items = XmlRel.ReadItemArray<Dat151CarRecordingAudioSettingsItem>(node, "Items");
             ItemCount = (Items?.Length ?? 0);
             if (ItemCount > 0)
@@ -17583,7 +17583,7 @@ namespace CodeWalker.GameFiles
             {
                 foreach (var item in Items)
                 {
-                    list.Add(item.Scene);
+                    list.Add(item.OneShotScene);
                 }
             }
             if (Items2 != null)
@@ -17614,7 +17614,7 @@ namespace CodeWalker.GameFiles
     {
         public float Time { get; set; }
         public MetaHash Sound { get; set; }
-        public MetaHash Scene { get; set; }
+        public MetaHash OneShotScene { get; set; }
 
         public Dat151CarRecordingAudioSettingsItem()
         { }
@@ -17622,29 +17622,29 @@ namespace CodeWalker.GameFiles
         {
             Time = br.ReadSingle();
             Sound = br.ReadUInt32();
-            Scene = br.ReadUInt32();
+            OneShotScene = br.ReadUInt32();
         }
         public void Write(BinaryWriter bw)
         {
             bw.Write(Time);
             bw.Write(Sound);
-            bw.Write(Scene);
+            bw.Write(OneShotScene);
         }
         public void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.ValueTag(sb, indent, "Time", FloatUtil.ToString(Time));
             RelXml.StringTag(sb, indent, "Sound", RelXml.HashString(Sound));
-            RelXml.StringTag(sb, indent, "Scene", RelXml.HashString(Scene));
+            RelXml.StringTag(sb, indent, "OneShotScene", RelXml.HashString(OneShotScene));
         }
         public void ReadXml(XmlNode node)
         {
             Time = Xml.GetChildFloatAttribute(node, "Time", "value");
             Sound = XmlRel.GetHash(Xml.GetChildInnerText(node, "Sound"));
-            Scene = XmlRel.GetHash(Xml.GetChildInnerText(node, "Scene"));
+            OneShotScene = XmlRel.GetHash(Xml.GetChildInnerText(node, "OneShotScene"));
         }
         public override string ToString()
         {
-            return Time.ToString() + ", " + Sound.ToString() + ", " + Scene.ToString();
+            return Time.ToString() + ", " + Sound.ToString() + ", " + OneShotScene.ToString();
         }
     }
 
@@ -17652,38 +17652,38 @@ namespace CodeWalker.GameFiles
     public class Dat151CarRecordingAudioSettingsItem2 : IMetaXmlItem
     {
         public MetaHash Scene { get; set; }
-        public float FadeIn { get; set; }
-        public float FadeOut { get; set; }
+        public float StartTime { get; set; }
+        public float EndTime { get; set; }
 
         public Dat151CarRecordingAudioSettingsItem2()
         { }
         public Dat151CarRecordingAudioSettingsItem2(BinaryReader br)
         {
             Scene = br.ReadUInt32();
-            FadeIn = br.ReadSingle();
-            FadeOut = br.ReadSingle();
+            StartTime = br.ReadSingle();
+            EndTime = br.ReadSingle();
         }
         public void Write(BinaryWriter bw)
         {
             bw.Write(Scene);
-            bw.Write(FadeIn);
-            bw.Write(FadeOut);
+            bw.Write(StartTime);
+            bw.Write(EndTime);
         }
         public void WriteXml(StringBuilder sb, int indent)
         {
             RelXml.StringTag(sb, indent, "Scene", RelXml.HashString(Scene));
-            RelXml.ValueTag(sb, indent, "FadeIn", FloatUtil.ToString(FadeIn));
-            RelXml.ValueTag(sb, indent, "FadeOut", FloatUtil.ToString(FadeOut));
+            RelXml.ValueTag(sb, indent, "StartTime", FloatUtil.ToString(StartTime));
+            RelXml.ValueTag(sb, indent, "EndTime", FloatUtil.ToString(EndTime));
         }
         public void ReadXml(XmlNode node)
         {
             Scene = XmlRel.GetHash(Xml.GetChildInnerText(node, "Scene"));
-            FadeIn = Xml.GetChildFloatAttribute(node, "FadeIn", "value");
-            FadeOut = Xml.GetChildFloatAttribute(node, "FadeOut", "value");
+            StartTime = Xml.GetChildFloatAttribute(node, "StartTime", "value");
+            EndTime = Xml.GetChildFloatAttribute(node, "EndTime", "value");
         }
         public override string ToString()
         {
-            return Scene.ToString() + ", " + FadeIn.ToString() + ", " + FadeOut.ToString();
+            return Scene.ToString() + ", " + StartTime.ToString() + ", " + EndTime.ToString();
         }
     }
 
