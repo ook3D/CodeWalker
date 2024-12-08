@@ -10175,33 +10175,33 @@ namespace CodeWalker.GameFiles
 
         public struct EventData : IMetaXmlItem
         {
-            public uint Time { get; set; }
-            public uint Event { get; set; }
+            public uint OffsetMs { get; set; }
+            public uint TextId { get; set; }
 
             public EventData(BinaryReader br)
             {
-                Time = br.ReadUInt32();
-                Event = br.ReadUInt32();
+                OffsetMs = br.ReadUInt32();
+                TextId = br.ReadUInt32();
             }
             public void Write(BinaryWriter bw)
             {
-                bw.Write(Time);
-                bw.Write(Event);
+                bw.Write(OffsetMs);
+                bw.Write(TextId);
             }
             public void WriteXml(StringBuilder sb, int indent)
             {
-                RelXml.ValueTag(sb, indent, "Time", Time.ToString());
-                RelXml.ValueTag(sb, indent, "Event", Event.ToString());
+                RelXml.ValueTag(sb, indent, "OffsetMs", OffsetMs.ToString());
+                RelXml.ValueTag(sb, indent, "TextId", TextId.ToString());
             }
             public void ReadXml(XmlNode node)
             {
-                Time = Xml.GetChildUIntAttribute(node, "Time", "value");
-                Event = Xml.GetChildUIntAttribute(node, "Event", "value");
+                OffsetMs = Xml.GetChildUIntAttribute(node, "OffsetMs", "value");
+                TextId = Xml.GetChildUIntAttribute(node, "TextId", "value");
             }
 
             public override string ToString()
             {
-                return Time.ToString() + ": " + Event.ToString();
+                return OffsetMs.ToString() + ": " + TextId.ToString();
             }
         }
 
