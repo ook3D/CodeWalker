@@ -158,8 +158,6 @@ namespace CodeWalker.GameFiles
                 {
                     IsAudioConfig = true;
                     IndexStringFlags = br.ReadUInt32(); //what is this?  2524
-                    if (IndexStringFlags != 2524)
-                    { }
                     RelIndexString[] indexstrs = new RelIndexString[IndexCount];
                     for (uint i = 0; i < IndexCount; i++)
                     {
@@ -230,10 +228,6 @@ namespace CodeWalker.GameFiles
                 PackTableOffsets = ptoffsets;
                 PackTable = pthashes;
             }
-
-            if (ms.Position != ms.Length)
-            { }
-            //EOF!
 
             br.Dispose();
             ms.Dispose();
@@ -331,11 +325,6 @@ namespace CodeWalker.GameFiles
                     JenkIndex.Ensure(reldata.Name.ToLowerInvariant()); //which one to use?
                 }
 
-                //if (reldata.NameHash == 0)
-                //{ }//no hits here
-                //if (RelDataDict.ContainsKey(reldata.NameHash))
-                //{ }//no hits here
-
                 RelDataDict[reldata.NameHash] = reldata;
             }
             foreach (var reldata in RelDatas)
@@ -385,8 +374,7 @@ namespace CodeWalker.GameFiles
                     {
                         speechDict[speechData.DataOffset] = speechData;
                     }
-                    else
-                    { }
+
 
                     speechData.Type = Dat4SpeechType.ByteArray;
                     speechData.TypeID = 0; //will be set again after this
@@ -405,8 +393,6 @@ namespace CodeWalker.GameFiles
                         speechData.TypeID = 4;
                         speechData.Hash = hash;
                     }
-                    else
-                    { }
                 }
                 for (uint i = 0; i < PackTableCount; i++)
                 {
@@ -421,8 +407,6 @@ namespace CodeWalker.GameFiles
                         speechData.TypeID = 8;
                         speechData.ContainerHash = pack;
                     }
-                    else
-                    { }//shouldn't happen!
                 }
 
 
@@ -9948,8 +9932,10 @@ namespace CodeWalker.GameFiles
         public FlagsUint Flags { get; set; }
         public Vector4 ActivationBox { get; set; }
         public float RotationAngle { get; set; }
-        public uint NextShoreline { get; set; }
-        public uint RiverType { get; set; }
+        public MetaHash NextShoreline { get; set; }
+        public byte RiverType { get; set; }
+        public byte padding00 { get; set; }
+        public short padding01 { get; set; }
         public float DefaultHeight { get; set; }
         public uint PointsCount { get; set; }
         public Vector3[] Points { get; set; }
@@ -9965,7 +9951,9 @@ namespace CodeWalker.GameFiles
             ActivationBox = new Vector4(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
             RotationAngle = br.ReadSingle();
             NextShoreline = br.ReadUInt32();
-            RiverType = br.ReadUInt32();
+            RiverType = br.ReadByte();
+            padding00 = br.ReadByte();
+            padding01 = br.ReadInt16();
             DefaultHeight = br.ReadSingle();
             PointsCount = br.ReadUInt32();
 
@@ -9988,6 +9976,8 @@ namespace CodeWalker.GameFiles
             bw.Write(RotationAngle);
             bw.Write(NextShoreline);
             bw.Write(RiverType);
+            bw.Write(padding00);
+            bw.Write(padding01);
             bw.Write(DefaultHeight);
             bw.Write(PointsCount);
 
@@ -10003,7 +9993,7 @@ namespace CodeWalker.GameFiles
             RelXml.ValueTag(sb, indent, "Flags", "0x" + Flags.Hex);
             RelXml.SelfClosingTag(sb, indent, "ActivationBox " + FloatUtil.GetVector4XmlString(ActivationBox));
             RelXml.ValueTag(sb, indent, "RotationAngle", FloatUtil.ToString(RotationAngle));
-            RelXml.ValueTag(sb, indent, "NextShoreline", NextShoreline.ToString());
+            RelXml.StringTag(sb, indent, "NextShoreline", RelXml.HashString(NextShoreline));
             RelXml.ValueTag(sb, indent, "RiverType", RiverType.ToString());
             RelXml.ValueTag(sb, indent, "DefaultHeight", FloatUtil.ToString(DefaultHeight));
             RelXml.WriteRawArray(sb, Points, indent, "Points", "", RelXml.FormatVector3, 1);
@@ -10013,8 +10003,8 @@ namespace CodeWalker.GameFiles
             Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
             ActivationBox = Xml.GetChildVector4Attributes(node, "ActivationBox");
             RotationAngle = Xml.GetChildFloatAttribute(node, "RotationAngle", "value");
-            NextShoreline = Xml.GetChildUIntAttribute(node, "NextShoreline", "value");
-            RiverType = Xml.GetChildUIntAttribute(node, "RiverType", "value");
+            NextShoreline = XmlRel.GetHash(Xml.GetChildInnerText(node, "NextShoreline"));
+            RiverType = (byte)Xml.GetChildUIntAttribute(node, "RiverType", "value");
             DefaultHeight = Xml.GetChildFloatAttribute(node, "DefaultHeight", "value");
             Points = Xml.GetChildRawVector3Array(node, "Points");
             PointsCount = (uint)(Points?.Length ?? 0);
