@@ -817,83 +817,52 @@ namespace CodeWalker.GameFiles
     {
         public ushort PolyFlags0 { get; set; }
         public ushort IndexFlags { get; set; }
-        /// <summary>
-        ///   m_Struct1
-        ///   Flags                    21
-        ///   NumVertices              4
-        ///   PointEnum                7
-        /// </summary>
         public ushort IndexID { get; set; }
-        public ushort AreaID { get; set; }
-        /// <summary>
-        ///   m_Struct2
-        ///   FirstVertexIndex         15
-        ///   NavMeshIndex             15
-        ///   Reserved                 2
-        /// </summary>
-        public uint TimeStamp { get; set; }
-        public uint AStarTimeStamp { get; set; }
-        public uint padding00 { get; set; }
-        public uint PathParentPoly { get; set; }
+        public ushort AreaID { get; set; } //always current ynv's AreaID
+        public uint Unused_08h { get; set; } // 0x00000000
+        public uint Unused_0Ch { get; set; } // 0x00000000
+        public uint Unused_10h { get; set; } // 0x00000000
+        public uint Unused_14h { get; set; } // 0x00000000
         public NavMeshAABB CellAABB { get; set; }
         public uint PolyFlags1 { get; set; }
-        /// <summary>
-        /// m_Struct3
-        ///   AudioProperties          4
-        ///   DebugMarked              1
-        ///   NearCarNode              1
-        ///   Interior                 1
-        ///   Isolated                 1
-        ///   ZeroAreaStitchPolyDLC    1
-        ///   NetworkSpawnCandidate    1
-        ///   IsRoad                   1
-        ///   LiesAlongEdgeofMesh      1
-        ///   IsTrainTrack             1
-        ///   Shallow                  1
-        ///   PedDensity               3
-        /// </summary>
         public uint PolyFlags2 { get; set; }
-        /// <summary>
-        ///   CentroidX                 8
-        ///   CentroidY                 8
-        ///   CoverDirectionsBitfield   8
-        ///   ImmediateModeFlags        8
-        /// </summary>
         public uint PartFlags { get; set; }
-        /// <summary>
-        /// m_Struct4
-        ///   ParentExitEdge            4
-        ///   PolyArrayIndex            8
-        ///   NumSpecialLinks           3
-        ///   SpecialLinksStartIndex    9
-        ///   Unused                    8
-        /// </summary>
 
 
+        //public int IndexUnk { get { return (IndexFlags >> 0) & 31; } } //always 0
         public int IndexCount { get { return (IndexFlags >> 5); } set { IndexFlags = (ushort)((IndexFlags & 31) | ((value & 0x7FF) << 5)); } }
 
+        //public int PartUnk1 { get { return (PartFlags >> 0) & 0xF; } } //always 0
         public ushort PartID { get { return (ushort)((PartFlags >> 4) & 0xFF); } set { PartFlags = ((PartFlags & 0xFFFFF00F) | (((uint)value & 0xFF) << 4)); } }
         public byte PortalLinkCount { get { return (byte)((PartFlags >> 12) & 0x7); } set { PartFlags = ((PartFlags & 0xFFFF8FFF) | (((uint)value & 0x7) << 12)); } }
         public uint PortalLinkID { get { return ((PartFlags >> 15) & 0x1FFFF); } set { PartFlags = ((PartFlags & 0x7FFF) | ((value & 0x1FFFF) << 15)); } }
 
 
-        public byte CentroidX { get { return (byte)((PolyFlags2 >> 0) & 0xFF); } set { PolyFlags2 = (PolyFlags2 & 0xFFFFFF00) | ((value & 0xFFu)<<0); } }
-        public byte CentroidY { get { return (byte)((PolyFlags2 >> 8) & 0xFF); } set { PolyFlags2 = (PolyFlags2 & 0xFFFF00FF) | ((value & 0xFFu)<<8); } }
+        public byte UnkX { get { return (byte)((PolyFlags2 >> 0) & 0xFF); } set { PolyFlags2 = (PolyFlags2 & 0xFFFFFF00) | ((value & 0xFFu)<<0); } }
+        public byte UnkY { get { return (byte)((PolyFlags2 >> 8) & 0xFF); } set { PolyFlags2 = (PolyFlags2 & 0xFFFF00FF) | ((value & 0xFFu)<<8); } }
 
         public byte Flags1 { get { return (byte)(PolyFlags0 & 0xFF); } set { PolyFlags0 = (ushort)((PolyFlags0 & 0xFF00) | (value & 0xFF)); } }
         public byte Flags2 { get { return (byte)((PolyFlags1 >> 0) & 0xFF); } set { PolyFlags1 = ((PolyFlags1 & 0xFFFFFF00u) | ((value & 0xFFu) << 0)); } }
         public byte Flags3 { get { return (byte)((PolyFlags1 >> 9) & 0xFF); } set { PolyFlags1 = ((PolyFlags1 & 0xFFFE01FFu) | ((value & 0xFFu) << 9)); } }
-        public byte CoverDirectionBitfield { get { return (byte)((PolyFlags2 >> 16) & 0xFF); } set { PolyFlags2 = ((PolyFlags2 & 0xFF00FFFFu) | ((value & 0xFFu) << 16)); } }
+        public byte Flags4 { get { return (byte)((PolyFlags2 >> 16) & 0xFF); } set { PolyFlags2 = ((PolyFlags2 & 0xFF00FFFFu) | ((value & 0xFFu) << 16)); } }
+        public byte Flags5 { get { return (byte)((PolyFlags1 >> 8) & 0x1); } set { PolyFlags1 = ((PolyFlags1 & 0xFFFFFEFFu) | ((value & 0x1u) << 8)); } }
 
+        //public uint UnkFlags0 { get { return (uint)((PolyFlags0 >> 8) & 0xFF); } } //always 0
+        //public uint UnkFlags1 { get { return (uint)((PolyFlags1 >> 17) & 0xFFFF); } } //always 0
+        //public uint UnkFlags2 { get { return (uint)((PolyFlags2 >> 24) & 0xFF); } } //always 0
 
 
         public override string ToString()
         {
             return
                 PolyFlags0.ToString() + ", " +
-                IndexCount.ToString() + ", " +
+                //IndexFlags.ToString() + ", " + 
+                IndexCount.ToString() + ", " + //IndexUnk.ToString() + ", " +
                 IndexID.ToString() + ", " + AreaID.ToString() + ", " +
                 CellAABB.ToString() + ", " +
+                //PolyFlags1.ToString() + ", " + 
+                //PolyFlags2.ToString() + ", " + 
+                //PartFlags.ToString() + ", " + //PartUnk1.ToString() + ", " + 
                 PartID.ToString() + ", " + 
                 PortalLinkCount.ToString() + ", " +
                 PortalLinkID.ToString();
