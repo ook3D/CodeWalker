@@ -1310,9 +1310,9 @@
             PathNodeLinkFlags13CheckBox.Location = new System.Drawing.Point(7, 100);
             PathNodeLinkFlags13CheckBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             PathNodeLinkFlags13CheckBox.Name = "PathNodeLinkFlags13CheckBox";
-            PathNodeLinkFlags13CheckBox.Size = new System.Drawing.Size(116, 19);
+            PathNodeLinkFlags13CheckBox.Size = new System.Drawing.Size(115, 19);
             PathNodeLinkFlags13CheckBox.TabIndex = 32;
-            PathNodeLinkFlags13CheckBox.Text = "LeadsToDendEnd";
+            PathNodeLinkFlags13CheckBox.Text = "LeadsToDeadEnd";
             PathNodeLinkFlags13CheckBox.UseVisualStyleBackColor = true;
             PathNodeLinkFlags13CheckBox.CheckedChanged += PathNodeLinkFlags13CheckBox_CheckedChanged;
             // 

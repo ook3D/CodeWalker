@@ -88,8 +88,8 @@ namespace CodeWalker.Project.Panels
                 ////YnvPanel.Enabled = true;
                 YnvRpfPathTextBox.Text = Ynv.RpfFileEntry.Path;
                 YnvProjectPathTextBox.Text = (Ynv != null) ? ProjectForm.CurrentProjectFile.GetRelativePath(Ynv.FilePath) : Ynv.FilePath;
-                YnvAreaIDXUpDown.Value = Ynv.CellX;
-                YnvAreaIDYUpDown.Value = Ynv.CellY;
+                YnvAreaIDXUpDown.Value = Math.Max(YnvAreaIDXUpDown.Minimum, Math.Min(YnvAreaIDXUpDown.Maximum, Ynv.CellX));
+                YnvAreaIDYUpDown.Value = Math.Max(YnvAreaIDYUpDown.Minimum, Math.Min(YnvAreaIDYUpDown.Maximum, Ynv.CellY));
                 YnvAreaIDInfoLabel.Text = "ID: " + Ynv.AreaID.ToString();
                 YnvAABBSizeTextBox.Text = FloatUtil.GetVector3String(nv.AABBSize);
                 YnvFlagsPolygonsCheckBox.Checked = nv.ContentFlags.HasFlag(NavMeshFlags.Polygons);
