@@ -1,60 +1,72 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using WeifenLuo.WinFormsUI.Docking;
 
-namespace CodeWalker.Project.Panels;
-
-public partial class DeleteGrassPanel : ProjectPanel
+namespace CodeWalker.Project.Panels
 {
-    public DeleteGrassPanel(ProjectForm projectForm)
+    public partial class DeleteGrassPanel : ProjectPanel
     {
-        ProjectForm = projectForm;
-        InitializeComponent();
-
-        if (ProjectForm?.WorldForm == null)
-            //could happen in some other startup mode - world form is required for this..
-            brushModeGroupBox.Enabled = false;
-
-        DockStateChanged += onDockStateChanged;
-        // currentYmapTextBox.DataBindings.Add("Text", ProjectForm, "CurrentYmapName", false, DataSourceUpdateMode.OnPropertyChanged);
-    }
-
-    public ProjectForm ProjectForm { get; set; }
-    public ProjectFile CurrentProjectFile { get; set; }
-
-    internal DeleteGrassMode Mode
-    {
-        get
+        internal enum DeleteGrassMode
         {
-            if (brushDeleteBatchRadio.Checked) return DeleteGrassMode.Batch;
-            if (brushDeleteYmapRadio.Checked) return DeleteGrassMode.Ymap;
-            if (brushDeleteProjectRadio.Checked) return DeleteGrassMode.Project;
-            if (brushDeleteAnyRadio.Checked) return DeleteGrassMode.Any;
-            return DeleteGrassMode.None;
+            None,
+            Batch,
+            Ymap,
+            Project,
+            Any
         }
-    }
 
-    internal float BrushRadius => (float)RadiusNumericUpDown.Value;
+        public ProjectForm ProjectForm { get; set; }
+        public ProjectFile CurrentProjectFile { get; set; }
 
-    private void onDockStateChanged(object sender, EventArgs e)
-    {
-        if (DockState == DockState.Hidden)
+        public DeleteGrassPanel(ProjectForm projectForm)
         {
-            brushDisabledRadio.Checked = true;
-            brushDisabledRadio.Focus();
+            ProjectForm = projectForm;
+            InitializeComponent();
+
+            if (ProjectForm?.WorldForm == null)
+            {
+                //could happen in some other startup mode - world form is required for this..
+                brushModeGroupBox.Enabled = false;
+            }
+
+            this.DockStateChanged += onDockStateChanged;
+            // currentYmapTextBox.DataBindings.Add("Text", ProjectForm, "CurrentYmapName", false, DataSourceUpdateMode.OnPropertyChanged);
+            
         }
-    }
 
-    public void SetProject(ProjectFile project)
-    {
-        CurrentProjectFile = project;
-    }
+        private void onDockStateChanged(object sender, EventArgs e)
+        {
+            if(DockState == DockState.Hidden)
+            {
+                brushDisabledRadio.Checked = true;
+                brushDisabledRadio.Focus();
+            }
+        }
 
-    internal enum DeleteGrassMode
-    {
-        None,
-        Batch,
-        Ymap,
-        Project,
-        Any
+        public void SetProject(ProjectFile project)
+        {
+            CurrentProjectFile = project;
+        }
+
+        internal DeleteGrassMode Mode
+        {
+            get
+            {
+                if (brushDeleteBatchRadio.Checked) return DeleteGrassMode.Batch;
+                else if (brushDeleteYmapRadio.Checked) return DeleteGrassMode.Ymap;
+                else if (brushDeleteProjectRadio.Checked) return DeleteGrassMode.Project;
+                else if (brushDeleteAnyRadio.Checked) return DeleteGrassMode.Any;
+                else return DeleteGrassMode.None;
+            }
+        }
+
+        internal float BrushRadius => (float)RadiusNumericUpDown.Value;
     }
 }

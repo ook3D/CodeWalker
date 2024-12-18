@@ -1,137 +1,150 @@
-﻿using System;
+﻿using CodeWalker.GameFiles;
+using SharpDX;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using CodeWalker.GameFiles;
 
-namespace CodeWalker.Project.Panels;
-
-public partial class EditYnvPointPanel : ProjectPanel
+namespace CodeWalker.Project.Panels
 {
-    private bool populatingui;
-    public ProjectForm ProjectForm;
-
-    public EditYnvPointPanel(ProjectForm projectForm)
+    public partial class EditYnvPointPanel : ProjectPanel
     {
-        ProjectForm = projectForm;
-        InitializeComponent();
-    }
+        public ProjectForm ProjectForm;
+        public YnvPoint YnvPoint { get; set; }
 
-    public YnvPoint YnvPoint { get; set; }
+        private bool populatingui = false;
 
-    public void SetYnvPoint(YnvPoint ynvPoint)
-    {
-        YnvPoint = ynvPoint;
-        Tag = ynvPoint;
-        UpdateFormTitle();
-        UpdateYnvPointUI();
-    }
-
-    private void UpdateFormTitle()
-    {
-        Text = "Nav Point " + YnvPoint.Index;
-    }
-
-
-    public void UpdateYnvPointUI()
-    {
-        if (YnvPoint == null)
+        public EditYnvPointPanel(ProjectForm projectForm)
         {
-            ////YnvPointPanel.Enabled = false;
-            DeletePointButton.Enabled = false;
-            AddToProjectButton.Enabled = false;
-            YnvPointPositionTextBox.Text = string.Empty;
-            YnvPointAngleUpDown.Value = 0;
-            YnvPointTypeUpDown.Value = 0;
+            ProjectForm = projectForm;
+            InitializeComponent();
         }
-        else
-        {
-            populatingui = true;
-            ////YnvPortalPanel.Enabled = true;
-            DeletePointButton.Enabled = ProjectForm.YnvExistsInProject(YnvPoint.Ynv);
-            AddToProjectButton.Enabled = !DeletePointButton.Enabled;
-            YnvPointPositionTextBox.Text = FloatUtil.GetVector3String(YnvPoint.Position);
-            YnvPointAngleUpDown.Value = YnvPoint.Angle;
-            YnvPointTypeUpDown.Value = YnvPoint.Type;
-            populatingui = false;
-        }
-    }
 
-    private void YnvPointPositionTextBox_TextChanged(object sender, EventArgs e)
-    {
-        if (populatingui) return;
-        if (YnvPoint == null) return;
-        var v = FloatUtil.ParseVector3String(YnvPointPositionTextBox.Text);
-        var change = false;
-        lock (ProjectForm.ProjectSyncRoot)
+        public void SetYnvPoint(YnvPoint ynvPoint)
         {
-            if (YnvPoint.Position != v)
+            YnvPoint = ynvPoint;
+            Tag = ynvPoint;
+            UpdateFormTitle();
+            UpdateYnvPointUI();
+        }
+
+        private void UpdateFormTitle()
+        {
+            Text = "Nav Point " + YnvPoint.Index.ToString();
+        }
+
+
+        public void UpdateYnvPointUI()
+        {
+            if (YnvPoint == null)
             {
-                YnvPoint.SetPosition(v);
-                ProjectForm.SetYnvHasChanged(true);
-                change = true;
+                ////YnvPointPanel.Enabled = false;
+                DeletePointButton.Enabled = false;
+                AddToProjectButton.Enabled = false;
+                YnvPointPositionTextBox.Text = string.Empty;
+                YnvPointAngleUpDown.Value = 0;
+                YnvPointTypeUpDown.Value = 0;
+            }
+            else
+            {
+                populatingui = true;
+                ////YnvPortalPanel.Enabled = true;
+                DeletePointButton.Enabled = ProjectForm.YnvExistsInProject(YnvPoint.Ynv);
+                AddToProjectButton.Enabled = !DeletePointButton.Enabled;
+                YnvPointPositionTextBox.Text = FloatUtil.GetVector3String(YnvPoint.Position);
+                YnvPointAngleUpDown.Value = YnvPoint.Angle;
+                YnvPointTypeUpDown.Value = YnvPoint.Type;
+                populatingui = false;
             }
         }
 
-        if (change)
-            if (ProjectForm.WorldForm != null)
-            {
-                ProjectForm.WorldForm.SetWidgetPosition(YnvPoint.Position);
-                ProjectForm.WorldForm.UpdateNavPointGraphics(YnvPoint, false);
-            }
-    }
-
-    private void YnvPointAngleUpDown_ValueChanged(object sender, EventArgs e)
-    {
-        if (populatingui) return;
-        if (YnvPoint == null) return;
-        var ang = (byte)YnvPointAngleUpDown.Value;
-        var change = false;
-        lock (ProjectForm.ProjectSyncRoot)
+        private void YnvPointPositionTextBox_TextChanged(object sender, EventArgs e)
         {
-            if (YnvPoint.Angle != ang)
+            if (populatingui) return;
+            if (YnvPoint == null) return;
+            Vector3 v = FloatUtil.ParseVector3String(YnvPointPositionTextBox.Text);
+            bool change = false;
+            lock (ProjectForm.ProjectSyncRoot)
             {
-                YnvPoint.Angle = ang;
-                ProjectForm.SetYnvHasChanged(true);
-                change = true;
+                if (YnvPoint.Position != v)
+                {
+                    YnvPoint.SetPosition(v);
+                    ProjectForm.SetYnvHasChanged(true);
+                    change = true;
+                }
+            }
+            if (change)
+            {
+                if (ProjectForm.WorldForm != null)
+                {
+                    ProjectForm.WorldForm.SetWidgetPosition(YnvPoint.Position);
+                    ProjectForm.WorldForm.UpdateNavPointGraphics(YnvPoint, false);
+                }
             }
         }
 
-        if (change)
-            if (ProjectForm.WorldForm != null)
-                ProjectForm.WorldForm.SetWidgetRotation(YnvPoint.Orientation);
-        //ProjectForm.WorldForm.UpdateNavPointGraphics(YnvPoint, false);
-    }
-
-    private void YnvPointTypeUpDown_ValueChanged(object sender, EventArgs e)
-    {
-        if (populatingui) return;
-        if (YnvPoint == null) return;
-        var typ = (byte)YnvPointTypeUpDown.Value;
-        lock (ProjectForm.ProjectSyncRoot)
+        private void YnvPointAngleUpDown_ValueChanged(object sender, EventArgs e)
         {
-            if (YnvPoint.Type != typ)
+            if (populatingui) return;
+            if (YnvPoint == null) return;
+            byte ang = (byte)YnvPointAngleUpDown.Value;
+            bool change = false;
+            lock (ProjectForm.ProjectSyncRoot)
             {
-                YnvPoint.Type = typ;
-                ProjectForm.SetYnvHasChanged(true);
+                if (YnvPoint.Angle != ang)
+                {
+                    YnvPoint.Angle = ang;
+                    ProjectForm.SetYnvHasChanged(true);
+                    change = true;
+                }
+            }
+            if (change)
+            {
+                if (ProjectForm.WorldForm != null)
+                {
+                    ProjectForm.WorldForm.SetWidgetRotation(YnvPoint.Orientation);
+                    //ProjectForm.WorldForm.UpdateNavPointGraphics(YnvPoint, false);
+                }
             }
         }
-    }
 
-    private void YnvPointGoToButton_Click(object sender, EventArgs e)
-    {
-        if (YnvPoint == null) return;
-        if (ProjectForm.WorldForm == null) return;
-        ProjectForm.WorldForm.GoToPosition(YnvPoint.Position);
-    }
+        private void YnvPointTypeUpDown_ValueChanged(object sender, EventArgs e)
+        {
+            if (populatingui) return;
+            if (YnvPoint == null) return;
+            byte typ = (byte)YnvPointTypeUpDown.Value;
+            lock (ProjectForm.ProjectSyncRoot)
+            {
+                if (YnvPoint.Type != typ)
+                {
+                    YnvPoint.Type = typ;
+                    ProjectForm.SetYnvHasChanged(true);
+                }
+            }
+        }
 
-    private void AddToProjectButton_Click(object sender, EventArgs e)
-    {
-        if (YnvPoint == null) return;
-        ProjectForm.SetProjectItem(YnvPoint);
-        ProjectForm.AddYnvToProject(YnvPoint.Ynv);
-    }
+        private void YnvPointGoToButton_Click(object sender, EventArgs e)
+        {
+            if (YnvPoint == null) return;
+            if (ProjectForm.WorldForm == null) return;
+            ProjectForm.WorldForm.GoToPosition(YnvPoint.Position);
+        }
 
-    private void DeletePointButton_Click(object sender, EventArgs e)
-    {
-        MessageBox.Show("Delete Point TODO!");
+        private void AddToProjectButton_Click(object sender, EventArgs e)
+        {
+            if (YnvPoint == null) return;
+            ProjectForm.SetProjectItem(YnvPoint);
+            ProjectForm.AddYnvToProject(YnvPoint.Ynv);
+        }
+
+        private void DeletePointButton_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Delete Point TODO!");
+        }
     }
 }

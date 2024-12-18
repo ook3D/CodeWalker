@@ -1,36 +1,45 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace CodeWalker.World;
-
-public partial class StatisticsForm : Form
+namespace CodeWalker.World
 {
-    private readonly WorldForm worldForm;
-
-    public StatisticsForm(WorldForm wf)
+    public partial class StatisticsForm : Form
     {
-        worldForm = wf;
-        InitializeComponent();
-    }
+        private WorldForm worldForm;
 
-    private void DoneButton_Click(object sender, EventArgs e)
-    {
-        Close();
-    }
+        public StatisticsForm(WorldForm wf)
+        {
+            worldForm = wf;
+            InitializeComponent();
+        }
 
-    private void MainTimer_Tick(object sender, EventArgs e)
-    {
-        if (worldForm == null) return;
+        private void DoneButton_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
 
-        var gfc = worldForm.GameFileCache;
-        var rc = worldForm.Renderer.RenderableCache;
+        private void MainTimer_Tick(object sender, EventArgs e)
+        {
+            if (worldForm == null) return;
 
-        GFCQueueLengthLabel.Text = gfc.QueueLength.ToString();
-        GFCItemCountLabel.Text = gfc.ItemCount.ToString();
-        GFCMemoryUsageLabel.Text = TextUtil.GetBytesReadable(gfc.MemoryUsage);
+            var gfc = worldForm.GameFileCache;
+            var rc = worldForm.Renderer.RenderableCache;
 
-        RCQueueLengthLabel.Text = rc.TotalQueueLength.ToString();
-        RCItemCountLabel.Text = rc.TotalItemCount.ToString();
-        RCVramUsageLabel.Text = TextUtil.GetBytesReadable(rc.TotalGraphicsMemoryUse);
+            GFCQueueLengthLabel.Text = gfc.QueueLength.ToString();
+            GFCItemCountLabel.Text = gfc.ItemCount.ToString();
+            GFCMemoryUsageLabel.Text = TextUtil.GetBytesReadable(gfc.MemoryUsage);
+
+            RCQueueLengthLabel.Text = rc.TotalQueueLength.ToString();
+            RCItemCountLabel.Text = rc.TotalItemCount.ToString();
+            RCVramUsageLabel.Text = TextUtil.GetBytesReadable(rc.TotalGraphicsMemoryUse);
+
+        }
     }
 }

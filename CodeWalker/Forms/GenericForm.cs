@@ -1,50 +1,58 @@
-﻿using System.Windows.Forms;
-using CodeWalker.GameFiles;
+﻿using CodeWalker.GameFiles;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
-namespace CodeWalker.Forms;
-
-public partial class GenericForm : Form
+namespace CodeWalker.Forms
 {
-    private object CurrentFile;
-
-    private ExploreForm ExploreForm;
-
-    private string fileName;
-
-
-    public GenericForm(ExploreForm exploreForm)
+    public partial class GenericForm : Form
     {
-        ExploreForm = exploreForm;
-        InitializeComponent();
-    }
 
-    public string FileName
-    {
-        get => fileName;
-        set
+        private string fileName;
+        public string FileName
         {
-            fileName = value;
+            get { return fileName; }
+            set
+            {
+                fileName = value;
+                UpdateFormTitle();
+            }
+        }
+        public string FilePath { get; set; }
+
+        ExploreForm ExploreForm;
+        object CurrentFile;
+
+
+        public GenericForm(ExploreForm exploreForm)
+        {
+            ExploreForm = exploreForm;
+            InitializeComponent();
+        }
+
+
+        public void LoadFile(object file, RpfFileEntry fileEntry)
+        {
+            CurrentFile = file;
+
+            DetailsPropertyGrid.SelectedObject = file;
+
+            fileName = fileEntry?.Name;
+
             UpdateFormTitle();
         }
-    }
-
-    public string FilePath { get; set; }
 
 
-    public void LoadFile(object file, RpfFileEntry fileEntry)
-    {
-        CurrentFile = file;
+        private void UpdateFormTitle()
+        {
+            Text = fileName + " - File Inspector - CodeWalker by dexyfex";
+        }
 
-        DetailsPropertyGrid.SelectedObject = file;
-
-        fileName = fileEntry?.Name;
-
-        UpdateFormTitle();
-    }
-
-
-    private void UpdateFormTitle()
-    {
-        Text = fileName + " - File Inspector - CodeWalker by dexyfex";
     }
 }

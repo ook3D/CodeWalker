@@ -1776,35 +1776,35 @@ namespace CodeWalker.GameFiles
         public FlagsUint Flags2 { get; set; }
         public ushort MaxHeaderSize { get; set; }
         public short Volume { get; set; }
-        public ushort VolumeVariance { get; set; }        // 0xD-0xF
-        public short Pitch { get; set; }                  // 0xF-0x11
-        public ushort PitchVariance { get; set; }         // 0x11-0x13
-        public ushort Pan { get; set; }                   // 0x13-0x15
-        public ushort PanVariance { get; set; }           // 0x15-0x17
-        public short PreDelay { get; set; }               // 0x17-0x19
-        public ushort PreDelayVariance { get; set; }      // 0x19-0x1B
-        public int StartOffset { get; set; }              // 0x1B-0x1F
-        public int StartOffsetVariance { get; set; }      // 0x1F-0x23
-        public ushort AttackTime { get; set; }            // 0x23-0x25
-        public ushort ReleaseTime { get; set; }           // 0x25-0x27
-        public ushort DopplerFactor { get; set; }         // 0x27-0x29d
-        public MetaHash Category { get; set; }            // 0x29-0x2D
-        public ushort LPFCutoff { get; set; }             // 0x2D-0x2F
-        public ushort LPFCutoffVariance { get; set; }     // 0x2F-0x31
-        public ushort HPFCutoff { get; set; }             // 0x31-0x33
-        public ushort HPFCutoffVariance { get; set; }     // 0x33-0x35
-        public MetaHash VolumeCurve { get; set; }         // 0x35-0x39
-        public short VolumeCurveScale { get; set; }       // 0x39-0x3B
-        public byte VolumeCurvePlateau { get; set; }      // 0x3B-0x3C
-        public byte SpeakerMask { get; set; }             // 0x3C-0x3D
-        public byte EffectRoute { get; set; }             // 0x3D-0x3E
-        public MetaHash PreDelayVariable { get; set; }    // 0x3E-0x42
-        public MetaHash StartOffsetVariable { get; set; } // 0x42-0x46
-        public ushort SmallReverbSend { get; set; }       // 0x46-0x48
-        public ushort MediumReverbSend { get; set; }      // 0x48-0x4A
-        public ushort LargeReverbSend { get; set; }       // 0x4A-0x4C
-        public ushort Unk25 { get; set; }                 // 0x4A-0x4C
-        public ushort Unk26 { get; set; }                 // 0x4A-0x4C
+        public ushort VolumeVariance { get; set; } //0xD-0xF
+        public short Pitch { get; set; } //0xF-0x11
+        public ushort PitchVariance { get; set; } //0x11-0x13
+        public ushort Pan { get; set; } //0x13-0x15
+        public ushort PanVariance { get; set; } //0x15-0x17
+        public short PreDelay { get; set; } //0x17-0x19
+        public ushort PreDelayVariance { get; set; } //0x19-0x1B
+        public int StartOffset { get; set; } //0x1B-0x1F
+        public int StartOffsetVariance { get; set; } //0x1F-0x23
+        public ushort AttackTime { get; set; } //0x23-0x25
+        public ushort ReleaseTime { get; set; } //0x25-0x27
+        public ushort DopplerFactor { get; set; } //0x27-0x29
+        public MetaHash Category { get; set; } //0x29-0x2D
+        public ushort LPFCutoff { get; set; } //0x2D-0x2F
+        public ushort LPFCutoffVariance { get; set; } //0x2F-0x31
+        public ushort HPFCutoff { get; set; } //0x31-0x33
+        public ushort HPFCutoffVariance { get; set; } //0x33-0x35
+        public MetaHash VolumeCurve { get; set; } //0x35-0x39
+        public short VolumeCurveScale { get; set; } //0x39-0x3B
+        public byte VolumeCurvePlateau { get; set; } //0x3B-0x3C
+        public byte SpeakerMask { get; set; } //0x3C-0x3D
+        public byte EffectRoute { get; set; } //0x3D-0x3E
+        public MetaHash PreDelayVariable { get; set; } //0x3E-0x42
+        public MetaHash StartOffsetVariable { get; set; } //0x42-0x46
+        public ushort SmallReverbSend { get; set; } //0x46-0x48
+        public ushort MediumReverbSend { get; set; } //0x48-0x4A
+        public ushort LargeReverbSend { get; set; } //0x4A-0x4C
+        public ushort Unk25 { get; set; } //0x4A-0x4C
+        public ushort Unk26 { get; set; } //0x4A-0x4C
 
         public uint HeaderLength { get; set; } = 0;
 

@@ -1,13 +1,20 @@
-﻿using CodeWalker.Properties;
+﻿
 
-namespace CodeWalker.GameFiles;
 
-public static class GameFileCacheFactory
+using CodeWalker.Properties;
+
+namespace CodeWalker.GameFiles
 {
-    public static GameFileCache Create()
+
+    public static class GameFileCacheFactory
     {
-        var s = Settings.Default;
-        return new GameFileCache(s.CacheSize, s.CacheTime, GTAFolder.CurrentGTAFolder, s.DLC, s.EnableMods,
-            s.ExcludeFolders);
+
+        public static GameFileCache Create()
+        {
+            var s = Settings.Default;
+            return new GameFileCache(s.CacheSize, s.CacheTime, GTAFolder.CurrentGTAFolder, s.DLC, s.EnableMods, s.ExcludeFolders);
+        }
+
     }
+
 }

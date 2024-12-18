@@ -1,58 +1,70 @@
-﻿using System;
+﻿using CodeWalker.Properties;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using CodeWalker.Properties;
 
-namespace CodeWalker.Utils;
-
-public partial class SelectFolderForm : Form
+namespace CodeWalker.Utils
 {
-    public SelectFolderForm()
+    public partial class SelectFolderForm : Form
     {
-        InitializeComponent();
-        SelectedFolder = GTAFolder.CurrentGTAFolder;
-    }
 
-    public string SelectedFolder { get; set; }
-    public DialogResult Result { get; set; } = DialogResult.Cancel;
+        public string SelectedFolder { get; set; }
+        public DialogResult Result { get; set; } = DialogResult.Cancel;
 
-    private void SelectFolderForm_Load(object sender, EventArgs e)
-    {
-        FolderTextBox.Text = SelectedFolder;
-        RememberFolderCheckbox.Checked = Settings.Default.RememberGTAFolder;
-    }
-
-    private void FolderBrowseButton_Click(object sender, EventArgs e)
-    {
-        FolderBrowserDialog.SelectedPath = FolderTextBox.Text;
-        var res = FolderBrowserDialog.ShowDialog();
-        if (res == DialogResult.OK) FolderTextBox.Text = FolderBrowserDialog.SelectedPath;
-    }
-
-    private void FolderTextBox_TextChanged(object sender, EventArgs e)
-    {
-        SelectedFolder = FolderTextBox.Text;
-    }
-
-    private void CancelButton_Click(object sender, EventArgs e)
-    {
-        Close();
-    }
-
-    private void OkButton_Click(object sender, EventArgs e)
-    {
-        if (!GTAFolder.ValidateGTAFolder(SelectedFolder, out var failReason))
+        public SelectFolderForm()
         {
-            MessageBox.Show("The selected folder could not be used:\n\n" + failReason, "Invalid GTA Folder",
-                MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            InitializeComponent();
+            SelectedFolder = GTAFolder.CurrentGTAFolder;
         }
 
-        Result = DialogResult.OK;
-        Close();
-    }
+        private void SelectFolderForm_Load(object sender, EventArgs e)
+        {
+            FolderTextBox.Text = SelectedFolder;
+            RememberFolderCheckbox.Checked = Settings.Default.RememberGTAFolder;
+        }
 
-    private void RememberFolderCheckbox_CheckedChanged(object sender, EventArgs e)
-    {
-        Settings.Default.RememberGTAFolder = RememberFolderCheckbox.Checked;
+        private void FolderBrowseButton_Click(object sender, EventArgs e)
+        {
+            FolderBrowserDialog.SelectedPath = FolderTextBox.Text;
+            DialogResult res = FolderBrowserDialog.ShowDialog();
+            if (res == DialogResult.OK)
+            {
+                FolderTextBox.Text = FolderBrowserDialog.SelectedPath;
+            }
+        }
+
+        private void FolderTextBox_TextChanged(object sender, EventArgs e)
+        {
+            SelectedFolder = FolderTextBox.Text;
+        }
+
+        private void CancelButton_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void OkButton_Click(object sender, EventArgs e)
+        {
+            if(!GTAFolder.ValidateGTAFolder(SelectedFolder, out string failReason))
+            {
+                MessageBox.Show("The selected folder could not be used:\n\n" + failReason, "Invalid GTA Folder", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Result = DialogResult.OK;
+            Close();
+        }
+
+        private void RememberFolderCheckbox_CheckedChanged(object sender, EventArgs e)
+        {
+            Settings.Default.RememberGTAFolder = RememberFolderCheckbox.Checked;
+        }
     }
 }

@@ -1,120 +1,133 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace CodeWalker.Tools;
-
-public partial class ImportFbxForm : Form
+namespace CodeWalker.Tools
 {
-    public ImportFbxForm()
+    public partial class ImportFbxForm : Form
     {
-        InitializeComponent();
-        DialogResult = DialogResult.Cancel;
-        OutputTypeCombo.Text = "YDR";
-    }
 
-    private Dictionary<string, byte[]> InputFiles { get; set; }
-    private Dictionary<string, byte[]> OutputFiles { get; set; }
+        private Dictionary<string, byte[]> InputFiles { get; set; }
+        private Dictionary<string, byte[]> OutputFiles { get; set; }
 
-
-    public void SetInputFiles(Dictionary<string, byte[]> fdict)
-    {
-        InputFiles = fdict;
-
-        FbxFilesListBox.Items.Clear();
-        foreach (var kvp in fdict) FbxFilesListBox.Items.Add(kvp.Key);
-    }
-
-    public Dictionary<string, byte[]> GetOutputFiles()
-    {
-        return OutputFiles;
-    }
-
-
-    private void ConvertFiles()
-    {
-        if (InputFiles == null) return;
-
-        Cursor = Cursors.WaitCursor;
-
-
-        Task.Run(() =>
+        public ImportFbxForm()
         {
-            OutputFiles = new Dictionary<string, byte[]>();
+            InitializeComponent();
+            DialogResult = DialogResult.Cancel;
+            OutputTypeCombo.Text = "YDR";
+        }
 
-            foreach (var kvp in InputFiles)
+
+        public void SetInputFiles(Dictionary<string, byte[]> fdict)
+        {
+            InputFiles = fdict;
+
+            FbxFilesListBox.Items.Clear();
+            foreach (var kvp in fdict)
             {
-                var fname = kvp.Key;
-                var idata = kvp.Value;
+                FbxFilesListBox.Items.Add(kvp.Key);
+            }
 
-                UpdateStatus("Converting " + fname + "...");
+        }
 
-                var fc = new FbxConverter();
+        public Dictionary<string, byte[]> GetOutputFiles()
+        {
+            return OutputFiles;
+        }
 
-                var ydr = fc.ConvertToYdr(fname, idata);
+
+        private void ConvertFiles()
+        {
+            if (InputFiles == null) return;
+
+            Cursor = Cursors.WaitCursor;
 
 
-                if (ydr == null)
+            Task.Run(() =>
+            {
+
+                OutputFiles = new Dictionary<string, byte[]>();
+
+                foreach (var kvp in InputFiles)
                 {
-                    UpdateStatus("Converting " + fname + " failed!"); //TODO: error message
+                    var fname = kvp.Key;
+                    var idata = kvp.Value;
 
-                    continue; //something went wrong..
+                    UpdateStatus("Converting " + fname + "...");
+
+                    FbxConverter fc = new FbxConverter();
+
+                    var ydr = fc.ConvertToYdr(fname, idata);
+
+
+                    if (ydr == null)
+                    {
+                        UpdateStatus("Converting " + fname + " failed!"); //TODO: error message
+
+                        continue; //something went wrong..
+                    }
+
+                    byte[] odata = ydr.Save();
+
+                    OutputFiles.Add(fname + ".ydr", odata);
                 }
 
-                var odata = ydr.Save();
+                UpdateStatus("Process complete.");
 
-                OutputFiles.Add(fname + ".ydr", odata);
-            }
+                ConvertComplete();
 
-            UpdateStatus("Process complete.");
+            });
+        }
 
-            ConvertComplete();
-        });
-    }
-
-    private void ConvertComplete()
-    {
-        try
+        private void ConvertComplete()
         {
-            if (InvokeRequired)
+            try
             {
-                BeginInvoke(() => { ConvertComplete(); });
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(() => { ConvertComplete(); }));
+                }
+                else
+                {
+                    Cursor = Cursors.Default;
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
             }
-            else
+            catch { }
+        }
+
+        public void UpdateStatus(string text)
+        {
+            try
             {
-                Cursor = Cursors.Default;
-                DialogResult = DialogResult.OK;
-                Close();
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(() => { UpdateStatus(text); }));
+                }
+                else
+                {
+                    StatusLabel.Text = text;
+                }
             }
+            catch { }
         }
-        catch
+
+
+        private void CancelThisButton_Click(object sender, EventArgs e)
         {
+            Close();
         }
-    }
 
-    public void UpdateStatus(string text)
-    {
-        try
+        private void ImportButton_Click(object sender, EventArgs e)
         {
-            if (InvokeRequired)
-                BeginInvoke(() => { UpdateStatus(text); });
-            else
-                StatusLabel.Text = text;
+            ConvertFiles();
         }
-        catch
-        {
-        }
-    }
-
-
-    private void CancelThisButton_Click(object sender, EventArgs e)
-    {
-        Close();
-    }
-
-    private void ImportButton_Click(object sender, EventArgs e)
-    {
-        ConvertFiles();
     }
 }
