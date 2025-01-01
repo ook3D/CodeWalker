@@ -2021,22 +2021,19 @@ namespace CodeWalker
 
 
 
-        public bool EnsureRpfValidEncryption(RpfFile file = null)
-        {
-            if ((file == null) && (CurrentFolder.RpfFolder == null)) return false;
+    public bool EnsureRpfValidEncryption(RpfFile file = null)
+    {
+        if ((file == null) && (CurrentFolder.RpfFolder == null)) return false;
 
-            var rpf = file ?? CurrentFolder.RpfFolder.File;
+        var rpf = file ?? CurrentFolder.RpfFolder.File;
 
-            if (rpf == null) return false;
+        if (rpf == null) return false;
 
-            var confirm = new Func<RpfFile, bool>((f) => 
-            {
-                var msg = "Archive " + f.Name + " is currently set to " + f.Encryption.ToString() + " encryption.\nAre you sure you want to change this archive to OPEN encryption?\nLoading by the game will require OpenIV.asi.";
-                return (MessageBox.Show(msg, "Change RPF encryption type", MessageBoxButtons.YesNo) == DialogResult.Yes);
-            });
+        // Automatically confirm the change without showing a dialog box
+        var confirm = new Func<RpfFile, bool>((f) => true);
 
-            return RpfFile.EnsureValidEncryption(rpf, confirm);
-        }
+        return RpfFile.EnsureValidEncryption(rpf, confirm);
+    }
 
 
         public bool EnsureCurrentFolderEditable()
