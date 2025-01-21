@@ -749,40 +749,34 @@ namespace CodeWalker.GameFiles
         public static byte[][] SearchHashes(Stream stream, IList<byte[]> hashes, int length = 32)
         {
             var result = new byte[hashes.Count][];
-            var hashProvider = new SHA1CryptoServiceProvider();
 
-            // Use a thread-local storage for buffer, instead of creating it on every iteration
-            var buffer = new byte[length];
+            Parallel.For(0, (stream.Length / BLOCK_LENGTH), (long k) => {
 
-            Parallel.For(0, (stream.Length / BLOCK_LENGTH), new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (long k) =>
-            {
+                var hashProvider = new SHA1CryptoServiceProvider();
+                var buffer = new byte[length];
                 for (long i = 0; i < (BLOCK_LENGTH / ALIGN_LENGTH); i++)
                 {
                     var position = k * BLOCK_LENGTH + i * ALIGN_LENGTH;
                     if (position >= stream.Length)
                         continue;
 
-                    // Avoid locking the entire stream - Read outside of lock in sequential blocks
-                    stream.Position = position;
-                    stream.Read(buffer, 0, length);
-
-                    // Compute hash for the buffer
-                    var hash = hashProvider.ComputeHash(buffer);
-
-                    // Compare hashes in parallel
-                    for (int j = 0; j < hashes.Count; j++)
+                    lock (stream)
                     {
-                        if (hash.SequenceEqual(hashes[j]))
-                        {
-                            result[j] = (byte[])buffer.Clone();
-                        }
+                        stream.Position = position;
+                        stream.Read(buffer, 0, length);
                     }
+
+                    var hash = hashProvider.ComputeHash(buffer);
+                    for (int j = 0; j < hashes.Count; j++)
+                        if (hash.SequenceEqual(hashes[j]))
+                            result[j] = (byte[])buffer.Clone();
                 }
+
+
             });
 
             return result;
         }
-
     }
 
 
