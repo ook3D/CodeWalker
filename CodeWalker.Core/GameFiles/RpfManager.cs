@@ -37,9 +37,10 @@ namespace CodeWalker.GameFiles
             UpdateStatus = updateStatus;
             ErrorLog = errorLog;
 
-            string replpath = folder + "\\";
-            var sopt = rootOnly ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
-            string[] allfiles = Directory.GetFiles(folder, "*.rpf", sopt);
+            string replpath = folder + Path.DirectorySeparatorChar;
+            var searchOption = rootOnly ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
+
+            var allFiles = Directory.EnumerateFiles(folder, "*.rpf", searchOption);
 
             BaseRpfs = new List<RpfFile>();
             ModRpfs = new List<RpfFile>();
@@ -52,40 +53,34 @@ namespace CodeWalker.GameFiles
             ModRpfDict = new Dictionary<string, RpfFile>();
             ModEntryDict = new Dictionary<string, RpfEntry>();
 
-            foreach (string rpfpath in allfiles)
+            Parallel.ForEach(allFiles, rpfPath =>
             {
                 try
                 {
-                    RpfFile rf = new RpfFile(rpfpath, rpfpath.Replace(replpath, ""));
+                    var relativePath = rpfPath.Replace(replpath, "");
+                    var rpfFile = new RpfFile(rpfPath, relativePath);
 
-                    if (ExcludePaths != null)
+                    // Skip files in excluded paths
+                    if (ExcludePaths?.Any(excluded => rpfFile.Path.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)) == true)
                     {
-                        bool excl = false;
-                        for (int i = 0; i < ExcludePaths.Length; i++)
+                        return;
+                    }
+
+                    rpfFile.ScanStructure(updateStatus, errorLog);
+
+                    if (rpfFile.LastException == null) //   incase of corrupted rpf (or renamed NG encrypted RPF)
+                    {
+                        lock (AllRpfs) // Ensure thread safety for shared collections
                         {
-                            if (rf.Path.StartsWith(ExcludePaths[i]))
-                            {
-                                excl = true;
-                                break;
-                            }
+                            AddRpfFile(rpfFile, false, false);
                         }
-                        if (excl) continue; //skip files in exclude paths.
                     }
-
-                    rf.ScanStructure(updateStatus, errorLog);
-
-                    if (rf.LastException != null) //incase of corrupted rpf (or renamed NG encrypted RPF)
-                    {
-                        continue;
-                    }
-
-                    AddRpfFile(rf, false, false);
                 }
                 catch (Exception ex)
                 {
-                    errorLog(rpfpath + ": " + ex.ToString());
+                    errorLog($"{rpfPath}: {ex}");
                 }
-            }
+            });
 
             if (buildIndex)
             {
@@ -94,7 +89,6 @@ namespace CodeWalker.GameFiles
             }
 
             updateStatus("Scan complete");
-
             IsInited = true;
         }
 
@@ -349,153 +343,164 @@ namespace CodeWalker.GameFiles
         public void BuildBaseJenkIndex()
         {
             JenkIndex.Clear();
+            HashSet<string> uniqueEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Prevent duplicates
             StringBuilder sb = new StringBuilder();
+
             foreach (RpfFile file in AllRpfs)
             {
                 try
                 {
-                    JenkIndex.Ensure(file.Name);
+                    uniqueEntries.Add(file.Name);
+
                     foreach (RpfEntry entry in file.AllEntries)
                     {
-                        var nlow = entry.NameLower;
+                        string nlow = entry.NameLower;
                         if (string.IsNullOrEmpty(nlow)) continue;
-                        //JenkIndex.Ensure(entry.Name);
-                        //JenkIndex.Ensure(nlow);
-                        int ind = nlow.LastIndexOf('.');
-                        if (ind > 0)
-                        {
-                            JenkIndex.Ensure(entry.Name.Substring(0, ind));
-                            JenkIndex.Ensure(nlow.Substring(0, ind));
 
-                            //if (ind < entry.Name.Length - 2)
-                            //{
-                            //    JenkIndex.Ensure(entry.Name.Substring(0, ind) + ".#" + entry.Name.Substring(ind + 2));
-                            //    JenkIndex.Ensure(entry.NameLower.Substring(0, ind) + ".#" + entry.NameLower.Substring(ind + 2));
-                            //}
-                        }
-                        else
-                        {
-                            JenkIndex.Ensure(entry.Name);
-                            JenkIndex.Ensure(nlow);
-                        }
+                        ProcessEntryName(entry.Name, nlow, uniqueEntries);
+
                         if (BuildExtendedJenkIndex)
                         {
-                            if (nlow.EndsWith(".ydr"))// || nlow.EndsWith(".yft")) //do yft's get lods?
-                            {
-                                var sname = nlow.Substring(0, nlow.Length - 4);
-                                JenkIndex.Ensure(sname + "_lod");
-                                JenkIndex.Ensure(sname + "_loda");
-                                JenkIndex.Ensure(sname + "_lodb");
-                            }
-                            if (nlow.EndsWith(".ydd"))
-                            {
-                                if (nlow.EndsWith("_children.ydd"))
-                                {
-                                    var strn = nlow.Substring(0, nlow.Length - 13);
-                                    JenkIndex.Ensure(strn);
-                                    JenkIndex.Ensure(strn + "_lod");
-                                    JenkIndex.Ensure(strn + "_loda");
-                                    JenkIndex.Ensure(strn + "_lodb");
-                                }
-                                var idx = nlow.LastIndexOf('_');
-                                if (idx > 0)
-                                {
-                                    var str1 = nlow.Substring(0, idx);
-                                    var idx2 = str1.LastIndexOf('_');
-                                    if (idx2 > 0)
-                                    {
-                                        var str2 = str1.Substring(0, idx2);
-                                        JenkIndex.Ensure(str2 + "_lod");
-                                        var maxi = 100;
-                                        for (int i = 1; i <= maxi; i++)
-                                        {
-                                            var str3 = str2 + "_" + i.ToString().PadLeft(2, '0');
-                                            //JenkIndex.Ensure(str3);
-                                            JenkIndex.Ensure(str3 + "_lod");
-                                        }
-                                    }
-                                }
-                            }
-                            if (nlow.EndsWith(".sps"))
-                            {
-                                JenkIndex.Ensure(nlow);//for shader preset filename hashes!
-                            }
-                            if (nlow.EndsWith(".awc")) //create audio container path hashes...
-                            {
-                                string[] parts = entry.Path.Split('\\');
-                                int pl = parts.Length;
-                                if (pl > 2)
-                                {
-                                    string fn = parts[pl - 1];
-                                    string fd = parts[pl - 2];
-                                    string hpath = fn.Substring(0, fn.Length - 4);
-                                    if (fd.EndsWith(".rpf"))
-                                    {
-                                        fd = fd.Substring(0, fd.Length - 4);
-                                    }
-                                    hpath = fd + "/" + hpath;
-                                    if (parts[pl - 3] != "sfx")
-                                    { }//no hit
-
-                                    JenkIndex.Ensure(hpath);
-                                }
-                            }
-                            if (nlow.EndsWith(".nametable"))
-                            {
-                                RpfBinaryFileEntry binfe = entry as RpfBinaryFileEntry;
-                                if (binfe != null)
-                                {
-                                    byte[] data = file.ExtractFile(binfe);
-                                    if (data != null)
-                                    {
-                                        sb.Clear();
-                                        for (int i = 0; i < data.Length; i++)
-                                        {
-                                            byte c = data[i];
-                                            if (c == 0)
-                                            {
-                                                string str = sb.ToString();
-                                                if (!string.IsNullOrEmpty(str))
-                                                {
-                                                    string strl = str.ToLowerInvariant();
-                                                    //JenkIndex.Ensure(str);
-                                                    JenkIndex.Ensure(strl);
-
-                                                    ////DirMod_Sounds_ entries apparently can be used to infer SP audio strings
-                                                    ////no luck here yet though
-                                                    //if (strl.StartsWith("dirmod_sounds_") && (strl.Length > 14))
-                                                    //{
-                                                    //    strl = strl.Substring(14);
-                                                    //    JenkIndex.Ensure(strl);
-                                                    //}
-                                                }
-                                                sb.Clear();
-                                            }
-                                            else
-                                            {
-                                                sb.Append((char)c);
-                                            }
-                                        }
-                                    }
-                                }
-                                else
-                                { }
-                            }
+                            ProcessExtendedEntries(entry, nlow, file, sb, uniqueEntries);
                         }
                     }
-
                 }
                 catch
                 {
-                    //failing silently!! not so good really
+                    // Log the error here for better debugging instead of silently failing
                 }
             }
 
+            // Add numbers 00 to 99
             for (int i = 0; i < 100; i++)
             {
-                JenkIndex.Ensure(i.ToString("00"));
+                uniqueEntries.Add(i.ToString("00"));
+            }
+
+            // Commit all unique entries to JenkIndex
+            foreach (var entry in uniqueEntries)
+            {
+                JenkIndex.Ensure(entry);
             }
         }
 
+        private void ProcessEntryName(string name, string nlow, HashSet<string> uniqueEntries)
+        {
+            int ind = nlow.LastIndexOf('.');
+            if (ind > 0)
+            {
+                uniqueEntries.Add(name.Substring(0, ind));
+                uniqueEntries.Add(nlow.Substring(0, ind));
+            }
+            else
+            {
+                uniqueEntries.Add(name);
+                uniqueEntries.Add(nlow);
+            }
+        }
+
+        private void ProcessExtendedEntries(RpfEntry entry, string nlow, RpfFile file, StringBuilder sb, HashSet<string> uniqueEntries)
+        {
+            // Cache the length of `nlow` to avoid recalculating it multiple times
+            int nlowLength = nlow.Length;
+
+            if (nlow.EndsWith(".ydr", StringComparison.OrdinalIgnoreCase))
+            {
+                string baseName = nlow.Substring(0, nlowLength - 4);
+                uniqueEntries.Add($"{baseName}_lod");
+                uniqueEntries.Add($"{baseName}_loda");
+                uniqueEntries.Add($"{baseName}_lodb");
+            }
+            else if (nlow.EndsWith(".ydd", StringComparison.OrdinalIgnoreCase))
+            {
+                ProcessYddEntries(nlow, uniqueEntries);
+            }
+            else if (nlow.EndsWith(".sps", StringComparison.OrdinalIgnoreCase))
+            {
+                uniqueEntries.Add(nlow);
+            }
+            else if (nlow.EndsWith(".awc", StringComparison.OrdinalIgnoreCase))
+            {
+                ProcessAwcEntries(entry, uniqueEntries);
+            }
+            else if (nlow.EndsWith(".nametable", StringComparison.OrdinalIgnoreCase) && entry is RpfBinaryFileEntry binEntry)
+            {
+                ProcessNametable(file, binEntry, sb, uniqueEntries);
+            }
+        }
+
+        private void ProcessYddEntries(string nlow, HashSet<string> uniqueEntries)
+        {
+            if (nlow.EndsWith("_children.ydd"))
+            {
+                string strn = nlow.Substring(0, nlow.Length - 13);
+                uniqueEntries.Add(strn);
+                uniqueEntries.Add(strn + "_lod");
+                uniqueEntries.Add(strn + "_loda");
+                uniqueEntries.Add(strn + "_lodb");
+            }
+
+            int idx = nlow.LastIndexOf('_');
+            if (idx > 0)
+            {
+                string str1 = nlow.Substring(0, idx);
+                int idx2 = str1.LastIndexOf('_');
+                if (idx2 > 0)
+                {
+                    string str2 = str1.Substring(0, idx2);
+                    uniqueEntries.Add(str2 + "_lod");
+
+                    for (int i = 1; i <= 100; i++)
+                    {
+                        string str3 = $"{str2}_{i:D2}_lod";
+                        uniqueEntries.Add(str3);
+                    }
+                }
+            }
+        }
+
+        private void ProcessAwcEntries(RpfEntry entry, HashSet<string> uniqueEntries)
+        {
+            string[] parts = entry.Path.Split('\\');
+            if (parts.Length > 2)
+            {
+                string fn = parts[parts.Length - 1];
+                string fd = parts[parts.Length - 2];
+                string hpath = fn.Substring(0, fn.Length - 4);
+
+                if (fd.EndsWith(".rpf"))
+                {
+                    fd = fd.Substring(0, fd.Length - 4);
+                }
+                hpath = $"{fd}/{hpath}";
+                uniqueEntries.Add(hpath);
+            }
+        }
+
+        private void ProcessNametable(RpfFile file, RpfBinaryFileEntry binfe, StringBuilder sb, HashSet<string> uniqueEntries)
+        {
+            if (binfe == null) return;
+
+            byte[] data = file.ExtractFile(binfe);
+            if (data == null) return;
+
+            sb.Clear();
+            foreach (byte c in data)
+            {
+                if (c == 0)
+                {
+                    string str = sb.ToString();
+                    if (!string.IsNullOrEmpty(str))
+                    {
+                        uniqueEntries.Add(str.ToLowerInvariant());
+                    }
+                    sb.Clear();
+                }
+                else
+                {
+                    sb.Append((char)c);
+                }
+            }
+        }
     }
 }

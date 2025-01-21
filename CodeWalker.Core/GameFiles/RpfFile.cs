@@ -504,19 +504,19 @@ namespace CodeWalker.GameFiles
         {
             try
             {
-                using (BinaryReader br = new BinaryReader(File.OpenRead(GetPhysicalFilePath())))
+                using (var fileStream = new FileStream(GetPhysicalFilePath(), FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var br = new BinaryReader(fileStream))
                 {
-                    if (entry is RpfBinaryFileEntry)
+                    switch (entry)
                     {
-                        return ExtractFileBinary(entry as RpfBinaryFileEntry, br);
-                    }
-                    else if (entry is RpfResourceFileEntry)
-                    {
-                        return ExtractFileResource(entry as RpfResourceFileEntry, br);
-                    }
-                    else
-                    {
-                        return null;
+                        case RpfBinaryFileEntry binaryEntry:
+                            return ExtractFileBinary(binaryEntry, br);
+
+                        case RpfResourceFileEntry resourceEntry:
+                            return ExtractFileResource(resourceEntry, br);
+
+                        default:
+                            return null;
                     }
                 }
             }
@@ -527,6 +527,7 @@ namespace CodeWalker.GameFiles
                 return null;
             }
         }
+
         public byte[] ExtractFileBinary(RpfBinaryFileEntry entry, BinaryReader br)
         {
             br.BaseStream.Position = StartPos + ((long)entry.FileOffset * 512);
@@ -555,8 +556,6 @@ namespace CodeWalker.GameFiles
                     {
                         decr = GTACrypto.DecryptNG(tbytes, entry.Name, entry.FileUncompressedSize);
                     }
-                    //else
-                    //{ }
                 }
 
                 byte[] defl = decr;
@@ -576,62 +575,36 @@ namespace CodeWalker.GameFiles
         }
         public byte[] ExtractFileResource(RpfResourceFileEntry entry, BinaryReader br)
         {
-            br.BaseStream.Position = StartPos + ((long)entry.FileOffset * 512);
+            if (entry.FileSize <= 0)
+                return null;
 
-
-            if (entry.FileSize > 0)
+            try
             {
-                uint offset = 0x10;
-                uint totlen = entry.FileSize - offset;
+                long entryStartPosition = StartPos + ((long)entry.FileOffset * 512);
+                br.BaseStream.Seek(entryStartPosition + 0x10, SeekOrigin.Begin); // Combine positioning steps
 
-                byte[] tbytes = new byte[totlen];
+                uint dataSize = entry.FileSize - 0x10;
+                byte[] rawData = br.ReadBytes((int)dataSize);
 
-
-                br.BaseStream.Position += offset;
-                //byte[] hbytes = br.ReadBytes(16); //what are these 16 bytes actually used for?
-                //if (entry.FileSize > 0xFFFFFF)
-                //{ //(for huge files, the full file size is packed in 4 of these bytes... seriously wtf)
-                //    var filesize = (hbytes[7] << 0) | (hbytes[14] << 8) | (hbytes[5] << 16) | (hbytes[2] << 24);
-                //}
-
-
-                br.Read(tbytes, 0, (int)totlen);
-
-                byte[] decr = tbytes;
                 if (entry.IsEncrypted)
                 {
-                    if (IsAESEncrypted)
-                    {
-                        decr = GTACrypto.DecryptAES(tbytes);
-                    }
-                    else //if (IsNGEncrypted) //assume the archive is set to NG encryption if not AES... (comment: fix for openIV modded files)
-                    {
-                        decr = GTACrypto.DecryptNG(tbytes, entry.Name, entry.FileSize);
-                    }
-                    //else
-                    //{ }
+                    rawData = IsAESEncrypted
+                        ? GTACrypto.DecryptAES(rawData)
+                        : GTACrypto.DecryptNG(rawData, entry.Name, entry.FileSize);
                 }
 
-                byte[] deflated = DecompressBytes(decr);
+                byte[] decompressedData = DecompressBytes(rawData);
 
-                byte[] data = null;
-
-                if (deflated != null)
-                {
-                    data = deflated;
-                }
-                else
-                {
-                    entry.FileSize -= offset;
-                    data = decr;
-                }
-
-
-                return data;
+                return decompressedData ?? rawData; // Return decompressed if available, otherwise raw
             }
-
-            return null;
+            catch (Exception ex)
+            {
+                LastError = ex.ToString();
+                LastException = ex;
+                return null;
+            }
         }
+
 
         public static T GetFile<T>(RpfEntry e) where T : class, PackedFile, new()
         {
