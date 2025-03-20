@@ -8,4 +8,20 @@
     <AssemblyName>CodeWalker Error Report Tool</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\CodeWalker.WinForms\CodeWalker.WinForms.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="SharpDX.Mathematics">
+      <HintPath>..\..\..\..\.nuget\packages\sharpdx.mathematics\4.2.0\lib\net45\SharpDX.Mathematics.dll</HintPath>
+    </Reference>
+    <Reference Include="WeifenLuo.WinFormsUI.Docking">
+      <HintPath>..\..\..\..\.nuget\packages\dockpanelsuite\3.0.6\lib\net40\WeifenLuo.WinFormsUI.Docking.dll</HintPath>
+    </Reference>
+    <Reference Include="WeifenLuo.WinFormsUI.Docking.ThemeVS2015">
+      <HintPath>..\..\..\..\.nuget\packages\dockpanelsuite.themevs2015\3.0.6\lib\net40\WeifenLuo.WinFormsUI.Docking.ThemeVS2015.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

@@ -30,7 +30,7 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ReportForm));
             this.label1 = new System.Windows.Forms.Label();
-            this.ErrorTextBox = new System.Windows.Forms.TextBox();
+            this.ErrorTextBox = new System.Windows.Forms.RichTextBox();
             this.SuspendLayout();
             // 
             // label1
@@ -44,22 +44,20 @@
             // 
             // ErrorTextBox
             // 
-            this.ErrorTextBox.AcceptsReturn = true;
-            this.ErrorTextBox.AcceptsTab = true;
             this.ErrorTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.ErrorTextBox.Location = new System.Drawing.Point(12, 36);
-            this.ErrorTextBox.Multiline = true;
+            this.ErrorTextBox.Location = new System.Drawing.Point(12, 25);
             this.ErrorTextBox.Name = "ErrorTextBox";
-            this.ErrorTextBox.Size = new System.Drawing.Size(630, 329);
-            this.ErrorTextBox.TabIndex = 1;
+            this.ErrorTextBox.Size = new System.Drawing.Size(1454, 513);
+            this.ErrorTextBox.TabIndex = 2;
+            this.ErrorTextBox.Text = "";
             // 
             // ReportForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(654, 377);
+            this.ClientSize = new System.Drawing.Size(1478, 550);
             this.Controls.Add(this.ErrorTextBox);
             this.Controls.Add(this.label1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -74,7 +72,7 @@
         #endregion
 
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.TextBox ErrorTextBox;
+        private System.Windows.Forms.RichTextBox ErrorTextBox;
     }
 }
 

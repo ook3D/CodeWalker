@@ -20,47 +20,100 @@ namespace CodeWalker.ErrorReport
 
         private void ReportForm_Load(object sender, EventArgs e)
         {
-            EventLog myLog = new EventLog();
-            myLog.Log = "Application";
-            //myLog.Source = ".NET Runtime";
-
-            var lastEntry = myLog.Entries[myLog.Entries.Count - 1];
-            var last_error_Message = lastEntry.Message;
-
-            bool found = false;
-
-            for (int index = myLog.Entries.Count - 1; index > 0; index--)
+            using (EventLog eventLog = new EventLog("Application"))
             {
-                var errLastEntry = myLog.Entries[index];
-                if (errLastEntry.EntryType == EventLogEntryType.Error)
+                if (eventLog.Entries.Count == 0)
                 {
-                    if (errLastEntry.Source == ".NET Runtime")
+                    ErrorTextBox.Text = "No event log entries found.";
+                    return;
+                }
+
+                bool errorFound = false;
+                string[] targetProcesses =
+                {
+                    "CodeWalker.exe",
+                    "CodeWalker RPF Explorer.exe",
+                    "CodeWalker Ped Viewer.exe",
+                    "CodeWalker Vehicle Viewer.exe"
+                };
+
+                for (int i = eventLog.Entries.Count - 1; i >= 0; i--)
+                {
+                    EventLogEntry entry = eventLog.Entries[i];
+
+                    if (entry.EntryType == EventLogEntryType.Error && entry.Source == ".NET Runtime")
                     {
-                        var msg = errLastEntry.Message;
-                        var lines = msg.Split('\n');
-                        if (lines.Length > 0)
+                        string[] messageLines = entry.Message.Split('\n');
+
+                        if (messageLines.Length > 0 && targetProcesses.Any(p => messageLines[0].Contains(p)))
                         {
-                            var l = lines[0];
-                            if (l.Contains("CodeWalker.exe") ||
-                                l.Contains("CodeWalker RPF Explorer.exe") ||
-                                l.Contains("CodeWalker Ped Viewer.exe") ||
-                                l.Contains("CodeWalker Vehicle Viewer.exe"))
+                            ErrorTextBox.Clear();
+                            ErrorTextBox.Font = new Font("Consolas", 10);
+
+                            AppendText("************** ERROR LOG **************\n", Color.DarkGray, true);
+                            AppendText($"🕒 Timestamp: {entry.TimeGenerated}\n", Color.Blue);
+                            AppendText($"🔍 Source: {entry.Source}\n", Color.Green);
+                            AppendText($"🚀 Process: {messageLines[0].Trim()}\n", Color.Green);
+                            AppendText("========================================\n", Color.DarkGray, true);
+
+                            bool callStackStarted = false;
+                            foreach (var line in messageLines.Skip(1)) // Skip the first line (process name)
                             {
-                                ErrorTextBox.Text = msg.Replace("\n", "\r\n");
-                                found = true;
-                                break;
+                                string trimmedLine = line.Trim();
+
+                                if (string.IsNullOrEmpty(trimmedLine))
+                                    continue;
+
+                                // Detect start of call stack (usually starts after an "Exception" message)
+                                if (!callStackStarted && (trimmedLine.Contains("Exception") || trimmedLine.Contains("Error") || trimmedLine.Contains("failed")))
+                                {
+                                    AppendText(trimmedLine + "\n", Color.Red); // Error messages in Red
+                                    callStackStarted = true;
+                                }
+                                else if (callStackStarted)
+                                {
+                                    if (trimmedLine.StartsWith("at ")) // Stack trace line
+                                    {
+                                        AppendText(trimmedLine + "\n\n", Color.Black); // extra line break
+                                    }
+                                    else
+                                    {
+                                        AppendText(trimmedLine + "\n", Color.Black); // Other details in default color
+                                    }
+                                }
+                                else
+                                {
+                                    AppendText(trimmedLine + "\n", Color.Black);
+                                }
                             }
+
+                            AppendText("========================================\n", Color.DarkGray, true);
+
+                            errorFound = true;
+                            break;
                         }
                     }
                 }
-            }
 
-            if (!found)
-            {
-                ErrorTextBox.Text = "Event Log entry not found!";
-                MessageBox.Show("Unable to find the last CodeWalker.exe error in the Event Log.");
+                if (!errorFound)
+                {
+                    AppendText("Event Log entry not found!\n", Color.Red);
+                    MessageBox.Show("Unable to find the last CodeWalker.exe error in the Event Log.");
+                }
             }
+        }
 
+        // Helper function to apply syntax highlighting
+        private void AppendText(string text, Color color, bool bold = false)
+        {
+            ErrorTextBox.SelectionStart = ErrorTextBox.TextLength;
+            ErrorTextBox.SelectionLength = 0;
+
+            ErrorTextBox.SelectionColor = color;
+            ErrorTextBox.SelectionFont = bold ? new Font("Consolas", 10, FontStyle.Bold) : new Font("Consolas", 10, FontStyle.Regular);
+
+            ErrorTextBox.AppendText(text);
+            ErrorTextBox.SelectionColor = ErrorTextBox.ForeColor; // Reset color
         }
     }
 }
