@@ -4,6 +4,7 @@ using CodeWalker.Properties;
 using CodeWalker.Tools;
 using CodeWalker.World;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -2115,129 +2116,138 @@ namespace CodeWalker
         }
         private void ExportXml()
         {
-            bool needfolder = false;//need a folder to output ytd XML to, for the texture .dds files
-            if (MainListView.SelectedIndices.Count == 1)
+            if (MainListView.SelectedIndices.Count == 0) return;
+
+            bool needFolder = NeedsFolderForExport();
+
+            if (MainListView.SelectedIndices.Count == 1 && !needFolder)
             {
-                var idx = MainListView.SelectedIndices[0];
-                if ((idx < 0) || (idx >= CurrentFiles.Count)) return;
-                var file = CurrentFiles[idx];
-                var nl = file?.File?.NameLower ?? file?.Name?.ToLowerInvariant();
-                if (!string.IsNullOrEmpty(nl))
-                {
-                    needfolder = nl.EndsWith(".ytd") || nl.EndsWith(".ydr") || nl.EndsWith(".ydd") || nl.EndsWith(".yft") || nl.EndsWith(".ypt") || nl.EndsWith(".awc") || nl.EndsWith(".fxc");
-                }
+                ProcessSingleFile();
+            }
+            else
+            {
+                ProcessMultipleFiles();
+            }
+        }
+
+        private bool NeedsFolderForExport()
+        {
+            if (MainListView.SelectedIndices.Count != 1) return false;
+
+            int idx = MainListView.SelectedIndices[0];
+            if (idx < 0 || idx >= CurrentFiles.Count) return false;
+
+            var file = CurrentFiles[idx];
+            var nl = file?.File?.NameLower ?? file?.Name?.ToLowerInvariant();
+
+            return !string.IsNullOrEmpty(nl) &&
+                   (nl.EndsWith(".ytd") || nl.EndsWith(".ydr") || nl.EndsWith(".ydd") ||
+                    nl.EndsWith(".yft") || nl.EndsWith(".ypt") || nl.EndsWith(".awc") ||
+                    nl.EndsWith(".fxc"));
+        }
+
+        private void ProcessSingleFile()
+        {
+            int idx = MainListView.SelectedIndices[0];
+            if (idx < 0 || idx >= CurrentFiles.Count) return;
+
+            var file = CurrentFiles[idx];
+            if (file.Folder != null || !CanExportXml(file)) return;
+
+            byte[] data = GetFileData(file);
+            if (data == null)
+            {
+                MessageBox.Show($"Unable to extract file: {file.Path}");
+                return;
             }
 
-            if ((MainListView.SelectedIndices.Count == 1) && (!needfolder))
+            if (file.File is RpfFileEntry rpfFile)
             {
-                var idx = MainListView.SelectedIndices[0];
-                if ((idx < 0) || (idx >= CurrentFiles.Count)) return;
-                var file = CurrentFiles[idx];
-                if (file.Folder == null)
+                string xml = ConvertToXml(rpfFile, ref data, out string newFileName);
+                if (string.IsNullOrEmpty(xml))
                 {
-                    if (CanExportXml(file))
-                    {
-                        byte[] data = GetFileData(file);
-                        if (data == null)
-                        {
-                            MessageBox.Show("Unable to extract file: " + file.Path);
-                            return;
-                        }
+                    MessageBox.Show($"Unable to convert file to XML: {file.Path}");
+                    return;
+                }
 
-                        string newfn;
-                        var fentry = file?.File;
-                        if (fentry == null)
-                        {
-                            //this should only happen when opening a file from filesystem...
-                            var name = new FileInfo(file.FullPath).Name;
-                            fentry = CreateFileEntry(name, file.FullPath, ref data);
-                        }
-
-                        string xml = MetaXml.GetXml(fentry, data, out newfn);
-                        if (string.IsNullOrEmpty(xml))
-                        {
-                            MessageBox.Show("Unable to convert file to XML: " + file.Path);
-                            return;
-                        }
-
-                        SaveFileDialog.FileName = newfn;
-                        if (SaveFileDialog.ShowDialog() == DialogResult.OK)
-                        {
-                            string path = SaveFileDialog.FileName;
-                            try
-                            {
-                                File.WriteAllText(path, xml);
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show("Error saving file " + path + ":\n" + ex.ToString());
-                            }
-                        }
-                    }
+                SaveFileDialog.FileName = newFileName;
+                if (SaveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    SaveXmlToFile(SaveFileDialog.FileName, xml);
                 }
             }
             else
             {
-                var folderpath = SelectFolder();
-                if (string.IsNullOrEmpty(folderpath)) return;
+                MessageBox.Show($"Invalid file type for file: {file.Path}");
+            }
+        }
 
-                StringBuilder errors = new StringBuilder();
+        private void ProcessMultipleFiles()
+        {
+            string folderPath = SelectFolder();
+            if (string.IsNullOrEmpty(folderPath)) return;
 
-                for (int i = 0; i < MainListView.SelectedIndices.Count; i++)
+            var errors = new ConcurrentBag<string>();
+
+            Parallel.ForEach(MainListView.SelectedIndices.Cast<int>(), idx =>
+            {
+                if (idx < 0 || idx >= CurrentFiles.Count) return;
+
+                var file = CurrentFiles[idx];
+                if (file.Folder != null || !CanExportXml(file)) return;
+
+                byte[] data = GetFileData(file);
+                if (data == null)
                 {
-                    var idx = MainListView.SelectedIndices[i];
-                    if ((idx < 0) || (idx >= CurrentFiles.Count)) continue;
-                    var file = CurrentFiles[idx];
-                    if (file.Folder == null)
+                    errors.Add($"Unable to extract file: {file.Path}");
+                    return;
+                }
+
+                if (file.File is RpfFileEntry rpfFile)
+                {
+                    string xml = ConvertToXml(rpfFile, ref data, out string newFileName, folderPath);
+                    if (string.IsNullOrEmpty(xml))
                     {
-                        if (!CanExportXml(file)) continue;
-
-                        var data = GetFileData(file);
-                        if (data == null)
-                        {
-                            errors.AppendLine("Unable to extract file: " + file.Path);
-                            continue;
-                        }
-
-                        string newfn;
-                        var fentry = file?.File;
-                        if (fentry == null)
-                        {
-                            //this should only happen when opening a file from filesystem...
-                            var name = new FileInfo(file.FullPath).Name;
-                            fentry = CreateFileEntry(name, file.FullPath, ref data);
-                        }
-
-                        string xml = MetaXml.GetXml(fentry, data, out newfn, folderpath);
-                        if (string.IsNullOrEmpty(xml))
-                        {
-                            errors.AppendLine("Unable to convert file to XML: " + file.Path);
-                            continue;
-                        }
-
-                        var path = folderpath + newfn;
-                        try
-                        {
-                            File.WriteAllText(path, xml);
-                        }
-                        catch (Exception ex)
-                        {
-                            errors.AppendLine("Error saving file " + path + ":\n" + ex.ToString());
-                        }
+                        errors.Add($"Unable to convert file to XML: {file.Path}");
+                        return;
                     }
-                }
 
-                string errstr = errors.ToString();
-                if (!string.IsNullOrEmpty(errstr))
-                {
-                    MessageBox.Show("Errors were encountered:\n" + errstr);
+                    SaveXmlToFile(Path.Combine(folderPath, newFileName), xml, errors);
                 }
+                else
+                {
+                    errors.Add($"Invalid file type for file: {file.Path}");
+                }
+            });
+
+            if (!errors.IsEmpty)
+            {
+                MessageBox.Show($"Errors were encountered:\n{string.Join("\n", errors)}");
+            }
+        }
+
+        private string ConvertToXml(RpfFileEntry file, ref byte[] data, out string newFileName, string folderPath = null)
+        {
+            var fentry = file ?? CreateFileEntry(new FileInfo(file.Path).Name, file.Path, ref data);
+            return MetaXml.GetXml(fentry, data, out newFileName, folderPath);
+        }
+
+        private void SaveXmlToFile(string filePath, string xml, ConcurrentBag<string> errors = null)
+        {
+            try
+            {
+                File.WriteAllText(filePath, xml);
+            }
+            catch (Exception ex)
+            {
+                errors?.Add($"Error saving file {filePath}:\n{ex}");
             }
         }
         private void ExtractRaw()
         {
             if (MainListView.SelectedIndices.Count == 1)
             {
+                // Handle single file extraction synchronously
                 var idx = MainListView.SelectedIndices[0];
                 if ((idx < 0) || (idx >= CurrentFiles.Count)) return;
                 var file = CurrentFiles[idx];
@@ -2247,7 +2257,7 @@ namespace CodeWalker
                     byte[] data = GetFileDataCompressResources(file);
                     if (data == null)
                     {
-                        MessageBox.Show("Unable to extract file: " + file.Path);
+                        MessageBox.Show($"Unable to extract file: {file.Path}");
                         return;
                     }
 
@@ -2261,48 +2271,48 @@ namespace CodeWalker
                         }
                         catch (Exception ex)
                         {
-                            MessageBox.Show("Error saving file " + path + ":\n" + ex.ToString());
+                            MessageBox.Show($"Error saving file {path}:\n{ex}");
                         }
                     }
                 }
             }
             else
             {
-                var folderpath = SelectFolder();
-                if (string.IsNullOrEmpty(folderpath)) return;
+                // Handle multiple file extraction using parallel processing
+                string folderPath = SelectFolder();
+                if (string.IsNullOrEmpty(folderPath)) return;
 
-                StringBuilder errors = new StringBuilder();
+                var errors = new ConcurrentBag<string>();
 
-                for (int i = 0; i < MainListView.SelectedIndices.Count; i++)
+                Parallel.ForEach(MainListView.SelectedIndices.Cast<int>(), idx =>
                 {
-                    var idx = MainListView.SelectedIndices[i];
-                    if ((idx < 0) || (idx >= CurrentFiles.Count)) continue;
+                    if ((idx < 0) || (idx >= CurrentFiles.Count)) return;
+
                     var file = CurrentFiles[idx];
                     if ((file.Folder == null) || (file.Folder.RpfFile != null))
                     {
-                        var path = folderpath + file.Name;
+                        string path = Path.Combine(folderPath, file.Name);
                         try
                         {
-                            var data = GetFileDataCompressResources(file);
+                            byte[] data = GetFileDataCompressResources(file);
                             if (data == null)
                             {
-                                errors.AppendLine("Unable to extract file: " + file.Path);
-                                continue;
+                                errors.Add($"Unable to extract file: {file.Path}");
+                                return;
                             }
 
                             File.WriteAllBytes(path, data);
                         }
                         catch (Exception ex)
                         {
-                            errors.AppendLine("Error saving file " + path + ":\n" + ex.ToString());
+                            errors.Add($"Error saving file {path}:\n{ex}");
                         }
                     }
-                }
+                });
 
-                string errstr = errors.ToString();
-                if (!string.IsNullOrEmpty(errstr))
+                if (!errors.IsEmpty)
                 {
-                    MessageBox.Show("Errors were encountered:\n" + errstr);
+                    MessageBox.Show($"Errors were encountered:\n{string.Join("\n", errors)}");
                 }
             }
         }
