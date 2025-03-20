@@ -76,8 +76,6 @@ namespace CodeWalker.Project.Panels
 
         private void GenerateButton_Click(object sender, EventArgs e)
         {
-            //var space = ProjectForm?.WorldForm?.Space;
-            //if (space == null) return;
             var gameFileCache = ProjectForm?.WorldForm?.GameFileCache;
             if (gameFileCache == null) return;
 
@@ -90,7 +88,7 @@ namespace CodeWalker.Project.Panels
 
             var pname = NameTextBox.Text;
 
-            Task.Run(() =>
+            Task.Run(async () =>
             {
 
                 var lights = new List<Light>();
@@ -103,12 +101,14 @@ namespace CodeWalker.Project.Panels
                         if (ent.Archetype == null) continue;
 
                         bool waiting = false;
-                        var dwbl = gameFileCache.TryGetDrawable(ent.Archetype, out waiting);
+                        DrawableBase dwbl = null;
+
+                        (dwbl, waiting) = await gameFileCache.TryGetDrawableAsync(ent.Archetype);
                         while (waiting)
                         {
-                            dwbl = gameFileCache.TryGetDrawable(ent.Archetype, out waiting);
+                            (dwbl, waiting) = await gameFileCache.TryGetDrawableAsync(ent.Archetype);
+
                             UpdateStatus("Waiting for " + ent.Archetype.AssetName + " to load...");
-                            Thread.Sleep(20);
                         }
                         UpdateStatus("Adding lights from " + ent.Archetype.Name + "...");
                         if (dwbl != null)
@@ -128,7 +128,7 @@ namespace CodeWalker.Project.Panels
                                     uint r = la.ColorR;
                                     uint g = la.ColorG;
                                     uint b = la.ColorB;
-                                    uint i = (byte)Math.Max(Math.Min(Math.Round(la.Intensity * 5.3125f), 255), 0);//5.1=255/48
+                                    uint i = (byte)Math.Max(Math.Min(Math.Round(la.Intensity * 3.7f), 255), 0);
                                     uint c = (i << 24) + (r << 16) + (g << 8) + b;
                                     uint h = elight.Hash;
 
@@ -136,8 +136,15 @@ namespace CodeWalker.Project.Panels
                                     //any other way to know if it's a streetlight?
                                     //var name = ent.Archetype.Name;
                                     var flags = la.Flags;
-                                    bool isStreetLight = (((flags >> 10) & 1u) == 1);// (name != null) && (name.Contains("street") || name.Contains("traffic"));
-                                    isStreetLight = false; //TODO: fix this!
+                                    bool isStreetLight = (((flags >> 10) & 1u) == 1);
+
+                                    if (ent.Archetype.Name != null)
+                                    {
+                                        string lowerName = ent.Archetype.Name.ToLower();
+                                        isStreetLight = lowerName.Contains("street") || lowerName.Contains("traffic") ||
+                                                        lowerName.Contains("nyped") || lowerName.Contains("nytrafflite") ||
+                                                        lowerName.Contains("nylamp");
+                                    }
 
 
                                     //@Calcium:
