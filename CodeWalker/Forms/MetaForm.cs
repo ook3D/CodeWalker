@@ -374,6 +374,21 @@ namespace CodeWalker.Forms
                 metaFormat = MetaFormat.Heightmap;
             }
         }
+
+        public void LoadMeta(DistantLightsFile distantlights)
+        {
+            var fn = ((distantlights?.FileEntry?.Name) ?? "") + ".xml";
+            Xml = MetaXml.GetXml(distantlights, out fn, "");
+            FileName = fn;
+            RawPropertyGrid.SelectedObject = distantlights;
+            rpfFileEntry = distantlights?.FileEntry;
+            modified = false;
+            metaFormat = MetaFormat.XML;
+            if (distantlights?.FileEntry != null)
+            {
+                metaFormat = MetaFormat.DistantLights;
+            }
+        }
         public void LoadMeta(YpdbFile ypdb)
         {
             var fn = ((ypdb?.RpfFileEntry?.Name) ?? "") + ".xml";

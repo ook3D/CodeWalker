@@ -1897,10 +1897,10 @@ namespace CodeWalker
         }
         private void ViewDistantLights(string name, string path, byte[] data, RpfFileEntry e)
         {
-            var dlf = RpfFile.GetFile<DistantLightsFile>(e, data);
-            GenericForm f = new GenericForm(this);
+            var distantlights = RpfFile.GetFile<DistantLightsFile>(e, data);
+            MetaForm f = new MetaForm(this);
             f.Show();
-            f.LoadFile(dlf, dlf.RpfFileEntry);
+            f.LoadMeta(distantlights);
         }
         private void ViewYpdb(string name, string path, byte[] data, RpfFileEntry e)
         {

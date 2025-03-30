@@ -56,7 +56,7 @@ namespace CodeWalker.GameFiles
 
     public class DataReader
     {
-        private Stream baseStream;
+        public Stream baseStream;
 
         /// <summary>
         /// Gets or sets the endianess of the underlying stream.

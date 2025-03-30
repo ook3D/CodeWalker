@@ -336,8 +336,12 @@ namespace CodeWalker.GameFiles
             filename = fn + ".xml";
             return MrfXml.GetXml(mrf);
         }
-
-
+        public static string GetXml(DistantLightsFile cdf, out string filename, string outputfolder)
+        {
+            var fn = (cdf?.FileEntry?.Name) ?? "";
+            filename = fn + ".xml";
+            return DistantLightsXml.GetXml(cdf);
+        }
 
 
 
@@ -2304,6 +2308,7 @@ namespace CodeWalker.GameFiles
         Ypdb = 22,
         Mrf = 23,
         Yfd = 24,
+        DistantLights = 25,
     }
 
 }

@@ -57,6 +57,8 @@ namespace CodeWalker.GameFiles
                     return GetCacheFileData(doc);
                 case MetaFormat.Heightmap:
                     return GetHeightmapData(doc);
+                case MetaFormat.DistantLights:
+                    return GetDistantLightsData(doc);
                 case MetaFormat.Ypdb:
                     return GetYpdbData(doc);
                 case MetaFormat.Yfd:
@@ -191,6 +193,13 @@ namespace CodeWalker.GameFiles
             var hmf = XmlHmap.GetHeightmap(doc);
             if (hmf.MaxHeights == null) return null;
             return hmf.Save();
+        }
+
+        public static byte[] GetDistantLightsData(XmlDocument doc)
+        {
+            var dlf = XmlDistantLights.GetDistantLights(doc);
+            if (dlf == null) return null;
+            return dlf.Save();
         }
         public static byte[] GetYpdbData(XmlDocument doc)
         {
