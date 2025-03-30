@@ -377,14 +377,14 @@ namespace CodeWalker.Forms
 
         public void LoadMeta(DistantLightsFile distantlights)
         {
-            var fn = ((distantlights?.FileEntry?.Name) ?? "") + ".xml";
+            var fn = ((distantlights?.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = MetaXml.GetXml(distantlights, out fn, "");
             FileName = fn;
             RawPropertyGrid.SelectedObject = distantlights;
-            rpfFileEntry = distantlights?.FileEntry;
+            rpfFileEntry = distantlights?.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (distantlights?.FileEntry != null)
+            if (distantlights?.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.DistantLights;
             }

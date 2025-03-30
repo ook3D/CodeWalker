@@ -6,49 +6,40 @@ using System.Text;
 using TC = System.ComponentModel.TypeConverterAttribute;
 using EXP = System.ComponentModel.ExpandableObjectConverter;
 using System.Xml;
-using System.Xml.Linq;
 
 namespace CodeWalker.GameFiles
 {
-
     [TC(typeof(EXP))]
-    public abstract class DistantLightsBase : IMetaXmlItem
+    public class DistantLightsFile : GameFile, PackedFile
     {
-        public virtual void ReadXml(XmlNode node)
-        { }
-        public virtual void WriteXml(StringBuilder sb, int indent)
-        { }
-    }
-    [TC(typeof(EXP))] public class DistantLightsFile : DistantLightsBase, PackedFile
-    {
-        public RpfFileEntry FileEntry { get; set; }
-
         public bool HD { get; set; } = true;
         public uint GridSize { get; set; } = 32;
-        public uint CellSize { get; set; } = 512;
-        public uint CellCount { get; set; } = 1024;
-        public uint NodeCount { get; set; } // PointsCount?
+        public uint CellSize { get; set; } = 2000;
+        public uint CellCount { get; set; } = 9000;
+        public uint NodeCount { get; set; }
         public uint PathCount { get; set; }
         public uint[] PathIndices { get; set; } //CellCount
         public uint[] PathCounts1 { get; set; } //CellCount
         public uint[] PathCounts2 { get; set; } //CellCount
         public DistantLightsPoint[] Points { get; set; } //NodeCount
-        public DistantLightsGroup[] Paths { get; set; } //PathCount
+        public DistantLightsGroup[] Groups { get; set; } //PathCount
         public DistantLightsCell[] Cells { get; set; } //CellCount (built from loaded data)
 
 
-        public DistantLightsFile()
+        public DistantLightsFile() : base(null, GameFileType.DistantLights)
         { }
-        public DistantLightsFile(RpfFileEntry entry)
+        public DistantLightsFile(RpfFileEntry entry) : base(entry, GameFileType.DistantLights)
         {
-            FileEntry = entry;
+            RpfFileEntry = entry;
         }
+
 
         public void Load(byte[] data, RpfFileEntry entry)
         {
             if (entry != null)
             {
-                FileEntry = entry;
+                RpfFileEntry = entry;
+                Name = entry.Name;
 
                 if (!entry.NameLower.EndsWith("_hd.dat"))
                 {
@@ -65,11 +56,13 @@ namespace CodeWalker.GameFiles
 
                 Read(r);
             };
+
+            Loaded = true;
         }
         public byte[] Save()
         {
             MemoryStream s = new MemoryStream();
-            DataWriter w = new DataWriter(s, Endianess.BigEndian);
+            DataWriter w = new DataWriter(s);
 
             Write(w);
 
@@ -78,8 +71,6 @@ namespace CodeWalker.GameFiles
             s.Read(buf, 0, buf.Length);
             return buf;
         }
-
-
         private void Read(DataReader r)
         {
             NodeCount = r.ReadUInt32();
@@ -88,7 +79,7 @@ namespace CodeWalker.GameFiles
             PathCounts1 = new uint[CellCount];
             PathCounts2 = new uint[CellCount];
             Points = new DistantLightsPoint[NodeCount];
-            Paths = new DistantLightsGroup[PathCount];
+            Groups = new DistantLightsGroup[PathCount];
             for (uint i = 0; i < CellCount; i++)
             {
                 PathIndices[i] = r.ReadUInt32();
@@ -107,11 +98,9 @@ namespace CodeWalker.GameFiles
             }
             for (uint i = 0; i < PathCount; i++)
             {
-                Paths[i] = new DistantLightsGroup(r, HD);
+                Groups[i] = new DistantLightsGroup(r, HD);
             }
-
             BuildCells();
-
         }
         private void Write(DataWriter w)
         {
@@ -136,63 +125,16 @@ namespace CodeWalker.GameFiles
             }
             for (uint i = 0; i < PathCount; i++)
             {
-                Paths[i].Write(w, HD);
+                Groups[i].Write(w, HD);
             }
-
         }
-
-
-        public override void WriteXml(StringBuilder sb, int indent)
-        {
-            if (HD)
-            {
-                DistantLightsXml.ValueTag(sb, indent, "HD", true.ToString());
-            }
-            DistantLightsXml.ValueTag(sb, indent, "GridSize", GridSize.ToString());
-            DistantLightsXml.ValueTag(sb, indent, "CellSize", CellSize.ToString());
-            DistantLightsXml.ValueTag(sb, indent, "CellCount", CellCount.ToString());
-            DistantLightsXml.ValueTag(sb, indent, "NodeCount", NodeCount.ToString());
-            DistantLightsXml.ValueTag(sb, indent, "PathCount", PathCount.ToString());
-            if (PathIndices != null)
-            {
-                DistantLightsXml.WriteRawArray(sb, PathIndices, indent, "PathIndices", "");
-            }
-            if (PathCounts1 != null)
-            {
-                DistantLightsXml.WriteRawArray(sb, PathCounts1, indent, "PathCounts1", "");
-            }
-            if (PathCounts2 != null)
-            {
-                DistantLightsXml.WriteRawArray(sb, PathCounts2, indent, "PathCounts2", "");
-            }
-            DistantLightsXml.WriteItemArray(sb, Points, indent, "Nodes");
-            DistantLightsXml.WriteItemArray(sb, Paths, indent, "Paths");
-            DistantLightsXml.WriteItemArray(sb, Cells, indent, "Cells");
-        }
-
-        public override void ReadXml(XmlNode node)
-        {
-            HD = Xml.GetChildBoolAttribute(node, "HD");
-            GridSize = Xml.GetChildUIntAttribute(node, "GridSize", "value");
-            CellSize = Xml.GetChildUIntAttribute(node, "CellSize", "value");
-            CellCount = Xml.GetChildUIntAttribute(node, "CellCount", "value");
-            NodeCount = Xml.GetChildUIntAttribute(node, "NodeCount", "value");
-            PathCount = Xml.GetChildUIntAttribute(node, "PathCount", "value");
-            PathIndices = Xml.GetChildRawUintArrayNullable(node, "PathIndices");
-            PathCounts1 = Xml.GetChildRawUintArrayNullable(node, "PathCounts1");
-            PathCounts2 = Xml.GetChildRawUintArrayNullable(node, "PathCounts2");
-            Points = XmlMeta.ReadItemArrayNullable<DistantLightsPoint>(node, "Nodes");
-            Paths = XmlMeta.ReadItemArrayNullable<DistantLightsGroup>(node, "Paths");
-            Cells = XmlMeta.ReadItemArrayNullable<DistantLightsCell>(node, "Cells");
-        }
-
         private void BuildCells()
         {
-            for (int i = 0; i < PathCount; i++)
+            for (uint i = 0; i < PathCount; i++)
             {
-                var path = Paths[i];
+                var path = Groups[i];
                 path.Nodes = new DistantLightsPoint[path.PointCount];
-                for (int n = 0; n < path.PointCount; n++)
+                for (uint n = 0; n < path.PointCount; n++)
                 {
                     path.Nodes[n] = Points[path.PointOffset + n];
                 }
@@ -216,7 +158,7 @@ namespace CodeWalker.GameFiles
                         cell.Paths1 = new DistantLightsGroup[pc1];
                         for (uint l = 0; l < pc1; l++)
                         {
-                            cell.Paths1[l] = Paths[PathIndices[i] + l];
+                            cell.Paths1[l] = Groups[PathIndices[i] + l];
                         }
                     }
                     var pc2 = PathCounts2[i];
@@ -225,7 +167,7 @@ namespace CodeWalker.GameFiles
                         cell.Paths2 = new DistantLightsGroup[pc2];
                         for (uint l = 0; l < pc2; l++)
                         {
-                            cell.Paths2[l] = Paths[PathIndices[i] + l + pc1];
+                            cell.Paths2[l] = Groups[PathIndices[i] + l + pc1];
                         }
                     }
                     Cells[i] = cell;
@@ -234,9 +176,53 @@ namespace CodeWalker.GameFiles
 
         }
 
+        public void WriteXml(StringBuilder sb, int indent)
+        {
+            if (HD)
+            {
+                DistantLightsXml.ValueTag(sb, indent, "HD", true.ToString());
+            }
+            DistantLightsXml.ValueTag(sb, indent, "GridSize", GridSize.ToString());
+            DistantLightsXml.ValueTag(sb, indent, "CellSize", CellSize.ToString());
+            DistantLightsXml.ValueTag(sb, indent, "CellCount", CellCount.ToString());
+            DistantLightsXml.ValueTag(sb, indent, "NodeCount", NodeCount.ToString());
+            DistantLightsXml.ValueTag(sb, indent, "PathCount", PathCount.ToString());
+            if (PathIndices != null)
+            {
+                DistantLightsXml.WriteRawArray(sb, PathIndices, indent, "PathIndices", "");
+            }
+            if (PathCounts1 != null)
+            {
+                DistantLightsXml.WriteRawArray(sb, PathCounts1, indent, "PathCounts1", "");
+            }
+            if (PathCounts2 != null)
+            {
+                DistantLightsXml.WriteRawArray(sb, PathCounts2, indent, "PathCounts2", "");
+            }
+            DistantLightsXml.WriteItemArray(sb, Points, indent, "Nodes");
+            DistantLightsXml.WriteItemArray(sb, Groups, indent, "Paths");
+            DistantLightsXml.WriteItemArray(sb, Cells, indent, "Cells");
+        }
+
+        public void ReadXml(XmlNode node)
+        {
+            HD = Xml.GetChildBoolAttribute(node, "HD");
+            GridSize = Xml.GetChildUIntAttribute(node, "GridSize", "value");
+            CellSize = Xml.GetChildUIntAttribute(node, "CellSize", "value");
+            CellCount = Xml.GetChildUIntAttribute(node, "CellCount", "value");
+            NodeCount = Xml.GetChildUIntAttribute(node, "NodeCount", "value");
+            PathCount = Xml.GetChildUIntAttribute(node, "PathCount", "value");
+            PathIndices = Xml.GetChildRawUintArrayNullable(node, "PathIndices");
+            PathCounts1 = Xml.GetChildRawUintArrayNullable(node, "PathCounts1");
+            PathCounts2 = Xml.GetChildRawUintArrayNullable(node, "PathCounts2");
+            Points = XmlMeta.ReadItemArrayNullable<DistantLightsPoint>(node, "Nodes");
+            Groups = XmlMeta.ReadItemArrayNullable<DistantLightsGroup>(node, "Paths");
+            Cells = XmlMeta.ReadItemArrayNullable<DistantLightsCell>(node, "Cells");
+        }
     }
 
-    [TC(typeof(EXP))] public class DistantLightsPoint : DistantLightsBase
+    [TC(typeof(EXP))]
+    public class DistantLightsPoint : IMetaXmlItem
     {
         public short X { get; set; }
         public short Y { get; set; }
@@ -261,13 +247,14 @@ namespace CodeWalker.GameFiles
             w.Write(Y);
             w.Write(Z);
         }
-        public override void WriteXml(StringBuilder sb, int indent)
+
+        public void WriteXml(StringBuilder sb, int indent)
         {
             DistantLightsXml.ValueTag(sb, indent, "X", X.ToString());
             DistantLightsXml.ValueTag(sb, indent, "Y", Y.ToString());
             DistantLightsXml.ValueTag(sb, indent, "Z", Z.ToString());
         }
-        public override void ReadXml(XmlNode node)
+        public void ReadXml(XmlNode node)
         {
             X = (short)Xml.GetChildUIntAttribute(node, "X", "value");
             Y = (short)Xml.GetChildUIntAttribute(node, "Y", "value");
@@ -284,9 +271,12 @@ namespace CodeWalker.GameFiles
         {
             return Vector.ToString();
         }
+
+
     }
 
-    [TC(typeof(EXP))] public class DistantLightsGroup : DistantLightsBase
+    [TC(typeof(EXP))]
+    public class DistantLightsGroup : IMetaXmlItem
     {
         public short CenterX { get; set; }
         public short CenterY { get; set; }
@@ -360,7 +350,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public override void WriteXml(StringBuilder sb, int indent)
+        public void WriteXml(StringBuilder sb, int indent)
         {
             DistantLightsXml.ValueTag(sb, indent, "CenterX", CenterX.ToString());
             DistantLightsXml.ValueTag(sb, indent, "CenterY", CenterY.ToString());
@@ -377,7 +367,7 @@ namespace CodeWalker.GameFiles
             DistantLightsXml.ValueTag(sb, indent, "RandomSeed4", RandomSeed4.ToString());
         }
 
-        public override void ReadXml(XmlNode node)
+        public void ReadXml(XmlNode node)
         {
             CenterX = (short)Xml.GetChildUIntAttribute(node, "CenterX", "value");
             CenterY = (short)Xml.GetChildUIntAttribute(node, "CenterY", "value");
@@ -403,7 +393,8 @@ namespace CodeWalker.GameFiles
         }
     }
 
-    [TC(typeof(EXP))] public class DistantLightsCell : DistantLightsBase
+    [TC(typeof(EXP))]
+    public class DistantLightsCell : IMetaXmlItem
     {
         public uint Index { get; set; }
         public uint CellX { get; set; }
@@ -419,7 +410,8 @@ namespace CodeWalker.GameFiles
                 (Paths1?.Length ?? 0).ToString() + ", " + (Paths2?.Length ?? 0).ToString() + " - (" +
                 CellMin.ToString() + " - " + CellMax.ToString() + ")";
         }
-        public override void WriteXml(StringBuilder sb, int indent)
+
+        public void WriteXml(StringBuilder sb, int indent)
         {
             DistantLightsXml.ValueTag(sb, indent, "Index", Index.ToString());
             DistantLightsXml.ValueTag(sb, indent, "CellX", CellX.ToString());
@@ -429,7 +421,7 @@ namespace CodeWalker.GameFiles
             DistantLightsXml.WriteItemArray(sb, Paths1, indent, "Paths1");
             DistantLightsXml.WriteItemArray(sb, Paths2, indent, "Paths2");
         }
-        public override void ReadXml(XmlNode node)
+        public void ReadXml(XmlNode node)
         {
             Index = Xml.GetChildUIntAttribute(node, "Index", "value");
             CellX = Xml.GetChildUIntAttribute(node, "CellX", "value");
@@ -440,6 +432,7 @@ namespace CodeWalker.GameFiles
             Paths2 = XmlMeta.ReadItemArrayNullable<DistantLightsGroup>(node, "Paths2");
         }
     }
+
 
     public class DistantLightsXml : MetaXmlBase
     {

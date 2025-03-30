@@ -338,7 +338,7 @@ namespace CodeWalker.GameFiles
         }
         public static string GetXml(DistantLightsFile cdf, out string filename, string outputfolder)
         {
-            var fn = (cdf?.FileEntry?.Name) ?? "";
+            var fn = (cdf?.RpfFileEntry?.Name) ?? "";
             filename = fn + ".xml";
             return DistantLightsXml.GetXml(cdf);
         }
