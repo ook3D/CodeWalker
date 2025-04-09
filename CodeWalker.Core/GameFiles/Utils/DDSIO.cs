@@ -164,7 +164,7 @@ namespace CodeWalker.Utils
                     px = DecompressBC5(imgdata, w, h);
                     break;
                 case DXGI_FORMAT.DXGI_FORMAT_BC7_UNORM: // TextureFormat.D3DFMT_BC7
-                    //BC7 TODO!!
+                    px = DecompressBC7(imgdata, w, h);
                     break;
 
                 // uncompressed
@@ -1747,6 +1747,42 @@ namespace CodeWalker.Utils
             TEX_ALPHA_MODE_CUSTOM = 4,
         }
 
+        private struct LDRColour
+        {
+            public byte R;
+            public byte G;
+            public byte B;
+            public byte A;
+            public LDRColour(byte r, byte g, byte b, byte a)
+            {
+                R = r;
+                G = g;
+                B = b;
+                A = a;
+            }
+            public byte Get(int ch)
+            {
+                switch (ch)
+                {
+                    case 0: return R;
+                    case 1: return G;
+                    case 2: return B;
+                    case 3: return A;
+                    default: return 0;
+                }
+            }
+            public void Set(int ch, byte v)
+            {
+                switch (ch)
+                {
+                    case 0: R = v; break;
+                    case 1: G = v; break;
+                    case 2: B = v; break;
+                    case 3: A = v; break;
+                }
+            }
+        }
+
 
         public struct DDS_HEADER
         {
@@ -2744,6 +2780,777 @@ namespace CodeWalker.Utils
             }
         }
 
+
+        internal static byte[] DecompressBC7(byte[] imageData, int width, int height)
+        {
+            using (MemoryStream imageStream = new MemoryStream(imageData))
+                return DecompressBC7(imageStream, width, height);
+        }
+
+        internal static byte[] DecompressBC7(Stream imageStream, int width, int height)
+        {
+            byte[] imageData = new byte[width * height * 4];
+
+            using (BinaryReader imageReader = new BinaryReader(imageStream))
+            {
+                int blockCountX = (width + 3) / 4;
+                int blockCountY = (height + 3) / 4;
+
+                for (int y = 0; y < blockCountY; y++)
+                {
+                    for (int x = 0; x < blockCountX; x++)
+                    {
+                        DecompressBC7Block(imageReader, x, y, blockCountX, width, height, imageData);
+                    }
+                }
+            }
+
+            return imageData;
+        }
+
+        private static void DecompressBC7Block(BinaryReader imageReader, int x, int y, int blockCountX, int width, int height, byte[] imageData)
+        {
+            // https://github.com/microsoft/DirectXTex/blob/main/DirectXTex/BC6HBC7.cpp
+
+            var b0 = imageReader.ReadUInt64();
+            var b1 = imageReader.ReadUInt64();
+
+            const int numChannels = 4;
+            const int weightMax = 64;
+            const int weightShift = 6;
+            const int weightRound = 32;
+            const int numPixelsPerBlock = 16;
+
+            byte readBit(ref int bit)
+            {
+                if (bit >= 128) { return 0; }
+                var v = (bit < 64) ? (byte)((b0 >> bit) & 1) : (byte)((b1 >> (bit - 64)) & 1);
+                bit++;
+                return v;
+            }
+            byte readBits(ref int bit, int num)
+            {
+                if (num <= 0) return 0;
+                if (num > 8) return 0;
+                if ((bit + num) > 128) { bit += num; return 0; }
+                var bi2 = bit - 64;
+                var mask = (1u << num) - 1;
+                var v0 = (byte)((bit > 63) ? 0 : ((b0 >> bit) & mask));
+                var v1 = (byte)((bi2 > 63) ? 0 : ((bi2 > 0) ? (b1 >> bi2) : (b1 << -bi2)) & mask);
+                var v = (byte)(v0 | v1);
+                bit += num;
+                return v;
+            }
+
+            byte unquantizeByte(byte comp, int prec)
+            {
+                var comp2 = ((uint)comp << (8 - prec));
+                return (byte)(comp2 | (comp2 >> prec));
+            }
+            LDRColour unquantize(LDRColour c, LDRColour rgbaPrec)
+            {
+                var q = new LDRColour();
+                q.R = unquantizeByte(c.R, rgbaPrec.R);
+                q.G = unquantizeByte(c.G, rgbaPrec.G);
+                q.B = unquantizeByte(c.B, rgbaPrec.B);
+                q.A = (rgbaPrec.A > 0) ? unquantizeByte(c.A, rgbaPrec.A) : (byte)0xFF;
+                return q;
+            }
+            bool isFixUpOffset(int partitions, int shape, int offset)
+            {
+                for (int p = 0; p <= partitions; p++)
+                {
+                    if (offset == BC7_FixUp[partitions, shape, p])
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            LDRColour interpolate(LDRColour c0, LDRColour c1, int wc, int wa, int wcprec, int waprec)
+            {
+                var r = new LDRColour();
+                int[] cweights = null;
+                switch (wcprec)
+                {
+                    case 2: cweights = BC7_Weights2; break;
+                    case 3: cweights = BC7_Weights3; break;
+                    case 4: cweights = BC7_Weights4; break;
+                }
+                if (cweights != null)
+                {
+                    var bcw = (uint)cweights[wc];
+                    var icw = (uint)weightMax - bcw;
+                    r.R = (byte)(((c0.R * icw) + (c1.R * bcw) + weightRound) >> weightShift);
+                    r.G = (byte)(((c0.G * icw) + (c1.G * bcw) + weightRound) >> weightShift);
+                    r.B = (byte)(((c0.B * icw) + (c1.B * bcw) + weightRound) >> weightShift);
+                }
+                int[] aweights = null;
+                switch (waprec)
+                {
+                    case 2: aweights = BC7_Weights2; break;
+                    case 3: aweights = BC7_Weights3; break;
+                    case 4: aweights = BC7_Weights4; break;
+                }
+                if (aweights != null)
+                {
+                    var baw = (uint)aweights[wa];
+                    var iaw = (uint)weightMax - baw;
+                    r.A = (byte)(((c0.A * iaw) + (c1.A * baw) + weightRound) >> weightShift);
+                }
+                return r;
+            }
+
+
+            int first = 0;
+            while ((first < 128) && (readBit(ref first) == 0)) { }
+            var mode = (byte)(first - 1);
+
+            if (mode < 8)
+            {
+                var partitions = BC7_Partitions[mode];
+                var partitionBits = BC7_PartitionBits[mode];
+                var rotationBits = BC7_RotationBits[mode];
+                var indexModeBits = BC7_IndexModeBits[mode];
+                var indexPrec = BC7_IndexPrec[mode];
+                var indexPrec2 = BC7_IndexPrec2[mode];
+                var rgbaPrec = BC7_RGBAPrec[mode];
+                var rgbaPrecWithP = BC7_RGBAPrecWithP[mode];
+                var pBits = BC7_PBits[mode];
+                var numEndPts = (byte)((partitions + 1u) << 1);
+                var startBit = mode + 1;
+                var shape = readBits(ref startBit, partitionBits);
+                var rotation = readBits(ref startBit, rotationBits);
+                var indexMode = readBits(ref startBit, indexModeBits);
+                var c = new BC7_TempData1();
+                var p = 0u;
+                var w1 = new BC7_TempData2();
+                var w2 = new BC7_TempData2();
+                for (int i = 0; i < numEndPts; i++)
+                {
+                    c.SetR(i, readBits(ref startBit, rgbaPrec.R));
+                }
+                for (int i = 0; i < numEndPts; i++)
+                {
+                    c.SetG(i, readBits(ref startBit, rgbaPrec.G));
+                }
+                for (int i = 0; i < numEndPts; i++)
+                {
+                    c.SetB(i, readBits(ref startBit, rgbaPrec.B));
+                }
+                for (int i = 0; i < numEndPts; i++)
+                {
+                    c.SetA(i, (rgbaPrec.A > 0) ? readBits(ref startBit, rgbaPrec.A) : (byte)0xFF);
+                }
+                for (int i = 0; i < pBits; i++)
+                {
+                    p = BitUtil.SetBit(p, readBit(ref startBit));
+                }
+                if (pBits != 0)
+                {
+                    for (int i = 0; i < numEndPts; i++)
+                    {
+                        var pi = i * pBits / numEndPts;
+                        var ppi = BitUtil.IsBitSet(p, pi) ? 1u : 0u;
+                        for (var ch = 0; ch < numChannels; ch++)
+                        {
+                            if (rgbaPrec.Get(ch) != rgbaPrecWithP.Get(ch))
+                            {
+                                var v = (uint)(c.Get(i, ch) << 1) | ppi;
+                                c.Set(i, ch, (byte)v);
+                            }
+                        }
+                    }
+                }
+                for (int i = 0; i < numEndPts; i++)
+                {
+                    var unq = unquantize(c.Get(i), rgbaPrecWithP);
+                    c.Set(i, unq);
+                }
+                for (int i = 0; i < numPixelsPerBlock; i++)
+                {
+                    var numBits = isFixUpOffset(partitions, shape, i) ? (indexPrec - 1) : indexPrec;
+                    var bits = readBits(ref startBit, numBits);
+                    w1.Set(i, bits);
+                }
+                if (indexPrec2 != 0)
+                {
+                    for (int i = 0; i < numPixelsPerBlock; i++)
+                    {
+                        var numBits = (i != 0) ? indexPrec2 : (indexPrec2 - 1);
+                        var bits = readBits(ref startBit, numBits);
+                        w2.Set(i, bits);
+                    }
+                }
+                for (int i = 0; i < numPixelsPerBlock; i++)
+                {
+                    var region = BC7_PartitionTable[partitions, shape, i];
+                    var r0 = region << 1;
+                    var r1 = r0 + 1;
+                    var c0 = c.Get(r0);
+                    var c1 = c.Get(r1);
+                    var w1i = w1.Get(i);
+                    var w2i = w2.Get(i);
+                    LDRColour outPixel;
+                    if (indexPrec2 == 0)
+                    {
+                        outPixel = interpolate(c0, c1, w1i, w1i, indexPrec, indexPrec);
+                    }
+                    else if (indexMode == 0)
+                    {
+                        outPixel = interpolate(c0, c1, w1i, w2i, indexPrec, indexPrec2);
+                    }
+                    else
+                    {
+                        outPixel = interpolate(c0, c1, w2i, w1i, indexPrec2, indexPrec);
+                    }
+                    byte t;
+                    switch (rotation)
+                    {
+                        case 1: t = outPixel.R; outPixel.R = outPixel.A; outPixel.A = t; break;
+                        case 2: t = outPixel.G; outPixel.G = outPixel.A; outPixel.A = t; break;
+                        case 3: t = outPixel.B; outPixel.B = outPixel.A; outPixel.A = t; break;
+                    }
+
+
+                    var blockX = i % 4;
+                    var blockY = i / 4;
+                    var px = (x << 2) + blockX;
+                    var py = (y << 2) + blockY;
+                    var offset = ((py * width) + px) << 2;
+                    imageData[offset] = outPixel.R;
+                    imageData[offset + 1] = outPixel.G;
+                    imageData[offset + 2] = outPixel.B;
+                    imageData[offset + 3] = outPixel.A;
+                }
+            }
+            else
+            { }
+        }
+
+        private static byte[] BC7_Partitions = { 2, 1, 2, 1, 0, 0, 0, 1 };
+        private static byte[] BC7_PartitionBits = { 4, 6, 6, 6, 0, 0, 0, 6 };
+        private static byte[] BC7_PBits = { 6, 2, 0, 4, 0, 0, 2, 4 };
+        private static byte[] BC7_RotationBits = { 0, 0, 0, 0, 2, 2, 0, 0 };
+        private static byte[] BC7_IndexModeBits = { 0, 0, 0, 0, 1, 0, 0, 0 };
+        private static byte[] BC7_IndexPrec = { 3, 3, 2, 2, 2, 2, 4, 2 };
+        private static byte[] BC7_IndexPrec2 = { 0, 0, 0, 0, 3, 2, 0, 0 };
+        private static LDRColour[] BC7_RGBAPrec =
+        {
+            new LDRColour(4,4,4,0),
+            new LDRColour(6,6,6,0),
+            new LDRColour(5,5,5,0),
+            new LDRColour(7,7,7,0),
+            new LDRColour(5,5,5,6),
+            new LDRColour(7,7,7,8),
+            new LDRColour(7,7,7,7),
+            new LDRColour(5,5,5,5),
+        };
+        private static LDRColour[] BC7_RGBAPrecWithP =
+        {
+            new LDRColour(5,5,5,0),
+            new LDRColour(7,7,7,0),
+            new LDRColour(5,5,5,0),
+            new LDRColour(8,8,8,0),
+            new LDRColour(5,5,5,6),
+            new LDRColour(7,7,7,8),
+            new LDRColour(8,8,8,8),
+            new LDRColour(6,6,6,6),
+        };
+        private struct BC7_TempData1
+        {
+            private LDRColour c0;
+            private LDRColour c1;
+            private LDRColour c2;
+            private LDRColour c3;
+            private LDRColour c4;
+            private LDRColour c5;
+
+            public LDRColour Get(int i)
+            {
+                switch (i)
+                {
+                    case 0: return c0;
+                    case 1: return c1;
+                    case 2: return c2;
+                    case 3: return c3;
+                    case 4: return c4;
+                    case 5: return c5;
+                    default: return new LDRColour();
+                }
+            }
+            public void Set(int i, LDRColour v)
+            {
+                switch (i)
+                {
+                    case 0: c0 = v; break;
+                    case 1: c1 = v; break;
+                    case 2: c2 = v; break;
+                    case 3: c3 = v; break;
+                    case 4: c4 = v; break;
+                    case 5: c5 = v; break;
+                    default:
+                        break;
+                }
+            }
+            public void SetR(int i, byte r)
+            {
+                switch (i)
+                {
+                    case 0: c0.R = r; break;
+                    case 1: c1.R = r; break;
+                    case 2: c2.R = r; break;
+                    case 3: c3.R = r; break;
+                    case 4: c4.R = r; break;
+                    case 5: c5.R = r; break;
+                    default:
+                        break;
+                }
+            }
+            public void SetG(int i, byte g)
+            {
+                switch (i)
+                {
+                    case 0: c0.G = g; break;
+                    case 1: c1.G = g; break;
+                    case 2: c2.G = g; break;
+                    case 3: c3.G = g; break;
+                    case 4: c4.G = g; break;
+                    case 5: c5.G = g; break;
+                    default:
+                        break;
+                }
+            }
+            public void SetB(int i, byte b)
+            {
+                switch (i)
+                {
+                    case 0: c0.B = b; break;
+                    case 1: c1.B = b; break;
+                    case 2: c2.B = b; break;
+                    case 3: c3.B = b; break;
+                    case 4: c4.B = b; break;
+                    case 5: c5.B = b; break;
+                    default:
+                        break;
+                }
+            }
+            public void SetA(int i, byte a)
+            {
+                switch (i)
+                {
+                    case 0: c0.A = a; break;
+                    case 1: c1.A = a; break;
+                    case 2: c2.A = a; break;
+                    case 3: c3.A = a; break;
+                    case 4: c4.A = a; break;
+                    case 5: c5.A = a; break;
+                    default:
+                        break;
+                }
+            }
+            public void Set(int i, int ch, byte v)
+            {
+                switch (ch)
+                {
+                    case 0: SetR(i, v); break;
+                    case 1: SetG(i, v); break;
+                    case 2: SetB(i, v); break;
+                    case 3: SetA(i, v); break;
+                    default:
+                        break;
+                }
+            }
+            public byte Get(int i, int ch)
+            {
+                switch (ch)
+                {
+                    case 0: return GetR(i);
+                    case 1: return GetG(i);
+                    case 2: return GetB(i);
+                    case 3: return GetA(i);
+                    default: return 0;
+                }
+            }
+            public byte GetR(int i)
+            {
+                switch (i)
+                {
+                    case 0: return c0.R;
+                    case 1: return c1.R;
+                    case 2: return c2.R;
+                    case 3: return c3.R;
+                    case 4: return c4.R;
+                    case 5: return c5.R;
+                    default: return 0;
+                }
+            }
+            public byte GetG(int i)
+            {
+                switch (i)
+                {
+                    case 0: return c0.G;
+                    case 1: return c1.G;
+                    case 2: return c2.G;
+                    case 3: return c3.G;
+                    case 4: return c4.G;
+                    case 5: return c5.G;
+                    default: return 0;
+                }
+            }
+            public byte GetB(int i)
+            {
+                switch (i)
+                {
+                    case 0: return c0.B;
+                    case 1: return c1.B;
+                    case 2: return c2.B;
+                    case 3: return c3.B;
+                    case 4: return c4.B;
+                    case 5: return c5.B;
+                    default: return 0;
+                }
+            }
+            public byte GetA(int i)
+            {
+                switch (i)
+                {
+                    case 0: return c0.A;
+                    case 1: return c1.A;
+                    case 2: return c2.A;
+                    case 3: return c3.A;
+                    case 4: return c4.A;
+                    case 5: return c5.A;
+                    default: return 0;
+                }
+            }
+        }
+        private struct BC7_TempData2
+        {
+            public byte b00;
+            public byte b01;
+            public byte b02;
+            public byte b03;
+            public byte b04;
+            public byte b05;
+            public byte b06;
+            public byte b07;
+            public byte b08;
+            public byte b09;
+            public byte b10;
+            public byte b11;
+            public byte b12;
+            public byte b13;
+            public byte b14;
+            public byte b15;
+            public byte Get(int i)
+            {
+                switch (i)
+                {
+                    default: return 0;
+                    case 0: return b00;
+                    case 1: return b01;
+                    case 2: return b02;
+                    case 3: return b03;
+                    case 4: return b04;
+                    case 5: return b05;
+                    case 6: return b06;
+                    case 7: return b07;
+                    case 8: return b08;
+                    case 9: return b09;
+                    case 10: return b10;
+                    case 11: return b11;
+                    case 12: return b12;
+                    case 13: return b13;
+                    case 14: return b14;
+                    case 15: return b15;
+                }
+            }
+            public void Set(int i, byte v)
+            {
+                switch (i)
+                {
+                    case 0: b00 = v; break;
+                    case 1: b01 = v; break;
+                    case 2: b02 = v; break;
+                    case 3: b03 = v; break;
+                    case 4: b04 = v; break;
+                    case 5: b05 = v; break;
+                    case 6: b06 = v; break;
+                    case 7: b07 = v; break;
+                    case 8: b08 = v; break;
+                    case 9: b09 = v; break;
+                    case 10: b10 = v; break;
+                    case 11: b11 = v; break;
+                    case 12: b12 = v; break;
+                    case 13: b13 = v; break;
+                    case 14: b14 = v; break;
+                    case 15: b15 = v; break;
+                }
+            }
+        }
+        private static byte[,,] BC7_FixUp =
+        {
+            {   // No fix-ups for 1st subset for BC6H or BC7
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },
+                { 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 },{ 0, 0, 0 }
+            },
+            {   // BC6H/BC7 Partition Set Fixups for 2 Subsets
+                { 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },
+                { 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },
+                { 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },
+                { 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },
+                { 0,15, 0 },{ 0, 2, 0 },{ 0, 8, 0 },{ 0, 2, 0 },
+                { 0, 2, 0 },{ 0, 8, 0 },{ 0, 8, 0 },{ 0,15, 0 },
+                { 0, 2, 0 },{ 0, 8, 0 },{ 0, 2, 0 },{ 0, 2, 0 },
+                { 0, 8, 0 },{ 0, 8, 0 },{ 0, 2, 0 },{ 0, 2, 0 },
+                // BC7 Partition Set Fixups for 2 Subsets (second-half)
+                { 0,15, 0 },{ 0,15, 0 },{ 0, 6, 0 },{ 0, 8, 0 },
+                { 0, 2, 0 },{ 0, 8, 0 },{ 0,15, 0 },{ 0,15, 0 },
+                { 0, 2, 0 },{ 0, 8, 0 },{ 0, 2, 0 },{ 0, 2, 0 },
+                { 0, 2, 0 },{ 0,15, 0 },{ 0,15, 0 },{ 0, 6, 0 },
+                { 0, 6, 0 },{ 0, 2, 0 },{ 0, 6, 0 },{ 0, 8, 0 },
+                { 0,15, 0 },{ 0,15, 0 },{ 0, 2, 0 },{ 0, 2, 0 },
+                { 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },{ 0,15, 0 },
+                { 0,15, 0 },{ 0, 2, 0 },{ 0, 2, 0 },{ 0,15, 0 }
+            },
+            {   // BC7 Partition Set Fixups for 3 Subsets
+                { 0, 3,15 },{ 0, 3, 8 },{ 0,15, 8 },{ 0,15, 3 },
+                { 0, 8,15 },{ 0, 3,15 },{ 0,15, 3 },{ 0,15, 8 },
+                { 0, 8,15 },{ 0, 8,15 },{ 0, 6,15 },{ 0, 6,15 },
+                { 0, 6,15 },{ 0, 5,15 },{ 0, 3,15 },{ 0, 3, 8 },
+                { 0, 3,15 },{ 0, 3, 8 },{ 0, 8,15 },{ 0,15, 3 },
+                { 0, 3,15 },{ 0, 3, 8 },{ 0, 6,15 },{ 0,10, 8 },
+                { 0, 5, 3 },{ 0, 8,15 },{ 0, 8, 6 },{ 0, 6,10 },
+                { 0, 8,15 },{ 0, 5,15 },{ 0,15,10 },{ 0,15, 8 },
+                { 0, 8,15 },{ 0,15, 3 },{ 0, 3,15 },{ 0, 5,10 },
+                { 0, 6,10 },{ 0,10, 8 },{ 0, 8, 9 },{ 0,15,10 },
+                { 0,15, 6 },{ 0, 3,15 },{ 0,15, 8 },{ 0, 5,15 },
+                { 0,15, 3 },{ 0,15, 6 },{ 0,15, 6 },{ 0,15, 8 },
+                { 0, 3,15 },{ 0,15, 3 },{ 0, 5,15 },{ 0, 5,15 },
+                { 0, 5,15 },{ 0, 8,15 },{ 0, 5,15 },{ 0,10,15 },
+                { 0, 5,15 },{ 0,10,15 },{ 0, 8,15 },{ 0,13,15 },
+                { 0,15, 3 },{ 0,12,15 },{ 0, 3,15 },{ 0, 3, 8 }
+            }
+        };
+        private static byte[,,] BC7_PartitionTable =
+        {
+            {   // 1 Region case has no subsets (all 0)
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+            },
+            {   // BC6H/BC7 Partition Set for 2 Subsets
+                { 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1 }, // Shape 0
+                { 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1 }, // Shape 1
+                { 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1 }, // Shape 2
+                { 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1 }, // Shape 3
+                { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1 }, // Shape 4
+                { 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1 }, // Shape 5
+                { 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1 }, // Shape 6
+                { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1 }, // Shape 7
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1 }, // Shape 8
+                { 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, // Shape 9
+                { 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1 }, // Shape 10
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1 }, // Shape 11
+                { 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, // Shape 12
+                { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 }, // Shape 13
+                { 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, // Shape 14
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 }, // Shape 15
+                { 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1 }, // Shape 16
+                { 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }, // Shape 17
+                { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0 }, // Shape 18
+                { 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0 }, // Shape 19
+                { 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }, // Shape 20
+                { 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0 }, // Shape 21
+                { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0 }, // Shape 22
+                { 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1 }, // Shape 23
+                { 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0 }, // Shape 24
+                { 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0 }, // Shape 25
+                { 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0 }, // Shape 26
+                { 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0 }, // Shape 27
+                { 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0 }, // Shape 28
+                { 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 }, // Shape 29
+                { 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0 }, // Shape 30
+                { 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0 }, // Shape 31 
+                { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1 }, // Shape 32  // BC7 Partition Set for 2 Subsets (second-half)
+                { 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1 }, // Shape 33
+                { 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0 }, // Shape 34
+                { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0 }, // Shape 35
+                { 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0 }, // Shape 36
+                { 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0 }, // Shape 37
+                { 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1 }, // Shape 38
+                { 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1 }, // Shape 39
+                { 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0 }, // Shape 40
+                { 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0 }, // Shape 41
+                { 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0 }, // Shape 42
+                { 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0 }, // Shape 43
+                { 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0 }, // Shape 44
+                { 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1 }, // Shape 45
+                { 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1 }, // Shape 46
+                { 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0 }, // Shape 47
+                { 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 }, // Shape 48
+                { 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0 }, // Shape 49
+                { 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0 }, // Shape 50
+                { 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0 }, // Shape 51
+                { 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1 }, // Shape 52
+                { 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1 }, // Shape 53
+                { 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 }, // Shape 54
+                { 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0 }, // Shape 55
+                { 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1 }, // Shape 56
+                { 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1 }, // Shape 57
+                { 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1 }, // Shape 58
+                { 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1 }, // Shape 59
+                { 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1 }, // Shape 60
+                { 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 }, // Shape 61
+                { 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0 }, // Shape 62
+                { 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1 }  // Shape 63
+            },
+            {   // BC7 Partition Set for 3 Subsets
+                { 0, 0, 1, 1, 0, 0, 1, 1, 0, 2, 2, 1, 2, 2, 2, 2 }, // Shape 0
+                { 0, 0, 0, 1, 0, 0, 1, 1, 2, 2, 1, 1, 2, 2, 2, 1 }, // Shape 1
+                { 0, 0, 0, 0, 2, 0, 0, 1, 2, 2, 1, 1, 2, 2, 1, 1 }, // Shape 2
+                { 0, 2, 2, 2, 0, 0, 2, 2, 0, 0, 1, 1, 0, 1, 1, 1 }, // Shape 3
+                { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 1, 1, 2, 2 }, // Shape 4
+                { 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 2, 2, 0, 0, 2, 2 }, // Shape 5
+                { 0, 0, 2, 2, 0, 0, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1 }, // Shape 6
+                { 0, 0, 1, 1, 0, 0, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1 }, // Shape 7
+                { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2 }, // Shape 8
+                { 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2 }, // Shape 9
+                { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2 }, // Shape 10
+                { 0, 0, 1, 2, 0, 0, 1, 2, 0, 0, 1, 2, 0, 0, 1, 2 }, // Shape 11
+                { 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2 }, // Shape 12
+                { 0, 1, 2, 2, 0, 1, 2, 2, 0, 1, 2, 2, 0, 1, 2, 2 }, // Shape 13
+                { 0, 0, 1, 1, 0, 1, 1, 2, 1, 1, 2, 2, 1, 2, 2, 2 }, // Shape 14
+                { 0, 0, 1, 1, 2, 0, 0, 1, 2, 2, 0, 0, 2, 2, 2, 0 }, // Shape 15
+                { 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 2, 1, 1, 2, 2 }, // Shape 16
+                { 0, 1, 1, 1, 0, 0, 1, 1, 2, 0, 0, 1, 2, 2, 0, 0 }, // Shape 17
+                { 0, 0, 0, 0, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 2, 2 }, // Shape 18
+                { 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 1, 1, 1, 1 }, // Shape 19
+                { 0, 1, 1, 1, 0, 1, 1, 1, 0, 2, 2, 2, 0, 2, 2, 2 }, // Shape 20
+                { 0, 0, 0, 1, 0, 0, 0, 1, 2, 2, 2, 1, 2, 2, 2, 1 }, // Shape 21
+                { 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 2, 2, 0, 1, 2, 2 }, // Shape 22
+                { 0, 0, 0, 0, 1, 1, 0, 0, 2, 2, 1, 0, 2, 2, 1, 0 }, // Shape 23
+                { 0, 1, 2, 2, 0, 1, 2, 2, 0, 0, 1, 1, 0, 0, 0, 0 }, // Shape 24
+                { 0, 0, 1, 2, 0, 0, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2 }, // Shape 25
+                { 0, 1, 1, 0, 1, 2, 2, 1, 1, 2, 2, 1, 0, 1, 1, 0 }, // Shape 26
+                { 0, 0, 0, 0, 0, 1, 1, 0, 1, 2, 2, 1, 1, 2, 2, 1 }, // Shape 27
+                { 0, 0, 2, 2, 1, 1, 0, 2, 1, 1, 0, 2, 0, 0, 2, 2 }, // Shape 28
+                { 0, 1, 1, 0, 0, 1, 1, 0, 2, 0, 0, 2, 2, 2, 2, 2 }, // Shape 29
+                { 0, 0, 1, 1, 0, 1, 2, 2, 0, 1, 2, 2, 0, 0, 1, 1 }, // Shape 30
+                { 0, 0, 0, 0, 2, 0, 0, 0, 2, 2, 1, 1, 2, 2, 2, 1 }, // Shape 31
+                { 0, 0, 0, 0, 0, 0, 0, 2, 1, 1, 2, 2, 1, 2, 2, 2 }, // Shape 32
+                { 0, 2, 2, 2, 0, 0, 2, 2, 0, 0, 1, 2, 0, 0, 1, 1 }, // Shape 33
+                { 0, 0, 1, 1, 0, 0, 1, 2, 0, 0, 2, 2, 0, 2, 2, 2 }, // Shape 34
+                { 0, 1, 2, 0, 0, 1, 2, 0, 0, 1, 2, 0, 0, 1, 2, 0 }, // Shape 35
+                { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 0, 0, 0, 0 }, // Shape 36
+                { 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0 }, // Shape 37
+                { 0, 1, 2, 0, 2, 0, 1, 2, 1, 2, 0, 1, 0, 1, 2, 0 }, // Shape 38
+                { 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 2, 0, 0, 1, 1 }, // Shape 39
+                { 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 0, 0, 0, 0, 1, 1 }, // Shape 40
+                { 0, 1, 0, 1, 0, 1, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2 }, // Shape 41
+                { 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 1, 2, 1, 2, 1 }, // Shape 42
+                { 0, 0, 2, 2, 1, 1, 2, 2, 0, 0, 2, 2, 1, 1, 2, 2 }, // Shape 43
+                { 0, 0, 2, 2, 0, 0, 1, 1, 0, 0, 2, 2, 0, 0, 1, 1 }, // Shape 44
+                { 0, 2, 2, 0, 1, 2, 2, 1, 0, 2, 2, 0, 1, 2, 2, 1 }, // Shape 45
+                { 0, 1, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 1 }, // Shape 46
+                { 0, 0, 0, 0, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1 }, // Shape 47
+                { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 2, 2, 2 }, // Shape 48
+                { 0, 2, 2, 2, 0, 1, 1, 1, 0, 2, 2, 2, 0, 1, 1, 1 }, // Shape 49
+                { 0, 0, 0, 2, 1, 1, 1, 2, 0, 0, 0, 2, 1, 1, 1, 2 }, // Shape 50
+                { 0, 0, 0, 0, 2, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 2 }, // Shape 51
+                { 0, 2, 2, 2, 0, 1, 1, 1, 0, 1, 1, 1, 0, 2, 2, 2 }, // Shape 52
+                { 0, 0, 0, 2, 1, 1, 1, 2, 1, 1, 1, 2, 0, 0, 0, 2 }, // Shape 53
+                { 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 2, 2, 2, 2 }, // Shape 54
+                { 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 1, 2, 2, 1, 1, 2 }, // Shape 55
+                { 0, 1, 1, 0, 0, 1, 1, 0, 2, 2, 2, 2, 2, 2, 2, 2 }, // Shape 56
+                { 0, 0, 2, 2, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 2, 2 }, // Shape 57
+                { 0, 0, 2, 2, 1, 1, 2, 2, 1, 1, 2, 2, 0, 0, 2, 2 }, // Shape 58
+                { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 1, 2 }, // Shape 59
+                { 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 1 }, // Shape 60
+                { 0, 2, 2, 2, 1, 2, 2, 2, 0, 2, 2, 2, 1, 2, 2, 2 }, // Shape 61
+                { 0, 1, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, // Shape 62
+                { 0, 1, 1, 1, 2, 0, 1, 1, 2, 2, 0, 1, 2, 2, 2, 0 }  // Shape 63
+            }
+        };
+        private static int[] BC7_Weights2 = { 0, 21, 43, 64 };
+        private static int[] BC7_Weights3 = { 0, 9, 18, 27, 37, 46, 55, 64 };
+        private static int[] BC7_Weights4 = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
 
 
         private static byte[] ConvertA8ToRGBA8(byte[] imgdata, int w, int h)
