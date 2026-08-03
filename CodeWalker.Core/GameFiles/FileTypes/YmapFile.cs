@@ -2462,21 +2462,30 @@ namespace CodeWalker.GameFiles
             }
             if (lightAttrs == null) return;
 
-            var abmin = Vector3.Min(Archetype.BBMin, db.BoundingBoxMin);
-            var abmax = Vector3.Max(Archetype.BBMax, db.BoundingBoxMax);
+            // Robust stable hash (matches the patched exe + LightExtractionTool): the key is the
+            // LOCAL (untransformed) archetype bound + the placement position + lightId, NOT the
+            // world AABB. fwArchetype::GetBoundingBox() is the ytyp bbox grown by the physics bound
+            // (UpdateBoundingVolumes), so grow it here too - but do NOT transform it by the matrix.
+            // Being rotation-invariant, the tool-baked hash and the in-game recompute agree even for
+            // rotated/frag props that the old world-AABB hash couldn't reproduce bit-for-bit.
+            var abmin = Archetype.BBMin;
+            var abmax = Archetype.BBMax;
             if (b != null)
             {
                 abmin = Vector3.Min(abmin, b.BoxMin);
                 abmax = Vector3.Max(abmax, b.BoxMax);
             }
-            var bb = new BoundingBox(abmin, abmax).Transform(Position, Orientation, Scale);
-            var ints = new uint[7];
-            ints[0] = (uint)(int)(bb.Minimum.X * 10.0f);
-            ints[1] = (uint)(int)(bb.Minimum.Y * 10.0f);
-            ints[2] = (uint)(int)(bb.Minimum.Z * 10.0f);
-            ints[3] = (uint)(int)(bb.Maximum.X * 10.0f);
-            ints[4] = (uint)(int)(bb.Maximum.Y * 10.0f);
-            ints[5] = (uint)(int)(bb.Maximum.Z * 10.0f);
+            var ints = new uint[10];
+            ints[0] = (uint)(int)(abmin.X * 10.0f);
+            ints[1] = (uint)(int)(abmin.Y * 10.0f);
+            ints[2] = (uint)(int)(abmin.Z * 10.0f);
+            ints[3] = (uint)(int)(abmax.X * 10.0f);
+            ints[4] = (uint)(int)(abmax.Y * 10.0f);
+            ints[5] = (uint)(int)(abmax.Z * 10.0f);
+            // placement position = entity matrix translation (rotation/scale don't affect col3)
+            ints[6] = (uint)(int)(Position.X * 10.0f);
+            ints[7] = (uint)(int)(Position.Y * 10.0f);
+            ints[8] = (uint)(int)(Position.Z * 10.0f);
 
             var bones = skel?.BonesMap;
             var exts = (Archetype.Extensions?.Length ?? 0);// + (Extensions?.Length ?? 0);//seems entity extensions aren't included in this
@@ -2485,7 +2494,7 @@ namespace CodeWalker.GameFiles
             var lightInsts = new LightInstance[lightAttrs.Length];
             for (int i = 0; i < lightAttrs.Length; i++)
             {
-                ints[6] = (uint)(exts + i);
+                ints[9] = (uint)(exts + i);
                 var la = lightAttrs[i];
 
                 var xform = Matrix.Identity;

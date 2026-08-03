@@ -1112,6 +1112,34 @@ namespace CodeWalker.GameFiles
         }
 
 
+        private List<RpfFile> GetAssetPriorityOrderedRpfs()
+        {
+            // Asset override priority: base rpfs first, then update/dlc rpfs, so patched and
+            // dlc/mod-pack assets deterministically win duplicated names. The raw AllRpfs scan
+            // order is alphabetical, which would put base x64 rpfs after dlcpacks and make base
+            // assets override dlc ones. Within the dlc partition: official update packs first,
+            // then custom packs (e.g. NVE's folder - the game's dlclist appends those last so
+            // they override official content), then mods-folder copies last.
+            // (Mods substitution is already applied via GetModdedRpfList.)
+            if (AllRpfs is not { Count: > 0 }) return AllRpfs ?? [];
+            if (DlcRpfs is not { Count: > 0 }) return AllRpfs;
+            var dlcset = new HashSet<RpfFile>(DlcRpfs);
+            int DlcRank(RpfFile r)
+            {
+                var p = r.Path ?? "";
+                if (p.StartsWith("mods\\", StringComparison.OrdinalIgnoreCase)) return 2;
+                if (p.StartsWith("update\\", StringComparison.OrdinalIgnoreCase)) return 0;
+                return 1; //custom dlc pack folders (NVE etc.)
+            }
+            var ordered = new List<RpfFile>(AllRpfs.Count);
+            foreach (var r in AllRpfs) if (!dlcset.Contains(r)) ordered.Add(r);
+            for (int rank = 0; rank <= 2; rank++)
+            {
+                foreach (var r in AllRpfs) if (dlcset.Contains(r) && DlcRank(r) == rank) ordered.Add(r);
+            }
+            return ordered;
+        }
+
         private void InitGlobalDicts()
         {
             // Pre-size dictionaries based on estimated file counts for better performance
@@ -1124,19 +1152,19 @@ namespace CodeWalker.GameFiles
 
             if (AllRpfs is not { Count: > 0 }) return;
 
-            // Use parallel processing for better performance on multi-core systems
-            var lockObj = new object();
-            Parallel.ForEach(AllRpfs, rpf =>
+            // Build per-rpf local dictionaries in parallel, then merge them in priority order -
+            // later rpfs (update/dlc patches) must overwrite earlier ones so the correct asset
+            // version wins, same as the game's load order. A completion-order merge is a race
+            // that nondeterministically picks stale base-game assets over patched ones.
+            var orderedRpfs = GetAssetPriorityOrderedRpfs();
+            var localDicts = new Dictionary<uint, RpfFileEntry>[orderedRpfs.Count][];
+            Parallel.For(0, orderedRpfs.Count, i =>
             {
+                var rpf = orderedRpfs[i];
                 if (rpf?.AllEntries == null) return;
 
-                // Create local dictionaries to avoid lock contention
-                Dictionary<uint, RpfFileEntry> localYdrDict = new();
-                Dictionary<uint, RpfFileEntry> localYddDict = new();
-                Dictionary<uint, RpfFileEntry> localYtdDict = new();
-                Dictionary<uint, RpfFileEntry> localYftDict = new();
-                Dictionary<uint, RpfFileEntry> localYcdDict = new();
-                Dictionary<uint, RpfFileEntry> localYedDict = new();
+                var local = new Dictionary<uint, RpfFileEntry>[6];
+                for (int d = 0; d < 6; d++) local[d] = new();
 
                 foreach (var entry in rpf.AllEntries)
                 {
@@ -1147,44 +1175,45 @@ namespace CodeWalker.GameFiles
 
                     // Use Span to check extension without allocation
                     ReadOnlySpan<char> nameSpan = nameLower.AsSpan();
-                    
+
                     if (nameSpan.EndsWith(".ydr".AsSpan()))
                     {
-                        localYdrDict[entry.ShortNameHash] = fentry;
+                        local[0][entry.ShortNameHash] = fentry;
                     }
                     else if (nameSpan.EndsWith(".ydd".AsSpan()))
                     {
-                        localYddDict[entry.ShortNameHash] = fentry;
+                        local[1][entry.ShortNameHash] = fentry;
                     }
                     else if (nameSpan.EndsWith(".ytd".AsSpan()))
                     {
-                        localYtdDict[entry.ShortNameHash] = fentry;
+                        local[2][entry.ShortNameHash] = fentry;
                     }
                     else if (nameSpan.EndsWith(".yft".AsSpan()))
                     {
-                        localYftDict[entry.ShortNameHash] = fentry;
+                        local[3][entry.ShortNameHash] = fentry;
                     }
                     else if (nameSpan.EndsWith(".ycd".AsSpan()))
                     {
-                        localYcdDict[entry.ShortNameHash] = fentry;
+                        local[4][entry.ShortNameHash] = fentry;
                     }
                     else if (nameSpan.EndsWith(".yed".AsSpan()))
                     {
-                        localYedDict[entry.ShortNameHash] = fentry;
+                        local[5][entry.ShortNameHash] = fentry;
                     }
                 }
 
-                // Merge local dictionaries into global ones with minimal locking
-                lock (lockObj)
-                {
-                    foreach (var kvp in localYdrDict) YdrDict[kvp.Key] = kvp.Value;
-                    foreach (var kvp in localYddDict) YddDict[kvp.Key] = kvp.Value;
-                    foreach (var kvp in localYtdDict) YtdDict[kvp.Key] = kvp.Value;
-                    foreach (var kvp in localYftDict) YftDict[kvp.Key] = kvp.Value;
-                    foreach (var kvp in localYcdDict) YcdDict[kvp.Key] = kvp.Value;
-                    foreach (var kvp in localYedDict) YedDict[kvp.Key] = kvp.Value;
-                }
+                localDicts[i] = local;
             });
+
+            var globals = new[] { YdrDict, YddDict, YtdDict, YftDict, YcdDict, YedDict };
+            foreach (var local in localDicts)
+            {
+                if (local == null) continue;
+                for (int d = 0; d < 6; d++)
+                {
+                    foreach (var kvp in local[d]) globals[d][kvp.Key] = kvp.Value;
+                }
+            }
         }
 
         private void InitMapDicts()
@@ -1194,16 +1223,19 @@ namespace CodeWalker.GameFiles
             YbnDict = new(1024);
             YnvDict = new(512);
 
+            // Merge in rpf load order (not parallel completion order) so later rpfs
+            // (update/dlc patches) deterministically overwrite earlier ones.
             if (ActiveMapRpfFiles is { Count: > 0 })
             {
-                var lockObj = new object();
-                Parallel.ForEach(ActiveMapRpfFiles.Values, rpf =>
+                var mapRpfs = ActiveMapRpfFiles.Values.ToList();
+                var localDicts = new Dictionary<uint, RpfFileEntry>[mapRpfs.Count][];
+                Parallel.For(0, mapRpfs.Count, i =>
                 {
+                    var rpf = mapRpfs[i];
                     if (rpf?.AllEntries == null) return;
 
-                    Dictionary<uint, RpfFileEntry> localYmapDict = new();
-                    Dictionary<uint, RpfFileEntry> localYbnDict = new();
-                    Dictionary<uint, RpfFileEntry> localYnvDict = new();
+                    var local = new Dictionary<uint, RpfFileEntry>[3];
+                    for (int d = 0; d < 3; d++) local[d] = new();
 
                     foreach (var entry in rpf.AllEntries)
                     {
@@ -1214,39 +1246,46 @@ namespace CodeWalker.GameFiles
 
                         // Use Span to check extension without allocation
                         ReadOnlySpan<char> nameSpan = nameLower.AsSpan();
-                        
+
                         if (nameSpan.EndsWith(".ymap".AsSpan()))
                         {
-                            localYmapDict[entry.ShortNameHash] = fentry;
+                            local[0][entry.ShortNameHash] = fentry;
                         }
                         else if (nameSpan.EndsWith(".ybn".AsSpan()))
                         {
-                            localYbnDict[entry.ShortNameHash] = fentry;
+                            local[1][entry.ShortNameHash] = fentry;
                         }
                         else if (nameSpan.EndsWith(".ynv".AsSpan()))
                         {
-                            localYnvDict[entry.ShortNameHash] = fentry;
+                            local[2][entry.ShortNameHash] = fentry;
                         }
                     }
 
-                    lock (lockObj)
-                    {
-                        foreach (var kvp in localYmapDict) YmapDict[kvp.Key] = kvp.Value;
-                        foreach (var kvp in localYbnDict) YbnDict[kvp.Key] = kvp.Value;
-                        foreach (var kvp in localYnvDict) YnvDict[kvp.Key] = kvp.Value;
-                    }
+                    localDicts[i] = local;
                 });
+
+                var globals = new[] { YmapDict, YbnDict, YnvDict };
+                foreach (var local in localDicts)
+                {
+                    if (local == null) continue;
+                    for (int d = 0; d < 3; d++)
+                    {
+                        foreach (var kvp in local[d]) globals[d][kvp.Key] = kvp.Value;
+                    }
+                }
             }
 
             AllYmapsDict = new Dictionary<uint, RpfFileEntry>(4096);
             if (AllRpfs != null && AllRpfs.Count > 0)
             {
-                var lockObj = new object();
-                Parallel.ForEach(AllRpfs, rpf =>
+                var orderedRpfs = GetAssetPriorityOrderedRpfs();
+                var localYmaps = new Dictionary<uint, RpfFileEntry>[orderedRpfs.Count];
+                Parallel.For(0, orderedRpfs.Count, i =>
                 {
+                    var rpf = orderedRpfs[i];
                     if (rpf?.AllEntries == null) return;
 
-                    var localAllYmapsDict = new Dictionary<uint, RpfFileEntry>();
+                    var local = new Dictionary<uint, RpfFileEntry>();
 
                     foreach (var entry in rpf.AllEntries)
                     {
@@ -1258,15 +1297,18 @@ namespace CodeWalker.GameFiles
                         // Optimize extension check for .ymap files
                         if (nameLower.EndsWith(".ymap", StringComparison.Ordinal))
                         {
-                            localAllYmapsDict[entry.ShortNameHash] = fentry;
+                            local[entry.ShortNameHash] = fentry;
                         }
                     }
 
-                    lock (lockObj)
-                    {
-                        foreach (var kvp in localAllYmapsDict) AllYmapsDict[kvp.Key] = kvp.Value;
-                    }
+                    localYmaps[i] = local;
                 });
+
+                foreach (var local in localYmaps)
+                {
+                    if (local == null) continue;
+                    foreach (var kvp in local) AllYmapsDict[kvp.Key] = kvp.Value;
+                }
             }
         }
 
@@ -1467,7 +1509,7 @@ namespace CodeWalker.GameFiles
             archetypeDict.Clear();
 
             if (!LoadArchetypes) return;
-            var rpfs = EnableDlc ? AllRpfs : BaseRpfs;
+            var rpfs = EnableDlc ? GetAssetPriorityOrderedRpfs() : BaseRpfs;
 
             // Collect all .ytyp entries first to avoid repeated file system access
             List<RpfEntry> ytypEntries = [];
@@ -1485,45 +1527,49 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            // Process .ytyp files in parallel for better performance
-            var lockObj = new object();
+            // Parse .ytyp files in parallel, but populate the dictionaries in rpf load order -
+            // later rpfs (update/dlc/mods) must overwrite earlier ones so duplicated archetypes
+            // resolve to the correct patched version, not a nondeterministic race winner.
+            var ytypFiles = new YtypFile[ytypEntries.Count];
             var exceptions = new ConcurrentBag<Exception>();
 
-            Parallel.ForEach(ytypEntries, entry =>
+            Parallel.For(0, ytypEntries.Count, i =>
             {
                 try
                 {
-                    var ytypfile = RpfMan.GetFile<YtypFile>(entry);
-                    if (ytypfile?.Meta == null) return;
-
-                    lock (lockObj)
-                    {
-                        UpdateStatus(entry.Path);
-                        
-                        YtypDict[ytypfile.NameHash] = ytypfile;
-
-                        if (ytypfile.AllArchetypes?.Length > 0)
-                        {
-                            foreach (var arch in ytypfile.AllArchetypes)
-                            {
-                                uint hash = arch.Hash;
-                                if (hash != 0)
-                                {
-                                    archetypeDict[hash] = arch;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            ErrorLog(entry.Path + ": no archetypes found");
-                        }
-                    }
+                    ytypFiles[i] = RpfMan.GetFile<YtypFile>(ytypEntries[i]);
                 }
                 catch (Exception ex)
                 {
-                    exceptions.Add(new Exception($"{entry.Path}: {ex.Message}", ex));
+                    exceptions.Add(new Exception($"{ytypEntries[i].Path}: {ex.Message}", ex));
                 }
             });
+
+            for (int i = 0; i < ytypEntries.Count; i++)
+            {
+                var ytypfile = ytypFiles[i];
+                if (ytypfile?.Meta == null) continue;
+
+                UpdateStatus(ytypEntries[i].Path);
+
+                YtypDict[ytypfile.NameHash] = ytypfile;
+
+                if (ytypfile.AllArchetypes?.Length > 0)
+                {
+                    foreach (var arch in ytypfile.AllArchetypes)
+                    {
+                        uint hash = arch.Hash;
+                        if (hash != 0)
+                        {
+                            archetypeDict[hash] = arch;
+                        }
+                    }
+                }
+                else
+                {
+                    ErrorLog(ytypEntries[i].Path + ": no archetypes found");
+                }
+            }
 
             // Report any exceptions that occurred during parallel processing
             foreach (var ex in exceptions)

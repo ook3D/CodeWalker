@@ -37,6 +37,10 @@
             this.OutputPathTextBox = new System.Windows.Forms.TextBox();
             this.OutputPathLabel = new System.Windows.Forms.Label();
             this.BrowseButton = new System.Windows.Forms.Button();
+            this.FullMapCheckBox = new System.Windows.Forms.CheckBox();
+            this.DistRangeLabel = new System.Windows.Forms.Label();
+            this.DistRangeUpDown = new System.Windows.Forms.NumericUpDown();
+            ((System.ComponentModel.ISupportInitialize)(this.DistRangeUpDown)).BeginInit();
             this.SuspendLayout();
             //
             // StatusLabel
@@ -114,11 +118,44 @@
             this.BrowseButton.UseVisualStyleBackColor = true;
             this.BrowseButton.Click += new System.EventHandler(this.BrowseButton_Click);
             //
+            // FullMapCheckBox
+            //
+            this.FullMapCheckBox.AutoSize = true;
+            this.FullMapCheckBox.Location = new System.Drawing.Point(170, 201);
+            this.FullMapCheckBox.Name = "FullMapCheckBox";
+            this.FullMapCheckBox.Size = new System.Drawing.Size(261, 17);
+            this.FullMapCheckBox.TabIndex = 62;
+            this.FullMapCheckBox.Text = "Regenerate full map (use all game ymaps, not project)";
+            this.FullMapCheckBox.UseVisualStyleBackColor = true;
+            //
+            // DistRangeLabel
+            //
+            this.DistRangeLabel.AutoSize = true;
+            this.DistRangeLabel.Location = new System.Drawing.Point(270, 133);
+            this.DistRangeLabel.Name = "DistRangeLabel";
+            this.DistRangeLabel.Size = new System.Drawing.Size(62, 13);
+            this.DistRangeLabel.TabIndex = 63;
+            this.DistRangeLabel.Text = "Dist range:";
+            //
+            // DistRangeUpDown
+            //
+            this.DistRangeUpDown.Location = new System.Drawing.Point(340, 130);
+            this.DistRangeUpDown.Name = "DistRangeUpDown";
+            this.DistRangeUpDown.Size = new System.Drawing.Size(70, 20);
+            this.DistRangeUpDown.TabIndex = 64;
+            this.DistRangeUpDown.Minimum = new decimal(new int[] { 3000, 0, 0, 0 });
+            this.DistRangeUpDown.Maximum = new decimal(new int[] { 20000, 0, 0, 0 });
+            this.DistRangeUpDown.Increment = new decimal(new int[] { 500, 0, 0, 0 });
+            this.DistRangeUpDown.Value = new decimal(new int[] { 3000, 0, 0, 0 });
+            //
             // GenerateLODLightsPanel
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(497, 285);
+            this.Controls.Add(this.FullMapCheckBox);
+            this.Controls.Add(this.DistRangeLabel);
+            this.Controls.Add(this.DistRangeUpDown);
             this.Controls.Add(this.BrowseButton);
             this.Controls.Add(this.OutputPathTextBox);
             this.Controls.Add(this.OutputPathLabel);
@@ -130,6 +167,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "GenerateLODLightsPanel";
             this.Text = "Generate LOD Lights ymaps";
+            ((System.ComponentModel.ISupportInitialize)(this.DistRangeUpDown)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -145,5 +183,8 @@
         private System.Windows.Forms.TextBox OutputPathTextBox;
         private System.Windows.Forms.Label OutputPathLabel;
         private System.Windows.Forms.Button BrowseButton;
+        private System.Windows.Forms.CheckBox FullMapCheckBox;
+        private System.Windows.Forms.Label DistRangeLabel;
+        private System.Windows.Forms.NumericUpDown DistRangeUpDown;
     }
 }
