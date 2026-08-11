@@ -21,7 +21,11 @@ namespace CodeWalker.Project.Panels
         public ProjectForm ProjectForm { get; set; }
         public ProjectFile CurrentProjectFile { get; set; }
 
-        const float MAX_LODLIGHT_INTENSITY = 48.0f;
+        // R* stock is 48.0f, raised so NVE's high-intensity lights survive the u8 pack.
+        // The game unpacks with its own baked 48.0f - DisableEditorWatermark patches it to
+        // match, and LODLightManager.h in the R* tool has to carry the same value.
+        // Change it and every LOD light has to be regenerated.
+        const float MAX_LODLIGHT_INTENSITY = 400.0f;
         const float MAX_LODLIGHT_CONE_ANGLE = 180.0f;
         const float MAX_LODLIGHT_CAPSULE_EXTENT = 140.0f;
         const float MAX_LODLIGHT_CORONA_INTENSITY = 32.0f;
