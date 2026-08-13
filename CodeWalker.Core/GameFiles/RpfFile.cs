@@ -84,7 +84,7 @@ namespace CodeWalker.GameFiles
             string rel_parent_path = parentFile.Path;
             string full_parent_path = parentFile.FilePath;
 
-            if (rel_parent_path.StartsWith(@"mods\"))
+            if (rel_parent_path.StartsWith(RpfManager.ModsFolderPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 status = "already in mods folder";
                 return null;
@@ -95,7 +95,7 @@ namespace CodeWalker.GameFiles
                 throw new DirectoryNotFoundException("Expected full parent path to end with relative path");
             }
 
-            string mods_base_path = full_parent_path.Replace(rel_parent_path, @"mods\");
+            string mods_base_path = full_parent_path.Replace(rel_parent_path, RpfManager.ModsFolderPrefix);
             string dest_path = mods_base_path + rel_parent_path;
 
             try
@@ -488,7 +488,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public async Task<byte[]?> ExtractFileAsync(RpfFileEntry entry, CancellationToken cancellationToken = default)
+        public virtual async Task<byte[]?> ExtractFileAsync(RpfFileEntry entry, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -690,7 +690,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public byte[] ExtractFile(RpfFileEntry entry)
+        public virtual byte[] ExtractFile(RpfFileEntry entry)
         {
             try
             {
@@ -1154,7 +1154,20 @@ namespace CodeWalker.GameFiles
             //entries may have been updated, so need to do this after ensuring header space
             var entriesdata = GetHeaderEntriesData();
 
-            //FileSize = ... //need to make sure this is updated for NG encryption...
+            //the NG key is derived from the archive's size (see fiPackfile::ReInit in the RAGE source:
+            //selector = (atStringHash(name) + m_ArchiveSize) % 101), so the file on disk has to actually
+            //be FileSize bytes long. GrowArchive only ever raises FileSize past the last used block,
+            //so this can't truncate live data. Child archives get their size from the parent's entry,
+            //which GrowArchive keeps in sync.
+            if (Parent == null)
+            {
+                var s = bw.BaseStream;
+                if (s.Length != StartPos + FileSize)
+                {
+                    s.SetLength(StartPos + FileSize);
+                }
+            }
+
             switch (Encryption)
             {
                 case RpfEncryption.NONE: //no encryption
@@ -1999,6 +2012,15 @@ namespace CodeWalker.GameFiles
                 {
                     parent.EnsureAllEntries();
                     parent.WriteHeader(bw);
+
+                    //an NG archive's key is derived from its name, so a renamed child archive's own
+                    //header has to be re-encrypted under the new name.
+                    var fentry = entry as RpfFileEntry;
+                    var child = (fentry != null) ? parent.FindChildArchive(fentry) : null;
+                    if (child?.Encryption == RpfEncryption.NG)
+                    {
+                        child.WriteHeader(bw);
+                    }
                 }
             }
 
@@ -2073,16 +2095,24 @@ namespace CodeWalker.GameFiles
         }
 
 
+        //encryption types that WriteHeader can write back as-is. OPEN needs a mod loader (OpenIV.asi /
+        //OpenRPF.asi) to load in game; NG is what the game itself uses, so NG archives are left alone.
+        //AES and NONE still get converted to OPEN.
+        public static bool IsEditableEncryption(RpfEncryption encryption)
+        {
+            return (encryption == RpfEncryption.OPEN) || (encryption == RpfEncryption.NG);
+        }
+
         public static bool IsValidEncryption(RpfFile file, bool recursive = false)
         {
             if (file == null) return false;
 
-            if (file.Encryption != RpfEncryption.OPEN) return false;
+            if (!IsEditableEncryption(file.Encryption)) return false;
 
             var parent = file.Parent;
             while (parent != null)
             {
-                if (parent.Encryption != RpfEncryption.OPEN) return false;
+                if (!IsEditableEncryption(parent.Encryption)) return false;
                 parent = parent.Parent;
             }
 
@@ -2093,7 +2123,7 @@ namespace CodeWalker.GameFiles
                 {
                     var child = stack.Pop();
                     if (child == null) continue;
-                    if (child.Encryption != RpfEncryption.OPEN)
+                    if (!IsEditableEncryption(child.Encryption))
                     {
                         return false;
                     }
@@ -2114,8 +2144,7 @@ namespace CodeWalker.GameFiles
         {
             if (file == null) return false;
 
-            //currently assumes OPEN is the valid encryption type.
-            //TODO: support other encryption types!
+            //OPEN and NG are both writable, so only AES/NONE archives get converted (to OPEN).
 
             var files = new List<RpfFile>();
             if (recursive && (file.Children != null))
@@ -2125,7 +2154,7 @@ namespace CodeWalker.GameFiles
                 {
                     var child = stack.Pop();
                     if (child == null) continue;
-                    if (child.Encryption != RpfEncryption.OPEN)
+                    if (!IsEditableEncryption(child.Encryption))
                     {
                         files.Add(child);
                     }
@@ -2139,20 +2168,17 @@ namespace CodeWalker.GameFiles
                 }
                 files.Reverse();//the list is in parent>child order, needs to be in child>parent order here
             }
-            var needsupd = (files.Count > 0);
             var f = file;
             while (f != null)
             {
-                if (f.Encryption != RpfEncryption.OPEN)
+                //only archives that can't be written back as-is get converted - changing one doesn't
+                //change its size, so untouched ancestors don't need rewriting.
+                if (!IsEditableEncryption(f.Encryption))
                 {
                     if ((confirm != null) && !confirm(f))
                     {
                         return false;
                     }
-                    needsupd = true;
-                }
-                if (needsupd)
-                {
                     files.Add(f);
                 }
                 f = f.Parent;
@@ -2171,6 +2197,13 @@ namespace CodeWalker.GameFiles
         public static void SetEncryptionType(RpfFile file, RpfEncryption encryption)
         {
             file.Encryption = encryption;
+            RewriteHeader(file);
+        }
+
+        //re-encrypts and rewrites an archive's header in place. needed after anything that changes an
+        //NG key input (the archive's name or size) without otherwise touching the header.
+        public static void RewriteHeader(RpfFile file)
+        {
             string fpath = file.GetPhysicalFilePath();
             using (var fstream = File.Open(fpath, FileMode.Open, FileAccess.ReadWrite))
             {
@@ -2379,6 +2412,38 @@ namespace CodeWalker.GameFiles
                 return NameLower.Substring(0, ind);
             }
             return NameLower;
+        }
+    }
+
+    //Stand-in RpfFile for a loose (unpacked) file on disk, as used by the enhanced "onigiri" mods folder.
+    //One instance per file - FilePath is the real file, so extraction is just a read.
+    public class LooseRpfFile : RpfFile
+    {
+        public LooseRpfFile(string name, string path, long filesize) : base(name, path, filesize) { }
+
+        public override byte[] ExtractFile(RpfFileEntry entry)
+        {
+            try
+            {
+                var data = File.ReadAllBytes(FilePath);
+                if (entry is RpfResourceFileEntry)
+                {
+                    CreateResourceFileEntry(ref data, 0); //strips the RSC7 header (flags are already on the entry)
+                    data = ResourceBuilder.Decompress(data);
+                }
+                return data;
+            }
+            catch (Exception ex)
+            {
+                LastError = ex.ToString();
+                LastException = ex;
+                return null;
+            }
+        }
+
+        public override Task<byte[]?> ExtractFileAsync(RpfFileEntry entry, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<byte[]?>(ExtractFile(entry));
         }
     }
 

@@ -66,6 +66,8 @@ namespace CodeWalker
                 {
                 }
                 item.Key = key;
+                item.LastUseTime = CurrentTime;//a new item has never been TryGet'd, so it would sit at MinValue
+                //and Compact would evict it before it ever loads - leaving dead references behind.
                 if (CanAdd())
                 {
                     var lln = loadedList.AddLast(item);

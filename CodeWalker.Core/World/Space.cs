@@ -309,12 +309,17 @@ namespace CodeWalker.World
             if (maprpfs != null)
             {
                 // Pre-filter entries to reduce string comparisons
-                List<(RpfEntry entry, bool isYmap)> uncachedEntries = [];
-                
+                List<(RpfEntry entry, bool isYmap, bool isExtra)> uncachedEntries = [];
+
+                var extrarpfs = GameFileCache.RpfMan?.ExtraRpfs;
+                var extraset = extrarpfs is { Count: > 0 } ? new HashSet<RpfFile>(extrarpfs) : null;
+                var extraymaps = new Dictionary<uint, RpfEntry>(); //to spot the same ymap shipped by two resources
+
                 foreach (var maprpf in maprpfs.Values)
                 {
                     var entries = maprpf?.AllEntries;
                     if (entries == null) continue;
+                    var isextra = extraset?.Contains(maprpf) == true;
 
                     foreach (var entry in entries)
                     {
@@ -325,7 +330,38 @@ namespace CodeWalker.World
                             var h = new MetaHash(entry.ShortNameHash);
                             if (!nodedict.ContainsKey(h))
                             {
-                                uncachedEntries.Add((entry, true));
+                                uncachedEntries.Add((entry, true, isextra));
+                            }
+                            else if (isextra)
+                            {
+                                var node = nodedict[h];
+
+                                //same rule as the uncached branch below, but these have a cache .dat node so the
+                                //parent name is already known - no need to load the ymap to find out.
+                                if ((node.ParentName.Hash != 0) && GameFileCache.DisabledYmaps.Contains(entry.ShortNameHash)
+                                    && !GameFileCache.YmapDict.ContainsKey(node.ParentName))
+                                {
+                                    LodDiag.Report(entry.Path + ": skipped - the active DLC replaced this map variant and its LOD parent '" + node.ParentName.ToString() + "' isn't loaded.");
+                                    nodedict.Remove(h);
+                                    continue;
+                                }
+
+                                //the cached hierarchy (children, parent) still comes from the game's cache .dat,
+                                //so this file's entity list has to match the ymap it replaced. Only worth
+                                //reporting for ymaps that are actually part of a hierarchy - occlusion, grass
+                                //and other standalone ymaps get replaced all the time and can't break anything.
+                                if ((node.Children?.Length > 0) || (node.ParentName.Hash != 0))
+                                {
+                                    LodDiag.Report(entry.Path + " replaces a cached map node (" + (node.Children?.Length ?? 0).ToString() + " LOD children, parent '" + node.ParentName.ToString() + "') - its entity order must match the original or LOD links will be wrong.");
+                                }
+                            }
+
+                            if (isextra && !extraymaps.TryAdd(entry.ShortNameHash, entry))
+                            {
+                                //two resources shipping the same ymap name - only one of them can win, and
+                                //which one it is depends on folder scan order
+                                var winner = GameFileCache.YmapDict.TryGetValue(h, out var wy) ? wy?.Path : null;
+                                LodDiag.Report(entry.GetShortNameLower() + ".ymap is provided by more than one resource: " + extraymaps[entry.ShortNameHash].Path + " and " + entry.Path + (winner != null ? " (loaded: " + winner + ")" : ""));
                             }
                         }
                         else if (entry.NameLower.EndsWith(".ybn", StringComparison.Ordinal))
@@ -333,14 +369,14 @@ namespace CodeWalker.World
                             var ehash = new MetaHash(entry.ShortNameHash);
                             if (!usedboundsdict.ContainsKey(ehash) && !interiorLookup.ContainsKey(ehash))
                             {
-                                uncachedEntries.Add((entry, false));
+                                uncachedEntries.Add((entry, false, isextra));
                             }
                         }
                     }
                 }
 
                 // Process uncached entries
-                foreach (var (entry, isYmap) in uncachedEntries)
+                foreach (var (entry, isYmap, isExtra) in uncachedEntries)
                 {
                     try
                     {
@@ -349,9 +385,39 @@ namespace CodeWalker.World
                             var ymap = GameFileCache.RpfMan.GetFile<YmapFile>(entry);
                             if (ymap != null)
                             {
-                                var dsn = new MapDataStoreNode(ymap);
+                                //A DLC map changeset swapped this ymap's variant out (eg the vanilla id2_* set
+                                //under mpheist) and its LOD parent went with it, but a mods/extra folder still
+                                //provides this one. Registering it would drop orphaned geometry into the middle
+                                //of the replacement variant's chain. Only skip when the parent really is gone -
+                                //a resource that ships a whole self-consistent set (eg the vw_lodlights pair)
+                                //supplies its own parent and stays.
+                                var pymap = ymap._CMapData.parent;
+                                if ((pymap != 0) && GameFileCache.DisabledYmaps.Contains(entry.ShortNameHash)
+                                    && !GameFileCache.YmapDict.ContainsKey(pymap))
+                                {
+                                    LodDiag.Report(entry.Path + ": skipped - the active DLC replaced this map variant and its LOD parent '" + pymap.ToString() + "' isn't loaded.");
+                                    continue;
+                                }
+
+                                //Key the node by the file name, like the game's map data store (and every
+                                //GetYmap lookup) does. Ymaps whose internal CMapData.name doesn't match
+                                //their file name - common in FiveM resources built from vanilla ymaps -
+                                //would otherwise replace the cached node of that name, wiping out its
+                                //child list and breaking the LOD hierarchy chain for the real ymap.
+                                var dsn = new MapDataStoreNode(ymap) { Name = entry.ShortNameHash };
                                 if (dsn.Name != 0)
                                     nodedict[dsn.Name] = dsn;
+
+                                //only worth reporting for mod/resource ymaps - the game ships plenty of vanilla
+                                //ymaps whose internal name doesn't match the file, and those work fine
+                                if (isExtra && (ymap._CMapData.name != entry.ShortNameHash))
+                                {
+                                    LodDiag.Report(entry.Path + ": CMapData.name is '" + ymap._CMapData.name.ToString() + "' but the file is named '" + entry.GetShortNameLower() + "'. Anything referencing it as a LOD parent uses the file name, so the internal name must match.");
+                                }
+                                if ((ymap._CMapData.parent != 0) && !GameFileCache.YmapDict.ContainsKey(ymap._CMapData.parent))
+                                {
+                                    LodDiag.Report(entry.Path + ": LOD parent '" + ymap._CMapData.parent.ToString() + "' doesn't exist - its LOD chain stops here.");
+                                }
                             }
                         }
                         else
@@ -1244,10 +1310,16 @@ namespace CodeWalker.World
                     if (ymaps.ContainsKey(hash)) break;
                     
                     ymaps[hash] = ymap;
+                    var child = ymap;
                     hash = ymap._CMapData.parent;
-                    
+
                     if (hash == 0) break;
                     ymap = GameFileCache.GetYmap(hash);
+                    if (ymap == null)
+                    {
+                        //the chain stops here, so nothing in the child ymap will ever get LOD-linked upwards
+                        LodDiag.Report(child.Name + ": LOD parent '" + hash.ToString() + "' not found - chain broken.");
+                    }
                 }
             }
         }

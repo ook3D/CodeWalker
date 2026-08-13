@@ -296,7 +296,6 @@ namespace CodeWalker
             GameFileCache.LoadPeds = false;
             GameFileCache.LoadVehicles = true;
             GameFileCache.LoadArchetypes = false;//to speed things up a little
-            GameFileCache.BuildExtendedJenkIndex = false;//to speed things up a little
             GameFileCache.DoFullStringIndex = true;//to get all global text from DLC...
             GameFileCache.Init(UpdateStatus, LogError);
 

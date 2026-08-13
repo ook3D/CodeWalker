@@ -77,6 +77,10 @@
             this.FolderBrowseButton = new System.Windows.Forms.Button();
             this.FolderTextBox = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
+            this.label24 = new System.Windows.Forms.Label();
+            this.label25 = new System.Windows.Forms.Label();
+            this.FiveMFoldersTextBox = new System.Windows.Forms.TextBox();
+            this.FiveMFolderBrowseButton = new System.Windows.Forms.Button();
             this.DoneButton = new System.Windows.Forms.Button();
             this.SaveButton = new System.Windows.Forms.Button();
             this.ResetButton = new System.Windows.Forms.Button();
@@ -296,6 +300,10 @@
             // 
             // AdvancedTabPage
             // 
+            this.AdvancedTabPage.Controls.Add(this.label24);
+            this.AdvancedTabPage.Controls.Add(this.label25);
+            this.AdvancedTabPage.Controls.Add(this.FiveMFoldersTextBox);
+            this.AdvancedTabPage.Controls.Add(this.FiveMFolderBrowseButton);
             this.AdvancedTabPage.Controls.Add(this.label22);
             this.AdvancedTabPage.Controls.Add(this.CollisionCacheSizeUpDown);
             this.AdvancedTabPage.Controls.Add(this.label23);
@@ -761,7 +769,46 @@
             this.label5.Size = new System.Drawing.Size(349, 13);
             this.label5.TabIndex = 0;
             this.label5.Text = "NOTE: These settings require CodeWalker to be restarted to take effect.";
-            // 
+            //
+            // label24
+            //
+            this.label24.AutoSize = true;
+            this.label24.Location = new System.Drawing.Point(6, 371);
+            this.label24.Name = "label24";
+            this.label24.Size = new System.Drawing.Size(85, 13);
+            this.label24.TabIndex = 78;
+            this.label24.Text = "FiveM resources:";
+            //
+            // FiveMFoldersTextBox
+            //
+            this.FiveMFoldersTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.FiveMFoldersTextBox.Location = new System.Drawing.Point(110, 368);
+            this.FiveMFoldersTextBox.Name = "FiveMFoldersTextBox";
+            this.FiveMFoldersTextBox.Size = new System.Drawing.Size(303, 20);
+            this.FiveMFoldersTextBox.TabIndex = 79;
+            this.FiveMFoldersTextBox.TextChanged += new System.EventHandler(this.FiveMFoldersTextBox_TextChanged);
+            //
+            // FiveMFolderBrowseButton
+            //
+            this.FiveMFolderBrowseButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.FiveMFolderBrowseButton.Location = new System.Drawing.Point(419, 367);
+            this.FiveMFolderBrowseButton.Name = "FiveMFolderBrowseButton";
+            this.FiveMFolderBrowseButton.Size = new System.Drawing.Size(27, 23);
+            this.FiveMFolderBrowseButton.TabIndex = 80;
+            this.FiveMFolderBrowseButton.Text = "...";
+            this.FiveMFolderBrowseButton.UseVisualStyleBackColor = true;
+            this.FiveMFolderBrowseButton.Click += new System.EventHandler(this.FiveMFolderBrowseButton_Click);
+            //
+            // label25
+            //
+            this.label25.AutoSize = true;
+            this.label25.Location = new System.Drawing.Point(110, 391);
+            this.label25.Name = "label25";
+            this.label25.Size = new System.Drawing.Size(330, 13);
+            this.label25.TabIndex = 81;
+            this.label25.Text = "Folders of unpacked FiveM map resources, loaded like a mods DLC pack.";
+            //
             // DoneButton
             // 
             this.DoneButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
@@ -883,5 +930,9 @@
         private System.Windows.Forms.NumericUpDown TextureCacheSizeUpDown;
         private System.Windows.Forms.Label label21;
         private System.Windows.Forms.CheckBox MouseInvertCheckBox;
+        private System.Windows.Forms.Label label24;
+        private System.Windows.Forms.Label label25;
+        private System.Windows.Forms.TextBox FiveMFoldersTextBox;
+        private System.Windows.Forms.Button FiveMFolderBrowseButton;
     }
 }

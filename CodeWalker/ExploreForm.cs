@@ -160,24 +160,57 @@ namespace CodeWalker
             {
                 foreach (var folder in folders)
                 {
-                    var folderPath = folder?.Trim();
-                    if (!string.IsNullOrEmpty(folderPath))
-                    {
-                        var root = new MainTreeFolder();
-                        root.FullPath = folderPath;
-                        root.Path = folderPath;
-                        root.Name = Path.GetFileName(Path.GetDirectoryName(folderPath));
-                        root.IsExtraFolder = true;
-                        ExtraRootFolders.Add(root);
-                    }
+                    AddExtraRootFolder(folder);
                 }
             }
+
+            //FiveM map resource folders are browsable here too, so their loose files can be seen
+            foreach (var folder in GetFiveMFolders())
+            {
+                AddExtraRootFolder(folder);
+            }
+        }
+        private static string[] GetFiveMFolders()
+        {
+            //normalized with a trailing separator, to match MainTreeFolder.FullPath
+            return (Settings.Default.FiveMResourceFolders ?? "")
+                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(f => f.Trim())
+                .Where(f => f.Length > 0)
+                .Select(f => f.EndsWith("\\") ? f : f + "\\")
+                .ToArray();
+        }
+        private MainTreeFolder AddExtraRootFolder(string path)
+        {
+            var folderPath = path?.Trim();
+            if (string.IsNullOrEmpty(folderPath)) return null;
+
+            //the tree scan builds relative paths by cutting FullPath off the front, so it has to end with
+            //a separator - without it every path keeps a leading '\' and no children get attached
+            if (!folderPath.EndsWith("\\")) folderPath += "\\";
+
+            foreach (var folder in ExtraRootFolders)
+            {
+                if (string.Equals(folder.FullPath, folderPath, StringComparison.OrdinalIgnoreCase)) return null; //already listed
+            }
+
+            var root = new MainTreeFolder();
+            root.FullPath = folderPath;
+            root.Path = folderPath;
+            root.Name = Path.GetFileName(folderPath.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(root.Name)) root.Name = folderPath;
+            root.IsExtraFolder = true;
+            ExtraRootFolders.Add(root);
+            return root;
         }
         private void SaveSettings()
         {
+            //folders that came from the FiveM setting aren't part of the explorer's own list
+            var fivem = new HashSet<string>(GetFiveMFolders(), StringComparer.OrdinalIgnoreCase);
             var extrafolders = new StringBuilder();
             foreach (var folder in ExtraRootFolders)
             {
+                if (fivem.Contains(folder.FullPath)) continue;
                 if (extrafolders.Length > 0) extrafolders.Append("\n");
                 extrafolders.Append(folder.FullPath);
             }
@@ -2215,13 +2248,14 @@ namespace CodeWalker
 
         private void EnsureEditModeWarning()
         {
-            var mods = CurrentFolder?.Path.StartsWith("mods", StringComparison.InvariantCultureIgnoreCase) ?? false;
+            var mods = CurrentFolder?.Path.StartsWith(RpfManager.ModsFolder, StringComparison.InvariantCultureIgnoreCase) ?? false;
             var extn = CurrentFolder?.FullPath?.StartsWith(RootFolder.FullPath, StringComparison.InvariantCultureIgnoreCase) == false;
             var srch = CurrentFolder?.IsSearchResults ?? false;
             var fsys = CurrentFolder?.RpfFolder == null;
             var game = CurrentFolder?.Path != CurrentFolder?.FullPath;
             var show = EditMode && !mods && !extn && !srch && (!fsys || game);
-            var copy = show && (CurrentFolder?.RpfFolder != null);
+            //enhanced's onigiri folder takes loose files, not copies of base rpfs, so copying an rpf into it does nothing
+            var copy = show && (CurrentFolder?.RpfFolder != null) && !GTAFolder.IsGen9;
             var gap = 3;
             var bot = MainListView.Bottom;
 
@@ -2238,7 +2272,7 @@ namespace CodeWalker
         {
             if (CurrentFolder == null) return;
             var rootpath = GTAFolder.GetCurrentGTAFolderWithTrailingSlash();
-            var modspath = rootpath + "mods\\";
+            var modspath = rootpath + RpfManager.ModsFolderPrefix;
             var curpath = CurrentFolder.FullPath;
             var rpfpath = CurrentFolder.GetCurrentRpfFile()?.GetPhysicalFilePath();
             if (string.IsNullOrEmpty(rpfpath)) return;
@@ -2246,7 +2280,7 @@ namespace CodeWalker
             var relpath = rpfpath.Substring(rootpath.Length);
             var destpath = modspath + relpath;
             var newrelpath = destpath.Substring(rootpath.Length);
-            var navtarget = "mods\\" + curpath.Substring(rootpath.Length);
+            var navtarget = RpfManager.ModsFolderPrefix + curpath.Substring(rootpath.Length);
 
             if (File.Exists(destpath))
             {
@@ -2342,7 +2376,11 @@ namespace CodeWalker
 
             if (rpf == null) return false;
 
-            if (RpfFile.IsValidEncryption(rpf, recursive)) return true;//it's already valid...
+            if (RpfFile.IsValidEncryption(rpf, recursive))
+            {
+                StartNGEncryptTablesBuild(rpf);
+                return true;//it's already valid...
+            }
 
             var msgr = recursive ? "(including all its parents and children) " : "";
             var msg1 = $"Are you sure you want to change this archive {msgr}to OPEN encryption?";
@@ -2365,6 +2403,25 @@ namespace CodeWalker
             }
 
             return RpfFile.EnsureValidEncryption(rpf, recursive ? null : confirm, recursive);
+        }
+
+        private void StartNGEncryptTablesBuild(RpfFile rpf)
+        {
+            //writing an NG archive's header means re-encrypting it. The NG encryption tables load from
+            //the Keys\ cache in well under a second, but take about a minute to derive the first time.
+            //Kick that off as soon as we know an NG archive is being edited - EncryptNG waits on the
+            //same lock, so a save that beats it just blocks until it's done.
+            if (GTA5Keys.NGEncryptTablesReady) return;
+            for (var f = rpf; f != null; f = f.Parent)
+            {
+                if (f.Encryption != RpfEncryption.NG) continue;
+                Task.Run(() =>
+                {
+                    try { GTA5Keys.EnsureNGEncryptTables(UpdateStatus); }
+                    catch (Exception ex) { UpdateStatus("Error building NG encryption tables: " + ex.Message); }
+                });
+                return;
+            }
         }
 
 
@@ -3373,6 +3430,12 @@ namespace CodeWalker
                     {
                         //renaming a filesystem file...
                         File.Move(item.FullPath, newpath);
+
+                        //an NG archive's key is derived from its name, so its header needs re-encrypting.
+                        if (file?.Encryption == RpfEncryption.NG)
+                        {
+                            RpfFile.RewriteHeader(file);
+                        }
                     }
                 }
 
@@ -3645,17 +3708,8 @@ namespace CodeWalker
             if (string.IsNullOrEmpty(folderPath)) return;
             if (!Directory.Exists(folderPath)) return;
 
-            foreach (var folder in ExtraRootFolders)
-            {
-                if (folder.FullPath == folderPath) return;
-            }
-
-            var root = new MainTreeFolder();
-            root.FullPath = folderPath;
-            root.Path = folderPath;
-            root.Name = Path.GetFileName(Path.GetDirectoryName(folderPath));
-            root.IsExtraFolder = true;
-            ExtraRootFolders.Add(root);
+            var root = AddExtraRootFolder(folderPath);
+            if (root == null) return;
 
             Task.Run(() =>
             {

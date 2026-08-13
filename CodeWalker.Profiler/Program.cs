@@ -61,7 +61,7 @@ static class Profiler
         long alloc0 = GC.GetTotalAllocatedBytes(true);
         var sw = Stopwatch.StartNew();
 
-        var man = new RpfManager { EnableMods = false, BuildExtendedJenkIndex = true };
+        var man = new RpfManager { EnableMods = false };
         man.Init(Folder, Gen9, _ => { }, _ => { });
 
         sw.Stop();
