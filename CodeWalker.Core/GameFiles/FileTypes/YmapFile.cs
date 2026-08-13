@@ -852,6 +852,10 @@ namespace CodeWalker.GameFiles
             {
                 //no children here... look for child ymap....
                 var node = gfc.GetMapNode(RpfFileEntry.ShortNameHash);
+                if (node == null)
+                {
+                    LodDiag.Report(Name + ": no map data store node - it isn't in any cache .dat and wasn't registered as an uncached ymap, so its LOD children can't be found.");
+                }
                 if ((node != null) && (node.Children != null) && (node.Children.Length > 0))
                 {
                     ChildYmaps = new YmapFile[node.Children.Length];
@@ -862,6 +866,7 @@ namespace CodeWalker.GameFiles
                         if (ChildYmaps[i] == null)
                         {
                             //couldn't find child ymap..
+                            LodDiag.Report(Name + ": LOD child '" + chash.ToString() + "' not found.");
                         }
                     }
                 }
@@ -908,8 +913,17 @@ namespace CodeWalker.GameFiles
                                 {
                                     if (rcent._CEntityDef.lodLevel != rage__eLodType.LODTYPES_DEPTH_ORPHANHD)
                                     {
+                                        LodDiag.Report(cmap.Name + ": entity '" + rcent.Name + "' (" + rcent._CEntityDef.lodLevel.ToString() + ") has parentIndex -1, so it has no LOD parent in " + Name + ".");
                                     }
                                     //pind = 0;
+                                }
+                                else if (pind >= AllEntities.Length)
+                                {
+                                    LodDiag.Report(cmap.Name + ": entity '" + rcent.Name + "' wants parentIndex " + pind.ToString() + " in " + Name + ", which only has " + AllEntities.Length.ToString() + " entities - the parent ymap isn't the one this was built against.");
+                                }
+                                else if (rcent.LodInParentYmap)
+                                {
+                                    LodDiag.Report(cmap.Name + ": entity '" + rcent.Name + "' has the LodInParentYmap flag set, so it wasn't linked to " + Name + " entity " + pind.ToString() + ".");
                                 }
                                 if ((pind >= 0) && (pind < AllEntities.Length) && !rcent.LodInParentYmap)
                                 {
@@ -960,6 +974,10 @@ namespace CodeWalker.GameFiles
                                 p = pymap.AllEntities[pind];
                                 ent.Parent = p;
                                 ent.ParentName = p._CEntityDef.archetypeName;
+                            }
+                            else
+                            {
+                                LodDiag.Report(Name + ": entity '" + ent.Name + "' wants parentIndex " + pind.ToString() + " in " + pymap.Name + ", which only has " + pymap.AllEntities.Length.ToString() + " entities - the parent ymap isn't the one this was built against.");
                             }
                         }
                         else
@@ -1947,9 +1965,16 @@ namespace CodeWalker.GameFiles
                         if (!IsMlo)
                         {
                             IsMlo = true;
-                            List<YmapEntityDef> mloEntities = Ymap.MloEntities?.ToList() ?? new List<YmapEntityDef>();
-                            mloEntities.Add(this);
-                            Ymap.MloEntities = mloEntities.ToArray();
+                            //an interior entity that is itself an MLO has no Ymap - it belongs to its MloParent's
+                            //instance (see the mloParent constructor, which nulls Ymap), and it isn't a top-level
+                            //entity of any ymap, so there's no MloEntities list for it to join.
+                            var ymap = Ymap;
+                            if (ymap != null)
+                            {
+                                List<YmapEntityDef> mloEntities = ymap.MloEntities?.ToList() ?? new List<YmapEntityDef>();
+                                mloEntities.Add(this);
+                                ymap.MloEntities = mloEntities.ToArray();
+                            }
                         }
 
                         MloInstance.CreateYmapEntities();
@@ -1972,12 +1997,13 @@ namespace CodeWalker.GameFiles
                     IsMlo = false;
                     MloInstance = null;
 
-                    if (Ymap.MloEntities != null)
+                    var ymap = Ymap; //null for interior entities - see above
+                    if (ymap?.MloEntities != null)
                     {
-                        List<YmapEntityDef> mloEntities = Ymap.MloEntities.ToList();
+                        List<YmapEntityDef> mloEntities = ymap.MloEntities.ToList();
                         if (mloEntities.Remove(this))
                         {
-                            Ymap.MloEntities = mloEntities.ToArray();
+                            ymap.MloEntities = mloEntities.ToArray();
                         }
                     }
                 }

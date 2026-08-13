@@ -74,6 +74,7 @@ namespace CodeWalker.World
         {
             FolderTextBox.Text = GTAFolder.CurrentGTAFolder;
             ExcludeFoldersTextBox.Text = Settings.Default.ExcludeFolders;
+            FiveMFoldersTextBox.Text = Settings.Default.FiveMResourceFolders;
             ShadowCascadesUpDown.Value = Settings.Default.ShadowCascades;
             CacheSizeUpDown.Value = Math.Min(Math.Max(Settings.Default.CacheSize / 1048576, CacheSizeUpDown.Minimum), CacheSizeUpDown.Maximum);
             CacheTimeUpDown.Value = Math.Min(Math.Max((decimal)Settings.Default.CacheTime, CacheTimeUpDown.Minimum), CacheTimeUpDown.Maximum);
@@ -280,6 +281,22 @@ namespace CodeWalker.World
         private void ExcludeFoldersTextBox_TextChanged(object sender, EventArgs e)
         {
             Settings.Default.ExcludeFolders = ExcludeFoldersTextBox.Text;
+        }
+
+        private void FiveMFoldersTextBox_TextChanged(object sender, EventArgs e)
+        {
+            Settings.Default.FiveMResourceFolders = FiveMFoldersTextBox.Text;
+        }
+
+        private void FiveMFolderBrowseButton_Click(object sender, EventArgs e)
+        {
+            using var fbd = new FolderBrowserDialog();
+            var existing = FiveMFoldersTextBox.Text;
+            var last = existing.Split(';').LastOrDefault()?.Trim();
+            if (!string.IsNullOrEmpty(last)) fbd.SelectedPath = last;
+            if (fbd.ShowDialogNew() != DialogResult.OK) return;
+            //multiple folders are allowed - browsing appends rather than replaces
+            FiveMFoldersTextBox.Text = string.IsNullOrWhiteSpace(existing) ? fbd.SelectedPath : existing.TrimEnd(';') + ";" + fbd.SelectedPath;
         }
 
         private void ShadowCascadesUpDown_ValueChanged(object sender, EventArgs e)

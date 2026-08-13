@@ -2129,7 +2129,9 @@ namespace CodeWalker.Rendering
                                 var pcrndbl = (pcent == ent) ? rndbl : GetArchetypeRenderable(pcent.Archetype);
                                 pcent.LodManagerRenderable = pcrndbl;
                                 pcnode = pcnode.Next;
-                                allok = allok && (pcrndbl != null);
+                                //a child with no archetype draws nothing and never will - maps often null one out
+                                //deliberately to drop an entity. Waiting on it pins the LOD over the HD forever.
+                                allok = allok && ((pcrndbl != null) || (pcent.Archetype == null));
                             }
                             if (!allok)
                             {
@@ -4251,7 +4253,12 @@ namespace CodeWalker.Rendering
                                             }
                                             else
                                             {
-                                                txd = gameFileCache.GetYtd(txd.Key.Hash);//keep trying to load it - sometimes resuests can get lost (!)
+                                                //keep trying to load it - sometimes requests can get lost (!). Store what
+                                                //the cache hands back: if this one was evicted before loading it will never
+                                                //load, and holding it keeps AllTexturesLoaded false forever, which hides
+                                                //the entity and pins its LOD until the whole renderable is unloaded.
+                                                txd = gameFileCache.GetYtd(txd.Key.Hash) ?? txd;
+                                                rndbl.SDtxds[j] = txd;
                                                 waitingforload = true;
                                             }
                                             if (dtex != null) break;
@@ -4337,7 +4344,8 @@ namespace CodeWalker.Rendering
                                             }
                                             else
                                             {
-                                                txd = gameFileCache.GetYtd(txd.Key.Hash);//keep trying to load it - sometimes resuests can get lost (!)
+                                                txd = gameFileCache.GetYtd(txd.Key.Hash) ?? txd;//as above - don't hold a dead reference
+                                                rndbl.HDtxds[j] = txd;
                                             }
                                             if (hdtex != null) break;
                                         }
@@ -4641,11 +4649,50 @@ namespace CodeWalker.Rendering
 
 
 
+        //frames a LOD entity has spent inside its child LOD distance with children still missing. Reporting on
+        //the first frame just catches streaming; a chunk still stuck seconds later is the real fault.
+        private readonly Dictionary<YmapEntityDef, int> lodChildPending = [];
+        private const int lodChildStuckFrames = 300;
+
         private LinkedList<YmapEntityDef> GetEntityChildren(YmapEntityDef ent)
         {
             //get the children list for this entity, if all the hcildren are available, and they are within range
             if (!EntityChildrenVisibleAtMaxLodLevel(ent)) return null;
             var clist = ent.LodManagerChildren;
+
+            //A LOD entity only steps aside once every one of its children has registered, so a single child
+            //ymap that never connects keeps the whole LOD chunk rendering over the HD geometry. Only a chunk
+            //that stays that way while the camera is inside its child LOD distance is actually faulty -
+            //anything briefer is just streaming catching up.
+            if ((ent._CEntityDef.numChildren == 0) || ((clist?.Count ?? 0) >= ent._CEntityDef.numChildren))
+            {
+                lodChildPending.Remove(ent);
+            }
+            else
+            {
+                var d = MapViewEnabled ? MapViewDist : (ent.Position - Position).Length();
+                if (d > (ent.ChildLodDist * LodDistMult))
+                {
+                    lodChildPending.Remove(ent); //out of range - unconnected children are just normal streaming
+                }
+                else if (++CollectionsMarshal.GetValueRefOrAddDefault(lodChildPending, ent, out _) == lodChildStuckFrames)
+                {
+                    var ymap = ent.Ymap;
+                    var kids = new List<string>();
+                    foreach (var kvp in CurrentYmaps)
+                    {
+                        if (kvp.Value?.Parent != ymap) continue;
+                        if (kids.Count < 10) kids.Add(kvp.Value.Name);
+                        else { kids.Add("..."); break; }
+                    }
+                    LodDiag.Report(ent.Name + " (in " + (ymap?.Name ?? "?") + ", " + (int)d + "m, childLodDist "
+                        + (int)ent.ChildLodDist + ") has " + (clist?.Count ?? 0) + " of its "
+                        + ent._CEntityDef.numChildren + " LOD children connected - it renders over the HD geometry"
+                        + " until they all do. Child ymaps currently loaded under " + (ymap?.Name ?? "?") + ": "
+                        + (kids.Count > 0 ? string.Join(", ", kids) : "NONE"));
+                }
+            }
+
             if ((clist != null) && (clist.Count >= ent._CEntityDef.numChildren))
             {
                 if (ent.Parent != null)//already calculated root entities distance

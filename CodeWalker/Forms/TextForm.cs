@@ -277,7 +277,7 @@ namespace CodeWalker.Forms
                 return false;
             }
 
-            if (!rpfFileEntry.Path.ToLowerInvariant().StartsWith("mods"))
+            if (!rpfFileEntry.Path.StartsWith(RpfManager.ModsFolder, StringComparison.OrdinalIgnoreCase))
             {
                 if (MessageBox.Show("This file is NOT located in the mods folder - Are you SURE you want to save this file?\r\nWARNING: This could cause permanent damage to your game!!!", "WARNING: Are you sure about this?", MessageBoxButtons.YesNo) != DialogResult.Yes)
                 {

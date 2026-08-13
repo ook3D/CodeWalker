@@ -104,52 +104,137 @@ namespace CodeWalker.GameFiles
 
 
 
+            BuildNGEncryptTables(updateStatus);
+
+            updateStatus("Complete.");
+        }
+
+
+        private static readonly object NGEncryptTablesLock = new object();
+
+        public static bool NGEncryptTablesReady
+        {
+            get { return (PC_NG_ENCRYPT_TABLES != null) && (PC_NG_ENCRYPT_LUTs != null); }
+        }
+
+        //cached NG encryption tables live next to the exe, same as Settings.xml
+        private static string NGEncryptTablesPath
+        {
+            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Keys", "gtav_ng_encrypt_tables.dat"); }
+        }
+        private static string NGEncryptLutsPath
+        {
+            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Keys", "gtav_ng_encrypt_luts.dat"); }
+        }
+
+        //the NG encryption tables are derived from the decryption tables, which takes ~1 minute,
+        //so they're only built when something actually needs to write an NG-encrypted archive,
+        //and the result is cached to disk (~51MB) so it's only ever paid once.
+        public static void EnsureNGEncryptTables(Action<string> updateStatus = null)
+        {
+            if (NGEncryptTablesReady) return;
+            lock (NGEncryptTablesLock)
+            {
+                if (NGEncryptTablesReady) return;
+                if (PC_NG_DECRYPT_TABLES == null)
+                {
+                    throw new Exception("Unable to build NG encryption tables - keys not loaded.");
+                }
+                var status = updateStatus ?? ((s) => { });
+                if (TryLoadNGEncryptTables(status)) return;
+                BuildNGEncryptTables(status);
+                TrySaveNGEncryptTables(status);
+            }
+        }
+
+        private static bool TryLoadNGEncryptTables(Action<string> updateStatus)
+        {
+            if (!File.Exists(NGEncryptTablesPath) || !File.Exists(NGEncryptLutsPath)) return false;
+            try
+            {
+                updateStatus("Loading NG encryption tables...");
+                PC_NG_ENCRYPT_TABLES = CryptoIO.ReadNgTables(NGEncryptTablesPath);
+                PC_NG_ENCRYPT_LUTs = CryptoIO.ReadNgLuts(NGEncryptLutsPath);
+                if (NGEncryptTablesRoundTrip()) return true;
+                updateStatus("Cached NG encryption tables don't match the current keys - rebuilding...");
+            }
+            catch
+            {
+                //truncated or corrupt cache - fall through and rebuild it
+            }
+            PC_NG_ENCRYPT_TABLES = null;
+            PC_NG_ENCRYPT_LUTs = null;
+            return false;
+        }
+
+        private static void TrySaveNGEncryptTables(Action<string> updateStatus)
+        {
+            try
+            {
+                updateStatus("Saving NG encryption tables...");
+                Directory.CreateDirectory(Path.GetDirectoryName(NGEncryptTablesPath));
+                CryptoIO.WriteNgTables(NGEncryptTablesPath, PC_NG_ENCRYPT_TABLES);
+                CryptoIO.WriteLuts(NGEncryptLutsPath, PC_NG_ENCRYPT_LUTs);
+            }
+            catch (Exception ex)
+            {
+                //read-only install folder, out of disk, etc. not fatal - just means rebuilding next time.
+                updateStatus("Unable to cache NG encryption tables: " + ex.Message);
+            }
+        }
+
+        //proves the loaded tables actually invert the decryption tables in use, which is a stronger
+        //check than a version stamp - it catches a stale cache, a truncated file and a game update alike.
+        private static bool NGEncryptTablesRoundTrip()
+        {
+            try
+            {
+                var data = new byte[4096];
+                for (int i = 0; i < data.Length; i++) data[i] = (byte)((i * 37) ^ (i >> 5));
+                var key = PC_NG_KEYS[0];
+                return GTACrypto.DecryptNG(GTACrypto.EncryptNG(data, key), key).SequenceEqual(data);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void BuildNGEncryptTables(Action<string> updateStatus)
+        {
             updateStatus("Calculating NG encryption tables...");
-            PC_NG_ENCRYPT_TABLES = new uint[17][][];
+
+            var tables = new uint[17][][];
+            var luts = new GTA5NGLUT[17][];
             for (int i = 0; i < 17; i++)
             {
-                PC_NG_ENCRYPT_TABLES[i] = new uint[16][];
+                tables[i] = new uint[16][];
+                luts[i] = new GTA5NGLUT[16];
                 for (int j = 0; j < 16; j++)
                 {
-                    PC_NG_ENCRYPT_TABLES[i][j] = new uint[256];
-                    for (int k = 0; k < 256; k++)
-                    {
-                        PC_NG_ENCRYPT_TABLES[i][j][k] = 0;
-                    }
+                    tables[i][j] = new uint[256];
+                    luts[i][j] = new GTA5NGLUT();
                 }
             }
 
-            PC_NG_ENCRYPT_LUTs = new GTA5NGLUT[17][];
-            for (int i = 0; i < 17; i++)
-            {
-                PC_NG_ENCRYPT_LUTs[i] = new GTA5NGLUT[16];
-                for (int j = 0; j < 16; j++)
-                    PC_NG_ENCRYPT_LUTs[i][j] = new GTA5NGLUT();
-            }
-
-
-
-
             updateStatus("Calculating NG encryption tables (1/17)...");
-            PC_NG_ENCRYPT_TABLES[0] = RandomGauss.Solve(PC_NG_DECRYPT_TABLES[0]);
-            //updateStatus("ng encrypt table 1 of 17 calculated");
+            tables[0] = RandomGauss.Solve(PC_NG_DECRYPT_TABLES[0]);
 
             updateStatus("Calculating NG encryption tables (2/17)...");
-            PC_NG_ENCRYPT_TABLES[1] = RandomGauss.Solve(PC_NG_DECRYPT_TABLES[1]);
-            //updateStatus("ng encrypt table 2 of 17 calculated");
+            tables[1] = RandomGauss.Solve(PC_NG_DECRYPT_TABLES[1]);
 
             for (int k = 2; k <= 15; k++)
             {
                 updateStatus("Calculating NG encryption tables (" + (k + 1).ToString() + "/17)...");
-                PC_NG_ENCRYPT_LUTs[k] = LookUpTableGenerator.BuildLUTs2(PC_NG_DECRYPT_TABLES[k]);
-                //updateStatus("ng encrypt table " + (k + 1).ToString() + " of 17 calculated");
+                luts[k] = LookUpTableGenerator.BuildLUTs2(PC_NG_DECRYPT_TABLES[k]);
             }
 
             updateStatus("Calculating NG encryption tables (17/17)...");
-            PC_NG_ENCRYPT_TABLES[16] = RandomGauss.Solve(PC_NG_DECRYPT_TABLES[16]);
-            //updateStatus("ng encrypt table 17 of 17 calculated");
+            tables[16] = RandomGauss.Solve(PC_NG_DECRYPT_TABLES[16]);
 
-            updateStatus("Complete.");
+            //assign only once both are complete, so NGEncryptTablesReady is never true for a half-built set
+            PC_NG_ENCRYPT_TABLES = tables;
+            PC_NG_ENCRYPT_LUTs = luts;
         }
 
 

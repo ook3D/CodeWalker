@@ -40,6 +40,13 @@ public sealed partial class Settings
         set => SettingsManager.SetString(nameof(GTAFolderEnhanced), value);
     }
 
+    //semicolon-separated folders of unpacked FiveM map resources, loaded like a mods dlcpack
+    public string FiveMResourceFolders
+    {
+        get => SettingsManager.GetString(nameof(FiveMResourceFolders));
+        set => SettingsManager.SetString(nameof(FiveMResourceFolders), value);
+    }
+
     public string CompiledScriptFolder
     {
         get => SettingsManager.GetString(nameof(CompiledScriptFolder));
@@ -202,6 +209,27 @@ public sealed partial class Settings
     {
         get => SettingsManager.GetLong(nameof(CacheSize), 2147483648);
         set => SettingsManager.SetLong(nameof(CacheSize), value);
+    }
+
+    // What to load at startup. All of this is retained for the whole session, so turning a piece off is a
+    // straight memory saving at the cost of the feature. Measured on a full install + FiveM maps:
+    // audio ~130MB, peds+vehicles ~25MB (managed heap, before anything streams).
+    public bool LoadAudioData //the .rel audio dats, used by the audio explorer and project window
+    {
+        get => SettingsManager.GetBool(nameof(LoadAudioData), true);
+        set => SettingsManager.SetBool(nameof(LoadAudioData), value);
+    }
+
+    public bool LoadPedData
+    {
+        get => SettingsManager.GetBool(nameof(LoadPedData), true);
+        set => SettingsManager.SetBool(nameof(LoadPedData), value);
+    }
+
+    public bool LoadVehicleData
+    {
+        get => SettingsManager.GetBool(nameof(LoadVehicleData), true);
+        set => SettingsManager.SetBool(nameof(LoadVehicleData), value);
     }
 
     public double CacheTime

@@ -253,7 +253,6 @@ namespace CodeWalker.Forms
             GameFileCache.LoadPeds = false;
             GameFileCache.LoadVehicles = false;
             GameFileCache.LoadArchetypes = false;
-            GameFileCache.BuildExtendedJenkIndex = false;
             GameFileCache.Init(s => { }, s => { });
 
             // Start the renderable-load loop FIRST so particle textures/renderables load even if the optional

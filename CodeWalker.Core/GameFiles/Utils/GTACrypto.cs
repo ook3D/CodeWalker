@@ -276,10 +276,7 @@ namespace CodeWalker.GameFiles
 
         public static byte[] EncryptNG(byte[] data, byte[] key)
         {
-            if ((GTA5Keys.PC_NG_ENCRYPT_TABLES == null) || (GTA5Keys.PC_NG_ENCRYPT_LUTs == null))
-            {
-                throw new Exception("Unable to encrypt - tables not loaded.");
-            }
+            GTA5Keys.EnsureNGEncryptTables();
 
             var encryptedData = new byte[data.Length];
 

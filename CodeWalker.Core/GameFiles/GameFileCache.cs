@@ -19,9 +19,11 @@ namespace CodeWalker.GameFiles
         public RpfManager? RpfMan;
         private Action<string>? UpdateStatus;
         private Action<string>? ErrorLog;
-        public int MaxItemsPerLoop = 4; //increased from 1 to process more items per loop for better performance
+        public int MaxItemsPerLoop = 8; //files loaded per content loop - they load in parallel, so this is also the batch width
+        public int MaxQueueLength = 512; //pending distinct file requests. Stale ones are skipped on dequeue, so a deep queue costs nothing
 
         private ConcurrentQueue<GameFile> requestQueue = new();
+        private int requestQueueCount; //tracked separately - ConcurrentQueue.Count is a segment walk, and the enqueue check is per-Get*
 
         ////dynamic cache
         private Cache<GameFileCacheKey, GameFile> mainCache = null!;
@@ -82,6 +84,8 @@ namespace CodeWalker.GameFiles
         public string SelectedDlc { get; set; } = string.Empty;
 
         public Dictionary<string, RpfFile> ActiveMapRpfFiles { get; set; } = new();
+        //ymaps belonging to a map variant the active DLC changesets replaced (eg vanilla id2_* under mpheist)
+        public HashSet<uint> DisabledYmaps { get; } = new();
 
         public Dictionary<uint, World.TimecycleMod> TimeCycleModsDict = new();
 
@@ -109,8 +113,10 @@ namespace CodeWalker.GameFiles
         public List<RpfFile> AllRpfs { get; private set; } = new();
         public List<RpfFile> DlcRpfs { get; private set; } = new();
 
+        //semicolon-separated folders of loose map assets (FiveM map resources) to load like a mods dlcpack
+        public string ExtraFolders = string.Empty;
+
         public bool DoFullStringIndex = false;
-        public bool BuildExtendedJenkIndex = true;
         public bool LoadArchetypes = true;
         public bool LoadVehicles = true;
         public bool LoadPeds = true;
@@ -127,7 +133,7 @@ namespace CodeWalker.GameFiles
         {
             get
             {
-                return requestQueue.Count;
+                return Interlocked.CompareExchange(ref requestQueueCount, 0, 0);
             }
         }
         public int ItemCount
@@ -169,13 +175,16 @@ namespace CodeWalker.GameFiles
 
             GameFile queueclear;
             while (requestQueue.TryDequeue(out queueclear))
-            { } //empty the old queue out...
+            { queueclear.LoadQueued = false; } //empty the old queue out...
+            Interlocked.Exchange(ref requestQueueCount, 0);
         }
 
         public void Init(Action<string> updateStatus, Action<string> errorLog)
         {
             UpdateStatus = updateStatus;
             ErrorLog = errorLog;
+            LodDiag.Log = errorLog;
+            LodDiag.Reset();
 
             if (IsInited && RpfMan != null)
             {
@@ -191,8 +200,11 @@ namespace CodeWalker.GameFiles
                 RpfMan = new RpfManager
                 {
                     ExcludePaths = exclude,
+                    //distinct: the same folder listed twice would be scanned twice for no gain
+                    ExtraFolders = (ExtraFolders ?? string.Empty).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(f => f.Trim()).Where(f => f.Length > 0)
+                                   .Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                     EnableMods = EnableMods,
-                    BuildExtendedJenkIndex = BuildExtendedJenkIndex
                 };
 
                 RpfMan.Init(GTAFolder, GTAGen9, UpdateStatus, ErrorLog);
@@ -420,9 +432,9 @@ namespace CodeWalker.GameFiles
                                 var srcFull = file.Path;
 
                                 var mapped = srcFull.Replace(updateRpfPath, "update:").Replace('\\', '/').Replace(lpath, dlcPathPrefix).Replace('/', '\\');
-                                if (mapped.StartsWith(@"mods\", StringComparison.OrdinalIgnoreCase))
+                                if (mapped.StartsWith(RpfManager.ModsFolderPrefix, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    mapped = mapped.Substring(5);
+                                    mapped = mapped.Substring(RpfManager.ModsFolderPrefix.Length);
                                 }
                                 DlcPatchedPaths[mapped] = srcFull;
                             }
@@ -527,6 +539,7 @@ namespace CodeWalker.GameFiles
         private void InitActiveMapRpfFiles()
         {
             ActiveMapRpfFiles.Clear();
+            DisabledYmaps.Clear();
 
             string NormalizeSlash(string s) { return s == null ? null : s.Replace('\\', '/'); }
 
@@ -554,7 +567,11 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            if (!EnableDlc) return;
+            if (!EnableDlc)
+            {
+                AddExtraActiveMapRpfFiles();
+                return;
+            }
             // include update.rpf so files not present in child RPFs can be used
             foreach (var rpf in DlcRpfs)
             {
@@ -722,6 +739,48 @@ namespace CodeWalker.GameFiles
                     break;
                 }
             }
+
+            AddExtraActiveMapRpfFiles();
+
+            ReportResurrectedYmaps();
+        }
+
+        //A map changeset invalidates an rpf by its unprefixed platform path, but DLC packs mount their copies
+        //under "dlc_<name>:/..." keys - so a patchday copy of the same rpf survives the invalidate and puts the
+        //superseded variant back. Name them, with the key that kept them alive.
+        private void ReportResurrectedYmaps()
+        {
+            if (DisabledYmaps.Count == 0) return;
+            var found = new List<string>();
+            foreach (var kvp in ActiveMapRpfFiles)
+            {
+                var entries = kvp.Value?.AllEntries;
+                if (entries == null) continue;
+                foreach (var entry in entries)
+                {
+                    if (entry?.NameLower == null) continue;
+                    if (!entry.NameLower.EndsWith(".ymap", StringComparison.Ordinal)) continue;
+                    if (entry is not RpfFileEntry fe) continue;
+                    if (!DisabledYmaps.Contains(fe.ShortNameHash)) continue;
+                    found.Add(entry.NameLower + " <- '" + kvp.Key + "'");
+                }
+            }
+            if (found.Count > 0)
+            {
+                found.Sort(StringComparer.OrdinalIgnoreCase);
+                LodDiag.Report(found.Count + " ymap(s) the active DLC invalidated are still mounted:\n    "
+                    + string.Join("\n    ", found));
+            }
+        }
+
+        //Added last so their ymaps/ybns win over the game's, and so Space picks them up as uncached map files.
+        private void AddExtraActiveMapRpfFiles()
+        {
+            if (RpfMan?.ExtraRpfs == null) return;
+            foreach (var rpf in RpfMan.ExtraRpfs)
+            {
+                ActiveMapRpfFiles[rpf.Path] = rpf;
+            }
         }
 
 
@@ -735,6 +794,7 @@ namespace CodeWalker.GameFiles
                 if (rpffile != null)
                 {
                     ActiveMapRpfFiles[vpath] = rpffile;
+                    SetYmapsDisabled(rpffile, false); //re-enabled by a later changeset
                 }
                 else
                 { }
@@ -760,12 +820,45 @@ namespace CodeWalker.GameFiles
             {
                 foreach (string overlayPath in overlayList)
                 {
+                    if (ActiveMapRpfFiles.TryGetValue(overlayPath, out var orpf)) SetYmapsDisabled(orpf, true);
                     ActiveMapRpfFiles.Remove(overlayPath);
                 }
                 overlays.Remove(vpath);
             }
 
-            ActiveMapRpfFiles.Remove(vpath);
+            //Invalidation names an rpf by its unprefixed platform path, but a DLC pack mounts its own copy of
+            //the same file under a "dlc_<name>:/..." key. The game drops every mount of the file, so match on
+            //the path after the device prefix too - otherwise eg patchday2ng's indust_02_metadata.rpf survives
+            //mpheist's invalidate and puts the vanilla id2 variant back alongside the hei_ one.
+            vpath = vpath.ToLowerInvariant();
+            foreach (var key in ActiveMapRpfFiles.Keys.Where(k => StripDlcDevice(k) == vpath).ToList())
+            {
+                if (ActiveMapRpfFiles.TryGetValue(key, out var rpf)) SetYmapsDisabled(rpf, true);
+                ActiveMapRpfFiles.Remove(key);
+            }
+        }
+
+        private static string StripDlcDevice(string key)
+        {
+            var i = key.IndexOf(':');
+            return i < 0 ? key : key.Substring(i + 1).TrimStart('/', '\\');
+        }
+
+        //A DLC map changeset invalidating an rpf disables the ymaps in it - eg mpheist swaps the whole
+        //id2 set for its hei_ variants. Loose extra folders bypass the rpf mounting entirely, so without
+        //this they'd resurrect single ymaps of the superseded variant whose LOD parents are no longer loaded.
+        private void SetYmapsDisabled(RpfFile rpf, bool disabled)
+        {
+            var entries = rpf?.AllEntries;
+            if (entries == null) return;
+            foreach (var entry in entries)
+            {
+                if (entry?.NameLower == null) continue;
+                if (!entry.NameLower.EndsWith(".ymap", StringComparison.Ordinal)) continue;
+                if (entry is not RpfFileEntry fe) continue;
+                if (disabled) DisabledYmaps.Add(fe.ShortNameHash);
+                else DisabledYmaps.Remove(fe.ShortNameHash);
+            }
         }
         private string GetDlcRpfPhysicalPath(string path, DlcSetupFile setupfile)
         {
@@ -891,10 +984,11 @@ namespace CodeWalker.GameFiles
             
             ReadOnlySpan<char> processed = buffer.Slice(0, length);
             
-            // Remove "mods/" prefix if present
-            if (processed.StartsWith("mods/".AsSpan()))
+            // Remove "mods/" (or "onigiri/") prefix if present
+            var modsSlash = RpfManager.ModsFolder + "/";
+            if (processed.StartsWith(modsSlash.AsSpan(), StringComparison.OrdinalIgnoreCase))
             {
-                processed = processed.Slice(5);
+                processed = processed.Slice(modsSlash.Length);
             }
             
             // Trim off "dlc.rpf" suffix if present
@@ -917,6 +1011,11 @@ namespace CodeWalker.GameFiles
             else if (processed.StartsWith("update/x64/dlcpacks".AsSpan()))
             {
                 return string.Concat("dlcpacks:".AsSpan(), processed.Slice(19));
+            }
+            // the enhanced mods folder holds its packs directly under "dlcpacks" (the RAGE device name)
+            else if (processed.StartsWith("dlcpacks/".AsSpan()))
+            {
+                return string.Concat("dlcpacks:".AsSpan(), processed.Slice(8));
             }
 
             return processed.ToString();
@@ -1053,8 +1152,8 @@ namespace CodeWalker.GameFiles
             List<RpfFile> result = new(list.Count);
             var modDict = RpfMan.ModRpfDict;
             var baseDict = RpfMan.RpfDict;
-            ReadOnlySpan<char> modsPrefix = "mods".AsSpan();
-            const int ModsPrefixLen = 4;
+            ReadOnlySpan<char> modsPrefix = RpfManager.ModsFolder.AsSpan();
+            int ModsPrefixLen = modsPrefix.Length;
 
             if (!EnableMods)
             {
@@ -1121,22 +1220,25 @@ namespace CodeWalker.GameFiles
             // then custom packs (e.g. NVE's folder - the game's dlclist appends those last so
             // they override official content), then mods-folder copies last.
             // (Mods substitution is already applied via GetModdedRpfList.)
+            // Extra folders (FiveM map resources) go last of all, so they override everything.
             if (AllRpfs is not { Count: > 0 }) return AllRpfs ?? [];
-            if (DlcRpfs is not { Count: > 0 }) return AllRpfs;
+            if (DlcRpfs is not { Count: > 0 }) return AllRpfs; //extras are already at the end of AllRpfs
             var dlcset = new HashSet<RpfFile>(DlcRpfs);
+            var extraset = RpfMan?.ExtraRpfs is { Count: > 0 } ? new HashSet<RpfFile>(RpfMan.ExtraRpfs) : null;
             int DlcRank(RpfFile r)
             {
                 var p = r.Path ?? "";
-                if (p.StartsWith("mods\\", StringComparison.OrdinalIgnoreCase)) return 2;
+                if (p.StartsWith(RpfManager.ModsFolderPrefix, StringComparison.OrdinalIgnoreCase)) return 2;
                 if (p.StartsWith("update\\", StringComparison.OrdinalIgnoreCase)) return 0;
                 return 1; //custom dlc pack folders (NVE etc.)
             }
             var ordered = new List<RpfFile>(AllRpfs.Count);
-            foreach (var r in AllRpfs) if (!dlcset.Contains(r)) ordered.Add(r);
+            foreach (var r in AllRpfs) if (!dlcset.Contains(r) && extraset?.Contains(r) != true) ordered.Add(r);
             for (int rank = 0; rank <= 2; rank++)
             {
                 foreach (var r in AllRpfs) if (dlcset.Contains(r) && DlcRank(r) == rank) ordered.Add(r);
             }
+            if (extraset != null) foreach (var r in AllRpfs) if (extraset.Contains(r)) ordered.Add(r);
             return ordered;
         }
 
@@ -1227,7 +1329,18 @@ namespace CodeWalker.GameFiles
             // (update/dlc patches) deterministically overwrite earlier ones.
             if (ActiveMapRpfFiles is { Count: > 0 })
             {
+                //ActiveMapRpfFiles has entries removed during the DLC pass, so its enumeration order isn't
+                //insertion order - put the extras (FiveM resources) at the end explicitly so they win.
+                var extras = RpfMan?.ExtraRpfs;
                 var mapRpfs = ActiveMapRpfFiles.Values.ToList();
+                int extrastart = mapRpfs.Count;
+                if (extras is { Count: > 0 })
+                {
+                    var extraset = new HashSet<RpfFile>(extras);
+                    mapRpfs.RemoveAll(extraset.Contains);
+                    extrastart = mapRpfs.Count;
+                    mapRpfs.AddRange(extras);
+                }
                 var localDicts = new Dictionary<uint, RpfFileEntry>[mapRpfs.Count][];
                 Parallel.For(0, mapRpfs.Count, i =>
                 {
@@ -1265,13 +1378,26 @@ namespace CodeWalker.GameFiles
                 });
 
                 var globals = new[] { YmapDict, YbnDict, YnvDict };
-                foreach (var local in localDicts)
+                var shadowed = new List<string>();
+                for (int i = 0; i < localDicts.Length; i++)
                 {
+                    var local = localDicts[i];
                     if (local == null) continue;
+                    var isextra = i >= extrastart;
                     for (int d = 0; d < 3; d++)
                     {
-                        foreach (var kvp in local[d]) globals[d][kvp.Key] = kvp.Value;
+                        foreach (var kvp in local[d])
+                        {
+                            //an extra ymap replacing a game one has to match its entity order, or the LOD
+                            //parent/child indices in the rest of the chain will point at the wrong entities
+                            if (isextra && (d == 0) && globals[0].ContainsKey(kvp.Key)) shadowed.Add(kvp.Value.Name);
+                            globals[d][kvp.Key] = kvp.Value;
+                        }
                     }
+                }
+                if (shadowed.Count > 0)
+                {
+                    ErrorLog(shadowed.Count + " game ymap(s) replaced by extra folder copies - LOD links will break if the entity order doesn't match: " + string.Join(", ", shadowed.Take(20)));
                 }
             }
 
@@ -1509,7 +1635,16 @@ namespace CodeWalker.GameFiles
             archetypeDict.Clear();
 
             if (!LoadArchetypes) return;
-            var rpfs = EnableDlc ? GetAssetPriorityOrderedRpfs() : BaseRpfs;
+            List<RpfFile> rpfs;
+            if (EnableDlc)
+            {
+                rpfs = GetAssetPriorityOrderedRpfs();
+            }
+            else
+            {
+                rpfs = new List<RpfFile>(BaseRpfs);
+                if (RpfMan?.ExtraRpfs != null) rpfs.AddRange(RpfMan.ExtraRpfs);
+            }
 
             // Collect all .ytyp entries first to avoid repeated file system access
             List<RpfEntry> ytypEntries = [];
@@ -2241,10 +2376,16 @@ namespace CodeWalker.GameFiles
 
         public void TryLoadEnqueue(GameFile gf)
         {
-            if (((!gf.Loaded)) && (requestQueue.Count < 10))// && (!gf.LoadQueued)
+            //LoadQueued is cleared as soon as the content thread dequeues, so this dedupes the queue without
+            //blocking retries. Without it every frame re-enqueues the same handful of files, and the queue
+            //cap then drops everything else that frame - which is why loading used to trickle in.
+            //requestQueueCount rather than requestQueue.Count: this runs for every Get* call on the render
+            //thread, and ConcurrentQueue.Count walks the segment list.
+            if ((!gf.Loaded) && (!gf.LoadQueued) && (Interlocked.CompareExchange(ref requestQueueCount, 0, 0) < MaxQueueLength))
             {
+                gf.LoadQueued = true; //set before enqueueing, or the content thread's clear can land first and strand it
+                Interlocked.Increment(ref requestQueueCount);
                 requestQueue.Enqueue(gf);
-                gf.LoadQueued = true;
             }
         }
 
@@ -2397,7 +2538,11 @@ namespace CodeWalker.GameFiles
                 var ymap = mainCache.TryGet(key) as YmapFile;
                 if (ymap == null)
                 {
-                    var e = GetYmapEntry(hash);
+                    //Active map rpfs only. GetYmapEntry's AllYmapsDict fallback searches every rpf in the
+                    //install, so a LOD parent/child link would resurrect a ymap the DLC changesets dropped -
+                    //eg loading vanilla id2_21_c from patchday1ng, which then pulls in patchday2ng's id2_lod
+                    //alongside mpheist's hei_id2_lod. ProjectForm still uses GetYmapEntry to open any ymap.
+                    YmapDict.TryGetValue(hash, out var e);
                     if (e != null)
                     {
                         ymap = new YmapFile(e);
@@ -2700,85 +2845,108 @@ namespace CodeWalker.GameFiles
         }
 
 
+        private readonly List<GameFile> contentBatch = new();
+        private readonly ParallelOptions contentParallelOptions = new()
+        {
+            MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount / 2),
+        };
+
         public bool ContentThreadProc()
         {
-            int itemcount = 0;
-
             lock (updateSyncRoot)
             {
-                while (requestQueue.TryDequeue(out GameFile req) && (itemcount < MaxItemsPerLoop))
+                contentBatch.Clear();
+                var now = DateTime.Now;
+                while ((contentBatch.Count < MaxItemsPerLoop) && requestQueue.TryDequeue(out GameFile req))
                 {
-                    //process content requests.
+                    Interlocked.Decrement(ref requestQueueCount);
+                    req.LoadQueued = false; //cleared here so a failed or skipped load can be requested again
+
                     if (req.Loaded)
                         continue; //it's already loaded... (somehow)
 
-                    if ((DateTime.Now - req.LastUseTime).TotalSeconds > 0.5)
+                    if ((now - req.LastUseTime).TotalSeconds > 0.5)
                         continue; //hasn't been requested lately..! ignore, will try again later if necessary
 
-                    itemcount++;
+                    contentBatch.Add(req);
+                }
 
-#if !DEBUG
-                    try
-                    {
-#endif
+                //the expensive part is per-file and independent (open stream, decrypt, inflate, parse), and
+                //ExtractFile opens its own stream each call - so run the batch across cores instead of one at a
+                //time. Bounded: the render thread needs cores too, and saturating them to stream faster is a
+                //bad trade when the frame is what the user is looking at.
+                if (contentBatch.Count > 1)
+                {
+                    Parallel.ForEach(contentBatch, contentParallelOptions, LoadContentFile);
+                }
+                else if (contentBatch.Count == 1)
+                {
+                    LoadContentFile(contentBatch[0]);
+                }
 
-                    switch (req.Type)
-                    {
-                        case GameFileType.Ydr:
-                            req.Loaded = LoadFile(req as YdrFile);
-                            break;
-                        case GameFileType.Ydd:
-                            req.Loaded = LoadFile(req as YddFile);
-                            break;
-                        case GameFileType.Ytd:
-                            req.Loaded = LoadFile(req as YtdFile);
-                            break;
-                        case GameFileType.Ymap:
-                            YmapFile y = req as YmapFile;
-                            req.Loaded = LoadFile(y);
-                            if (req.Loaded) y.InitYmapEntityArchetypes(this);
-                            break;
-                        case GameFileType.Yft:
-                            req.Loaded = LoadFile(req as YftFile);
-                            break;
-                        case GameFileType.Ybn:
-                            req.Loaded = LoadFile(req as YbnFile);
-                            break;
-                        case GameFileType.Ycd:
-                            req.Loaded = LoadFile(req as YcdFile);
-                            break;
-                        case GameFileType.Yed:
-                            req.Loaded = LoadFile(req as YedFile);
-                            break;
-                        case GameFileType.Ynv:
-                            req.Loaded = LoadFile(req as YnvFile);
-                            break;
-                        case GameFileType.Yld:
-                            req.Loaded = LoadFile(req as YldFile);
-                            break;
-                        default:
-                            break;
-                    }
+                foreach (var req in contentBatch)
+                {
+                    //ymap archetype hookup reads the shared archetype/ytyp caches, so keep it off the parallel path
+                    if (req.Loaded && (req is YmapFile y)) y.InitYmapEntityArchetypes(this);
 
                     UpdateStatus((req.Loaded ? "Loaded " : "Error loading ") + req.ToString());
-
-                    if (!req.Loaded)
-                    {
-                        ErrorLog("Error loading " + req.ToString());
-                    }
-#if !DEBUG
-                    }
-                    catch (Exception ex)
-                    {
-                        ErrorLog($"Failed to load file {req.Name}: {ex.Message}");
-                        //TODO: try to stop subsequent attempts to load this!
-                    }
-#endif
+                    if (!req.Loaded) ErrorLog("Error loading " + req.ToString());
                 }
             }
 
             //whether or not we need another content thread loop
-            return itemcount >= MaxItemsPerLoop;
+            return contentBatch.Count >= MaxItemsPerLoop;
+        }
+
+        private void LoadContentFile(GameFile req)
+        {
+#if !DEBUG
+            try
+            {
+#endif
+            switch (req.Type)
+            {
+                case GameFileType.Ydr:
+                    req.Loaded = LoadFile(req as YdrFile);
+                    break;
+                case GameFileType.Ydd:
+                    req.Loaded = LoadFile(req as YddFile);
+                    break;
+                case GameFileType.Ytd:
+                    req.Loaded = LoadFile(req as YtdFile);
+                    break;
+                case GameFileType.Ymap:
+                    req.Loaded = LoadFile(req as YmapFile);
+                    break;
+                case GameFileType.Yft:
+                    req.Loaded = LoadFile(req as YftFile);
+                    break;
+                case GameFileType.Ybn:
+                    req.Loaded = LoadFile(req as YbnFile);
+                    break;
+                case GameFileType.Ycd:
+                    req.Loaded = LoadFile(req as YcdFile);
+                    break;
+                case GameFileType.Yed:
+                    req.Loaded = LoadFile(req as YedFile);
+                    break;
+                case GameFileType.Ynv:
+                    req.Loaded = LoadFile(req as YnvFile);
+                    break;
+                case GameFileType.Yld:
+                    req.Loaded = LoadFile(req as YldFile);
+                    break;
+                default:
+                    break;
+            }
+#if !DEBUG
+            }
+            catch (Exception ex)
+            {
+                ErrorLog($"Failed to load file {req.Name}: {ex.Message}");
+                //TODO: try to stop subsequent attempts to load this!
+            }
+#endif
         }
 
 
