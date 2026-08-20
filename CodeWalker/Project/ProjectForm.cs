@@ -8835,7 +8835,7 @@ namespace CodeWalker.Project
 
             if ((GameFileCache != null) && (GameFileCache.IsInited))
             {
-                return GameFileCache.GetYmapEntry(hash, true); //project mode wants any ymap, active or not
+                return GameFileCache.GetYmapEntry(hash); //project mode wants any ymap, active or not
             }
 
             return null;

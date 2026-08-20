@@ -3427,7 +3427,7 @@ namespace CodeWalker
             foreach (string lod in ymaplist)
             {
                 uint hash = JenkHash.GenHash(lod);
-                YmapFile ymap = gameFileCache.GetYmap(hash, true); //explicitly named ymaps, active or not
+                YmapFile ymap = gameFileCache.GetYmap(hash); //explicitly named ymaps, active or not
                 Renderer.RenderYmap(ymap);
 
                 UpdateMouseHits(ymap);
