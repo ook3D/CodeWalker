@@ -18,7 +18,7 @@ namespace CodeWalker.GameFiles
     {
         public RpfManager? RpfMan;
         private Action<string>? UpdateStatus;
-        private Action<string>? ErrorLog;
+        internal Action<string>? ErrorLog;
         public int MaxItemsPerLoop = 8; //files loaded per content loop - they load in parallel, so this is also the batch width
         public int MaxQueueLength = 512; //pending distinct file requests. Stale ones are skipped on dequeue, so a deep queue costs nothing
 
@@ -2384,6 +2384,7 @@ namespace CodeWalker.GameFiles
             if ((!gf.Loaded) && (!gf.LoadQueued) && (Interlocked.CompareExchange(ref requestQueueCount, 0, 0) < MaxQueueLength))
             {
                 gf.LoadQueued = true; //set before enqueueing, or the content thread's clear can land first and strand it
+                gf.LastUseTime = mainCache.CurrentTime;
                 Interlocked.Increment(ref requestQueueCount);
                 requestQueue.Enqueue(gf);
             }
@@ -2856,7 +2857,7 @@ namespace CodeWalker.GameFiles
             lock (updateSyncRoot)
             {
                 contentBatch.Clear();
-                var now = DateTime.Now;
+                var now = mainCache.CurrentTime;
                 while ((contentBatch.Count < MaxItemsPerLoop) && requestQueue.TryDequeue(out GameFile req))
                 {
                     Interlocked.Decrement(ref requestQueueCount);

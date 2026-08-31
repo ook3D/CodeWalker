@@ -171,6 +171,18 @@ namespace CodeWalker.World
 
                 await Task.Delay(checkIntervalMs);
             }
+
+            if ((Ydd != null && !Ydd.Loaded) || (Ytd != null && !Ytd.Loaded) || (Ycd != null && !Ycd.Loaded) ||
+                (Yed != null && !Yed.Loaded) || (Yft != null && !Yft.Loaded) || (Yld != null && !Yld.Loaded))
+            {
+                gfc.ErrorLog?.Invoke($"Ped {JenkIndex.GetString(pedhash)}: timed out waiting for" +
+                    (Ydd != null && !Ydd.Loaded ? " Ydd" : "") +
+                    (Ytd != null && !Ytd.Loaded ? " Ytd" : "") +
+                    (Ycd != null && !Ycd.Loaded ? " Ycd" : "") +
+                    (Yed != null && !Yed.Loaded ? " Yed" : "") +
+                    (Yft != null && !Yft.Loaded ? " Yft" : "") +
+                    (Yld != null && !Yld.Loaded ? " Yld" : ""));
+            }
         }
 
 
