@@ -2418,6 +2418,22 @@ namespace CodeWalker
         {
             InitializeComponent();
 
+            var originalLighting = new CheckBox
+            {
+                Text = "Original GTA lighting (restart)",
+                AutoSize = true,
+                Checked = Settings.Default.UseOriginalLighting,
+                Location = new System.Drawing.Point(10,
+                    OptionsLightingTabPage.Controls.Cast<Control>().Max(control => control.Bottom) + 12)
+            };
+            originalLighting.CheckedChanged += (_, _) =>
+            {
+                Settings.Default.UseOriginalLighting = originalLighting.Checked;
+                Settings.Default.Save();
+            };
+            OptionsLightingTabPage.AutoScroll = true;
+            OptionsLightingTabPage.Controls.Add(originalLighting);
+
             Renderer = new Renderer(this, gameFileCache);
             camera = Renderer.camera;
             timecycle = Renderer.timecycle;
@@ -2561,6 +2577,24 @@ namespace CodeWalker
             camera.FollowEntity = camEntity;
             camEntity.Position = (startupviewmode!=2) ? prevworldpos : Vector3.Zero;
             camEntity.Orientation = Quaternion.LookAtLH(Vector3.Zero, Vector3.Up, Vector3.ForwardLH);
+
+            if (startupviewmode != 2)
+            {
+                var rotation = FloatUtil.ParseVector3String(Settings.Default.StartRotation);
+                if (float.IsFinite(rotation.X) && float.IsFinite(rotation.Y) && float.IsFinite(rotation.Z))
+                {
+                    rotation.Y = Math.Clamp(rotation.Y, -1.55f, 1.55f);
+                    camera.CurrentRotation = rotation;
+                    camera.TargetRotation = rotation;
+                }
+                var savedOrientation = FloatUtil.ParseVector4String(Settings.Default.StartCameraOrientation);
+                var orientation = new Quaternion(savedOrientation.X, savedOrientation.Y, savedOrientation.Z, savedOrientation.W);
+                if (float.IsFinite(orientation.LengthSquared()) && orientation.LengthSquared() > 1e-6f)
+                {
+                    camEntity.Orientation = Quaternion.Normalize(orientation);
+                }
+                camEntity.OrientationInv = Quaternion.Invert(camEntity.Orientation);
+            }
 
             space.AddPersistentEntity(pedEntity);
 
@@ -7010,6 +7044,7 @@ namespace CodeWalker
             {
 #endif
                 UpdateStatus("Loading timecycles...");
+                timecycle.UseModdedData = !Settings.Default.UseOriginalLighting;
                 timecycle.Init(gameFileCache, UpdateStatus);
                 timecycle.SetTime(Renderer.timeofday);
 #if !DEBUG
@@ -7797,6 +7832,12 @@ namespace CodeWalker
             if (s.SavePosition)
             {
                 s.StartPosition = FloatUtil.GetVector3String(camEntity?.Position ?? camera.Position);
+                s.StartRotation = FloatUtil.GetVector3String(camera.CurrentRotation);
+                // Orbit rotation is relative to the followed entity, including
+                // orientations set by camera bookmarks and the Go To command.
+                var orientation = camera.FollowEntity?.Orientation ?? Quaternion.Identity;
+                s.StartCameraOrientation = FloatUtil.GetVector4String(new Vector4(
+                    orientation.X, orientation.Y, orientation.Z, orientation.W));
             }
             if (s.SaveTimeOfDay)
             {

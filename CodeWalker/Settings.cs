@@ -4,6 +4,13 @@ namespace CodeWalker.Properties;
 
 public sealed partial class Settings
 {
+    // Stock lighting can be used while retaining modded geometry and textures.
+    public bool UseOriginalLighting
+    {
+        get => SettingsManager.GetBool(nameof(UseOriginalLighting), true);
+        set => SettingsManager.SetBool(nameof(UseOriginalLighting), value);
+    }
+
     private static Settings? _default;
     
     public static Settings Default
@@ -550,6 +557,18 @@ public sealed partial class Settings
     {
         get => SettingsManager.GetBool(nameof(SavePosition), true);
         set => SettingsManager.SetBool(nameof(SavePosition), value);
+    }
+
+    public string StartRotation
+    {
+        get => SettingsManager.GetString(nameof(StartRotation), "0, 0, 0");
+        set => SettingsManager.SetString(nameof(StartRotation), value);
+    }
+
+    public string StartCameraOrientation
+    {
+        get => SettingsManager.GetString(nameof(StartCameraOrientation), "");
+        set => SettingsManager.SetString(nameof(StartCameraOrientation), value);
     }
 
     public bool SaveTimeOfDay

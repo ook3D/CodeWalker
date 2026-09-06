@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -286,7 +286,7 @@ namespace CodeWalker.Rendering
         public RenderTargetView MSRTV;
         public DepthStencilView MSDSV;
         public ShaderResourceView SRV;
-        //public ShaderResourceView DepthSRV; //possibly causing crash on DX10 hardware when multisampled
+        public ShaderResourceView DepthSRV;
         public int VramUsage;
         public bool Multisampled;
         public bool UseDepth;
@@ -302,7 +302,9 @@ namespace CodeWalker.Rendering
             ShaderResourceViewDimension srvd = ShaderResourceViewDimension.Texture2D;// D3D11_SRV_DIMENSION_TEXTURE2D;
             int fs = DXUtility.ElementSize(f);
             int wh = w * h;
-            BindFlags db = BindFlags.DepthStencil;// | BindFlags.ShaderResource;// D3D11_BIND_DEPTH_STENCIL;
+            // Only expose single-sample depth; multisampled depth sampling is
+            // not supported by all of the DX10 devices used by the viewer.
+            BindFlags db = BindFlags.DepthStencil | (Multisampled ? BindFlags.None : BindFlags.ShaderResource);
             DepthStencilViewDimension dsvd = DepthStencilViewDimension.Texture2D;
             Format dtexf = GetDepthTexFormat(df);
             Format dsrvf = GetDepthSrvFormat(df);
@@ -337,13 +339,15 @@ namespace CodeWalker.Rendering
                 {
                     Depth = DXUtility.CreateTexture2D(device, w, h, 1, 1, dtexf, sc, sq, u, db, 0, 0);
                     DSV = DXUtility.CreateDepthStencilView(device, Depth, df, dsvd);
-                    //DepthSRV = DXUtility.CreateShaderResourceView(device, Depth, dsrvf, srvd, 1, 0, 0, 0);
+                    DepthSRV = DXUtility.CreateShaderResourceView(device, Depth, dsrvf, srvd, 1, 0, 0, 0);
                     VramUsage += (wh * DXUtility.ElementSize(df));
                 }
             }
         }
         public void Dispose()
         {
+            DepthSRV?.Dispose();
+            DepthSRV = null;
             if (SRV != null)
             {
                 SRV.Dispose();

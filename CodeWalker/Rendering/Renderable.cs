@@ -838,10 +838,10 @@ namespace CodeWalker.Rendering
         public float wetnessMultiplier { get; set; } = 0.0f;
         public float bumpiness { get; set; } = 1.0f;
         public Vector4 detailSettings { get; set; } = Vector4.Zero;
-        public Vector3 specMapIntMask { get; set; } = Vector3.Zero;
+        public Vector3 specMapIntMask { get; set; } = Vector3.UnitX;
         public float specularIntensityMult { get; set; } = 0.0f;
-        public float specularFalloffMult { get; set; } = 0.0f;
-        public float specularFresnel { get; set; } = 0.0f;
+        public float specularFalloffMult { get; set; } = 100.0f;
+        public float specularFresnel { get; set; } = 0.97f;
         public float RippleSpeed { get; set; } = 1.0f;
         public float RippleScale { get; set; } = 1.0f;
         public float RippleBumpiness { get; set; } = 1.0f;

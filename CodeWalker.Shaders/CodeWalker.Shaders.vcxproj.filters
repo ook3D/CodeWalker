@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <FxCompile Include="BasicPS.hlsl">
@@ -151,6 +151,7 @@
     <FxCompile Include="PPCopyPixelsPS.hlsl">
       <Filter>PostProcessor</Filter>
     </FxCompile>
+    <FxCompile Include="WorldAtmospherePS.hlsl"><Filter>PostProcessor</Filter></FxCompile>
     <FxCompile Include="PPFinalPassPS.hlsl">
       <Filter>PostProcessor</Filter>
     </FxCompile>
@@ -289,6 +290,13 @@
       <Filter>Sky</Filter>
     </None>
     <None Include="Common.hlsli">
+      <Filter>Common</Filter>
+    </None>
+    <None Include="MaterialAlpha.hlsli"><Filter>Common</Filter></None>
+    <None Include="MaterialLighting.hlsli">
+      <Filter>Common</Filter>
+    </None>
+    <None Include="WorldPostFx.hlsli">
       <Filter>Common</Filter>
     </None>
     <None Include="Quaternion.hlsli">

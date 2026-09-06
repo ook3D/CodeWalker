@@ -109,11 +109,17 @@ namespace CodeWalker.Rendering
     public struct PostProcessorFinalPSVars
     {
         public Vector4 invPixelCount;
+        public Vector4 ExposureParams;
+        public Vector4 BrightFilmic0;
+        public Vector4 BrightFilmic1;
+        public Vector4 DarkFilmic0;
+        public Vector4 DarkFilmic1;
     }
 
 
     public class PostProcessor
     {
+        public CodeWalker.World.Weather ReferenceWeather { get; set; }
         ComputeShader ReduceTo1DCS;
         ComputeShader ReduceTo0DCS;
         ComputeShader LumBlendCS;
@@ -131,6 +137,14 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<PostProcessorFinalPSVars> FinalPSVars;
 
         GpuTexture Primary;
+        WorldAtmosphere Atmosphere;
+
+        public void RenderAtmosphere(DeviceContext context, DeferredScene scene, Camera camera, ShaderGlobalLights lights)
+        {
+            var target = scene?.SceneColour ?? Primary;
+            Atmosphere.Render(context, target, camera, lights);
+            target?.SetRenderTarget(context);
+        }
 
         GpuBuffer<float> Reduction0;
         GpuBuffer<float> Reduction1;
@@ -185,6 +199,7 @@ namespace CodeWalker.Rendering
         public PostProcessor(DXManager dxman)
         {
             var device = dxman.device;
+            Atmosphere = new WorldAtmosphere(device);
 
             byte[] bReduceTo1DCS = PathUtil.ReadAllBytes("Shaders\\PPReduceTo1DCS.cso");
             byte[] bReduceTo0DCS = PathUtil.ReadAllBytes("Shaders\\PPReduceTo0DCS.cso");
@@ -230,6 +245,7 @@ namespace CodeWalker.Rendering
         }
         public void Dispose()
         {
+            Atmosphere.Dispose();
             DisposeBuffers();
 
             if (BlendState != null)
@@ -607,6 +623,34 @@ namespace CodeWalker.Rendering
             else
             {
                 FinalPSVars.Vars.invPixelCount = new Vector4(1.0f / (81 * 81));
+            }
+            var weather = ReferenceWeather;
+            bool reference = weather?.Inited == true;
+            FinalPSVars.Vars.invPixelCount.Y = reference ? 1 : 0;
+            if (reference)
+            {
+                FinalPSVars.Vars.ExposureParams = new Vector4(weather.GetDynamicValue("postfx_exposure"),
+                    weather.GetDynamicValue("postfx_exposure_min"), weather.GetDynamicValue("postfx_exposure_max"),
+                    weather.GetDynamicValue("postfx_intensity_bloom"));
+                var bright0 = new Vector4(0.22f, 0.3f, 0.1f, 0.2f);
+                var bright1 = new Vector4(0.01f, 0.3f, 4, -0.5f);
+                var dark0 = bright0;
+                var dark1 = new Vector4(0, 0.3f, 4, 3);
+                void OverrideFilmic(string suffix, ref Vector4 p0, ref Vector4 p1)
+                {
+                    if (weather.GetDynamicValue("postfx_tonemap_filmic_override" + suffix) <= 0) return;
+                    string prefix = "postfx_tonemap_filmic_";
+                    p0 = new Vector4(weather.GetDynamicValue(prefix + "a" + suffix), weather.GetDynamicValue(prefix + "b" + suffix),
+                        weather.GetDynamicValue(prefix + "c" + suffix), weather.GetDynamicValue(prefix + "d" + suffix));
+                    p1 = new Vector4(weather.GetDynamicValue(prefix + "e" + suffix), weather.GetDynamicValue(prefix + "f" + suffix),
+                        weather.GetDynamicValue(prefix + "w" + suffix), weather.GetDynamicValue(prefix + "exposure" + (suffix == "" ? "_dark" : suffix)));
+                }
+                OverrideFilmic("_bright", ref bright0, ref bright1);
+                OverrideFilmic("", ref dark0, ref dark1);
+                FinalPSVars.Vars.BrightFilmic0 = bright0;
+                FinalPSVars.Vars.BrightFilmic1 = bright1;
+                FinalPSVars.Vars.DarkFilmic0 = dark0;
+                FinalPSVars.Vars.DarkFilmic1 = dark1;
             }
             FinalPSVars.Update(context);
             FinalPSVars.SetPSCBuffer(context, 0);

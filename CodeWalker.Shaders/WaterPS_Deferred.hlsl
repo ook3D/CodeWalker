@@ -70,8 +70,7 @@ PS_OUTPUT main(VS_OUTPUT input)
         c.rgb = tc; // *r0.z; //diffuse factors...
 
         
-        spec.xy = sqrt(10.0 * SpecularIntensity);
-        spec.z = 1;//r0.z;
+        spec = EncodeSpecular(WaterMaterial());
 
         
 
@@ -96,7 +95,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     output.Diffuse = c;
     output.Normal = float4(saturate(norm * 0.5 + 0.5), c.a);
     output.Specular = float4(spec, c.a);
-    output.Irradiance = float4(1, 0, 0, c.a);
+    output.Irradiance = float4(0, 0, 0, c.a);
     
     return output;
 }

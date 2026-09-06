@@ -1,3 +1,4 @@
+#include "MaterialAlpha.hlsli"
 #include "BasicPS.hlsli"
 
 
@@ -50,10 +51,13 @@ PS_OUTPUT main(VS_OUTPUT input)
 
         if (IsDistMap) c = float4(c.rgb * 2, (c.r + c.g + c.b) - 1);
         if (IsDecal == 4) c.a = c.r;
-        if ((IsDecal == 0) && (c.a <= 0.33)) discard;
+        if (AlphaMode == 3) c.a = 1;
+        if (AlphaMode == 4) c.a = MaterialAlphaCoverage(c.a, HardAlphaBlend);
+        if (AlphaMode == 1) ClipMaterialCoverage(c.a * AlphaScale, HardAlphaBlend);
+        if ((AlphaMode == 0) && (IsDecal == 0) && (c.a <= 0.33)) discard;
         if ((IsDecal == 1) && (c.a <= 0.0)) discard;
         if ((IsDecal >= 3) && (c.a <= 0.0)) discard;
-        if (IsDecal == 0) c.a = 1;
+        if ((IsDecal == 0) && (AlphaMode != 2) && (AlphaMode != 4)) c.a = 1;
         if (IsDecal == 2)
         {
             float4 mask = TextureAlphaMask * c;
@@ -100,73 +104,11 @@ PS_OUTPUT main(VS_OUTPUT input)
     if (RenderMode == 0)
     {
 
-        float4 nv = Bumpmap.Sample(TextureSS, texc0);
-        float4 sv = Specmap.Sample(TextureSS, texc0);
+        MaterialSpecular material;
+        float normalAlpha;
+        SampleBasicMaterial(input, texc0, norm, material, normalAlpha);
+        spec = EncodeSpecular(material);
 
-
-        float2 nmv = nv.xy;
-        float4 r0 = 0, r1, r2, r3;
-
-        if (EnableNormalMap)
-        {
-            if (EnableDetailMap)
-            {
-                //detail normalmapp
-                r0.xy = texc0 * detailSettings.zw;
-                r0.zw = r0.xy * 3.17;
-                r0.xy = Detailmap.Sample(TextureSS, r0.xy).xy - 0.5;
-                r0.zw = Detailmap.Sample(TextureSS, r0.zw).xy - 0.5;
-                r0.xy = r0.xy + r0.zw;
-                r0.yz = r0.xy * detailSettings.y; //r0.x = -r0.x*detailSettings.x;
-                nmv = r0.yz * sv.w + nv.xy; //add detail to normal, using specmap(!)
-            }
-
-            norm = NormalMap(nmv, bumpiness, input.Normal.xyz, input.Tangent.xyz, input.Bitangent.xyz);
-
-
-        }
-        
-
-
-        if (EnableSpecMap == 0)
-        {
-            sv = float4(0.1, 0.1, 0.1, 0.1);
-        }
-
-        float r1y = norm.z - 0.35;
-
-        // x=globalAlpha, y=artificialAmbientScale, z=naturalAmbientScale, w=emissiveScale
-        float3 globalScalars = float3(1.0, 1.0, 1.0);
-        float globalScalars2z = 1; // 0.65; //wet darkness?
-        float wetness = 0; // 10.0;
-
-        r0.x = 0; // .5;
-        r0.z = 1 - globalScalars2z;
-        r0.y = saturate(r1y * 1.538462);
-        r0.y = r0.y * wetness;
-        r0.y = r0.y * r0.z;
-        r1.yz = input.Colour0.xy * globalScalars.zy;
-        r0.y = r0.y * r1.y;
-        r0.x = r0.x * sv.w + 1.0;
-        sv.xy = sv.xy * sv.xy;
-        r0.z = sv.w * specularFalloffMult;
-        r3.y = r0.z * 0.001953125; // (1/512)
-        r0.z = dot(sv.xyz, specMapIntMask);
-        r0.z = r0.z * specularIntensityMult;
-        r3.x = r0.x * r0.z;
-        r0.z = saturate(r0.z * r0.x + 0.4);
-        r0.z = 1 - r3.x * 0.5;
-        r0.z = r0.z * r0.y;
-        r0.y = r0.y * wetnessMultiplier;
-        r0.z = 1 - r0.z * 0.5;
-
-        float3 tc = c.rgb * r0.x;
-        c.rgb = tc * r0.z; //diffuse factors...
-
-
-        spec.xy = sqrt(r3.xy);
-        spec.z = r0.z;
-        
     }
 
 
@@ -174,7 +116,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     // Vertex COLOR0.b modulates the emissive intensity
     float emiss = (IsEmissive == 1) ? input.Colour0.b : 0.0;
 
-    c.a = saturate(c.a);
+    c.a = (AlphaMode == 3) ? 1.0 : saturate(c.a);
     
     
     float4 a = c.aaaa;
@@ -186,7 +128,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     output.Diffuse = float4(c.rgb, a.x);
     output.Normal = float4(saturate(norm * 0.5 + 0.5), a.y);
     output.Specular = float4(spec, a.z);
-    float2 irr = sqrt(input.Colour0.rg * 0.5);
+    float2 irr = EncodeAmbient(input.Colour0.rg);
     output.Irradiance = float4(irr, emiss, a.w);
 
     return output;

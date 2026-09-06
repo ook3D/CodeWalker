@@ -75,38 +75,23 @@ float3 GetReflectedDir(float3 camRel, float3 norm)
 float4 GetLineSegmentNearestPoint(float3 v, float3 a, float3 b)
 {
     float3 ab = b - a;
-    float3 av = v - a;
-    if (dot(av, ab) <= 0.0f)// Point is lagging behind start of the segment, so perpendicular distance is not viable.
-    {
-        return float4(av, length(av));
-    }
-    else
-    {
-        float3 bv = v - b;
-        if (dot(bv, ab) >= 0.0f)// Point is advanced past the end of the segment, so perpendicular distance is not viable.
-        {
-            return float4(bv, length(bv));
-        }
-        else
-        {
-            float3 abv = cross(ab, av);
-            float d = length(abv) / length(ab);
-            return float4(normalize(cross(abv, ab)) * d, d); //improve this!
-        }
-    }
+    float t = saturate(dot(v - a, ab) / max(dot(ab, ab), 1e-12));
+    float3 offset = v - (a + ab * t);
+    return float4(offset, length(offset));
 }
 
 float __powapprox(float a, float b)
 {
-    return a / ((1.0 - b) * a + b);
+    return a / max((1.0 - b) * a + b, 1e-12);
 }
 
 float GetAttenuation(float ldist, float falloff, float falloffExponent)
 {
+    if (falloff <= 0) return 0;
     float distSqr = ldist * ldist;
     float invSqrFalloff = 1.0 / (falloff * falloff);
     float t = saturate(1.0 - distSqr * invSqrFalloff);
-    return __powapprox(t, falloffExponent);
+    return __powapprox(t, max(falloffExponent, 0));
 }
 
 float GetSpotAngularAttenuation(float3 surfaceToLightDir, float3 lightDirection,
@@ -121,22 +106,25 @@ float GetSpotAngularAttenuation(float3 surfaceToLightDir, float3 lightDirection,
 
 float3 DeferredDirectionalLight(float3 camRel, float3 norm, float4 diffuse, float4 specular, float4 irradiance)
 {
-    float3 lightDir = GlobalLights.LightDir;
-    float3 viewDir = normalize(-camRel);
-    float3 halfVec = normalize(lightDir + viewDir);
-    float NdotH = saturate(dot(norm, halfVec));
-    float specExponent = max(specular.g * 512.0, 1.0);
-    float specp = pow(NdotH + 1e-8, specExponent + 1e-8);
-    float3 spec = GlobalLights.LightDirColour.rgb * specp * specular.r;
+    diffuse.rgb = MaterialDiffuseColour(diffuse.rgb);
+    norm = LightingDirection(norm);
+    MaterialSpecular material = DecodeSpecular(specular.rgb);
+    float3 viewDir = LightingDirection(-camRel);
+    float3 spec = GlobalLights.LightDirColour.rgb
+        * MaterialSpecularLight(material, norm, GlobalLights.LightDir, viewDir);
+    float diffuseScale = MaterialDiffuseScale(material, norm, viewDir);
+    float4 ambient = float4(DecodeAmbient(irradiance.rg), 0, 0);
     float4 lightspacepos;
     float shadowdepth = ShadowmapSceneDepth(camRel, lightspacepos);
-    float3 c = FullLighting(diffuse.rgb, spec, norm, irradiance, GlobalLights, EnableShadows, shadowdepth, lightspacepos);
+    float3 c = FullLighting(diffuse.rgb * diffuseScale, spec, norm, ambient, GlobalLights, EnableShadows, shadowdepth, lightspacepos);
     c += diffuse.rgb * irradiance.b; //emissive multiplier
     return c;
 }
 
 float4 DeferredLODLight(float3 camRel, float3 norm, float4 diffuse, float4 specular, float4 irradiance, uint iid)
 {
+    diffuse.rgb = MaterialDiffuseColour(diffuse.rgb);
+    norm = LightingDirection(norm);
     LODLight lodlight = LODLights[iid];
     float3 srpos = lodlight.Position - (camRel + CameraPos.xyz); //light position relative to surface position
     float ldist = length(srpos);
@@ -177,19 +165,19 @@ float4 DeferredLODLight(float3 camRel, float3 norm, float4 diffuse, float4 specu
 
     if (pclit <= 0) return 0;
 
-    float3 halfVec = normalize(ldir + normalize(-camRel));
-    float NdotH = saturate(dot(norm, halfVec));
-    float specExponent = max(specular.g * 512.0, 1.0);
-    float specp = pow(NdotH + 1e-8, specExponent + 1e-8);
-    float3 spec = lcol * (specp * specular.r * lamt);
-
-    lcol = lcol * diffuse.rgb * pclit + spec;
+    MaterialSpecular material = DecodeSpecular(specular.rgb);
+    float3 viewDir = LightingDirection(-camRel);
+    float3 spec = lcol * lamt * MaterialSpecularLight(material, norm, ldir, viewDir);
+    float diffuseScale = MaterialDiffuseScale(material, norm, viewDir);
+    lcol = lcol * diffuse.rgb * diffuseScale * pclit + spec;
 
     return float4(lcol, 1);
 }
 
 float4 DeferredLight(float3 camRel, float3 norm, float4 diffuse, float4 specular, float4 irradiance)
 {
+    diffuse.rgb = MaterialDiffuseColour(diffuse.rgb);
+    norm = LightingDirection(norm);
     float3 srpos = InstPosition - camRel; //light position relative to surface position
     float ldist = length(srpos);
     if (InstCullingPlaneEnable == 1)
@@ -232,13 +220,11 @@ float4 DeferredLight(float3 camRel, float3 norm, float4 diffuse, float4 specular
 
     if (pclit <= 0) return 0;
 
-    float3 halfVec = normalize(ldir + normalize(-camRel));
-    float NdotH = saturate(dot(norm, halfVec));
-    float specExponent = max(specular.g * 512.0, 1.0);
-    float specp = pow(NdotH + 1e-8, specExponent + 1e-8);
-    float3 spec = lcol * (specp * specular.r * lamt);
-
-    lcol = lcol * diffuse.rgb * pclit + spec;
+    MaterialSpecular material = DecodeSpecular(specular.rgb);
+    float3 viewDir = LightingDirection(-camRel);
+    float3 spec = lcol * lamt * MaterialSpecularLight(material, norm, ldir, viewDir);
+    float diffuseScale = MaterialDiffuseScale(material, norm, viewDir);
+    lcol = lcol * diffuse.rgb * diffuseScale * pclit + spec;
 
     return float4(lcol, 1);
 }

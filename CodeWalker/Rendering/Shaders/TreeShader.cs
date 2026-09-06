@@ -265,7 +265,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.bumpiness = geom.bumpiness;
             PSGeomVars.Vars.AlphaScale = 1.0f;
             PSGeomVars.Vars.HardAlphaBlend = 0.0f;
-            PSGeomVars.Vars.useTessellation = 0;
+            PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode(geom.DrawableGeom.Shader.FileName.Hash, geom.DrawableGeom.Shader.RenderBucket);
             PSGeomVars.Vars.specMapIntMask = geom.specMapIntMask;
             PSGeomVars.Vars.specularIntensityMult = geom.specularIntensityMult;
             PSGeomVars.Vars.specularFalloffMult = geom.specularFalloffMult;

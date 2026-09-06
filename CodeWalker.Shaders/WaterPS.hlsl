@@ -69,11 +69,12 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         float3 tc = c.rgb;
         c.rgb = tc;// *r0.z; //diffuse factors...
 
-        float3 viewDir = normalize(-input.CamRelPos);
-        float3 halfVec = normalize(GlobalLights.LightDir + viewDir);
-        float NdotH = saturate(dot(norm, halfVec));
-        float specp = pow(NdotH + 1e-8, 128.0 + 1e-8); //water uses high specular exponent
-        spec += GlobalLights.LightDirColour.rgb * specp * SpecularIntensity;
+        MaterialSpecular material = WaterMaterial();
+        float3 viewDir = LightingDirection(-input.CamRelPos);
+        spec = GlobalLights.LightDirColour.rgb
+            * MaterialSpecularLight(material, norm, GlobalLights.LightDir, viewDir);
+        c.rgb *= MaterialDiffuseScale(material, norm, viewDir);
+
 
         if (ShaderMode == 1) //river foam
         {
@@ -94,7 +95,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
     float4 fc = c;
 
-    c.rgb = FullLighting(c.rgb, spec, norm, 0, GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow);
+    c.rgb = FullLighting(MaterialDiffuseColour(c.rgb), spec, norm, 0, GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow);
     c.a = saturate(c.a);
     return c;
 }

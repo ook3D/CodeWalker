@@ -432,9 +432,14 @@ namespace CodeWalker.GameFiles
 
         public RpfEntry GetEntry(string path)
         {
+            return GetEntry(path, true);
+        }
+
+        public RpfEntry GetEntry(string path, bool includeMods)
+        {
             RpfEntry entry;
             string pathl = path.ToLowerInvariant();
-            if (EnableMods && ModEntryDict.TryGetValue(pathl, out entry))
+            if (includeMods && EnableMods && ModEntryDict.TryGetValue(pathl, out entry))
             {
                 return entry;
             }
@@ -443,7 +448,7 @@ namespace CodeWalker.GameFiles
             {
                 pathl = pathl.Replace("/", "\\");
                 pathl = pathl.Replace("common:", "common.rpf");
-                if (EnableMods && ModEntryDict.TryGetValue(pathl, out entry))
+                if (includeMods && EnableMods && ModEntryDict.TryGetValue(pathl, out entry))
                 {
                     return entry;
                 }
@@ -466,8 +471,14 @@ namespace CodeWalker.GameFiles
         }
         public XmlDocument GetFileXml(string path)
         {
+            return GetFileXml(path, true);
+        }
+
+        public XmlDocument GetFileXml(string path, bool includeMods)
+        {
             XmlDocument doc = new();
-            string text = GetFileUTF8Text(path);
+            var entry = GetEntry(path, includeMods) as RpfFileEntry;
+            string text = (entry == null) ? null : TextUtil.GetUTF8Text(entry.File.ExtractFile(entry));
             if (!string.IsNullOrEmpty(text))
             {
                 doc.LoadXml(text);

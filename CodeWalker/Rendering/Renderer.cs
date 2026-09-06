@@ -472,6 +472,7 @@ namespace CodeWalker.Rendering
             Vector3 lightdir = Vector3.Zero;//will be updated before each frame from X and Y vars
             Color4 lightdircolour = Color4.White;
             Color4 lightdirambcolour = new Color4(0.5f, 0.5f, 0.5f, 1.0f);
+            float directionalAmbientBounce = 0.0f;
             Color4 lightnaturalupcolour = new Color4(0.0f);
             Color4 lightnaturaldowncolour = new Color4(0.0f);
             Color4 lightartificialupcolour = new Color4(0.0f);
@@ -503,138 +504,21 @@ namespace CodeWalker.Rendering
             }
             else
             {
-                float sunroll = timecycle.sun_roll * (float)Math.PI / 180.0f;  //122
-                float moonroll = timecycle.moon_roll * (float)Math.PI / 180.0f;  //-122
-                float moonwobamp = timecycle.moon_wobble_amp; //0.2
-                float moonwobfreq = timecycle.moon_wobble_freq; //2
-                float moonwoboffs = timecycle.moon_wobble_offset; //0.375
-
-                // 3-segment piecewise function
-                // SUN_RISE_TIME=6, SUN_SET_TIME=20, SUN_RISE_TO_SET_TIME=14, SUN_SET_TO_MIDNIGHT_TIME=4
-                float sunAngle;
-                if (timeofday < 6.0f)
-                {
-                    sunAngle = 0.5f * (float)Math.PI * (timeofday / 6.0f);
-                }
-                else if (timeofday < 20.0f)
-                {
-                    float timeSinceSunRise = timeofday - 6.0f;
-                    sunAngle = 0.5f * (float)Math.PI + (float)Math.PI * (timeSinceSunRise / 14.0f);
-                }
-                else
-                {
-                    float timeSinceSunSet = timeofday - 20.0f;
-                    sunAngle = 1.5f * (float)Math.PI + 0.5f * (float)Math.PI * (timeSinceSunSet / 4.0f);
-                }
-
-                // offset from sun angle based on cycle time
-                float moonAngle = sunAngle + (float)Math.PI; // simplified: moon opposite sun
-
-                Vector3 sunSlopeVec = new Vector3(0.0f, (float)Math.Cos(sunroll), (float)Math.Sin(sunroll));
-                Vector3 moonSlopeVec = new Vector3(0.0f, (float)Math.Cos(moonroll), (float)Math.Sin(moonroll));
-
-                Vector3 sdir = sunSlopeVec * (-(float)Math.Cos(sunAngle)) + Vector3.UnitX * (float)Math.Sin(sunAngle);
-                Vector3 mdir = moonSlopeVec * (-(float)Math.Cos(moonAngle)) + Vector3.UnitX * (float)Math.Sin(moonAngle);
-
-                sundir = Vector3.Normalize(sdir);
-                moondir = Vector3.Normalize(mdir);
-                moonax = Vector3.Normalize(Vector3.Cross(Vector3.UnitX, moonSlopeVec));
-
-                if (swaphemisphere)
-                {
-                    sundir.Y = -sundir.Y;
-                }
-
-                // sun/moon fade blending
-                // SUN_MOON_TIME=21.5, MOON_SUN_TIME=4.5
-                float sunFade = 1.0f;
-                float moonFade = 0.0f;
-                if (timeofday > 20.0f)
-                {
-                    sunFade = 1.0f - Math.Clamp((timeofday - 21.5f) * 4.0f, 0.0f, 1.0f);
-                    moonFade = Math.Clamp((timeofday - 21.75f) * 4.0f, 0.0f, 1.0f);
-                }
-                else if (timeofday < 6.0f)
-                {
-                    sunFade = Math.Clamp((timeofday - 4.75f) * 4.0f, 0.0f, 1.0f);
-                    moonFade = 1.0f - Math.Clamp((timeofday - 4.5f) * 4.0f, 0.0f, 1.0f);
-                }
-
-                // Blend directional light between sun and moon
-                float totalFade = sunFade * 100.0f + moonFade;
-                if (totalFade > float.Epsilon)
-                {
-                    float sunWeight = sunFade * 100.0f / totalFade;
-                    float moonWeight = moonFade / totalFade;
-                    lightdir = Vector3.Normalize(sundir * sunWeight + moondir * moonWeight);
-                }
-                else
-                {
-                    lightdir = sundir;
-                }
-
-                // clamps directional Z to prevent long shadows
-                if (lightdir.Z < 0.33f)
-                {
-                    lightdir.Z = 0.33f;
-                    lightdir = Vector3.Normalize(lightdir);
-                }
-
-                //lightdir = Vector3.Normalize(weather.CurrentValues.sunDirection);
-
-                if ((weather != null) && weather.Inited)
-                {
-                    lightdircolour = (Color4)weather.CurrentValues.lightDirCol;
-                    lightdirambcolour = (Color4)weather.CurrentValues.lightDirAmbCol;
-                    lightnaturalupcolour = (Color4)weather.CurrentValues.lightNaturalAmbUp;
-                    lightnaturaldowncolour = (Color4)weather.CurrentValues.lightNaturalAmbDown;
-                    lightartificialupcolour = (Color4)weather.CurrentValues.lightArtificialExtUp;
-                    lightartificialdowncolour = (Color4)weather.CurrentValues.lightArtificialExtDown;
-                    float lamult = weather.CurrentValues.lightDirAmbIntensityMult;
-                    float abounce = weather.CurrentValues.lightDirAmbBounce;
-                    float minmult = hdr ? 0.0f : 0.5f;
-                    lightdircolour *= Math.Max(lightdircolour.Alpha, minmult);
-                    lightdirambcolour *= lightdirambcolour.Alpha * lamult; // 0.1f * lamult;
-
-                    //if (usemoon)
-                    //{
-                    //    lightdircolour *= weather.CurrentValues.skyMoonIten;
-                    //}
-
-
-                    lightnaturalupcolour *= lightnaturalupcolour.Alpha * weather.CurrentValues.lightNaturalAmbUpIntensityMult;
-                    lightnaturaldowncolour *= lightnaturaldowncolour.Alpha;
-                    lightartificialupcolour *= lightartificialupcolour.Alpha;
-                    lightartificialdowncolour *= lightartificialdowncolour.Alpha;
-
-                    // packs ambientDownWrap ONLY into gLightNaturalAmbient0.w
-                    // Artificial ambient does NOT use wrap (its .w stores directional ambient direction)
-                    float ambDownWrap = weather.CurrentValues.lightAmbDownWrap;
-                    lightnaturaldowncolour.Alpha = ambDownWrap;
-                    lightartificialdowncolour.Alpha = 0.0f; // no wrap for artificial ambient
-
-                    if (!hdr)
-                    {
-                        Color4 maxdirc = new Color4(1.0f);
-                        Color4 maxambc = new Color4(0.5f);
-                        lightdircolour = Color4.Min(lightdircolour, maxdirc);
-                        lightdirambcolour = Color4.Min(lightdirambcolour, maxambc);
-                        lightnaturalupcolour = Color4.Min(lightnaturalupcolour, maxambc);
-                        lightnaturaldowncolour = Color4.Min(lightnaturaldowncolour, maxambc);
-                        lightartificialupcolour = Color4.Min(lightartificialupcolour, maxambc);
-                        lightartificialdowncolour = Color4.Min(lightartificialdowncolour, maxambc);
-                        // Restore wrap value after SDR clamping (not a color, shouldn't be clamped)
-                        lightnaturaldowncolour.Alpha = ambDownWrap;
-                        // artificial alpha stays 0 (no wrap)
-                    }
-                    else
-                    {
-                        hdrint = weather.CurrentValues.skyHdr;//.lightDirCol.W;
-                    }
-                }
-
-
+                var frame = WorldLighting.Evaluate(timecycle, weather.CurrentValues, timeofday, hdr, swaphemisphere);
+                lightdir = frame.Parameters.LightDir;
+                lightdircolour = frame.Parameters.LightDirColour;
+                lightdirambcolour = frame.Parameters.LightDirAmbColour;
+                directionalAmbientBounce = lightdirambcolour.Alpha;
+                lightnaturalupcolour = frame.Parameters.LightNaturalAmbUp;
+                lightnaturaldowncolour = frame.Parameters.LightNaturalAmbDown;
+                lightartificialupcolour = frame.Parameters.LightArtificialAmbUp;
+                lightartificialdowncolour = frame.Parameters.LightArtificialAmbDown;
+                sundir = frame.Sun;
+                moondir = frame.Moon;
+                moonax = frame.MoonAxis;
+                hdrint = frame.SkyIntensity;
             }
+
 
             globalLights.Weather = weather;
             globalLights.HdrEnabled = hdr;
@@ -645,11 +529,16 @@ namespace CodeWalker.Rendering
             globalLights.MoonAxis = moonax;
             globalLights.Params.LightDir = lightdir;
             globalLights.Params.LightDirColour = lightdircolour;
+            // RGB already includes timecycle intensity. Preserve the bounce
+            // blend separately from the HDR/SDR colour scaling above.
+            lightdirambcolour.Alpha = directionalAmbientBounce;
             globalLights.Params.LightDirAmbColour = lightdirambcolour;
             globalLights.Params.LightNaturalAmbUp = rendernaturalambientlight ? lightnaturalupcolour : Color4.Black;
             globalLights.Params.LightNaturalAmbDown = rendernaturalambientlight ? lightnaturaldowncolour : Color4.Black;
             globalLights.Params.LightArtificialAmbUp = renderartificialambientlight ? lightartificialupcolour : Color4.Black;
             globalLights.Params.LightArtificialAmbDown = renderartificialambientlight ? lightartificialdowncolour : Color4.Black;
+
+
 
 
             if (shaders != null)

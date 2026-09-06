@@ -45,6 +45,18 @@ cbuffer PSGeomVars : register(b2)
 }
 
 
+// Water remains a viewer approximation; constrain it to the existing UNORM
+// G-buffer range so switching between forward/deferred doesn't change the BRDF.
+MaterialSpecular WaterMaterial()
+{
+    MaterialSpecular material;
+    material.Intensity = saturate(SpecularIntensity);
+    material.Exponent = clamp(SpecularFalloff, 0, 512);
+    material.Fresnel = 0.97;
+    return material;
+}
+
+
 struct VS_OUTPUT
 {
     float4 Position : SV_POSITION;

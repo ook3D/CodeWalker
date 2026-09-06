@@ -12,6 +12,7 @@ namespace CodeWalker.World
     public class Timecycle
     {
         public volatile bool Inited = false;
+        public bool UseModdedData { get; set; } = true;
 
         public float sun_roll { get; set; }
         public float sun_yaw { get; set; }
@@ -35,7 +36,7 @@ namespace CodeWalker.World
 
             string filename = "common.rpf\\data\\levels\\gta5\\time.xml";
 
-            XmlDocument timexml = rpfman.GetFileXml(filename);
+            XmlDocument timexml = rpfman.GetFileXml(filename, UseModdedData);
 
             XmlElement time = timexml.DocumentElement;
             XmlNode suninfo = time.SelectSingleNode("suninfo");

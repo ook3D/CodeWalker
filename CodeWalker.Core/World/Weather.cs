@@ -42,7 +42,7 @@ namespace CodeWalker.World
                 filename = "update\\update.rpf\\common\\data\\levels\\gta5\\weather.xml";
             }
 
-            XmlDocument weatherxml = rpfman.GetFileXml(filename);
+            XmlDocument weatherxml = rpfman.GetFileXml(filename, timecycle.UseModdedData);
 
             XmlElement weather = weatherxml.DocumentElement;
 
@@ -60,7 +60,7 @@ namespace CodeWalker.World
             for (int i = 0; i < weathertypes.Count; i++)
             {
                 var weathertype = new WeatherType();
-                weathertype.Init(gameFileCache, weathertypes[i]);
+                weathertype.Init(gameFileCache, weathertypes[i], timecycle.UseModdedData);
                 WeatherTypes[weathertype.Name] = weathertype;
             }
 
@@ -282,7 +282,7 @@ namespace CodeWalker.World
 
         public WeatherCycleKeyframeData TimeCycleData;
 
-        public void Init(GameFileCache gameFileCache, XmlNode node)
+        public void Init(GameFileCache gameFileCache, XmlNode node, bool includeMods = true)
         {
             Name = Xml.GetChildInnerText(node, "Name");
             NameHash = new MetaHash(JenkHash.GenHash(Name.ToLowerInvariant()));
@@ -335,11 +335,11 @@ namespace CodeWalker.World
                 {
                     fname = fname.Replace("common:", "update/update.rpf/common");
                 }
-                XmlDocument tcxml = gameFileCache.RpfMan.GetFileXml(fname);
+                XmlDocument tcxml = gameFileCache.RpfMan.GetFileXml(fname, includeMods);
                 if (useupd && !tcxml.HasChildNodes)
                 {
                     fname = TimeCycleFilename.ToLowerInvariant();
-                    tcxml = gameFileCache.RpfMan.GetFileXml(fname);
+                    tcxml = gameFileCache.RpfMan.GetFileXml(fname, includeMods);
                 }
 
                 foreach (XmlNode cycle in tcxml.DocumentElement.ChildNodes)
@@ -470,7 +470,7 @@ namespace CodeWalker.World
         {
             //read data node
             Name = node.Name;
-            string[] strvals = node.InnerText.Trim().Split(' ');
+            string[] strvals = node.InnerText.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
             Values = new float[strvals.Length];
             for (int i = 0; i < strvals.Length; i++)
             {

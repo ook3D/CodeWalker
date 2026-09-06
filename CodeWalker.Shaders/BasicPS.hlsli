@@ -31,7 +31,7 @@ cbuffer PSGeomVars : register(b2)
     float bumpiness;
     float AlphaScale;
     float HardAlphaBlend;
-    float useTessellation;
+    uint AlphaMode; // 0 = legacy, 1 = cutout, 2 = alpha cloth, 3 = opaque, 4 = alpha fence
     float4 detailSettings;
     float3 specMapIntMask;
     float specularIntensityMult;
@@ -71,6 +71,32 @@ struct PS_OUTPUT
     float4 Specular : SV_Target2;
     float4 Irradiance : SV_Target3;
 };
+
+// Shared by the forward and deferred paths. Keep the original specular alpha
+// for detail normals: only R/G are squared when decoding the specular material.
+void SampleBasicMaterial(VS_OUTPUT input, float2 texcoord, out float3 normal,
+    out MaterialSpecular material, out float normalAlpha)
+{
+    float4 normalSample = Bumpmap.Sample(TextureSS, texcoord);
+    float4 specularSample = Specmap.Sample(TextureSS, texcoord);
+    normalAlpha = normalSample.a;
+    normal = normalize(input.Normal);
+    if (EnableNormalMap)
+    {
+        float2 normalXY = normalSample.xy;
+        if (EnableDetailMap)
+        {
+            float2 detailUV = texcoord * detailSettings.zw;
+            float2 detail = Detailmap.Sample(TextureSS, detailUV).xy - 0.5;
+            detail += Detailmap.Sample(TextureSS, detailUV * 3.17).xy - 0.5;
+            normalXY += detail * detailSettings.y * specularSample.a;
+        }
+        normal = NormalMap(normalXY, bumpiness, input.Normal, input.Tangent.xyz, input.Bitangent.xyz);
+    }
+
+    material = ReadSpecularMaterial(specularSample, EnableSpecMap != 0,
+        specMapIntMask, specularIntensityMult, specularFalloffMult, specularFresnel);
+}
 
 
 

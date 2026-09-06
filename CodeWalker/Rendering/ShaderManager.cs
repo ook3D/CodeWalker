@@ -1,4 +1,4 @@
-﻿using CodeWalker.GameFiles;
+using CodeWalker.GameFiles;
 using CodeWalker.Properties;
 using CodeWalker.World;
 using SharpDX;
@@ -480,6 +480,9 @@ namespace CodeWalker.Rendering
                     shadowbatches.AddRange(bucket.CutoutBatches);
                     shadowbatches.AddRange(bucket.TreesBatches);
                     shadowbatches.AddRange(bucket.ClothBatches);
+                    foreach (var batch in bucket.ForwardAlphaBatches)
+                        if (MaterialAlpha.Mode(batch.Key.ShaderFile.Hash, batch.Geometries[0].Geom.DrawableGeom.Shader.RenderBucket) == 4)
+                            shadowbatches.Add(batch);
                 }
             }
 
@@ -688,6 +691,17 @@ namespace CodeWalker.Rendering
 
 
 
+            RenderAlphaMaterials(context);
+
+            if (HDR != null)
+            {
+                context.Rasterizer.State = rsSolid;
+                context.OutputMerger.DepthStencilState = dsDisableAll;
+                HDR.RenderAtmosphere(context, DefScene, Camera, GlobalLights);
+                context.OutputMerger.BlendState = bsDefault;
+                context.OutputMerger.DepthStencilState = dsEnabled;
+            }
+
             if (RenderBoundGeoms.Count > 0) //collision meshes pass
             {
                 if (DefScene != null)
@@ -740,6 +754,7 @@ namespace CodeWalker.Rendering
                     DefScene.SSAAPass(context);
                 }
 
+                HDR.ReferenceWeather = GlobalLights.Weather;
                 HDR.Render(DXMan, CurrentElapsedTime, DefScene);
             }
             else if (DefScene != null)
@@ -825,6 +840,34 @@ namespace CodeWalker.Rendering
             context.Rasterizer.State = rsSolid;
         }
 
+
+        private readonly List<RenderableGeometryInst> forwardAlpha = new List<RenderableGeometryInst>();
+
+        private void RenderAlphaMaterials(DeviceContext context)
+        {
+            forwardAlpha.Clear();
+            foreach (var bucket in RenderBuckets)
+                foreach (var batch in bucket.ForwardAlphaBatches)
+                    forwardAlpha.AddRange(batch.Geometries);
+            if (forwardAlpha.Count == 0) return;
+
+            // Blend lit fences and cloth over opaque scene colour; never blend its normals
+            // or material parameters into an unrelated surface's G-buffer.
+            forwardAlpha.Sort((a, b) => b.Inst.Distance.CompareTo(a.Inst.Distance));
+            bool wasDeferred = Basic.Deferred;
+            Basic.Deferred = false;
+            Basic.DecalMode = true;
+            context.Rasterizer.State = wireframe ? rsWireframeDblSided : rsSolidDblSided;
+            context.OutputMerger.BlendState = bsDefault;
+            context.OutputMerger.DepthStencilState = dsDisableWrite;
+            Basic.SetShader(context);
+            Basic.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
+            RenderGeometryBatch(context, forwardAlpha, Basic);
+            Basic.UnbindResources(context);
+            Basic.DecalMode = false;
+            Basic.Deferred = wasDeferred;
+            context.OutputMerger.DepthStencilState = dsEnabled;
+        }
 
         private void RenderGeometryBatches(DeviceContext context, List<ShaderBatch> batches, Shader shader)
         {
@@ -1180,6 +1223,7 @@ namespace CodeWalker.Rendering
         public List<ShaderBatch> WaterBatches = new List<ShaderBatch>();
         public List<ShaderBatch> Water2Batches = new List<ShaderBatch>();
         public List<ShaderBatch> AlphaBatches = new List<ShaderBatch>();
+        public List<ShaderBatch> ForwardAlphaBatches = new List<ShaderBatch>();
         public List<ShaderBatch> GlassBatches = new List<ShaderBatch>();
         public List<ShaderBatch> CutoutBatches = new List<ShaderBatch>();
         public List<ShaderBatch> GrassFurBatches = new List<ShaderBatch>();
@@ -1210,6 +1254,7 @@ namespace CodeWalker.Rendering
             WaterBatches.Clear();
             Water2Batches.Clear();
             AlphaBatches.Clear();
+            ForwardAlphaBatches.Clear();
             GlassBatches.Clear();
             CutoutBatches.Clear();
             GrassFurBatches.Clear();
@@ -1224,6 +1269,8 @@ namespace CodeWalker.Rendering
             {
                 if (kvp.Value.Geometries.Count == 0) continue;
 
+                var material = kvp.Value.Geometries[0].Geom.DrawableGeom.Shader;
+                uint alphaMode = MaterialAlpha.Mode(kvp.Key.ShaderFile.Hash, material.RenderBucket);
                 List<ShaderBatch> b = null;
                 switch (kvp.Key.ShaderFile.Hash)
                 {
@@ -1300,11 +1347,13 @@ namespace CodeWalker.Rendering
                         break;
                     #endregion
                     #region cutout batches
+                    case 2219447268://{cutout_fence.sps}
+                    case 3091995132://{cutout_fence_normal.sps}
+                        b = CutoutBatches;
+                        break;
                     case 1530399584://{cutout.sps}
                     case 3190732435://{cutout_um.sps}
                     case 3959636627://{cutout_tnt.sps}
-                    case 2219447268://{cutout_fence.sps}
-                    case 3091995132://{cutout_fence_normal.sps}
                     case 3187789425://{cutout_hard.sps}
                     case 3339370144://{cutout_spec_tnt.sps}
                     case 1264076685://{normal_cutout.sps}
@@ -1521,6 +1570,21 @@ namespace CodeWalker.Rendering
                         break;
                 }
 
+                // Select the shader family first, then let the material bucket select
+                // coverage/blending. Never move water, terrain or trees to BasicShader.
+                if (b == BasicBatches || b == CutoutBatches || b == ClothBatches ||
+                    b == AlphaBatches || b == GlassBatches || b == DecalBatches)
+                {
+                    if (alphaMode == 2 || alphaMode == 4) b = ForwardAlphaBatches;
+                    else if (alphaMode == 1) b = CutoutBatches;
+                    else if (alphaMode == 3)
+                    {
+                        // Preserve double-sided cloth/cutout geometry while disabling alpha.
+                        if (b != CutoutBatches && b != ClothBatches) b = BasicBatches;
+                    }
+                    else if (material.RenderBucket == 2) b = DecalBatches;
+                }
+
                 if (b != null)
                 {
                     b.Add(kvp.Value);
@@ -1563,7 +1627,7 @@ namespace CodeWalker.Rendering
         public Vector3 LightDir;
         public float LightHdr; //global intensity
         public Color4 LightDirColour;
-        public Color4 LightDirAmbColour;
+        public Color4 LightDirAmbColour; // RGB: intensity-scaled colour; A: timecycle bounce blend
         public Color4 LightNaturalAmbUp;
         public Color4 LightNaturalAmbDown;
         public Color4 LightArtificialAmbUp;
