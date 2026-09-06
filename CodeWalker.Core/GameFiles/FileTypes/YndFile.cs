@@ -78,7 +78,7 @@ namespace CodeWalker.GameFiles
             Name = entry.Name;
             RpfFileEntry = entry;
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");
@@ -549,7 +549,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        private void UpdateJunctionTriangleVertices(YndNode[] selectedNodes)
+        private void UpdateJunctionTriangleVertices(YndNode[]? selectedNodes)
         {
             if (selectedNodes == null)
             {
@@ -1036,7 +1036,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public YndLink AddLink(YndNode tonode = null, bool bidirectional = true)
+        public YndLink AddLink(YndNode? tonode = null, bool bidirectional = true)
         {
             if (Links == null)
             {
@@ -1394,7 +1394,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void CopyFlags(YndLink link)
+        public void CopyFlags(YndLink? link)
         {
             if (link == null) return;
             // Copy flag bits (bits 0-23), preserve Distance (bits 24-31)
@@ -1913,7 +1913,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static TextHash GetTextHash(string str)
+        public static TextHash GetTextHash(string? str)
         {
             if (string.IsNullOrEmpty(str))
             {

@@ -50,7 +50,7 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = Ybn?.RpfFileEntry?.Name ?? Ybn?.Name;
+            string? fn = Ybn?.RpfFileEntry?.Name ?? Ybn?.Name;
             if (string.IsNullOrEmpty(fn)) fn = "untitled.ybn";
             Text = fn + ((Ybn?.HasChanged??false) ? "*" : "");
         }

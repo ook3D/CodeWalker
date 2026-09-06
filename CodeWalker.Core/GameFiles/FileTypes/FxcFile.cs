@@ -689,7 +689,7 @@ namespace CodeWalker.GameFiles
         }
         public static string[] ReadStringArray(BinaryReader br)
         {
-            string[] r = null;
+            string[]? r = null;
 
             byte sc = br.ReadByte();
             if (sc > 0)

@@ -80,14 +80,14 @@ namespace CodeWalker.GameFiles
         /// Initializes a new resource data reader for the specified system- and graphics-stream.
         /// </summary>
         public ResourceDataReader(Stream systemStream, Stream graphicsStream, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base((Stream?)null, endianess)
         {
             this.systemStream = systemStream;
             this.graphicsStream = graphicsStream;
         }
 
         public ResourceDataReader(RpfResourceFileEntry resentry, byte[] data, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base((Stream?)null, endianess)
         {
             FileEntry = resentry;
             var systemSize = resentry.SystemSize;
@@ -112,7 +112,7 @@ namespace CodeWalker.GameFiles
         }
 
         public ResourceDataReader(int systemSize, int graphicsSize, byte[] data, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base((Stream?)null, endianess)
         {
             this.systemStream = new MemoryStream(data, 0, systemSize);
             this.graphicsStream = new MemoryStream(data, systemSize, graphicsSize);
@@ -256,7 +256,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public T[] ReadBlocks<T>(ulong[] pointers) where T : IResourceBlock, new()
+        public T[] ReadBlocks<T>(ulong[]? pointers) where T : IResourceBlock, new()
         {
             if (pointers == null) return null;
             var count = pointers.Length;
@@ -510,7 +510,7 @@ namespace CodeWalker.GameFiles
         /// Initializes a new resource data reader for the specified system- and graphics-stream.
         /// </summary>
         public ResourceDataWriter(Stream systemStream, Stream graphicsStream, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base((Stream?)null, endianess)
         {
             this.systemStream = systemStream;
             this.graphicsStream = graphicsStream;
@@ -590,7 +590,7 @@ namespace CodeWalker.GameFiles
             Marshal.FreeHGlobal(ptr);
             Write(arr);
         }
-        public void WriteStructs<T>(T[] val) where T : struct
+        public void WriteStructs<T>(T[]? val) where T : struct
         {
             if (val == null) return;
             foreach (var v in val)
@@ -611,7 +611,7 @@ namespace CodeWalker.GameFiles
             if (pad > 0) Write(new byte[pad]);
         }
 
-        public void WriteUlongs(ulong[] val)
+        public void WriteUlongs(ulong[]? val)
         {
             if (val == null) return;
             foreach (var v in val)

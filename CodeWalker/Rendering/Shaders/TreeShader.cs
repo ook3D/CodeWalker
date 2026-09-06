@@ -158,7 +158,6 @@ namespace CodeWalker.Rendering
         }
 
 
-        private VertexType currentVS = VertexType.Default;
 
         public override void SetShader(DeviceContext context)
         {
@@ -167,14 +166,14 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout layout;
+            InputLayout? layout;
             if (!layouts.TryGetValue(type, out layout))
             {
                 return false;
             }
 
             // Determine which VS to use based on whether type has Colour1
-            VertexShader vs;
+            VertexShader? vs;
             if (!vsDict.TryGetValue(type, out vs))
             {
                 // Check if it's a PNCCT-family type (has two colour channels)
@@ -251,8 +250,8 @@ namespace CodeWalker.Rendering
             VSWindVars.SetVSCBuffer(context, 9);
 
             // PS Geom vars
-            RenderableTexture diffuse = null;
-            RenderableTexture tintpal = null;
+            RenderableTexture? diffuse = null;
+            RenderableTexture? tintpal = null;
 
             PSGeomVars.Vars.EnableTexture = 0;
             PSGeomVars.Vars.EnableTint = 0;

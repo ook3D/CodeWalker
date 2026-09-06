@@ -82,7 +82,7 @@ namespace CodeWalker.Core.Utils
                 }
             }
 
-            string[] allpaths = null;
+            string[]? allpaths = null;
             try
             {
                 var soption = subfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
@@ -279,7 +279,7 @@ namespace CodeWalker.Core.Utils
             converted = false;
             var exmsg = " - already gen9 format";
             if (copyunconverted) exmsg += ", directly copying file.";
-            var rfe = (RpfResourceFileEntry)null;
+            var rfe = (RpfResourceFileEntry?)null;
             switch (fileType)
             {
                 case ".ytd":
@@ -376,7 +376,7 @@ namespace CodeWalker.Core.Utils
         }
 
 
-        public static bool RequiresConversion(RpfResourceFileEntry rfe)
+        public static bool RequiresConversion(RpfResourceFileEntry? rfe)
         {
             if (rfe == null) return false;
             if (string.IsNullOrEmpty(rfe.NameLower)) return false;

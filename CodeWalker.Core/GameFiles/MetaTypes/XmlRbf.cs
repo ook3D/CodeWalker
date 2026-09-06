@@ -91,7 +91,7 @@ namespace CodeWalker.GameFiles
             }
             else if (node is XText text)
             {
-                byte[] bytes = null;
+                byte[]? bytes = null;
                 var contentAttr = node.Parent?.Attribute("content");
                 if (contentAttr != null)
                 {
@@ -173,7 +173,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        private static byte[] GetByteArray(string text)
+        private static byte[] GetByteArray(string? text)
         {
             if (string.IsNullOrEmpty(text)) return null;
             var data = new List<byte>();

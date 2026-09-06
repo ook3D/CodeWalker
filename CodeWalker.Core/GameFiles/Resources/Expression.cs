@@ -113,7 +113,7 @@ namespace CodeWalker.GameFiles
             
             BuildMap();
         }
-        public static void WriteXmlNode(ExpressionDictionary d, StringBuilder sb, int indent, string name = "ExpressionDictionary")
+        public static void WriteXmlNode(ExpressionDictionary? d, StringBuilder sb, int indent, string name = "ExpressionDictionary")
         {
             if (d == null) return;
             if ((d.Expressions?.data_items == null) || (d.Expressions.data_items.Length == 0))
@@ -127,7 +127,7 @@ namespace CodeWalker.GameFiles
                 YedXml.CloseTag(sb, indent, name);
             }
         }
-        public static ExpressionDictionary ReadXmlNode(XmlNode node)
+        public static ExpressionDictionary ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var ed = new ExpressionDictionary();
@@ -835,7 +835,7 @@ namespace CodeWalker.GameFiles
                 YedXml.WriteRawArray(sb, Offsets, indent, "Offsets", "", FloatUtil.ToString, 32);
                 YedXml.WriteRawArray(sb, Thresholds, indent, "Thresholds", "", FloatUtil.ToString, 32);
             }
-            public void ReadXml(XmlNode node)
+            public void ReadXml(XmlNode? node)
             {
                 if (node == null) return;
                 Weights = Xml.GetChildRawFloatArray(node, "Weights");

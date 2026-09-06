@@ -270,7 +270,7 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout l;
+            InputLayout? l;
             if (layouts.TryGetValue(type, out l))
             {
                 SetVertexShader(context, type); //need to use the correct VS.
@@ -362,22 +362,22 @@ namespace CodeWalker.Rendering
 
         public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
         {
-            RenderableTexture texture0 = null;
-            RenderableTexture texture1 = null;
-            RenderableTexture texture2 = null;
-            RenderableTexture texture3 = null;
-            RenderableTexture texture4 = null;
-            RenderableTexture texturemask = null;
-            RenderableTexture tintpal = null;
-            RenderableTexture normals0 = null;
-            RenderableTexture normals1 = null;
-            RenderableTexture normals2 = null;
-            RenderableTexture normals3 = null;
-            RenderableTexture normals4 = null;
-            RenderableTexture heightmap0 = null;
-            RenderableTexture heightmap1 = null;
-            RenderableTexture heightmap2 = null;
-            RenderableTexture heightmap3 = null;
+            RenderableTexture? texture0 = null;
+            RenderableTexture? texture1 = null;
+            RenderableTexture? texture2 = null;
+            RenderableTexture? texture3 = null;
+            RenderableTexture? texture4 = null;
+            RenderableTexture? texturemask = null;
+            RenderableTexture? tintpal = null;
+            RenderableTexture? normals0 = null;
+            RenderableTexture? normals1 = null;
+            RenderableTexture? normals2 = null;
+            RenderableTexture? normals3 = null;
+            RenderableTexture? normals4 = null;
+            RenderableTexture? heightmap0 = null;
+            RenderableTexture? heightmap1 = null;
+            RenderableTexture? heightmap2 = null;
+            RenderableTexture? heightmap3 = null;
             float tntpalind = 0.0f;
             bool usevc = true;
 

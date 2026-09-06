@@ -129,7 +129,7 @@ namespace CodeWalker.GameFiles
 
             BuildFromFilterList(filters);
         }
-        public static void WriteXmlNode(FrameFilterDictionary d, StringBuilder sb, int indent, string name = "FrameFilterDictionary")
+        public static void WriteXmlNode(FrameFilterDictionary? d, StringBuilder sb, int indent, string name = "FrameFilterDictionary")
         {
             if (d == null) return;
             if ((d.Filters?.data_items == null) || (d.Filters.data_items.Length == 0))
@@ -259,7 +259,7 @@ namespace CodeWalker.GameFiles
         }
 
         // used to calculate filter signatures
-        public static uint Crc32Hash(byte[] data, uint seed = 0)
+        public static uint Crc32Hash(byte[]? data, uint seed = 0)
         {
             if (data == null) return 0;
             uint h = ~seed;

@@ -43,7 +43,7 @@ namespace CodeWalker.Forms
             MainListView.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Export to openFormats (.onim)...", null, ExportOnim_Click));
         }
 
-        private void ExportOnim_Click(object sender, EventArgs e)
+        private void ExportOnim_Click(object? sender, EventArgs e)
         {
             if (MainListView.SelectedItems[0].Tag is Animation anim)
             {

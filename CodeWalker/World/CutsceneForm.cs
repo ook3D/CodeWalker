@@ -107,8 +107,8 @@ namespace CodeWalker.World
             Cursor = Cursors.WaitCursor;
             Task.Run(() =>
             {
-                CutFile cutFile = null;
-                Cutscene cutscene = null;
+                CutFile? cutFile = null;
+                Cutscene? cutscene = null;
 
                 if (GameFileCache.IsInited)
                 {
@@ -649,7 +649,7 @@ namespace CodeWalker.World
             var ycd = (cutIndex < (Ycds?.Length ?? 0)) ? Ycds[cutIndex] : null;
             if (ycd?.CutsceneMap != null)
             {
-                ClipMapEntry cme = null;
+                ClipMapEntry? cme = null;
 
                 if (CameraObject != null)
                 {
@@ -909,7 +909,7 @@ namespace CodeWalker.World
 
             if (Seeking) return;
 
-            if (SceneObjects.TryGetValue(obje.iObjectId, out CutsceneObject audobj))
+            if (SceneObjects.TryGetValue(obje.iObjectId, out CutsceneObject? audobj))
             {
                 if (audobj.SoundPlayer != null)
                 {
@@ -941,7 +941,7 @@ namespace CodeWalker.World
 
             foreach (var objid in args.iObjectIdList)
             {
-                CutsceneObject obj = null;
+                CutsceneObject? obj = null;
                 SceneObjects.TryGetValue(objid, out obj);
                 if (obj != null)
                 {
@@ -980,7 +980,7 @@ namespace CodeWalker.World
             var namel = args.cName?.ToLowerInvariant();
             var namehash = JenkHash.GenHash(namel);
 
-            RpfFileEntry gxt2entry = null;
+            RpfFileEntry? gxt2entry = null;
             GameFileCache.Gxt2Dict.TryGetValue(namehash, out gxt2entry);
 
             if (gxt2entry != null) //probably should do this load async
@@ -1008,7 +1008,7 @@ namespace CodeWalker.World
 
             foreach (var objid in args.iObjectIdList)
             {
-                CutsceneObject obj = null;
+                CutsceneObject? obj = null;
                 SceneObjects.TryGetValue(objid, out obj);
                 if (obj != null)
                 {
@@ -1024,7 +1024,7 @@ namespace CodeWalker.World
             var oe = e as CutObjectIdEvent;
             if (oe == null) return;
 
-            CutsceneObject cso = null;
+            CutsceneObject? cso = null;
             SceneObjects.TryGetValue(oe.iObjectId, out cso);
             if (cso != null)
             {
@@ -1076,7 +1076,7 @@ namespace CodeWalker.World
             var oe = e as CutObjectIdEvent;
             if (oe == null) return;
 
-            CutsceneObject cso = null;
+            CutsceneObject? cso = null;
             SceneObjects.TryGetValue(oe.iObjectId, out cso);
             if (cso != null)
             {
@@ -1155,7 +1155,7 @@ namespace CodeWalker.World
 
             if (Seeking) return; //this gets a bit messy when seeking backwards
 
-            CutsceneObject cso = null;
+            CutsceneObject? cso = null;
             SceneObjects.TryGetValue(oe.iObjectId, out cso);
 
             if (cso?.Ped != null)
@@ -1183,7 +1183,7 @@ namespace CodeWalker.World
             { return; }
 
 
-            CutsceneObject obj = null;
+            CutsceneObject? obj = null;
             SceneObjects.TryGetValue(oe.iObjectId, out obj);
             if (obj == null)
             { return; }
@@ -1250,7 +1250,7 @@ namespace CodeWalker.World
 
 
 
-        private T[] RecastArray<T>(object[] arr) where T : class
+        private T[] RecastArray<T>(object[]? arr) where T : class
         {
             if (arr == null) return null;
             var r = new T[arr.Length];
@@ -1413,11 +1413,11 @@ namespace CodeWalker.World
 
             if (adb?.SoundsDB != null)
             {
-                if (adb.SoundsDB.TryGetValue(soundhash, out Dat54Sound snd))
+                if (adb.SoundsDB.TryGetValue(soundhash, out Dat54Sound? snd))
                 {
                     SoundInfo = snd;
                 }
-                else if (adb.SoundsDB.TryGetValue(soundhash2, out Dat54Sound snd2))
+                else if (adb.SoundsDB.TryGetValue(soundhash2, out Dat54Sound? snd2))
                 {
                     SoundInfo = snd2;
                 }
@@ -1428,7 +1428,7 @@ namespace CodeWalker.World
             {
                 int dur = strsnd.Duration;
                 MetaHash awchash = 0;
-                AwcFile awc = null;
+                AwcFile? awc = null;
 
                 var streaminfs = new List<Dat54SimpleSound>();
                 var streamlist = new List<AwcStream>();
@@ -1441,7 +1441,7 @@ namespace CodeWalker.World
                         if (chanawchash != awchash)
                         {
                             awchash = chanawchash;
-                            if (adb.ContainerDB.TryGetValue(awchash, out RpfFileEntry awcentry))
+                            if (adb.ContainerDB.TryGetValue(awchash, out RpfFileEntry? awcentry))
                             {
                                 awc = new AwcFile();
                                 gfc.RpfMan.LoadFile(awc, awcentry);
@@ -1453,7 +1453,7 @@ namespace CodeWalker.World
                         if (awc?.StreamDict != null)
                         {
                             var chanhash = chansnd.FileName & 0x1FFFFFFF;
-                            if (awc.StreamDict.TryGetValue(chanhash, out AwcStream chanstream))
+                            if (awc.StreamDict.TryGetValue(chanhash, out AwcStream? chanstream))
                             {
                                 streaminfs.Add(chansnd);
                                 streamlist.Add(chanstream);

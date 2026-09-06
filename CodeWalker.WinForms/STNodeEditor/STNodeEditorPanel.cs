@@ -172,7 +172,8 @@ namespace ST.Library.UI.NodeEditor
                 if (!f.FieldType.IsEnum) continue;
                 foreach (var a in f.GetCustomAttributes(true)) {
                     if (!(a is DescriptionAttribute)) continue;
-                    m_dic_status_key.Add((ConnectionStatus)f.GetValue(f), ((DescriptionAttribute)a).Description);
+                    if (f.GetValue(null) is ConnectionStatus status)
+                        m_dic_status_key.Add(status, ((DescriptionAttribute)a).Description);
                 }
             }
 
@@ -316,7 +317,7 @@ namespace ST.Library.UI.NodeEditor
         /// <param name="strText">Corresponding display text</param>
         /// <returns>Old text</returns>
         public string SetConnectionStatusText(ConnectionStatus status, string strText) {
-            if (m_dic_status_key.TryGetValue(status, out string strOld)) {
+            if (m_dic_status_key.TryGetValue(status, out string? strOld)) {
                 m_dic_status_key[status] = strText;
                 return strOld;
             }

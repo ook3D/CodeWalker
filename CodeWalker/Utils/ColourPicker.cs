@@ -247,7 +247,7 @@ namespace CodeWalker.Utils
             }
             return b;
         }
-        private Color[] GetColoursSetting(string str)
+        private Color[] GetColoursSetting(string? str)
         {
             if (string.IsNullOrEmpty(str)) return null;
             var strs = str.Split(' ');
@@ -265,7 +265,7 @@ namespace CodeWalker.Utils
             if (colours.Count == 0) return null;
             return colours.ToArray();
         }
-        private string SetColoursSetting(Color[] colours)
+        private string SetColoursSetting(Color[]? colours)
         {
             if ((colours == null) || (colours.Length == 0))
             {
@@ -858,7 +858,7 @@ namespace CodeWalker.Utils
             }
         }
 
-        private void ColourPicker_Disposed(object sender, EventArgs e)
+        private void ColourPicker_Disposed(object? sender, EventArgs e)
         {
             DisposeBitmaps();
         }

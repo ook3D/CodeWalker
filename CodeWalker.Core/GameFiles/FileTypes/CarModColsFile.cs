@@ -81,7 +81,7 @@ namespace CodeWalker.GameFiles
 
         public CVehicleModColours(XmlNode node)
         {
-            XmlNode cnode;
+            XmlNode? cnode;
             cnode = node.SelectSingleNode("metallic");
             if (cnode != null)
             {
@@ -179,7 +179,7 @@ namespace CodeWalker.GameFiles
 
         public CVehicleModPearlescentColors(XmlNode node)
         {
-            XmlNode cnode;
+            XmlNode? cnode;
             cnode = node.SelectSingleNode("baseCols");
             if (cnode != null)
             {

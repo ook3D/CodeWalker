@@ -45,7 +45,7 @@ namespace CodeWalker.GameFiles
             RpfFileEntry = entry;
 
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");
@@ -88,7 +88,7 @@ namespace CodeWalker.GameFiles
             }
             return false;
         }
-        public bool AddBounds(Bounds b)
+        public bool AddBounds(Bounds? b)
         {
             if (b == null) return false;
             if (Bounds != null) return false;
@@ -158,7 +158,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static BoundMaterialColour[] GetRawBoundMaterialColourArray(XmlNode node)
+        public static BoundMaterialColour[] GetRawBoundMaterialColourArray(XmlNode? node)
         {
             if (node == null) return null;
             byte r, g, b, a;

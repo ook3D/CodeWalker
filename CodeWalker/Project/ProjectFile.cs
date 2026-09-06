@@ -153,7 +153,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in ymapselem.SelectNodes("Item"))
                 {
-                    XmlElement ymapel = node as XmlElement;
+                    XmlElement? ymapel = node as XmlElement;
                     if (ymapel != null)
                     {
                         AddYmapFile(ymapel.InnerText);
@@ -169,7 +169,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in ytypselem.SelectNodes("Item"))
                 {
-                    XmlElement ytypel = node as XmlElement;
+                    XmlElement? ytypel = node as XmlElement;
                     if (ytypel != null)
                     {
                         AddYtypFile(ytypel.InnerText);
@@ -185,7 +185,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in ybnselem.SelectNodes("Item"))
                 {
-                    XmlElement ybnel = node as XmlElement;
+                    XmlElement? ybnel = node as XmlElement;
                     if (ybnel != null)
                     {
                         AddYbnFile(ybnel.InnerText);
@@ -201,7 +201,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in yndselem.SelectNodes("Item"))
                 {
-                    XmlElement yndel = node as XmlElement;
+                    XmlElement? yndel = node as XmlElement;
                     if (yndel != null)
                     {
                         AddYndFile(yndel.InnerText);
@@ -218,7 +218,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in ynvselem.SelectNodes("Item"))
                 {
-                    XmlElement ynvel = node as XmlElement;
+                    XmlElement? ynvel = node as XmlElement;
                     if (ynvel != null)
                     {
                         AddYnvFile(ynvel.InnerText);
@@ -234,7 +234,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in trainsselem.SelectNodes("Item"))
                 {
-                    XmlElement trainel = node as XmlElement;
+                    XmlElement? trainel = node as XmlElement;
                     if (trainel != null)
                     {
                         AddTrainsFile(trainel.InnerText);
@@ -251,7 +251,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in scenarioselem.SelectNodes("Item"))
                 {
-                    XmlElement scenarioel = node as XmlElement;
+                    XmlElement? scenarioel = node as XmlElement;
                     if (scenarioel != null)
                     {
                         AddScenarioFile(scenarioel.InnerText);
@@ -268,7 +268,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in audiorelselem.SelectNodes("Item"))
                 {
-                    XmlElement audiorelel = node as XmlElement;
+                    XmlElement? audiorelel = node as XmlElement;
                     if (audiorelel != null)
                     {
                         AddAudioRelFile(audiorelel.InnerText);
@@ -284,7 +284,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in ydrselem.SelectNodes("Item"))
                 {
-                    XmlElement ydrel = node as XmlElement;
+                    XmlElement? ydrel = node as XmlElement;
                     if (ydrel != null)
                     {
                         AddYdrFile(ydrel.InnerText);
@@ -300,7 +300,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in yddselem.SelectNodes("Item"))
                 {
-                    XmlElement yddel = node as XmlElement;
+                    XmlElement? yddel = node as XmlElement;
                     if (yddel != null)
                     {
                         AddYddFile(yddel.InnerText);
@@ -316,7 +316,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in yftselem.SelectNodes("Item"))
                 {
-                    XmlElement yftel = node as XmlElement;
+                    XmlElement? yftel = node as XmlElement;
                     if (yftel != null)
                     {
                         AddYftFile(yftel.InnerText);
@@ -332,7 +332,7 @@ namespace CodeWalker.Project
             {
                 foreach (var node in ytdselem.SelectNodes("Item"))
                 {
-                    XmlElement ytdel = node as XmlElement;
+                    XmlElement? ytdel = node as XmlElement;
                     if (ytdel != null)
                     {
                         AddYtdFile(ytdel.InnerText);
@@ -401,18 +401,18 @@ namespace CodeWalker.Project
             string newpath = GetRelativePath(fullpath);
             return newpath;
         }
-        public string GetRelativePath(string filepath)
+        public string GetRelativePath(string? filepath)
         {
             if (filepath == null) return string.Empty;
             if (Filepath == null) return filepath;
 
-            Uri fromUri;
+            Uri? fromUri;
             if (!Uri.TryCreate(Filepath, UriKind.RelativeOrAbsolute, out fromUri))
             {
                 return filepath;
             }
 
-            Uri toUri;
+            Uri? toUri;
             if (!Uri.TryCreate(filepath, UriKind.RelativeOrAbsolute, out toUri))
             {
                 return filepath;
@@ -444,7 +444,7 @@ namespace CodeWalker.Project
             string apath = Path.GetFullPath(cpath);
             return apath;
         }
-        public string GetFullFilePath(string relpath, string basepath)
+        public string GetFullFilePath(string relpath, string? basepath)
         {
             if (string.IsNullOrEmpty(basepath)) return relpath;
             string basefldr = new FileInfo(basepath).DirectoryName + "\\";
@@ -477,7 +477,7 @@ namespace CodeWalker.Project
             YmapFiles.Add(ymap);
             return true;
         }
-        public void RemoveYmapFile(YmapFile ymap)
+        public void RemoveYmapFile(YmapFile? ymap)
         {
             if (ymap == null) return;
             var relpath = GetRelativePath(ymap.FilePath);
@@ -547,7 +547,7 @@ namespace CodeWalker.Project
             YtypFiles.Add(ytyp);
             return true;
         }
-        public void RemoveYtypFile(YtypFile ytyp)
+        public void RemoveYtypFile(YtypFile? ytyp)
         {
             if (ytyp == null) return;
             var relpath = GetRelativePath(ytyp.FilePath);
@@ -614,7 +614,7 @@ namespace CodeWalker.Project
             YbnFiles.Add(ybn);
             return true;
         }
-        public void RemoveYbnFile(YbnFile ybn)
+        public void RemoveYbnFile(YbnFile? ybn)
         {
             if (ybn == null) return;
             var relpath = GetRelativePath(ybn.FilePath);
@@ -681,7 +681,7 @@ namespace CodeWalker.Project
             YndFiles.Add(ynd);
             return true;
         }
-        public void RemoveYndFile(YndFile ynd)
+        public void RemoveYndFile(YndFile? ynd)
         {
             if (ynd == null) return;
             var relpath = GetRelativePath(ynd.FilePath);
@@ -748,7 +748,7 @@ namespace CodeWalker.Project
             YnvFiles.Add(ynv);
             return true;
         }
-        public void RemoveYnvFile(YnvFile ynv)
+        public void RemoveYnvFile(YnvFile? ynv)
         {
             if (ynv == null) return;
             var relpath = GetRelativePath(ynv.FilePath);
@@ -815,7 +815,7 @@ namespace CodeWalker.Project
             TrainsFiles.Add(track);
             return true;
         }
-        public void RemoveTrainsFile(TrainTrack track)
+        public void RemoveTrainsFile(TrainTrack? track)
         {
             if (track == null) return;
             var relpath = GetRelativePath(track.FilePath);
@@ -884,7 +884,7 @@ namespace CodeWalker.Project
             ScenarioFiles.Add(ymt);
             return true;
         }
-        public void RemoveScenarioFile(YmtFile ymt)
+        public void RemoveScenarioFile(YmtFile? ymt)
         {
             if (ymt == null) return;
             var relpath = GetRelativePath(ymt.FilePath);
@@ -952,7 +952,7 @@ namespace CodeWalker.Project
             AudioRelFiles.Add(rel);
             return true;
         }
-        public void RemoveAudioRelFile(RelFile rel)
+        public void RemoveAudioRelFile(RelFile? rel)
         {
             if (rel == null) return;
             var relpath = GetRelativePath(rel.FilePath);
@@ -1019,7 +1019,7 @@ namespace CodeWalker.Project
             YdrFiles.Add(ydr);
             return true;
         }
-        public void RemoveYdrFile(YdrFile ydr)
+        public void RemoveYdrFile(YdrFile? ydr)
         {
             if (ydr == null) return;
             var relpath = GetRelativePath(ydr.FilePath);
@@ -1086,7 +1086,7 @@ namespace CodeWalker.Project
             YddFiles.Add(ydd);
             return true;
         }
-        public void RemoveYddFile(YddFile ydd)
+        public void RemoveYddFile(YddFile? ydd)
         {
             if (ydd == null) return;
             var relpath = GetRelativePath(ydd.FilePath);
@@ -1153,7 +1153,7 @@ namespace CodeWalker.Project
             YftFiles.Add(yft);
             return true;
         }
-        public void RemoveYftFile(YftFile yft)
+        public void RemoveYftFile(YftFile? yft)
         {
             if (yft == null) return;
             var relpath = GetRelativePath(yft.FilePath);
@@ -1220,7 +1220,7 @@ namespace CodeWalker.Project
             YtdFiles.Add(ytd);
             return true;
         }
-        public void RemoveYtdFile(YtdFile ytd)
+        public void RemoveYtdFile(YtdFile? ytd)
         {
             if (ytd == null) return;
             var relpath = GetRelativePath(ytd.FilePath);

@@ -224,13 +224,13 @@ namespace CodeWalker.Rendering
                     break;
             }
 
-            RenderableTexture DensitySampler = null;
-            RenderableTexture NormalSampler = null;
-            RenderableTexture DetailDensitySampler = null;
-            RenderableTexture DetailNormalSampler = null;
-            RenderableTexture DetailDensity2Sampler = null;
-            RenderableTexture DetailNormal2Sampler = null;
-            RenderableTexture DepthMapTexSampler = null;
+            RenderableTexture? DensitySampler = null;
+            RenderableTexture? NormalSampler = null;
+            RenderableTexture? DetailDensitySampler = null;
+            RenderableTexture? DetailNormalSampler = null;
+            RenderableTexture? DetailDensity2Sampler = null;
+            RenderableTexture? DetailNormal2Sampler = null;
+            RenderableTexture? DepthMapTexSampler = null;
 
 
             if ((geom.RenderableTextures != null) && (geom.RenderableTextures.Length > 0))

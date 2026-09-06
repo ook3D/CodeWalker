@@ -191,14 +191,14 @@ namespace CodeWalker.GameFiles
 
             AssignChildren();
         }
-        public static void WriteXmlNode(ParticleEffectsList p, StringBuilder sb, int indent, string ddsfolder, string name = "ParticleEffectsList")
+        public static void WriteXmlNode(ParticleEffectsList? p, StringBuilder sb, int indent, string ddsfolder, string name = "ParticleEffectsList")
         {
             if (p == null) return;
             YptXml.OpenTag(sb, indent, name);
             p.WriteXml(sb, indent + 1, ddsfolder);
             YptXml.CloseTag(sb, indent, name);
         }
-        public static ParticleEffectsList ReadXmlNode(XmlNode node, string ddsfolder)
+        public static ParticleEffectsList ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var p = new ParticleEffectsList();
@@ -272,7 +272,7 @@ namespace CodeWalker.GameFiles
                         {
                             if (em == null) continue;
                             var ptrhash = JenkHash.GenHash(em.ParticleRuleName?.Value ?? "");
-                            if (ptrdict.TryGetValue(ptrhash, out ParticleRule ptr))
+                            if (ptrdict.TryGetValue(ptrhash, out ParticleRule? ptr))
                             {
                                 em.ParticleRule = ptr;
                             }
@@ -280,7 +280,7 @@ namespace CodeWalker.GameFiles
                             { }
 
                             var emrhash = JenkHash.GenHash(em.EmitterRuleName?.Value ?? "");
-                            if (emrdict.TryGetValue(emrhash, out ParticleEmitterRule emr))
+                            if (emrdict.TryGetValue(emrhash, out ParticleEmitterRule? emr))
                             {
                                 em.EmitterRule = emr;
                             }
@@ -299,7 +299,7 @@ namespace CodeWalker.GameFiles
                     if (ptr.EffectSpawnerAtRatio != null)
                     {
                         var efrhash = JenkHash.GenHash(ptr.EffectSpawnerAtRatio.EffectRuleName?.Value ?? "");
-                        if (efrdict.TryGetValue(efrhash, out ParticleEffectRule efr))
+                        if (efrdict.TryGetValue(efrhash, out ParticleEffectRule? efr))
                         {
                             ptr.EffectSpawnerAtRatio.EffectRule = efr;
                         }
@@ -309,7 +309,7 @@ namespace CodeWalker.GameFiles
                     if (ptr.EffectSpawnerOnCollision != null)
                     {
                         var efrhash = JenkHash.GenHash(ptr.EffectSpawnerOnCollision.EffectRuleName?.Value ?? "");
-                        if (efrdict.TryGetValue(efrhash, out ParticleEffectRule efr))
+                        if (efrdict.TryGetValue(efrhash, out ParticleEffectRule? efr))
                         {
                             ptr.EffectSpawnerOnCollision.EffectRule = efr;
                         }
@@ -320,7 +320,7 @@ namespace CodeWalker.GameFiles
                     {
                         foreach (var pdrw in ptr.Drawables.data_items)
                         {
-                            if (drwdict.TryGetValue(pdrw.NameHash, out DrawablePtfx drw))
+                            if (drwdict.TryGetValue(pdrw.NameHash, out DrawablePtfx? drw))
                             {
                                 pdrw.Drawable = drw;
                             }
@@ -334,7 +334,7 @@ namespace CodeWalker.GameFiles
                         {
                             if (svar is ParticleShaderVarTexture texvar)
                             {
-                                if (texdict.TryGetValue(texvar.TextureNameHash, out Texture tex))
+                                if (texdict.TryGetValue(texvar.TextureNameHash, out Texture? tex))
                                 {
                                     texvar.Texture = tex;
                                 }
@@ -2911,7 +2911,7 @@ namespace CodeWalker.GameFiles
                 d[0x851d3d14] = "ptxAttractorDomain:m_sizeInnerKFP";
                 NameDict = d;
             }
-            if (NameDict.TryGetValue(hash, out string str))
+            if (NameDict.TryGetValue(hash, out string? str))
             {
                 return str;
             }

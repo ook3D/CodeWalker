@@ -109,9 +109,9 @@ namespace CodeWalker.Rendering
                 //#if DEBUG
                 //    flags = DeviceCreationFlags.Debug;
                 //#endif
-                Device dev = null;
-                SwapChain sc = null;
-                Exception exc = null;
+                Device? dev = null;
+                SwapChain? sc = null;
+                Exception? exc = null;
 
                 bool success = false;
                 try
@@ -264,14 +264,14 @@ namespace CodeWalker.Rendering
             dxform.BuffersResized(width, height);
         }
 
-        private void Dxform_Load(object sender, EventArgs e)
+        private void Dxform_Load(object? sender, EventArgs e)
         {
             if (autoStartLoop)
             {
                 StartRenderLoop();
             }
         }
-        private void Dxform_FormClosing(object sender, FormClosingEventArgs e)
+        private void Dxform_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (!e.Cancel)
             {
@@ -285,16 +285,16 @@ namespace CodeWalker.Rendering
                 Cleanup();
             }
         }
-        private void Dxform_ClientSizeChanged(object sender, EventArgs e)
+        private void Dxform_ClientSizeChanged(object? sender, EventArgs e)
         {
             Resize();
         }
-        private void DxForm_ResizeBegin(object sender, EventArgs e)
+        private void DxForm_ResizeBegin(object? sender, EventArgs e)
         {
             beginSize = dxform.Form.ClientSize;
             Resizing = true;
         }
-        private void DxForm_ResizeEnd(object sender, EventArgs e)
+        private void DxForm_ResizeEnd(object? sender, EventArgs e)
         {
             Resizing = false;
             if (dxform.Form.ClientSize != beginSize)

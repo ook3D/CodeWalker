@@ -552,14 +552,14 @@ namespace CodeWalker.GameFiles
 
             FileVFT = 1079456040;
         }
-        public static void WriteXmlNode(FragType f, StringBuilder sb, int indent, string ddsfolder, string name = "Fragment")
+        public static void WriteXmlNode(FragType? f, StringBuilder sb, int indent, string ddsfolder, string name = "Fragment")
         {
             if (f == null) return;
             YftXml.OpenTag(sb, indent, name);
             f.WriteXml(sb, indent + 1, ddsfolder);
             YftXml.CloseTag(sb, indent, name);
         }
-        public static FragType ReadXmlNode(XmlNode node, string ddsfolder)
+        public static FragType ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var f = new FragType();
@@ -1038,14 +1038,14 @@ namespace CodeWalker.GameFiles
 
             FileVFT = 1080060872;
         }
-        public static void WriteXmlNode(FragDrawable d, StringBuilder sb, int indent, string ddsfolder, string name = "FragDrawable")
+        public static void WriteXmlNode(FragDrawable? d, StringBuilder sb, int indent, string ddsfolder, string name = "FragDrawable")
         {
             if (d == null) return;
             YftXml.OpenTag(sb, indent, name);
             d.WriteXml(sb, indent + 1, ddsfolder);
             YftXml.CloseTag(sb, indent, name);
         }
-        public static FragDrawable ReadXmlNode(XmlNode node, string ddsfolder)
+        public static FragDrawable ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new FragDrawable();

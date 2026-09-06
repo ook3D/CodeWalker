@@ -371,7 +371,7 @@ namespace CodeWalker.GameFiles
 
             Traverse(doc.DocumentElement, mb, 0, true);
 
-            XmlNode metaName = doc.DocumentElement.Attributes.GetNamedItem("name");
+            XmlNode? metaName = doc.DocumentElement.Attributes.GetNamedItem("name");
 
             if (metaName != null)
                 return mb.GetMeta(metaName.Value);
@@ -1074,7 +1074,7 @@ namespace CodeWalker.GameFiles
             Buffer.BlockCopy(bytes, 0, data, offset, sizeof(float));
         }
 
-        public static MetaHash GetHash(string str)
+        public static MetaHash GetHash(string? str)
         {
             if (string.IsNullOrEmpty(str)) return 0;
             if (str.StartsWith("hash_"))

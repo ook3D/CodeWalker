@@ -107,7 +107,7 @@ namespace CodeWalker.Project.Panels
                     CurrentEntitySet._Data.name = JenkHash.GenHash(str);
                 }
 
-                TreeNode tn = ProjectForm.ProjectExplorer?.FindMloEntitySetTreeNode(CurrentEntitySet);
+                TreeNode? tn = ProjectForm.ProjectExplorer?.FindMloEntitySetTreeNode(CurrentEntitySet);
                 if (tn != null)
                 {
                     tn.Text = CurrentEntitySet.Name;

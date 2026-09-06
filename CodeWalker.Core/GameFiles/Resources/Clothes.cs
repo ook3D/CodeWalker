@@ -122,7 +122,7 @@ namespace CodeWalker.GameFiles
             Clothes.data_items = clothes.ToArray();
             //BuildDict();
         }
-        public static void WriteXmlNode(ClothDictionary d, StringBuilder sb, int indent, string name = "ClothDictionary")
+        public static void WriteXmlNode(ClothDictionary? d, StringBuilder sb, int indent, string name = "ClothDictionary")
         {
             if (d == null) return;
             if ((d.Clothes?.data_items == null) || (d.Clothes.data_items.Length == 0))
@@ -136,7 +136,7 @@ namespace CodeWalker.GameFiles
                 YldXml.CloseTag(sb, indent, name);
             }
         }
-        public static ClothDictionary ReadXmlNode(XmlNode node)
+        public static ClothDictionary ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var cd = new ClothDictionary();
@@ -2533,7 +2533,7 @@ namespace CodeWalker.GameFiles
                 for (int i = 0; i < Bones.Length; i++)
                 {
                     var boneid = (ushort)boneIds[i];
-                    Bone bone = null;
+                    Bone? bone = null;
                     Skeleton.BonesMap.TryGetValue(boneid, out bone);
                     Bones[i] = bone;
                 }

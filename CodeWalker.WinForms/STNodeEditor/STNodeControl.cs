@@ -37,9 +37,9 @@ namespace ST.Library.UI.NodeEditor
 {
     public class STNodeControl
     {
-        private STNode _Owner;
+        private STNode? _Owner;
 
-        public STNode Owner {
+        public STNode? Owner {
             get { return _Owner; }
             internal set { _Owner = value; }
         }
@@ -217,28 +217,29 @@ namespace ST.Library.UI.NodeEditor
         }
 
         public Rectangle RectangleToParent(Rectangle rect) {
-            return new Rectangle(this._Left, this._Top + this._Owner.TitleHeight, this.Width, this.Height);
+            var owner = this._Owner ?? throw new InvalidOperationException("The control must belong to a node before converting coordinates.");
+            return new Rectangle(this._Left, this._Top + owner.TitleHeight, this.Width, this.Height);
         }
 
-        public event EventHandler GotFocus;
-        public event EventHandler LostFocus;
-        public event EventHandler MouseEnter;
-        public event EventHandler MouseLeave;
-        public event MouseEventHandler MouseDown;
-        public event MouseEventHandler MouseMove;
-        public event MouseEventHandler MouseUp;
-        public event MouseEventHandler MouseClick;
-        public event MouseEventHandler MouseWheel;
-        public event EventHandler MouseHWheel;
+        public event EventHandler? GotFocus;
+        public event EventHandler? LostFocus;
+        public event EventHandler? MouseEnter;
+        public event EventHandler? MouseLeave;
+        public event MouseEventHandler? MouseDown;
+        public event MouseEventHandler? MouseMove;
+        public event MouseEventHandler? MouseUp;
+        public event MouseEventHandler? MouseClick;
+        public event MouseEventHandler? MouseWheel;
+        public event EventHandler? MouseHWheel;
 
-        public event KeyEventHandler KeyDown;
-        public event KeyEventHandler KeyUp;
-        public event KeyPressEventHandler KeyPress;
+        public event KeyEventHandler? KeyDown;
+        public event KeyEventHandler? KeyUp;
+        public event KeyPressEventHandler? KeyPress;
 
-        public event EventHandler Move;
-        public event EventHandler Resize;
+        public event EventHandler? Move;
+        public event EventHandler? Resize;
 
-        public event STNodeControlPaintEventHandler Paint;
+        public event STNodeControlPaintEventHandler? Paint;
 
         protected internal virtual void OnGotFocus(EventArgs e) {
             this.GotFocus?.Invoke(this, e);
@@ -289,13 +290,13 @@ namespace ST.Library.UI.NodeEditor
             this.Resize?.Invoke(this, e);
         }
 
-        public IAsyncResult BeginInvoke(Delegate method) { return this.BeginInvoke(method, null); }
-        public IAsyncResult BeginInvoke(Delegate method, params object[] args) {
+        public IAsyncResult? BeginInvoke(Delegate method) { return this.BeginInvoke(method, null); }
+        public IAsyncResult? BeginInvoke(Delegate method, params object?[]? args) {
             if (this._Owner == null) return null;
             return this._Owner.BeginInvoke(method, args);
         }
-        public object Invoke(Delegate method) { return this.Invoke(method, null); }
-        public object Invoke(Delegate method, params object[] args) {
+        public object? Invoke(Delegate method) { return this.Invoke(method, null); }
+        public object? Invoke(Delegate method, params object?[]? args) {
             if (this._Owner == null) return null;
             return this._Owner.Invoke(method, args);
         }

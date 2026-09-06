@@ -209,7 +209,7 @@ namespace CodeWalker.Forms
 
             if (!(exploreForm?.EditMode ?? false)) return false;
 
-            byte[] data = null;
+            byte[]? data = null;
 
 #if !DEBUG
             try
@@ -655,7 +655,7 @@ namespace CodeWalker.Forms
 
         private void SynthsComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Dat10Synth synth = (Dat10Synth)SynthsComboBox.SelectedItem;
+            Dat10Synth? synth = (Dat10Synth?)SynthsComboBox.SelectedItem;
             if (synth == null)
             {
                 return;

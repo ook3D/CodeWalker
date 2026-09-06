@@ -126,10 +126,10 @@ namespace CodeWalker.World
         private void KeyBindingsListView_SelectedIndexChanged(object sender, EventArgs e)
         {
             var sel = (KeyBindingsListView.SelectedItems.Count == 1) ? KeyBindingsListView.SelectedItems[0] : null;
-            if (sel != null)
+            if (sel?.Tag is Keys selectedKey)
             {
                 selKeyBinding = sel.Text;
-                selKeyBindingVal = (Keys)sel.Tag;
+                selKeyBindingVal = selectedKey;
                 KeyBindingNameLabel.Text = selKeyBinding;
                 KeyBindingComboBox.SelectedItem = sel.Tag;
                 KeyBindingComboBox.Enabled = true;
@@ -150,7 +150,7 @@ namespace CodeWalker.World
         {
             if (!string.IsNullOrEmpty(selKeyBinding))
             {
-                Keys val = (Keys)KeyBindingComboBox.SelectedItem;
+                if (KeyBindingComboBox.SelectedItem is not Keys val) return;
                 if (val != selKeyBindingVal)
                 {
                     selKeyBindingVal = val;

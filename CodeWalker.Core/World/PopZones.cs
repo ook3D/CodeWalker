@@ -73,7 +73,7 @@ namespace CodeWalker.World
                     PopZoneBox box = new();
                     box.Init(linet);
 
-                    PopZone group;
+                    PopZone? group;
                     if (!Groups.TryGetValue(box.NameLabel, out group))
                     {
                         group = new PopZone();

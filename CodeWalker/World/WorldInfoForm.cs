@@ -213,7 +213,7 @@ namespace CodeWalker.World
             }
 
         }
-        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[] models, string prefix, bool check)
+        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check)
         {
             if (models == null) return;
 
@@ -272,13 +272,13 @@ namespace CodeWalker.World
             }
         }
 
-        private void AddSelectionEntityHierarchyNodes(YmapEntityDef entity)
+        private void AddSelectionEntityHierarchyNodes(YmapEntityDef? entity)
         {
             if (entity == null) return;
 
             var e = entity;
-            TreeNode tn = null;
-            TreeNode seltn = null;
+            TreeNode? tn = null;
+            TreeNode? seltn = null;
 
             while (e != null)
             {
@@ -352,8 +352,8 @@ namespace CodeWalker.World
 
         private void SelectTexture(TextureBase texbase, bool mipchange)
         {
-            Texture tex = texbase as Texture;
-            YtdFile ytd = null;
+            Texture? tex = texbase as Texture;
+            YtdFile? ytd = null;
             string errstr = string.Empty;
             if ((tex == null) && (texbase != null))
             {
@@ -376,14 +376,14 @@ namespace CodeWalker.World
 
 
                 //try get owner drawable to get the name for the dictionary textbox...
-                object owner = null;
+                object? owner = null;
                 if (Selection.Drawable != null)
                 {
                     owner = Selection.Drawable.Owner;
                 }
-                YdrFile ydr = owner as YdrFile;
-                YddFile ydd = owner as YddFile;
-                YftFile yft = owner as YftFile;
+                YdrFile? ydr = owner as YdrFile;
+                YddFile? ydd = owner as YddFile;
+                YftFile? yft = owner as YftFile;
 
                 SelTextureNameTextBox.Text = tex.Name;
                 SelTextureDictionaryTextBox.Text = (ytd != null) ? ytd.Name : (ydr != null) ? ydr.Name : (ydd != null) ? ydd.Name : (yft != null) ? yft.Name : string.Empty;
@@ -521,7 +521,7 @@ namespace CodeWalker.World
         {
             SelDrawableTexturePropertyGrid.SelectedObject = e.Node?.Tag;
 
-            TextureBase texbase = e.Node?.Tag as TextureBase;
+            TextureBase? texbase = e.Node?.Tag as TextureBase;
 
             SelTextureMipTrackBar.Value = 0;
             SelTextureMipLabel.Text = "0";
@@ -533,7 +533,7 @@ namespace CodeWalker.World
         {
             var node = SelDrawableTexturesTreeView.SelectedNode;
 
-            TextureBase texbase = node?.Tag as TextureBase;
+            TextureBase? texbase = node?.Tag as TextureBase;
 
             SelTextureMipLabel.Text = SelTextureMipTrackBar.Value.ToString();
 

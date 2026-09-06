@@ -436,7 +436,7 @@ namespace CodeWalker.Project.Panels
         {
             if (CurrentPathLink == null || CurrentYndFile == null) return;
 
-            YndNode linknode = null;
+            YndNode? linknode = null;
             ushort areaid = CurrentPathLink._RawData.AreaID;
             ushort nodeid = CurrentPathLink._RawData.NodeID;
 
@@ -596,7 +596,7 @@ namespace CodeWalker.Project.Panels
 
             lock (ProjectForm.ProjectSyncRoot)
             {
-                var speed = (YndNodeSpeed)NodeSpeedComboBox.SelectedItem;
+                if (NodeSpeedComboBox.SelectedItem is not YndNodeSpeed speed) return;
                 if (CurrentPathNode.Speed != speed)
                 {
                     CurrentPathNode.Speed = speed;
@@ -615,7 +615,7 @@ namespace CodeWalker.Project.Panels
 
             lock (ProjectForm.ProjectSyncRoot)
             {
-                var special = (YndNodeSpecialType)NodeSpecialComboBox.SelectedItem;
+                if (NodeSpecialComboBox.SelectedItem is not YndNodeSpecialType special) return;
                 if (CurrentPathNode.Special != special)
                 {
                     var isPedNode = CurrentPathNode.IsPedNode;

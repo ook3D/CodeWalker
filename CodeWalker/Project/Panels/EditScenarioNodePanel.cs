@@ -820,7 +820,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.MyPoint == null) return;
-            ScenarioTypeRef stype = ScenarioPointTypeComboBox.SelectedItem as ScenarioTypeRef;
+            ScenarioTypeRef? stype = ScenarioPointTypeComboBox.SelectedItem as ScenarioTypeRef;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.MyPoint.Type != stype)
@@ -842,7 +842,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.MyPoint == null) return;
-            AmbientModelSet mset = ScenarioPointModelSetComboBox.SelectedItem as AmbientModelSet;
+            AmbientModelSet? mset = ScenarioPointModelSetComboBox.SelectedItem as AmbientModelSet;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.MyPoint.ModelSet != mset)
@@ -1191,7 +1191,7 @@ namespace CodeWalker.Project.Panels
             var nodes = CurrentScenario?.ScenarioRegion?.Nodes;
             if (nodes == null) return;
 
-            ScenarioNode node = null;
+            ScenarioNode? node = null;
             foreach (var snode in nodes)
             {
                 if (snode.EntityPoint == item)
@@ -1432,7 +1432,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.EntityPoint == null) return;
-            var v = (CSpawnPoint__AvailabilityMpSp)ScenarioEntityPointAvailableInMpSpComboBox.SelectedItem;
+            if (ScenarioEntityPointAvailableInMpSpComboBox.SelectedItem is not CSpawnPoint__AvailabilityMpSp v) return;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.EntityPoint.AvailableInMpSp != v)
@@ -1705,7 +1705,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ChainingNode == null) return;
-            ScenarioTypeRef stype = ScenarioChainNodeTypeComboBox.SelectedItem as ScenarioTypeRef;
+            ScenarioTypeRef? stype = ScenarioChainNodeTypeComboBox.SelectedItem as ScenarioTypeRef;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.ChainingNode.Type != stype)
@@ -1879,7 +1879,7 @@ namespace CodeWalker.Project.Panels
         {
             if (populatingui) return;
             if (CurrentScenarioChainEdge == null) return;
-            CScenarioChainingEdge__eAction v = (CScenarioChainingEdge__eAction)ScenarioChainEdgeActionComboBox.SelectedItem;
+            if (ScenarioChainEdgeActionComboBox.SelectedItem is not CScenarioChainingEdge__eAction v) return;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioChainEdge.Action != v)
@@ -1894,7 +1894,7 @@ namespace CodeWalker.Project.Panels
         {
             if (populatingui) return;
             if (CurrentScenarioChainEdge == null) return;
-            CScenarioChainingEdge__eNavMode v = (CScenarioChainingEdge__eNavMode)ScenarioChainEdgeNavModeComboBox.SelectedItem;
+            if (ScenarioChainEdgeNavModeComboBox.SelectedItem is not CScenarioChainingEdge__eNavMode v) return;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioChainEdge.NavMode != v)
@@ -1909,7 +1909,7 @@ namespace CodeWalker.Project.Panels
         {
             if (populatingui) return;
             if (CurrentScenarioChainEdge == null) return;
-            CScenarioChainingEdge__eNavSpeed v = (CScenarioChainingEdge__eNavSpeed)ScenarioChainEdgeNavSpeedComboBox.SelectedItem;
+            if (ScenarioChainEdgeNavSpeedComboBox.SelectedItem is not CScenarioChainingEdge__eNavSpeed v) return;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioChainEdge.NavSpeed != v)
@@ -2035,7 +2035,7 @@ namespace CodeWalker.Project.Panels
             var nodes = CurrentScenario?.ScenarioRegion?.Nodes;
             if (nodes == null) return;
 
-            ScenarioNode node = null;
+            ScenarioNode? node = null;
             foreach (var snode in nodes)
             {
                 if (snode.ClusterMyPoint == item)
@@ -2127,7 +2127,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ClusterMyPoint == null) return;
-            ScenarioTypeRef stype = ScenarioClusterPointTypeComboBox.SelectedItem as ScenarioTypeRef;
+            ScenarioTypeRef? stype = ScenarioClusterPointTypeComboBox.SelectedItem as ScenarioTypeRef;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.ClusterMyPoint.Type != stype)
@@ -2149,7 +2149,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentScenarioNode == null) return;
             if (CurrentScenarioNode.ClusterMyPoint == null) return;
-            AmbientModelSet mset = ScenarioClusterPointModelSetComboBox.SelectedItem as AmbientModelSet;
+            AmbientModelSet? mset = ScenarioClusterPointModelSetComboBox.SelectedItem as AmbientModelSet;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentScenarioNode.ClusterMyPoint.ModelSet != mset)

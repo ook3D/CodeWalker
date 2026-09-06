@@ -343,7 +343,7 @@ namespace CodeWalker.GameFiles
         {
             var root = doc.DocumentElement;
 
-            XmlNodeList mountitems = doc.SelectNodes("SExtraFolderMountData/FolderMounts/Item");
+            XmlNodeList? mountitems = doc.SelectNodes("SExtraFolderMountData/FolderMounts/Item");
             FolderMounts.Clear();
             for (int i = 0; i < mountitems.Count; i++)
             {
@@ -390,7 +390,7 @@ namespace CodeWalker.GameFiles
         {
             var root = doc.DocumentElement;
 
-            XmlNodeList mountitems = doc.SelectNodes("SExtraTitleUpdateData/Mounts/Item");
+            XmlNodeList? mountitems = doc.SelectNodes("SExtraTitleUpdateData/Mounts/Item");
             Mounts.Clear();
             for (int i = 0; i < mountitems.Count; i++)
             {

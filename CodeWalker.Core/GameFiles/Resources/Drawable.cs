@@ -1688,7 +1688,7 @@ namespace CodeWalker.GameFiles
 
                 foreach (var l in layers)
                 {
-                    Bone lastbone = null;
+                    Bone? lastbone = null;
                     foreach (var b in l)
                     {
                         childs.Add(b.Index);
@@ -2049,10 +2049,10 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            skel.TransformationsInverted = (Matrix[])TransformationsInverted?.Clone();
-            skel.Transformations = (Matrix[])Transformations?.Clone();
-            skel.ParentIndices = (short[])ParentIndices?.Clone();
-            skel.ChildIndices = (short[])ChildIndices?.Clone();
+            skel.TransformationsInverted = (Matrix[]?)TransformationsInverted?.Clone();
+            skel.Transformations = (Matrix[]?)Transformations?.Clone();
+            skel.ParentIndices = (short[]?)ParentIndices?.Clone();
+            skel.ChildIndices = (short[]?)ChildIndices?.Clone();
 
             skel.AssignBoneParents();
             skel.BuildBonesMap();
@@ -3220,7 +3220,7 @@ namespace CodeWalker.GameFiles
 
         private long Pad(long o) => ((16 - (o % 16)) % 16);
         private long HeaderLength(int listlength) => 16 + ((listlength) * 8);
-        private long ListLength(DrawableModel[] list, long o)
+        private long ListLength(DrawableModel[]? list, long o)
         {
             if (list == null) return 0;
             long l = 0;
@@ -4262,7 +4262,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public void InitVertexDataFromGen9Data(byte[] gen9bytes)
+        public void InitVertexDataFromGen9Data(byte[]? gen9bytes)
         {
             if (gen9bytes == null) return;
             if (G9_Info == null) return;
@@ -5004,7 +5004,7 @@ namespace CodeWalker.GameFiles
 
             YdrXml.CloseTag(sb, indent, name);
         }
-        public void ReadXml(XmlNode node)
+        public void ReadXml(XmlNode? node)
         {
             if (node == null) return;
 
@@ -6568,7 +6568,7 @@ namespace CodeWalker.GameFiles
 
         public DrawableBase ShallowCopy()
         {
-            DrawableBase r = null;
+            DrawableBase? r = null;
             if (this is FragDrawable fd)
             {
                 var f = new FragDrawable();
@@ -6805,14 +6805,14 @@ namespace CodeWalker.GameFiles
             LightAttributes.data_items = XmlMeta.ReadItemArray<LightAttributes>(node, "Lights");
 
         }
-        public static void WriteXmlNode(Drawable d, StringBuilder sb, int indent, string ddsfolder, string name = "Drawable")
+        public static void WriteXmlNode(Drawable? d, StringBuilder sb, int indent, string ddsfolder, string name = "Drawable")
         {
             if (d == null) return;
             YdrXml.OpenTag(sb, indent, name);
             d.WriteXml(sb, indent + 1, ddsfolder);
             YdrXml.CloseTag(sb, indent, name);
         }
-        public static Drawable ReadXmlNode(XmlNode node, string ddsfolder)
+        public static Drawable ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new Drawable();
@@ -6882,14 +6882,14 @@ namespace CodeWalker.GameFiles
         {
             base.ReadXml(node, ddsfolder);
         }
-        public static void WriteXmlNode(DrawablePtfx d, StringBuilder sb, int indent, string ddsfolder, string name = "Drawable")
+        public static void WriteXmlNode(DrawablePtfx? d, StringBuilder sb, int indent, string ddsfolder, string name = "Drawable")
         {
             if (d == null) return;
             YdrXml.OpenTag(sb, indent, name);
             d.WriteXml(sb, indent + 1, ddsfolder);
             YdrXml.CloseTag(sb, indent, name);
         }
-        public static DrawablePtfx ReadXmlNode(XmlNode node, string ddsfolder)
+        public static DrawablePtfx ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new DrawablePtfx();
@@ -7019,14 +7019,14 @@ namespace CodeWalker.GameFiles
                 Drawables.data_items = drawables.ToArray();
             }
         }
-        public static void WriteXmlNode(DrawablePtfxDictionary d, StringBuilder sb, int indent, string ddsfolder, string name = "DrawableDictionary")
+        public static void WriteXmlNode(DrawablePtfxDictionary? d, StringBuilder sb, int indent, string ddsfolder, string name = "DrawableDictionary")
         {
             if (d == null) return;
             YddXml.OpenTag(sb, indent, name);
             d.WriteXml(sb, indent + 1, ddsfolder);
             YddXml.CloseTag(sb, indent, name);
         }
-        public static DrawablePtfxDictionary ReadXmlNode(XmlNode node, string ddsfolder)
+        public static DrawablePtfxDictionary ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new DrawablePtfxDictionary();
@@ -7181,14 +7181,14 @@ namespace CodeWalker.GameFiles
             Drawables = new ResourcePointerArray64<Drawable>();
             Drawables.data_items = drawables.ToArray();
         }
-        public static void WriteXmlNode(DrawableDictionary d, StringBuilder sb, int indent, string ddsfolder, string name = "DrawableDictionary")
+        public static void WriteXmlNode(DrawableDictionary? d, StringBuilder sb, int indent, string ddsfolder, string name = "DrawableDictionary")
         {
             if (d == null) return;
             YddXml.OpenTag(sb, indent, name);
             d.WriteXml(sb, indent + 1, ddsfolder);
             YddXml.CloseTag(sb, indent, name);
         }
-        public static DrawableDictionary ReadXmlNode(XmlNode node, string ddsfolder)
+        public static DrawableDictionary ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new DrawableDictionary();

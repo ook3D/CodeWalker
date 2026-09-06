@@ -17,7 +17,7 @@ namespace CodeWalker.ModManager
     {
         public SettingsFile Settings;
         public List<Mod> Mods = new();
-        public Mod SelectedMod = null;
+        public Mod? SelectedMod;
 
         public ModManagerForm()
         {
@@ -188,7 +188,7 @@ namespace CodeWalker.ModManager
 
         }
         
-        private void SelectMod(Mod mod)
+        private void SelectMod(Mod? mod)
         {
             SelectedMod = mod;
             if (mod == null)
@@ -219,7 +219,7 @@ namespace CodeWalker.ModManager
 
         }
 
-        private void InstallMods(string[] files)
+        private void InstallMods(string[]? files)
         {
             if (files == null) return;
             if (files.Length == 0) return;
@@ -338,7 +338,7 @@ namespace CodeWalker.ModManager
 
         }
 
-        private void UninstallMod(Mod mod)
+        private void UninstallMod(Mod? mod)
         {
             if (mod == null) return;
 
@@ -372,7 +372,7 @@ namespace CodeWalker.ModManager
         private string GetModCacheDir()
         {
             var path = Assembly.GetExecutingAssembly().Location;
-            var dir = Path.GetDirectoryName(path);
+            var dir = Path.GetDirectoryName(path) ?? AppContext.BaseDirectory;
             return Path.Combine(dir, ModCacheDirName, Settings.GameModCache);
         }
         private string GetModCacheDir(string modname)
@@ -390,7 +390,7 @@ namespace CodeWalker.ModManager
             return moddir;
         }
 
-        private Mod FindMod(string modname)
+        private Mod? FindMod(string? modname)
         {
             if (string.IsNullOrEmpty(modname)) return null;
             foreach (var mod in Mods)
@@ -436,7 +436,7 @@ namespace CodeWalker.ModManager
             }
 
         }
-        private WaitForm _WaitForm;
+        private WaitForm? _WaitForm;
         private void ShowWaitForm(string msg)
         {
             BeginInvoke(new Action(() =>
@@ -489,7 +489,7 @@ namespace CodeWalker.ModManager
 
         private void ModManagerForm_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data?.GetDataPresent(DataFormats.FileDrop) == true)
             {
                 var files = e.Data.GetData(DataFormats.FileDrop) as string[];
                 if ((files == null) || (files.Length <= 0)) return;
@@ -499,7 +499,7 @@ namespace CodeWalker.ModManager
 
         private void ModManagerForm_DragDrop(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data?.GetDataPresent(DataFormats.FileDrop) == true)
             {
                 var files = e.Data.GetData(DataFormats.FileDrop) as string[];
                 if ((files == null) || (files.Length <= 0)) return;

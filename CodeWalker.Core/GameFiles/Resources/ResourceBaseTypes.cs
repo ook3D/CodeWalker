@@ -482,7 +482,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public String GetClassName()
+        public string? GetClassName()
         {
             return TypeDescriptor.GetClassName(this, true);
         }
@@ -492,7 +492,7 @@ namespace CodeWalker.GameFiles
             return TypeDescriptor.GetAttributes(this, true);
         }
 
-        public String GetComponentName()
+        public string? GetComponentName()
         {
             return TypeDescriptor.GetComponentName(this, true);
         }
@@ -502,22 +502,22 @@ namespace CodeWalker.GameFiles
             return TypeDescriptor.GetConverter(this, true);
         }
 
-        public EventDescriptor GetDefaultEvent()
+        public EventDescriptor? GetDefaultEvent()
         {
             return TypeDescriptor.GetDefaultEvent(this, true);
         }
 
-        public PropertyDescriptor GetDefaultProperty()
+        public PropertyDescriptor? GetDefaultProperty()
         {
             return TypeDescriptor.GetDefaultProperty(this, true);
         }
 
-        public object GetEditor(Type editorBaseType)
+        public object? GetEditor(Type editorBaseType)
         {
             return TypeDescriptor.GetEditor(this, editorBaseType, true);
         }
 
-        public EventDescriptorCollection GetEvents(Attribute[] attributes)
+        public EventDescriptorCollection GetEvents(Attribute[]? attributes)
         {
             return TypeDescriptor.GetEvents(this, attributes, true);
         }
@@ -527,7 +527,7 @@ namespace CodeWalker.GameFiles
             return TypeDescriptor.GetEvents(this, true);
         }
 
-        public object GetPropertyOwner(PropertyDescriptor pd)
+        public object GetPropertyOwner(PropertyDescriptor? pd)
         {
             return this;
         }
@@ -544,7 +544,7 @@ namespace CodeWalker.GameFiles
             return pds;
         }
 
-        public PropertyDescriptorCollection GetProperties(Attribute[] attributes)
+        public PropertyDescriptorCollection GetProperties(Attribute[]? attributes)
         {
             return GetProperties();
         }
@@ -552,7 +552,7 @@ namespace CodeWalker.GameFiles
 
         public class ListBasePropertyDescriptor : PropertyDescriptor
         {
-            private ListBase<T> collection = null;
+            private readonly ListBase<T> collection;
             private int index = -1;
 
             public ListBasePropertyDescriptor(ListBase<T> coll, int i) : base("#" + i.ToString(), null)
@@ -594,11 +594,11 @@ namespace CodeWalker.GameFiles
             {
                 get
                 {
-                    return collection[index].ToString();
+                    return collection[index]?.ToString() ?? string.Empty;
                 }
             }
 
-            public override object GetValue(object component)
+            public override object? GetValue(object? component)
             {
                 return this.collection[index];
             }
@@ -615,7 +615,7 @@ namespace CodeWalker.GameFiles
 
             public override Type PropertyType
             {
-                get { return this.collection[index].GetType(); }
+                get { return this.collection[index]?.GetType() ?? typeof(T); }
             }
 
             public override void ResetValue(object component) { }
@@ -625,7 +625,7 @@ namespace CodeWalker.GameFiles
                 return true;
             }
 
-            public override void SetValue(object component, object value)
+            public override void SetValue(object? component, object? value)
             {
                 // this.collection[index] = value;
             }

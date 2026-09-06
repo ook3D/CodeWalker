@@ -1,6 +1,7 @@
 ﻿using CodeWalker.GameFiles;
 using CodeWalker.Properties;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -23,7 +24,7 @@ namespace CodeWalker.Tools
         private RpfManager RpfMan = null;
 
 
-        public BinarySearchForm(GameFileCache cache = null)
+        public BinarySearchForm(GameFileCache? cache = null)
         {
             FileCache = cache;
             RpfMan = cache?.RpfMan;
@@ -171,7 +172,8 @@ namespace CodeWalker.Tools
 
                 string[] filenames = Directory.GetFiles(searchfolder);
                 int matchcount = 0;
-                object lockObj = new object();
+                Lock lockObj = new();
+                bool searchReverse = !searchbytes1.AsSpan().SequenceEqual(searchbytes2);
 
                 // use parallel processing for better performance
                 var parallelOptions = new ParallelOptions
@@ -199,8 +201,8 @@ namespace CodeWalker.Tools
                                 
                             byte[] filebytes = File.ReadAllBytes(filename);
 
-                            // sse optimized Boyer-Moore-like search
-                            var matches = FindAllMatches(filebytes, searchbytes1);
+                            // Enumerate offsets directly without materializing a result list.
+                            var matches = BinaryPatternSearch.FindMatches(filebytes, searchbytes1);
                             foreach (int match in matches)
                             {
                                 lock (lockObj)
@@ -217,9 +219,9 @@ namespace CodeWalker.Tools
                             }
                             
                             // search reversed pattern if different
-                            if (!searchbytes1.SequenceEqual(searchbytes2))
+                            if (searchReverse)
                             {
-                                var reverseMatches = FindAllMatches(filebytes, searchbytes2);
+                                var reverseMatches = BinaryPatternSearch.FindMatches(filebytes, searchbytes2);
                                 foreach (int match in reverseMatches)
                                 {
                                     lock (lockObj)
@@ -299,139 +301,6 @@ namespace CodeWalker.Tools
             AbortOperation = true;
         }
 
-        // optimized Boyer-Moore-Horspool search algorithm
-        private List<int> FindAllMatches(byte[] haystack, byte[] needle)
-        {
-            var matches = new List<int>();
-            if (needle.Length == 0 || haystack.Length < needle.Length)
-                return matches;
-
-            // build bad character table for Boyer-Moore-Horspool
-            var badCharTable = new int[256];
-            for (int i = 0; i < 256; i++)
-                badCharTable[i] = needle.Length;
-            
-            for (int i = 0; i < needle.Length - 1; i++)
-                badCharTable[needle[i]] = needle.Length - 1 - i;
-
-            int pos = 0;
-            while (pos <= haystack.Length - needle.Length)
-            {
-                int j = needle.Length - 1;
-                
-                // compare from right to left
-                while (j >= 0 && needle[j] == haystack[pos + j])
-                    j--;
-                
-                if (j < 0)
-                {
-                    // found a match
-                    matches.Add(pos);
-                    pos += needle.Length; // move past this match
-                }
-                else
-                {
-                    // use bad character rule to skip
-                    pos += Math.Max(1, badCharTable[haystack[pos + needle.Length - 1]]);
-                }
-            }
-            
-            return matches;
-        }
-
-        // optimized KMP search for cases where Boyer-Moore might not be ideal
-        private List<int> FindAllMatchesKMP(byte[] haystack, byte[] needle)
-        {
-            var matches = new List<int>();
-            if (needle.Length == 0 || haystack.Length < needle.Length)
-                return matches;
-
-            // build failure function
-            var failure = new int[needle.Length];
-            int j = 0;
-            for (int i = 1; i < needle.Length; i++)
-            {
-                while (j > 0 && needle[i] != needle[j])
-                    j = failure[j - 1];
-                if (needle[i] == needle[j])
-                    j++;
-                failure[i] = j;
-            }
-
-            // search
-            j = 0;
-            for (int i = 0; i < haystack.Length; i++)
-            {
-                while (j > 0 && haystack[i] != needle[j])
-                    j = failure[j - 1];
-                if (haystack[i] == needle[j])
-                    j++;
-                if (j == needle.Length)
-                {
-                    matches.Add(i - j + 1);
-                    j = failure[j - 1];
-                }
-            }
-            
-            return matches;
-        }
-
-        // optimized file reading for large files using streaming
-        private List<int> SearchFileStream(string filename, byte[] searchBytes)
-        {
-            var matches = new List<int>();
-            const int bufferSize = 64 * 1024; // 64KB buffer
-            
-            try
-            {
-                using (var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize))
-                {
-                    var buffer = new byte[bufferSize + searchBytes.Length - 1];
-                    int bytesRead;
-                    int totalBytesRead = 0;
-                    int overlap = 0;
-
-                    while ((bytesRead = fileStream.Read(buffer, overlap, bufferSize)) > 0)
-                    {
-                        int searchLength = bytesRead + overlap;
-                        
-                        // search in current buffer
-                        var bufferMatches = FindAllMatches(buffer.Take(searchLength).ToArray(), searchBytes);
-                        foreach (var match in bufferMatches)
-                        {
-                            matches.Add(totalBytesRead + match - overlap);
-                        }
-
-                        // prepare overlap for next iteration
-                        if (bytesRead == bufferSize && searchBytes.Length > 1)
-                        {
-                            overlap = searchBytes.Length - 1;
-                            Array.Copy(buffer, bufferSize, buffer, 0, overlap);
-                        }
-                        else
-                        {
-                            overlap = 0;
-                        }
-
-                        totalBytesRead += bytesRead;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                try
-                {
-                    var fileBytes = File.ReadAllBytes(filename);
-                    return FindAllMatches(fileBytes, searchBytes);
-                }
-                catch
-                {
-                    return matches;
-                }
-            }
-            return matches;
-        }
-
         private List<RpfSearchResult> RpfSearchResults = new();
         private RpfEntry RpfSelectedEntry = null;
         private int RpfSelectedOffset = -1;
@@ -450,15 +319,6 @@ namespace CodeWalker.Tools
                 Length = length;
             }
         }
-        private byte LowerCaseByte(byte b)
-        {
-            if ((b >= 65) && (b <= 90)) //upper case alphabet...
-            {
-                b += 32;
-            }
-            return b;
-        }
-
         private void RpfSearchAddResult(RpfSearchResult result)
         {
             try
@@ -494,8 +354,8 @@ namespace CodeWalker.Tools
             bool hex = RpfSearchHexRadioButton.Checked;
             bool casesen = RpfSearchCaseSensitiveCheckBox.Checked || hex;
             bool bothdirs = RpfSearchBothDirectionsCheckBox.Checked;
-            string[] ignoreexts = null;
-            string[] onlyexts = null;
+            string[]? ignoreexts = null;
+            string[]? onlyexts = null;
             byte[] searchbytes1;
             byte[] searchbytes2;
             int bytelen;
@@ -575,6 +435,7 @@ namespace CodeWalker.Tools
             Task.Run(() =>
             {
 
+                bool searchReverse = bothdirs && !searchbytes1.AsSpan().SequenceEqual(searchbytes2);
                 DateTime starttime = DateTime.Now;
                 int resultcount = 0;
 
@@ -600,7 +461,7 @@ namespace CodeWalker.Tools
                             return;
                         }
 
-                        RpfFileEntry fentry = entry as RpfFileEntry;
+                        RpfFileEntry? fentry = entry as RpfFileEntry;
                         if (fentry == null) continue;
 
                         curfile++;
@@ -648,33 +509,35 @@ namespace CodeWalker.Tools
                         if (filebytes == null) continue;
 
 
-                        // prepare search data based on case sensitivity
-                        byte[] searchData = filebytes;
-                        if (!casesen)
+                        byte[]? rented = null;
+                        try
                         {
-                            searchData = new byte[filebytes.Length];
-                            for (int i = 0; i < filebytes.Length; i++)
+                            ReadOnlySpan<byte> searchData = filebytes;
+                            if (!casesen)
                             {
-                                searchData[i] = LowerCaseByte(filebytes[i]);
+                                rented = ArrayPool<byte>.Shared.Rent(filebytes.Length);
+                                var lowercase = rented.AsSpan(0, filebytes.Length);
+                                BinaryPatternSearch.CopyLowercaseAscii(filebytes, lowercase);
+                                searchData = lowercase;
                             }
-                        }
 
-                        var matches = FindAllMatches(searchData, searchbytes1);
-                        foreach (int match in matches)
-                        {
-                            RpfSearchAddResult(new RpfSearchResult(fentry, match, bytelen));
-                            resultcount++;
-                        }
-                        
-                        // search reversed pattern if enabled and different
-                        if (bothdirs && !searchbytes1.SequenceEqual(searchbytes2))
-                        {
-                            var reverseMatches = FindAllMatches(searchData, searchbytes2);
-                            foreach (int match in reverseMatches)
+                            foreach (int match in BinaryPatternSearch.FindMatches(searchData, searchbytes1))
                             {
                                 RpfSearchAddResult(new RpfSearchResult(fentry, match, bytelen));
                                 resultcount++;
                             }
+                            if (searchReverse)
+                            {
+                                foreach (int match in BinaryPatternSearch.FindMatches(searchData, searchbytes2))
+                                {
+                                    RpfSearchAddResult(new RpfSearchResult(fentry, match, bytelen));
+                                    resultcount++;
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (rented != null) ArrayPool<byte>.Shared.Return(rented);
                         }
                     }
                 }
@@ -813,10 +676,10 @@ namespace CodeWalker.Tools
             RpfSelectedOffset = offset;
             RpfSelectedLength = length;
 
-            RpfFileEntry rfe = entry as RpfFileEntry;
+            RpfFileEntry? rfe = entry as RpfFileEntry;
             if (rfe == null)
             {
-                RpfDirectoryEntry rde = entry as RpfDirectoryEntry;
+                RpfDirectoryEntry? rde = entry as RpfDirectoryEntry;
                 if (rde != null)
                 {
                     FileInfoLabel.Text = rde.Path + " (Directory)";
@@ -952,7 +815,7 @@ namespace CodeWalker.Tools
                 return;
             }
 
-            RpfFileEntry rfe = RpfSelectedEntry as RpfFileEntry;
+            RpfFileEntry? rfe = RpfSelectedEntry as RpfFileEntry;
             if (rfe == null)
             {
                 MessageBox.Show("Please select a file to export.");
@@ -973,7 +836,7 @@ namespace CodeWalker.Tools
                 }
 
 
-                RpfResourceFileEntry rrfe = rfe as RpfResourceFileEntry;
+                RpfResourceFileEntry? rrfe = rfe as RpfResourceFileEntry;
                 if (rrfe != null) //add resource header if this is a resource file.
                 {
                     data = ResourceBuilder.AddResourceHeader(rrfe, data);

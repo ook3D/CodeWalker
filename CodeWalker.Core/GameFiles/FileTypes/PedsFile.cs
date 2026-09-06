@@ -86,7 +86,7 @@ namespace CodeWalker.GameFiles
 
         public CPedModelInfo__InitDataList(XmlNode node)
         {
-            XmlNodeList items;
+            XmlNodeList? items;
 
             residentTxd = Xml.GetChildInnerText(node, "residentTxd");
 

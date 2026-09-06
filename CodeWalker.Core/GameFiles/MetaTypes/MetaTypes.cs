@@ -1760,7 +1760,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static T[] GetTypedPointerArray<T>(Meta meta, MetaName name, MetaPOINTER[] arr) where T : struct
+        public static T[] GetTypedPointerArray<T>(Meta meta, MetaName name, MetaPOINTER[]? arr) where T : struct
         {
             //this is really a bad hack just for ymap entities so as not to completely rewrite all of the YmapFile stuff.
             //there could be subclasses in the array, which the returned struct array can't handle.
@@ -1801,7 +1801,7 @@ namespace CodeWalker.GameFiles
             }
             throw new Exception("Couldn't find " + name.ToString() + " block.");
         }
-        public static string[] GetStrings(Meta meta)
+        public static string[] GetStrings(Meta? meta)
         {
             //look for strings in the sectionSTRINGS data block(s)
 
@@ -1809,7 +1809,7 @@ namespace CodeWalker.GameFiles
 
             var datablocks = meta.DataBlocks.Data;
 
-            MetaDataBlock startblock = null;
+            MetaDataBlock? startblock = null;
             int startblockind = -1;
             for (int i = 0; i < datablocks.Count; i++)
             {
@@ -1910,7 +1910,7 @@ namespace CodeWalker.GameFiles
                 for (int i = 0; i < extptrs.Length; i++)
                 {
                     var extptr = extptrs[i];
-                    MetaWrapper ext = null;
+                    MetaWrapper? ext = null;
                     var block = meta.GetBlock(extptr.BlockID);
                     var h = block.StructureNameHash;
                     switch (h)
@@ -1984,7 +1984,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static int GetDataOffset(MetaDataBlock block, MetaPOINTER ptr)
+        public static int GetDataOffset(MetaDataBlock? block, MetaPOINTER ptr)
         {
             if (block == null) return -1;
             var offset = ptr.Offset;

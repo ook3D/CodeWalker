@@ -56,7 +56,7 @@ namespace CodeWalker.GameFiles
 
         private void LoadInitDatas(XmlDocument xmldoc)
         {
-            XmlNodeList items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/InitDatas/Item | CVehicleModelInfo__InitDataList/InitDatas/item");
+            XmlNodeList? items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/InitDatas/Item | CVehicleModelInfo__InitDataList/InitDatas/item");
 
             InitDatas = new List<VehicleInitData>();
             for (int i = 0; i < items.Count; i++)
@@ -70,7 +70,7 @@ namespace CodeWalker.GameFiles
 
         private void LoadTxdRelationships(XmlDocument xmldoc)
         {
-            XmlNodeList items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/txdRelationships/Item | CVehicleModelInfo__InitDataList/txdRelationships/item");
+            XmlNodeList? items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/txdRelationships/Item | CVehicleModelInfo__InitDataList/txdRelationships/item");
 
             TxdRelationships = new Dictionary<string, string>();
             for (int i = 0; i < items.Count; i++)

@@ -245,7 +245,7 @@ namespace CodeWalker.Forms
             if (!(exploreForm?.EditMode ?? false)) return false;
             if (rpfFileEntry?.Parent == null) return false;
 
-            byte[] data = null;
+            byte[]? data = null;
 
             if (fileType == TextFileType.Text)
             {

@@ -166,38 +166,26 @@ namespace CodeWalker.Rendering
 
                 int nodeCount = batch.Nodes.Length;
 
-                // If we need to exclude a specific node, filter it out
-                if (excludeNodePosition.HasValue && nodeCount > 0)
+                var nodes = excludeNodePosition.HasValue && nodeCount > 0
+                    ? PathNodeFilter.Exclude(batch.Nodes, excludeNodePosition.Value)
+                    : batch.Nodes;
+                if (ReferenceEquals(nodes, batch.Nodes))
                 {
-                    var excludePos = excludeNodePosition.Value;
-                    var filteredNodes = new List<Vector4>();
-
-                    foreach (var node in batch.Nodes)
-                    {
-                        // Check if this node matches the position to exclude (with small epsilon for float comparison)
-                        var nodePos = new Vector3(node.X, node.Y, node.Z);
-                        float distSq = (nodePos - excludePos).LengthSquared();
-                        if (distSq > 0.01f) // If not the selected node, include it
-                        {
-                            filteredNodes.Add(node);
-                        }
-                    }
-
-                    // Only render if we have nodes left after filtering
-                    if (filteredNodes.Count > 0)
-                    {
-                        // Create temporary buffer with filtered nodes
-                        var tempBuffer = new GpuSBuffer<Vector4>(context.Device, filteredNodes.ToArray());
-                        context.VertexShader.SetShaderResource(0, tempBuffer.SRV);
-                        cube.DrawInstanced(context, filteredNodes.Count);
-                        tempBuffer.Dispose();
-                    }
-                }
-                else
-                {
-                    // No filtering needed, render all nodes
                     context.VertexShader.SetShaderResource(0, batch.NodeBuffer.SRV);
                     cube.DrawInstanced(context, nodeCount);
+                }
+                else if (nodes.Length > 0)
+                {
+                    var tempBuffer = new GpuSBuffer<Vector4>(context.Device, nodes);
+                    try
+                    {
+                        context.VertexShader.SetShaderResource(0, tempBuffer.SRV);
+                        cube.DrawInstanced(context, nodes.Length);
+                    }
+                    finally
+                    {
+                        tempBuffer.Dispose();
+                    }
                 }
             }
 

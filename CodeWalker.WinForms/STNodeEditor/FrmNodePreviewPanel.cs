@@ -28,15 +28,14 @@ namespace ST.Library.UI.NodeEditor
         private Rectangle m_rect_handle;
         private Rectangle m_rect_panel;
         private Rectangle m_rect_exclude;
-        private Region m_region;
         private Type m_type;
-        private STNode m_node;
+        private STNode? m_node;
         private STNodeEditor m_editor;
         private STNodePropertyGrid m_property;
 
         private Pen m_pen = new(Color.Black);
         private SolidBrush m_brush = new(Color.Black);
-        private static FrmNodePreviewPanel m_last_frm;
+        private static FrmNodePreviewPanel? m_last_frm;
 
         [DllImport("user32.dll")]
         private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
@@ -75,7 +74,7 @@ namespace ST.Library.UI.NodeEditor
 
         protected override void OnLoad(EventArgs e) {
             base.OnLoad(e);
-            m_node = (STNode)Activator.CreateInstance(m_type);
+            m_node = STNodeFactory.Create(m_type);
             m_node.Left = 20; m_node.Top = 20;
             m_editor.Nodes.Add(m_node);
             m_property.SetNode(m_node);
@@ -96,7 +95,7 @@ namespace ST.Library.UI.NodeEditor
                 m_rect_exclude.Y -= m_nHandleSize;
             } else this.Top = m_ptHandle.Y;
             m_rect_panel.Y = this.Top;
-            m_region = new Region(new Rectangle(Point.Empty, this.Size));
+            using var m_region = new Region(new Rectangle(Point.Empty, this.Size));
             m_region.Exclude(m_rect_exclude);
             using (Graphics g = this.CreateGraphics()) {
                 IntPtr h = m_region.GetHrgn(g);
@@ -121,7 +120,7 @@ namespace ST.Library.UI.NodeEditor
             m_last_frm = null;
         }
 
-        void Event_MouseLeave(object sender, EventArgs e) {
+        void Event_MouseLeave(object? sender, EventArgs e) {
             Point pt = Control.MousePosition;
             if (m_rect_panel.Contains(pt) || m_rect_handle.Contains(pt)) return;
             this.Close();
@@ -130,7 +129,7 @@ namespace ST.Library.UI.NodeEditor
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);
             Graphics g = e.Graphics;
-            m_pen.Color = this.AutoBorderColor ? m_node.TitleColor : this.BorderColor;
+            m_pen.Color = this.AutoBorderColor && m_node != null ? m_node.TitleColor : this.BorderColor;
             m_brush.Color = m_pen.Color;
             g.DrawRectangle(m_pen, 0, 0, this.Width - 1, this.Height - 1);
             g.FillRectangle(m_brush, m_rect_exclude.X - 1, m_rect_exclude.Y - 1, m_rect_exclude.Width + 2, m_rect_exclude.Height + 2);

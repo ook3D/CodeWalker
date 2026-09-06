@@ -119,14 +119,14 @@ namespace CodeWalker.GameFiles
             return new MetaPOINTER(ptr.BlockID, ptr.Offset);
         }
 
-        public Array_Structure AddItemArrayPtr<T>(MetaName type, T[] items) where T : struct //helper method for AddItemArray<T>
+        public Array_Structure AddItemArrayPtr<T>(MetaName type, T[]? items) where T : struct //helper method for AddItemArray<T>
         {
             if ((items == null) || (items.Length == 0)) return new Array_Structure();
             var ptr = AddItemArray(type, items);
             return new Array_Structure(ptr);
         }
 
-        public Array_Structure AddItemArrayPtr(MetaName type, byte[][] data) //helper method for AddItemArray<T>
+        public Array_Structure AddItemArrayPtr(MetaName type, byte[][]? data) //helper method for AddItemArray<T>
         {
             if ((data == null) || (data.Length == 0)) return new Array_Structure();
 
@@ -151,37 +151,37 @@ namespace CodeWalker.GameFiles
             return new Array_Structure(ptr);
         }
 
-        public Array_Vector3 AddPaddedVector3ArrayPtr(Vector4[] items)
+        public Array_Vector3 AddPaddedVector3ArrayPtr(Vector4[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_Vector3();
             var ptr = AddItemArray((MetaName)MetaTypeName.VECTOR4, items); //padded to vec4...
             return new Array_Vector3(ptr);
         }
-        public Array_uint AddHashArrayPtr(MetaHash[] items)
+        public Array_uint AddHashArrayPtr(MetaHash[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_uint();
             var ptr = AddItemArray((MetaName)MetaTypeName.HASH, items);
             return new Array_uint(ptr);
         }
-        public Array_uint AddUintArrayPtr(uint[] items)
+        public Array_uint AddUintArrayPtr(uint[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_uint();
             var ptr = AddItemArray((MetaName)MetaTypeName.UINT, items);
             return new Array_uint(ptr);
         }
-        public Array_ushort AddUshortArrayPtr(ushort[] items)
+        public Array_ushort AddUshortArrayPtr(ushort[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_ushort();
             var ptr = AddItemArray((MetaName)MetaTypeName.USHORT, items);
             return new Array_ushort(ptr);
         }
-        public Array_byte AddByteArrayPtr(byte[] items)
+        public Array_byte AddByteArrayPtr(byte[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_byte();
             var ptr = AddItemArray((MetaName)MetaTypeName.BYTE, items);
             return new Array_byte(ptr);
         }
-        public Array_float AddFloatArrayPtr(float[] items)
+        public Array_float AddFloatArrayPtr(float[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_float();
             var ptr = AddItemArray((MetaName)MetaTypeName.FLOAT, items);
@@ -202,7 +202,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public Array_StructurePointer AddPointerArray(MetaPOINTER[] arr)
+        public Array_StructurePointer AddPointerArray(MetaPOINTER[]? arr)
         {
             if ((arr == null) || (arr.Length == 0)) return new Array_StructurePointer();
             var ptr = AddItemArray((MetaName)MetaTypeName.POINTER, arr);
@@ -213,7 +213,7 @@ namespace CodeWalker.GameFiles
             return sp;
         }
 
-        public Array_StructurePointer AddItemPointerArrayPtr<T>(MetaName type, T[] items) where T : struct
+        public Array_StructurePointer AddItemPointerArrayPtr<T>(MetaName type, T[]? items) where T : struct
         {
             //helper method for creating a pointer array
             if ((items == null) || (items.Length == 0)) return new Array_StructurePointer();
@@ -242,7 +242,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public Array_StructurePointer AddWrapperArrayPtr(MetaWrapper[] items)
+        public Array_StructurePointer AddWrapperArrayPtr(MetaWrapper[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_StructurePointer();
 
@@ -270,7 +270,7 @@ namespace CodeWalker.GameFiles
             //return sp;
         }
 
-        public Array_Structure AddWrapperArray(MetaWrapper[] items)
+        public Array_Structure AddWrapperArray(MetaWrapper[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_Structure();
 

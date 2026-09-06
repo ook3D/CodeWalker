@@ -162,7 +162,7 @@ namespace CodeWalker.Project.Panels
                 CurrentArchetype._BaseArchetypeDef.name = hash;
                 UpdateFormTitle();
 
-                TreeNode tn = ProjectForm.ProjectExplorer?.FindArchetypeTreeNode(CurrentArchetype);
+                TreeNode? tn = ProjectForm.ProjectExplorer?.FindArchetypeTreeNode(CurrentArchetype);
                 if (tn != null)
                     tn.Text = ArchetypeNameTextBox.Text ?? "0"; // using the text box text because the name may not be in the gfc.
 

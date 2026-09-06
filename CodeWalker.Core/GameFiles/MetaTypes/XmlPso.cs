@@ -49,7 +49,7 @@ namespace CodeWalker.GameFiles
 
                 Array.Clear(data, 0, infos.StructureLength); //shouldn't really be necessary...
 
-                PsoStructureEntryInfo arrEntry = null;
+                PsoStructureEntryInfo? arrEntry = null;
 
 
                 //if (isRoot)
@@ -263,7 +263,7 @@ namespace CodeWalker.GameFiles
                                 //uint fCount = (entry.ReferenceKey >> 16) & 0x0000FFFF;
                                 uint fEntry = (entry.ReferenceKey & 0xFFF);
                                 var fEnt = (fEntry != 0xFFF) ? infos.GetEntry((int)fEntry) : null;
-                                PsoEnumInfo flagsInfo = null;
+                                PsoEnumInfo? flagsInfo = null;
                                 MetaName fEnum = (MetaName)(fEnt?.ReferenceKey ?? 0);
                                 if ((fEnt != null) && (fEnt.EntryNameHash == (MetaName)MetaTypeName.ARRAYINFO))
                                 {
@@ -431,7 +431,7 @@ namespace CodeWalker.GameFiles
             int offset = entry.DataOffset;
             uint aCount = (entry.ReferenceKey >> 16) & 0x0000FFFF;
             uint aPtr = (entry.ReferenceKey) & 0x0000FFFF;
-            byte[] adata = null;
+            byte[]? adata = null;
 
             //how do we know when it's an "embedded" array?
             bool embedded = true;

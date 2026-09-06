@@ -340,7 +340,7 @@ namespace CodeWalker.GameFiles
                 var clipanim = cb as ClipAnimation;
                 if (clipanim != null)
                 {
-                    animDict.TryGetValue(clipanim.AnimationHash, out Animation a);
+                    animDict.TryGetValue(clipanim.AnimationHash, out Animation? a);
                     clipanim.Animation = a;
                 }
                 var clipanimlist = cb as ClipAnimationList;
@@ -348,7 +348,7 @@ namespace CodeWalker.GameFiles
                 {
                     foreach (var cae in clipanimlist.Animations.Data)
                     {
-                        animDict.TryGetValue(cae.AnimationHash, out Animation a);
+                        animDict.TryGetValue(cae.AnimationHash, out Animation? a);
                         cae.Animation = a;
                     }
                 }
@@ -2092,7 +2092,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        private void WriteToBitstream(List<uint> stream, int offset, uint bits, int n)
+        private void WriteToBitstream(List<uint>? stream, int offset, uint bits, int n)
         {
             if (stream == null) return;
 

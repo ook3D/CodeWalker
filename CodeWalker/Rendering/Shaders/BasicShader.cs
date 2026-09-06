@@ -504,7 +504,7 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout l;
+            InputLayout? l;
             if (layouts.TryGetValue(type, out l))
             {
                 SetVertexShader(context, type);
@@ -607,13 +607,13 @@ namespace CodeWalker.Rendering
 
         public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
         {
-            RenderableTexture texture = null;
-            RenderableTexture texture2 = null;
-            RenderableTexture tintpal = null;
-            RenderableTexture bumptex = null;
-            RenderableTexture spectex = null;
-            RenderableTexture detltex = null;
-            RenderableTexture heighttex = null;
+            RenderableTexture? texture = null;
+            RenderableTexture? texture2 = null;
+            RenderableTexture? tintpal = null;
+            RenderableTexture? bumptex = null;
+            RenderableTexture? spectex = null;
+            RenderableTexture? detltex = null;
+            RenderableTexture? heighttex = null;
             bool isdistmap = false;
 
             float tntpalind = 0.0f;

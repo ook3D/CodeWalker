@@ -85,7 +85,7 @@ namespace CodeWalker.Forms
                 }
             }
         }
-        private void AddLightsTreeNodes(LightAttributes[] lights, TreeNode parent = null)
+        private void AddLightsTreeNodes(LightAttributes[]? lights, TreeNode? parent = null)
         {
             if (lights == null) return;
 
@@ -213,7 +213,7 @@ namespace CodeWalker.Forms
         {
             var sl = selectedLight;
             var pos = sl.Position;
-            Bone bone = null;
+            Bone? bone = null;
             ModelForm.Skeleton?.BonesMap?.TryGetValue(sl.BoneId, out bone);
             if (bone != null)
             {

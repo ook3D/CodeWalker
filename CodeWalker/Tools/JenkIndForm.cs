@@ -19,7 +19,7 @@ namespace CodeWalker.Tools
 
 
 
-        public JenkIndForm(GameFileCache gameFileCache = null)
+        public JenkIndForm(GameFileCache? gameFileCache = null)
         {
             InitializeComponent();
 
@@ -178,7 +178,7 @@ namespace CodeWalker.Tools
 
         private string TryGetExtraString(uint hash)
         {
-            string str;
+            string? str;
             extraStrings.TryGetValue(hash, out str);
             return str;
         }

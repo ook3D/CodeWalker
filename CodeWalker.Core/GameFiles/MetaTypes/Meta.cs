@@ -207,7 +207,7 @@ namespace CodeWalker.GameFiles
 
         public MetaDataBlock GetRootBlock()
         {
-            MetaDataBlock block = null;
+            MetaDataBlock? block = null;
             var rootind = RootBlockIndex - 1;
             if ((rootind >= 0) && (rootind < DataBlocks.Count) && (DataBlocks.Data != null))
             {
@@ -217,7 +217,7 @@ namespace CodeWalker.GameFiles
         }
         public MetaDataBlock GetBlock(int id)
         {
-            MetaDataBlock block = null;
+            MetaDataBlock? block = null;
             var ind = id - 1;
             if ((ind >= 0) && (ind < DataBlocks.Count) && (DataBlocks.Data != null))
             {

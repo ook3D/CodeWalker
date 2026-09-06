@@ -171,7 +171,7 @@ namespace CodeWalker.GameFiles
             }
             CutObject getObject(int i)
             {
-                CutObject o = null;
+                CutObject? o = null;
                 ObjectsDict.TryGetValue(i, out o);
                 return o;
             }

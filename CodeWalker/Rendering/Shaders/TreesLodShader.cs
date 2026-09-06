@@ -137,7 +137,7 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout l;
+            InputLayout? l;
             if (layouts.TryGetValue(type, out l))
             {
                 context.InputAssembler.InputLayout = l;
@@ -185,7 +185,7 @@ namespace CodeWalker.Rendering
 
         public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
         {
-            RenderableTexture texture = null; // ((geom.Textures != null) && (geom.Textures.Length > 0)) ? geom.Textures[0] : null;
+            RenderableTexture? texture = null; // ((geom.Textures != null) && (geom.Textures.Length > 0)) ? geom.Textures[0] : null;
 
             //trees_lod2
             //PNCCTTTT: texcoord2 seems to be 0-1 for the billboard, vertex pos is billboard root.
@@ -203,8 +203,8 @@ namespace CodeWalker.Rendering
             {
 
                 int nparams = 0;
-                MetaName[] hashes = null;
-                ShaderParameter[] sparams = null;
+                MetaName[]? hashes = null;
+                ShaderParameter[]? sparams = null;
 
                 if (shader.ParametersList != null)
                 {

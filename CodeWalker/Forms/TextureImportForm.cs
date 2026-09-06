@@ -314,7 +314,7 @@ namespace CodeWalker.Forms
             this.PerformLayout();
         }
 
-        private void ImportButton_Click(object sender, EventArgs e)
+        private void ImportButton_Click(object? sender, EventArgs e)
         {
             // Get selected format
             SelectedFormat = GetFormatFromIndex(FormatComboBox.SelectedIndex);

@@ -325,7 +325,7 @@
         private System.Windows.Forms.NumericUpDown MaxSlopeAngleNumeric;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.ProgressBar ProgressBar;
-        private System.Windows.Forms.Button CancelButton;
+        private new System.Windows.Forms.Button CancelButton;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.GroupBox groupBox2;
     }

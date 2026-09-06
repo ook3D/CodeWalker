@@ -36,7 +36,7 @@ namespace CodeWalker.ModManager
             return File.Exists(folder + @"\gta5_enhanced.exe");
         }
 
-        public static bool ValidateGTAFolder(string folder, bool gen9, out string failReason)
+        public static bool ValidateGTAFolder([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? folder, bool gen9, out string failReason)
         {
             failReason = "";
 

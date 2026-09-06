@@ -118,10 +118,10 @@ namespace CodeWalker.World
         public void Init(XmlElement xml)
         {
             List<CloudHatFrag> fraglist = new();
-            XmlNodeList frags = xml.SelectNodes("mCloudHatFrags/Item");
+            XmlNodeList? frags = xml.SelectNodes("mCloudHatFrags/Item");
             foreach (XmlNode node in frags)
             {
-                XmlElement fragel = node as XmlElement;
+                XmlElement? fragel = node as XmlElement;
                 if (fragel != null)
                 {
                     CloudHatFrag frag = new();
@@ -178,10 +178,10 @@ namespace CodeWalker.World
             Name = Xml.GetChildInnerText(xml, "mName");
 
             List<CloudHatFragLayer> layerlist = new();
-            XmlNodeList layersxml = xml.SelectNodes("mLayers/Item");
+            XmlNodeList? layersxml = xml.SelectNodes("mLayers/Item");
             foreach (XmlNode node in layersxml)
             {
-                XmlElement layerel = node as XmlElement;
+                XmlElement? layerel = node as XmlElement;
                 if (layerel != null)
                 {
                     CloudHatFragLayer layer = new();
@@ -223,11 +223,11 @@ namespace CodeWalker.World
 
 
             //string showlayerstr = Xml.GetChildInnerText(xml, "mShowLayer").Trim();
-            XmlNodeList showlayersxml = xml.SelectNodes("mShowLayer/Item");
+            XmlNodeList? showlayersxml = xml.SelectNodes("mShowLayer/Item");
             ShowLayer = new bool[showlayersxml.Count];
             for (int i = 0; i < showlayersxml.Count; i++)
             {
-                XmlNode slnode = showlayersxml[i];
+                XmlNode? slnode = showlayersxml[i];
                 if (slnode is XmlElement)
                 {
                     ShowLayer[i] = Xml.GetBoolAttribute(slnode, "value");
@@ -297,10 +297,10 @@ namespace CodeWalker.World
 
 
             SettingsMap = new Dictionary<string, CloudSettingsMapItem>();
-            XmlNodeList mapxml = xml.SelectNodes("SettingsMap/Item");
+            XmlNodeList? mapxml = xml.SelectNodes("SettingsMap/Item");
             foreach (XmlNode node in mapxml)
             {
-                XmlElement itemel = node as XmlElement;
+                XmlElement? itemel = node as XmlElement;
                 if (itemel != null)
                 {
                     CloudSettingsMapItem item = new();

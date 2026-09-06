@@ -369,7 +369,7 @@ namespace CodeWalker.GameFiles
             {
                 nodes.Add(node);
 
-                IEnumerable<MrfNode> children = null;
+                IEnumerable<MrfNode>? children = null;
                 if (node is MrfNodeStateMachine sm)
                 {
                     children = sm.States.Select(s => s.State);
@@ -411,7 +411,7 @@ namespace CodeWalker.GameFiles
         {
             return FindMoveNetworkBitByBitPosition(MoveNetworkFlags, bitPosition);
         }
-        public static MrfMoveNetworkBit? FindMoveNetworkBitByBitPosition(MrfMoveNetworkBit[] bits, int bitPosition)
+        public static MrfMoveNetworkBit? FindMoveNetworkBitByBitPosition(MrfMoveNetworkBit[]? bits, int bitPosition)
         {
             if (bits == null)
             {
@@ -435,7 +435,7 @@ namespace CodeWalker.GameFiles
         {
             return FindMoveNetworkBitByName(MoveNetworkFlags, name);
         }
-        public static MrfMoveNetworkBit? FindMoveNetworkBitByName(MrfMoveNetworkBit[] bits, MetaHash name)
+        public static MrfMoveNetworkBit? FindMoveNetworkBitByName(MrfMoveNetworkBit[]? bits, MetaHash name)
         {
             if (bits == null)
             {
@@ -452,7 +452,7 @@ namespace CodeWalker.GameFiles
             return null;
         }
 
-        public static MrfMoveNetworkBit[] SortMoveNetworkBitsArray(MrfMoveNetworkBit[] bits)
+        public static MrfMoveNetworkBit[] SortMoveNetworkBitsArray(MrfMoveNetworkBit[]? bits)
         {
             if (bits == null)
             {
@@ -517,8 +517,8 @@ namespace CodeWalker.GameFiles
                 w.WriteLine("    n{0} -> root [color = black]", RootState.FileOffset);
                 foreach (var n in AllNodes)
                 {
-                    MrfStateTransition[] transitions = null;
-                    MrfNode initial = null;
+                    MrfStateTransition[]? transitions = null;
+                    MrfNode? initial = null;
                     if (n is MrfNodeStateBase sb)
                     {
                         initial = sb.InitialNode;
@@ -1220,7 +1220,7 @@ namespace CodeWalker.GameFiles
             InitialNodeOffset = InitialNodeFileOffset - (FileOffset + 0x8);
         }
 
-        protected void ResolveNodeOffsetsInTransitions(MrfStateTransition[] transitions, MrfFile mrf)
+        protected void ResolveNodeOffsetsInTransitions(MrfStateTransition[]? transitions, MrfFile mrf)
         {
             if (transitions == null)
             {
@@ -1236,11 +1236,11 @@ namespace CodeWalker.GameFiles
                 if (!(node is MrfNodeStateBase))
                 { } // no hits
 
-                t.TargetState = (MrfNodeStateBase)node;
+                t.TargetState = (MrfNodeStateBase?)node;
             }
         }
 
-        protected void ResolveNodeOffsetsInStates(MrfStateRef[] states, MrfFile mrf)
+        protected void ResolveNodeOffsetsInStates(MrfStateRef[]? states, MrfFile mrf)
         {
             if (states == null)
             {
@@ -1256,7 +1256,7 @@ namespace CodeWalker.GameFiles
                 if (!(node is MrfNodeStateBase))
                 { } // no hits
 
-                s.State = (MrfNodeStateBase)node;
+                s.State = (MrfNodeStateBase?)node;
             }
         }
 
@@ -1301,7 +1301,7 @@ namespace CodeWalker.GameFiles
             return offset;
         }
 
-        protected void ResolveXmlTargetStatesInTransitions(MrfStateRef[] states)
+        protected void ResolveXmlTargetStatesInTransitions(MrfStateRef[]? states)
         {
             if (states == null)
             {

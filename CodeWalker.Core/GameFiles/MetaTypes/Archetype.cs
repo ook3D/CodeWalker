@@ -165,7 +165,7 @@ public class MloArchetype : Archetype
         _MloArchetypeDefData = arch.MloArchetypeDef;
     }
 
-    public bool AddEntity(YmapEntityDef ent, int roomIndex, int portalIndex = -1, int entsetIndex = -1)
+    public bool AddEntity(YmapEntityDef? ent, int roomIndex, int portalIndex = -1, int entsetIndex = -1)
     {
         if (ent == null) return false;
 
@@ -230,7 +230,7 @@ public class MloArchetype : Archetype
 
         return true;
     }
-    public bool RemoveEntity(YmapEntityDef ent)
+    public bool RemoveEntity(YmapEntityDef? ent)
     {
         if (ent == null) return false;
 
@@ -292,7 +292,7 @@ public class MloArchetype : Archetype
         return false;
     }
 
-    public void AddRoom(MCMloRoomDef room)
+    public void AddRoom(MCMloRoomDef? room)
     {
         if (room == null) return;
 
@@ -303,7 +303,7 @@ public class MloArchetype : Archetype
         newrooms.Add(room);
         rooms = newrooms.ToArray();
     }
-    public void RemoveRoom(MCMloRoomDef room)
+    public void RemoveRoom(MCMloRoomDef? room)
     {
         if (room == null) return;
 
@@ -319,7 +319,7 @@ public class MloArchetype : Archetype
         UpdatePortalCounts();//portal room indices probably would need to be updated anyway
     }
 
-    public void AddPortal(MCMloPortalDef portal)
+    public void AddPortal(MCMloPortalDef? portal)
     {
         if (portal == null) return;
 
@@ -332,7 +332,7 @@ public class MloArchetype : Archetype
 
         UpdatePortalCounts();
     }
-    public void RemovePortal(MCMloPortalDef portal)
+    public void RemovePortal(MCMloPortalDef? portal)
     {
         if (portal == null) return;
 
@@ -348,7 +348,7 @@ public class MloArchetype : Archetype
         UpdatePortalCounts();
     }
 
-    public void AddEntitySet(MCMloEntitySet set)
+    public void AddEntitySet(MCMloEntitySet? set)
     {
         if (set == null) return;
 
@@ -359,7 +359,7 @@ public class MloArchetype : Archetype
         newsets.Add(set);
         entitySets = newsets.ToArray();
     }
-    public void RemoveEntitySet(MCMloEntitySet set)
+    public void RemoveEntitySet(MCMloEntitySet? set)
     {
         if (set == null) return;
 
@@ -770,7 +770,7 @@ public class MloInstanceData
         }
     }
 
-    public MCEntityDef TryGetArchetypeEntity(YmapEntityDef ymapEntity)
+    public MCEntityDef TryGetArchetypeEntity(YmapEntityDef? ymapEntity)
     {
         if (ymapEntity == null) return null;
         if (Owner?.Archetype == null) return null;
@@ -802,7 +802,7 @@ public class MloInstanceData
         return null;
     }
 
-    public YmapEntityDef TryGetYmapEntity(MCEntityDef mcEntity)
+    public YmapEntityDef TryGetYmapEntity(MCEntityDef? mcEntity)
     {
         if (mcEntity == null) return null;
         if (Owner?.Archetype == null) return null;
@@ -886,7 +886,7 @@ public class MloInstanceData
         e.UpdateEntityHash();
     }
 
-    public void AddEntity(YmapEntityDef e)
+    public void AddEntity(YmapEntityDef? e)
     {
         if (e == null) return;
 

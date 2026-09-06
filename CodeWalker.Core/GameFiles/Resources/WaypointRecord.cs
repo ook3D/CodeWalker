@@ -90,7 +90,7 @@ namespace CodeWalker.GameFiles
             Entries.Data = entries;
 
         }
-        public static void WriteXmlNode(WaypointRecordList l, StringBuilder sb, int indent, string name = "WaypointRecordList")
+        public static void WriteXmlNode(WaypointRecordList? l, StringBuilder sb, int indent, string name = "WaypointRecordList")
         {
             if (l == null) return;
             if ((l.Entries?.Data == null) || (l.Entries.Data.Count == 0))
@@ -104,7 +104,7 @@ namespace CodeWalker.GameFiles
                 YwrXml.CloseTag(sb, indent, name);
             }
         }
-        public static WaypointRecordList ReadXmlNode(XmlNode node)
+        public static WaypointRecordList ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var l = new WaypointRecordList();

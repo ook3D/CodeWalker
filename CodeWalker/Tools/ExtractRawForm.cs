@@ -165,7 +165,7 @@ namespace CodeWalker.Tools
                                     data = ResourceBuilder.Compress(data);
                                 }
 
-                                RpfResourceFileEntry rrfe = fentry as RpfResourceFileEntry;
+                                RpfResourceFileEntry? rrfe = fentry as RpfResourceFileEntry;
                                 if (rrfe != null) //add resource header if this is a resource file.
                                 {
                                     data = ResourceBuilder.AddResourceHeader(rrfe, data);

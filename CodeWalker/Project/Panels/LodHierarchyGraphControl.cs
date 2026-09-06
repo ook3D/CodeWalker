@@ -153,7 +153,7 @@ namespace CodeWalker.Project.Panels
         {
             //when preserving (eg. after link edits), nodes that already exist keep their current
             //positions, so editing a link doesn't shuffle the layout under the user.
-            Dictionary<YmapEntityDef, PointF> oldpositions = null;
+            Dictionary<YmapEntityDef, PointF>? oldpositions = null;
             if (preservePositions && (NodeLookup.Count > 0))
             {
                 oldpositions = new Dictionary<YmapEntityDef, PointF>(NodeLookup.Count);
@@ -243,7 +243,7 @@ namespace CodeWalker.Project.Panels
             node.Line3 = (ent.Ymap?.Name ?? "?") + "  [" + ent.Index.ToString() + "]";
             node.FillColor = LodLevelColor(ent._CEntityDef.lodLevel);
 
-            string warning = null;
+            string? warning = null;
             if (ent._CEntityDef.numChildren != actual)
             {
                 warning = "numChildren=" + ent._CEntityDef.numChildren.ToString() + ", actual=" + actual.ToString();
@@ -424,7 +424,7 @@ namespace CodeWalker.Project.Panels
             Invalidate();
         }
 
-        public void FocusEntity(YmapEntityDef ent)
+        public void FocusEntity(YmapEntityDef? ent)
         {
             if ((ent == null) || !NodeLookup.TryGetValue(ent, out var node)) return;
             if (Zoom < 0.5f) Zoom = 1.0f;

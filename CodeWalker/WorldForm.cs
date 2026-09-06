@@ -50,7 +50,6 @@ namespace CodeWalker
 
         bool MouseLButtonDown = false;
         bool MouseRButtonDown = false;
-        bool MouseMButtonDown = false;
         int MouseX;
         int MouseY;
         System.Drawing.Point MouseDownPoint;
@@ -2309,7 +2308,7 @@ namespace CodeWalker
         };
 
         // Helper method to check if a file name is a Cayo Perico file
-        static bool IsCayoPericoFile(string name)
+        static bool IsCayoPericoFile(string? name)
         {
             if (string.IsNullOrEmpty(name)) return false;
 
@@ -2641,78 +2640,83 @@ namespace CodeWalker
 
             GameFileCache.BeginFrame();
 
-            if (!Monitor.TryEnter(Renderer.RenderSyncRoot, 50))
+            var renderLock = Renderer.RenderSyncRoot;
+            if (!renderLock.TryEnter(50))
             { return; } //couldn't get a lock, try again next time
-            
-            // cache frequently accessed properties
-            bool isMouseSelectEnabled = MouseSelectEnabled;
-
-            UpdateControlInputs(elapsed);
-
-            space.Update(elapsed);
-
-            if (CutsceneForm != null)
+            try
             {
-                CutsceneForm.UpdateAnimation(elapsed);
+                // cache frequently accessed properties
+                bool isMouseSelectEnabled = MouseSelectEnabled;
+
+                UpdateControlInputs(elapsed);
+
+                space.Update(elapsed);
+
+                if (CutsceneForm != null)
+                {
+                    CutsceneForm.UpdateAnimation(elapsed);
+                }
+
+                Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
+
+
+
+                UpdateWidgets();
+
+                BeginMouseHitTest();
+
+
+
+
+                Renderer.BeginRender(context);
+
+                Renderer.RenderSkyAndClouds();
+
+                Renderer.SelectedDrawable = SelectedItem.Drawable;
+
+                // Set the selected node position to exclude its cube from rendering
+                Renderer.shaders.SelectedScenarioNodePosition = SelectedItem.ScenarioNode?.Position
+                    ?? SelectedItem.PathNode?.Position;
+
+                if (renderworld)
+                {
+                    RenderWorld();
+                }
+                else if (rendermaps)
+                {
+                    RenderYmaps();
+                }
+                else
+                {
+                    RenderSingleItem();
+                }
+
+                UpdateMouseHits();
+
+                RenderSelection();
+
+                RenderMoused();
+
+                Renderer.RenderQueued();
+
+                Renderer.RenderBounds(SelectionMode);
+
+                Renderer.RenderSelectionGeometry(SelectionMode);
+
+                Renderer.RenderFinalPass();
+
+                RenderEntityOutlines();
+
+                RenderMarkers();
+
+                RenderWidgets();
+
+                Renderer.EndRender();
             }
-
-            Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
-
-
-
-            UpdateWidgets();
-
-            BeginMouseHitTest();
-
-
-
-
-            Renderer.BeginRender(context);
-
-            Renderer.RenderSkyAndClouds();
-
-            Renderer.SelectedDrawable = SelectedItem.Drawable;
-
-            // Set the selected node position to exclude its cube from rendering
-            Renderer.shaders.SelectedScenarioNodePosition = SelectedItem.ScenarioNode?.Position
-                ?? SelectedItem.PathNode?.Position;
-
-            if (renderworld)
+            finally
             {
-                RenderWorld();
+                renderLock.Exit();
             }
-            else if (rendermaps)
-            {
-                RenderYmaps();
-            }
-            else
-            {
-                RenderSingleItem();
-            }
-
-            UpdateMouseHits();
-
-            RenderSelection();
-
-            RenderMoused();
-
-            Renderer.RenderQueued();
-
-            Renderer.RenderBounds(SelectionMode);
-
-            Renderer.RenderSelectionGeometry(SelectionMode);
-
-            Renderer.RenderFinalPass();
-
-            RenderEntityOutlines();
-
-            RenderMarkers();
-
-            RenderWidgets();
-
-            Renderer.EndRender();
-
-            Monitor.Exit(Renderer.RenderSyncRoot);
 
             UpdateMarkerSelectionPanelInvoke();
         }
@@ -2928,7 +2932,7 @@ namespace CodeWalker
             int hour = worldymaptimefilter ? (int)Renderer.timeofday : -1;
             MetaHash weathertype = worldymapweatherfilter ? ((weather.CurrentWeatherType != null) ? weather.CurrentWeatherType.NameHash : new MetaHash(0)) : new MetaHash(0);
 
-            IEnumerable<Entity> spaceEnts = null;
+            IEnumerable<Entity>? spaceEnts = null;
 
             if (renderworld)
             {
@@ -3379,9 +3383,9 @@ namespace CodeWalker
             }
             Archetype arche = gameFileCache.GetArchetype(hash);
 
-            Archetype selarch = null;
-            DrawableBase seldrwbl = null;
-            YmapEntityDef selent = null;
+            Archetype? selarch = null;
+            DrawableBase? seldrwbl = null;
+            YmapEntityDef? selent = null;
 
             if (arche != null)
             {
@@ -4241,7 +4245,7 @@ namespace CodeWalker
             }
         }
 
-        public void UpdatePathYndGraphics(YndFile ynd, bool fullupdate)
+        public void UpdatePathYndGraphics(YndFile? ynd, bool fullupdate)
         {
             if (ynd == null)
             {
@@ -4269,7 +4273,7 @@ namespace CodeWalker
                 Renderer.Invalidate(ynd);
             }
         }
-        public void UpdatePathNodeGraphics(YndNode pathnode, bool fullupdate)
+        public void UpdatePathNodeGraphics(YndNode? pathnode, bool fullupdate)
         {
             if (pathnode == null) return;
             pathnode.Ynd.UpdateBvhForNode(pathnode);
@@ -4314,19 +4318,19 @@ namespace CodeWalker
                 Renderer.Invalidate(ynv);
             }
         }
-        public void UpdateNavPolyGraphics(YnvPoly poly, bool fullupdate)
+        public void UpdateNavPolyGraphics(YnvPoly? poly, bool fullupdate)
         {
             if (poly == null) return;
             //poly.Ynv.UpdateBvhForPoly(poly);//TODO!
             UpdateNavYnvGraphics(poly.Ynv, fullupdate);
         }
-        public void UpdateNavPointGraphics(YnvPoint point, bool fullupdate)
+        public void UpdateNavPointGraphics(YnvPoint? point, bool fullupdate)
         {
             if (point == null) return;
             //poly.Ynv.UpdateBvhForPoint(point);//TODO!
             UpdateNavYnvGraphics(point.Ynv, fullupdate);
         }
-        public void UpdateNavPortalGraphics(YnvPortal portal, bool fullupdate)
+        public void UpdateNavPortalGraphics(YnvPortal? portal, bool fullupdate)
         {
             if (portal == null) return;
             //poly.Ynv.UpdateBvhForPortal(portal);//TODO!
@@ -4350,7 +4354,7 @@ namespace CodeWalker
                 Renderer.Invalidate(tt);
             }
         }
-        public void UpdateTrainTrackNodeGraphics(TrainTrackNode node, bool fullupdate)
+        public void UpdateTrainTrackNodeGraphics(TrainTrackNode? node, bool fullupdate)
         {
             if (node == null) return;
             node.Track.UpdateBvhForNode(node);
@@ -4612,7 +4616,7 @@ namespace CodeWalker
             cent.artificialAmbientOcclusion = 255;
             cent.position = pos;
 
-            YmapEntityDef ent = new(null, 0, ref cent);
+            YmapEntityDef? ent = new(null, 0, ref cent);
 
             ent.SetArchetype(arch);
 
@@ -4887,7 +4891,7 @@ namespace CodeWalker
                 if (vertices.Length < stride * 3 || indices.Length < 3) return -1;
 
                 bool hasTransform = modelTransform.HasValue;
-                Matrix mtx = hasTransform ? modelTransform.Value : Matrix.Identity;
+                Matrix mtx = modelTransform.GetValueOrDefault(Matrix.Identity);
 
                 float closestHit = float.MaxValue;
                 bool hasHit = false;
@@ -4985,7 +4989,7 @@ namespace CodeWalker
                 if (vertices.Length < stride * 2 || indices.Length < 2) return -1;
 
                 bool hasTransform = modelTransform.HasValue;
-                Matrix mtx = hasTransform ? modelTransform.Value : Matrix.Identity;
+                Matrix mtx = modelTransform.GetValueOrDefault(Matrix.Identity);
 
                 float closestHit = float.MaxValue;
                 bool hasHit = false;
@@ -5081,7 +5085,7 @@ namespace CodeWalker
             Ray mraytrn;
             float hitdist = 0.0f;
             int geometryIndex = 0;
-            DrawableGeometry geometry = null;
+            DrawableGeometry? geometry = null;
             BoundingBox geometryAABB = new();
             BoundingSphere bsph = new();
             BoundingBox bbox = new();
@@ -5218,12 +5222,12 @@ namespace CodeWalker
             {
                 //geometry-based selection with triangle intersection
                 float ghitdist = float.MaxValue;
-                DrawableGeometry bestGeometry = null;
+                DrawableGeometry? bestGeometry = null;
                 BoundingBox bestAABB = new();
                 int bestGeomIndex = 0;
 
                 // Get renderable to access per-model bone/fragment transforms
-                Rendering.Renderable rndbl = Renderer.RenderableCache?.GetRenderable(drawable);
+                Rendering.Renderable? rndbl = Renderer.RenderableCache?.GetRenderable(drawable);
 
                 for (int i = 0; i < dmodels.Length; i++)
                 {
@@ -5742,7 +5746,7 @@ namespace CodeWalker
             }
 
         }
-        private void UpdateMouseHits(YnvFile ynv, NavMeshSector navsector, NavMeshSector rootsec, ref Ray mray)
+        private void UpdateMouseHits(YnvFile ynv, NavMeshSector? navsector, NavMeshSector rootsec, ref Ray mray)
         {
             if (navsector == null) return;
 
@@ -6143,7 +6147,7 @@ namespace CodeWalker
             }
         }
 
-        public void SelectObject(object obj, object parent = null, bool addSelection = false)
+        public void SelectObject(object obj, object? parent = null, bool addSelection = false)
         {
             if (obj == null)
             {
@@ -6396,7 +6400,7 @@ namespace CodeWalker
             float maxSY = Math.Max(BoxSelectStart.Y, BoxSelectEnd.Y);
 
             var items = new List<MapSelection>();
-            RenderedDrawable[] drawableSnapshot = null;
+            RenderedDrawable[]? drawableSnapshot = null;
 
             try
             {
@@ -6580,12 +6584,12 @@ namespace CodeWalker
             }
 
 
-            YmapFile ymap = null;
-            YnvFile ynv = null;
-            YndFile ynd = null;
-            TrainTrack traintr = null;
-            YmtFile scenario = null;
-            RelFile audiofile = null;
+            YmapFile? ymap = null;
+            YnvFile? ynv = null;
+            YndFile? ynd = null;
+            TrainTrack? traintr = null;
+            YmtFile? scenario = null;
+            RelFile? audiofile = null;
             ToolbarCopyButton.Enabled = false;
             ToolbarDeleteItemButton.Enabled = false;
             ToolbarDeleteItemButton.Text = "Delete";
@@ -6821,7 +6825,7 @@ namespace CodeWalker
                 }
             }
         }
-        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[] models, string prefix, bool check)
+        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check)
         {
             if (models == null) return;
 
@@ -7027,7 +7031,7 @@ namespace CodeWalker
             ModelComboBox.Text = name;
             modelname = name;
         }
-        public void GoToEntity(YmapEntityDef entity)
+        public void GoToEntity(YmapEntityDef? entity)
         {
             if (entity == null) return;
             ViewModeComboBox.Text = "World view";
@@ -7575,7 +7579,7 @@ namespace CodeWalker
         {
             if (!MouseSelectEnabled) return null;
             
-            if (!Monitor.TryEnter(markersortedsyncroot, 1)) // dont wait long for lock
+            if (!markersortedsyncroot.TryEnter(1)) // dont wait long for lock
                 return null;
             
             try
@@ -7608,7 +7612,7 @@ namespace CodeWalker
             }
             finally
             {
-                Monitor.Exit(markersortedsyncroot);
+                markersortedsyncroot.Exit();
             }
             
             return null;
@@ -7914,7 +7918,7 @@ namespace CodeWalker
         {
             if (!SelectedItem.CanMarkUndo()) return;
             TransformWidget tw = Widget as TransformWidget;
-            UndoStep s = null;
+            UndoStep? s = null;
             if (tw != null)
             {
                 s = SelectedItem.CreateUndoStep(tw.Mode, UndoStartPosition, UndoStartRotation, UndoStartScale, this, EditEntityPivot);
@@ -8283,7 +8287,7 @@ namespace CodeWalker
             else if (item.Audio?.AmbientRule != null) DeleteAudioAmbientRule(item.Audio);
             else if (item.Audio?.StaticEmitter != null) DeleteAudioStaticEmitter(item.Audio);
         }
-        private void DeleteEntity(YmapEntityDef ent)
+        private void DeleteEntity(YmapEntityDef? ent)
         {
             if (ent == null) return;
 
@@ -8316,7 +8320,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteCarGen(YmapCarGen cargen)
+        private void DeleteCarGen(YmapCarGen? cargen)
         {
             if (cargen == null) return;
 
@@ -8331,7 +8335,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteLodLight(YmapLODLight lodlight)
+        private void DeleteLodLight(YmapLODLight? lodlight)
         {
             if (lodlight == null) return;
 
@@ -8346,7 +8350,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteBoxOccluder(YmapBoxOccluder box)
+        private void DeleteBoxOccluder(YmapBoxOccluder? box)
         {
             if (box == null) return;
 
@@ -8361,7 +8365,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        private void DeleteOccludeModelTriangle(YmapOccludeModelTriangle? tri)
         {
             if (tri == null) return;
 
@@ -8377,7 +8381,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeletePathNode(YndNode pathnode)
+        private void DeletePathNode(YndNode? pathnode)
         {
             if (pathnode == null) return;
             if (pathnode.Ynd == null) return;
@@ -8404,7 +8408,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteNavPoly(YnvPoly navpoly)
+        private void DeleteNavPoly(YnvPoly? navpoly)
         {
             if (navpoly == null) return;
 
@@ -8420,7 +8424,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteNavPoint(YnvPoint navpoint)
+        private void DeleteNavPoint(YnvPoint? navpoint)
         {
             if (navpoint == null) return;
 
@@ -8436,7 +8440,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteNavPortal(YnvPortal navportal)
+        private void DeleteNavPortal(YnvPortal? navportal)
         {
             if (navportal == null) return;
 
@@ -8452,7 +8456,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteTrainNode(TrainTrackNode trainnode)
+        private void DeleteTrainNode(TrainTrackNode? trainnode)
         {
             if (trainnode == null) return;
 
@@ -8468,7 +8472,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteScenarioNode(ScenarioNode scenariopt)
+        private void DeleteScenarioNode(ScenarioNode? scenariopt)
         {
             if (scenariopt == null) return;
 
@@ -8484,7 +8488,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteAudioAmbientZone(AudioPlacement audio)
+        private void DeleteAudioAmbientZone(AudioPlacement? audio)
         {
             if (audio == null) return;
 
@@ -8499,7 +8503,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteAudioAmbientRule(AudioPlacement audio)
+        private void DeleteAudioAmbientRule(AudioPlacement? audio)
         {
             if (audio == null) return;
 
@@ -8514,7 +8518,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteAudioStaticEmitter(AudioPlacement audio)
+        private void DeleteAudioStaticEmitter(AudioPlacement? audio)
         {
             if (audio == null) return;
 
@@ -8529,7 +8533,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteCollisionVertex(BoundVertex vertex)
+        private void DeleteCollisionVertex(BoundVertex? vertex)
         {
             if (vertex == null) return;
 
@@ -8545,7 +8549,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteCollisionPoly(BoundPolygon poly)
+        private void DeleteCollisionPoly(BoundPolygon? poly)
         {
             if (poly == null) return;
 
@@ -8561,7 +8565,7 @@ namespace CodeWalker
                 SelectItem(null);
             }
         }
-        private void DeleteCollisionBounds(Bounds bounds)
+        private void DeleteCollisionBounds(Bounds? bounds)
         {
             if (bounds == null) return;
 
@@ -8815,7 +8819,7 @@ namespace CodeWalker
 
             ToolbarSnapButton.Checked = (mode != WorldSnapMode.None);
 
-            ToolStripMenuItem selItem = null;
+            ToolStripMenuItem? selItem = null;
 
             switch (mode)
             {
@@ -9111,7 +9115,6 @@ namespace CodeWalker
             {
                 case MouseButtons.Left: MouseLButtonDown = true; break;
                 case MouseButtons.Right: MouseRButtonDown = true; break;
-                case MouseButtons.Middle: MouseMButtonDown = true; break;
             }
 
             if (!ToolsPanelShowButton.Focused)
@@ -9207,7 +9210,6 @@ namespace CodeWalker
             {
                 case MouseButtons.Left: MouseLButtonDown = false; break;
                 case MouseButtons.Right: MouseRButtonDown = false; break;
-                case MouseButtons.Middle: MouseMButtonDown = false; break;
             }
 
             Input.CtrlPressed = (ModifierKeys & Keys.Control) > 0;
@@ -9438,7 +9440,7 @@ namespace CodeWalker
             }
         }
 
-        private void WorldForm_MouseWheel(object sender, MouseEventArgs e)
+        private void WorldForm_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (e.Delta != 0)
             {
@@ -9620,7 +9622,7 @@ namespace CodeWalker
         private void ViewModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             bool prevmodel = !(rendermaps || renderworld);
-            string mode = (string)ViewModeComboBox.SelectedItem;
+            string? mode = (string?)ViewModeComboBox.SelectedItem;
             switch (mode)
             {
                 case "World view":
@@ -9816,7 +9818,7 @@ namespace CodeWalker
 
         private void MarkerStyleComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            MapIcon icon = MarkerStyleComboBox.SelectedItem as MapIcon;
+            MapIcon? icon = MarkerStyleComboBox.SelectedItem as MapIcon;
             if (icon != MarkerIcon)
             {
                 MarkerIcon = icon;
@@ -9829,7 +9831,7 @@ namespace CodeWalker
 
         private void LocatorStyleComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            MapIcon icon = LocatorStyleComboBox.SelectedItem as MapIcon;
+            MapIcon? icon = LocatorStyleComboBox.SelectedItem as MapIcon;
             if (icon != LocatorIcon)
             {
                 LocatorIcon = icon;
@@ -10410,10 +10412,10 @@ namespace CodeWalker
 
         private void CloudsComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            //if (!Monitor.TryEnter(rendersyncroot, 50))
+            //if (!rendersyncroot.TryEnter(50))
             //{ return; } //couldn't get a lock...
             Renderer.individualcloudfrag = CloudsComboBox.Text;
-            //Monitor.Exit(rendersyncroot);
+            //rendersyncroot.Exit();
         }
 
         private void HDLightsCheckBox_CheckedChanged(object sender, EventArgs e)
@@ -10483,7 +10485,7 @@ namespace CodeWalker
 
         private void CloudParamComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            CloudAnimSetting setting = CloudParamComboBox.SelectedItem as CloudAnimSetting;
+            CloudAnimSetting? setting = CloudParamComboBox.SelectedItem as CloudAnimSetting;
             if (setting != null)
             {
                 float rng = setting.MaxValue - setting.MinValue;
@@ -10496,7 +10498,7 @@ namespace CodeWalker
 
         private void CloudParamTrackBar_Scroll(object sender, EventArgs e)
         {
-            CloudAnimSetting setting = CloudParamComboBox.SelectedItem as CloudAnimSetting;
+            CloudAnimSetting? setting = CloudParamComboBox.SelectedItem as CloudAnimSetting;
             if (setting != null)
             {
                 float rng = setting.MaxValue - setting.MinValue;
@@ -10840,7 +10842,7 @@ namespace CodeWalker
             Undo();
         }
 
-        private void ToolbarUndoListButton_Click(object sender, EventArgs e)
+        private void ToolbarUndoListButton_Click(object? sender, EventArgs e)
         {
             var tsi = sender as ToolStripItem;
             if (tsi == null) return;
@@ -10862,7 +10864,7 @@ namespace CodeWalker
             Redo();
         }
 
-        private void ToolbarRedoListButton_Click(object sender, EventArgs e)
+        private void ToolbarRedoListButton_Click(object? sender, EventArgs e)
         {
             var tsi = sender as ToolStripItem;
             if (tsi == null) return;

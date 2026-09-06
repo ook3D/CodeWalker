@@ -15,7 +15,7 @@ namespace ST.Library.UI
         private Rectangle m_rect;
         private Pen m_pen;
         private SolidBrush m_brush;
-        private TextBox m_tbx;
+        private readonly TextBox m_tbx = new();
 
         public FrmSTNodePropertyInput(STNodePropertyDescriptor descriptor) {
             this.SetStyle(ControlStyles.UserPaint, true);
@@ -40,7 +40,6 @@ namespace ST.Library.UI
             this.Location = pt;
             this.Size = new System.Drawing.Size(m_rect.Width + m_rect.Height, m_rect.Height);
 
-            m_tbx = new TextBox();
             m_tbx.Font = m_descriptor.Control.Font;
             m_tbx.ForeColor = m_descriptor.Control.ForeColor;
             m_tbx.BackColor = Color.FromArgb(255, m_descriptor.Control.ItemValueBackColor);
@@ -89,11 +88,11 @@ namespace ST.Library.UI
             g.DrawLine(m_pen, this.Width - 7, 3, this.Width - 7, 9);
         }
 
-        void tbx_KeyDown(object sender, KeyEventArgs e) {
+        void tbx_KeyDown(object? sender, KeyEventArgs e) {
             if (e.KeyCode == Keys.Escape) this.Close();
             if (e.KeyCode != Keys.Enter) return;
             try {
-                m_descriptor.SetValue(((TextBox)sender).Text, null);
+                m_descriptor.SetValue(m_tbx.Text, null);
                 m_descriptor.Control.Invalidate();//add rect;
             } catch (Exception ex) {
                 m_descriptor.OnSetValueError(ex);

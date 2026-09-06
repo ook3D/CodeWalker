@@ -149,7 +149,7 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout l;
+            InputLayout? l;
             if (layouts.TryGetValue(type, out l))
             {
                 context.InputAssembler.InputLayout = l;

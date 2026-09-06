@@ -397,13 +397,13 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void MarkYmapChanged(YmapFile ymap)
+        private void MarkYmapChanged(YmapFile? ymap)
         {
             if (ymap == null) return;
             ProjectForm?.ProjectExplorer?.SetYmapHasChanged(ymap, true);
         }
 
-        private bool EnsureYmapEditable(YmapFile ymap)
+        private bool EnsureYmapEditable(YmapFile? ymap)
         {
             if (ymap == null) return false;
             if (ProjectForm == null) return false;
@@ -477,7 +477,7 @@ namespace CodeWalker.Project.Panels
             RefreshHierarchy();
         }
 
-        private void GatherSubtree(YmapEntityDef ent, HashSet<YmapEntityDef> result, bool includeChildren)
+        private void GatherSubtree(YmapEntityDef? ent, HashSet<YmapEntityDef> result, bool includeChildren)
         {
             if ((ent == null) || !result.Add(ent)) return;
             if (!includeChildren) return;
@@ -555,7 +555,7 @@ namespace CodeWalker.Project.Panels
             SetParentForEntities(GraphView.SelectedEntities, MarkedParent);
         }
 
-        private void SetParentForEntities(YmapEntityDef[] candidates, YmapEntityDef newp)
+        private void SetParentForEntities(YmapEntityDef[] candidates, YmapEntityDef? newp)
         {
             if (newp == null) return;
 
@@ -741,7 +741,7 @@ namespace CodeWalker.Project.Panels
             ProjectForm?.ShowProjectItem(ent, true);
         }
 
-        private void GraphView_LinkRequested(YmapEntityDef child, YmapEntityDef parent)
+        private void GraphView_LinkRequested(YmapEntityDef? child, YmapEntityDef parent)
         {
             if (child == null) return;
             if (parent == null)

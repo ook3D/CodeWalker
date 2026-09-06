@@ -168,11 +168,11 @@ namespace CodeWalker.Rendering
             bool hastransforms = false;
             bool hasbones = false;
             Skeleton skeleton = drawable.Skeleton;
-            Matrix[] modeltransforms = null;
-            Matrix[] fragtransforms = null;
+            Matrix[]? modeltransforms = null;
+            Matrix[]? fragtransforms = null;
             Vector4 fragoffset = Vector4.Zero;
             int fragtransformid = 0;
-            Bone[] bones = null;
+            Bone[]? bones = null;
             bool usepose = false;
             if (skeleton != null)
             {
@@ -270,7 +270,7 @@ namespace CodeWalker.Rendering
                     int boneidx = model.BoneIndex;
 
                     Matrix trans = (boneidx < modeltransforms.Length) ? modeltransforms[boneidx] : Matrix.Identity;
-                    Bone bone = (hasbones && (boneidx < bones.Length)) ? bones[boneidx] : null;
+                    Bone? bone = (hasbones && (boneidx < bones.Length)) ? bones[boneidx] : null;
 
                     if (mi < HDModels.Length) //populate bone links map for hd models
                     {
@@ -541,7 +541,7 @@ namespace CodeWalker.Rendering
                     bone.UpdateSkinTransform();
 
                     //update model's transform from animated bone
-                    RenderableModel bmodel = null;
+                    RenderableModel? bmodel = null;
                     ModelBoneLinks?.TryGetValue(bone.Tag, out bmodel);
 
 
@@ -556,7 +556,7 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private void UpdateAnim(Animation anim, float t)
+        private void UpdateAnim(Animation? anim, float t)
         { 
             if (anim == null)
             { return; }
@@ -600,7 +600,7 @@ namespace CodeWalker.Rendering
                     }
                 }
 
-                Bone bone = null;
+                Bone? bone = null;
                 skel?.BonesMap?.TryGetValue(boneid, out bone);
                 if (bone == null)
                 {
@@ -671,7 +671,7 @@ namespace CodeWalker.Rendering
 
 
         }
-        private void UpdateAnimUV(ClipMapEntry cme, RenderableGeometry rgeom = null)
+        private void UpdateAnimUV(ClipMapEntry cme, RenderableGeometry? rgeom = null)
         {
 
             var clipanim = cme.Clip as ClipAnimation;
@@ -691,7 +691,7 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private void UpdateAnimUV(Animation anim, float t, RenderableGeometry rgeom = null)
+        private void UpdateAnimUV(Animation? anim, float t, RenderableGeometry? rgeom = null)
         {
             if (anim == null)
             { return; }
@@ -1892,19 +1892,20 @@ namespace CodeWalker.Rendering
 
             float sx = key.maxX - key.minX;
             float sy = key.maxY - key.minY;
+            float z = key.z ?? throw new ArgumentException("Water quad must have a height.", nameof(key));
 
             VertexCount = 4;
             Vertices = new VertexTypePCT[4];
-            Vertices[0].Position = new Vector3(key.minX, key.minY, key.z.Value);
+            Vertices[0].Position = new Vector3(key.minX, key.minY, z);
             Vertices[0].Texcoord = new Vector2(0.0f, 0.0f);
             Vertices[0].Colour = (uint)new Color4(key.a1 / 255.0f).ToRgba();
-            Vertices[1].Position = new Vector3(key.maxX, key.minY, key.z.Value);
+            Vertices[1].Position = new Vector3(key.maxX, key.minY, z);
             Vertices[1].Texcoord = new Vector2(sx, 0.0f);
             Vertices[1].Colour = (uint)new Color4(key.a2 / 255.0f).ToRgba();
-            Vertices[2].Position = new Vector3(key.minX, key.maxY, key.z.Value);
+            Vertices[2].Position = new Vector3(key.minX, key.maxY, z);
             Vertices[2].Texcoord = new Vector2(0.0f, sy);
             Vertices[2].Colour = (uint)new Color4(key.a3 / 255.0f).ToRgba();
-            Vertices[3].Position = new Vector3(key.maxX, key.maxY, key.z.Value);
+            Vertices[3].Position = new Vector3(key.maxX, key.maxY, z);
             Vertices[3].Texcoord = new Vector2(sx, sy);
             Vertices[3].Colour = (uint)new Color4(key.a4 / 255.0f).ToRgba();
 
@@ -2217,11 +2218,11 @@ namespace CodeWalker.Rendering
                 }
             }
 
-            VertexTypeDefault[] rverts = (rvertcount > 0) ? new VertexTypeDefault[rvertcount] : null;
-            RenderableBox[] rboxes = (rboxcount > 0) ? new RenderableBox[rboxcount] : null;
-            RenderableSphere[] rspheres = (rspherecount > 0) ? new RenderableSphere[rspherecount] : null;
-            RenderableCapsule[] rcapsules = (rcapsulecount > 0) ? new RenderableCapsule[rcapsulecount] : null;
-            RenderableCylinder[] rcylinders = (rcylindercount > 0) ? new RenderableCylinder[rcylindercount] : null;
+            VertexTypeDefault[]? rverts = (rvertcount > 0) ? new VertexTypeDefault[rvertcount] : null;
+            RenderableBox[]? rboxes = (rboxcount > 0) ? new RenderableBox[rboxcount] : null;
+            RenderableSphere[]? rspheres = (rspherecount > 0) ? new RenderableSphere[rspherecount] : null;
+            RenderableCapsule[]? rcapsules = (rcapsulecount > 0) ? new RenderableCapsule[rcapsulecount] : null;
+            RenderableCylinder[]? rcylinders = (rcylindercount > 0) ? new RenderableCylinder[rcylindercount] : null;
             for (int i = 0; i < bgeom.Polygons.Length; i++)
             {
                 var poly = bgeom.Polygons[i];

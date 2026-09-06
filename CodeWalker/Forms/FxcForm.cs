@@ -166,7 +166,7 @@ namespace CodeWalker.Forms
 
         private void ShadersListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            FxcShader s = null;
+            FxcShader? s = null;
             if (ShadersListView.SelectedItems.Count == 1)
             {
                 s = ShadersListView.SelectedItems[0].Tag as FxcShader;
@@ -178,7 +178,7 @@ namespace CodeWalker.Forms
 
         private void TechniquesListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            FxcTechnique t = null;
+            FxcTechnique? t = null;
             if (TechniquesListView.SelectedItems.Count == 1)
             {
                 t = TechniquesListView.SelectedItems[0].Tag as FxcTechnique;

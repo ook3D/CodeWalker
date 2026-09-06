@@ -117,7 +117,7 @@ namespace CodeWalker
 
 
 
-        public static string GetUTF8Text(byte[] bytes)
+        public static string GetUTF8Text(byte[]? bytes)
         {
             if (bytes == null)
             { return string.Empty; } //file not found..
@@ -135,15 +135,14 @@ namespace CodeWalker
 
     public static class FloatUtil
     {
-        public static bool TryParse(string s, out float f)
-        {
-            if (float.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out f))
-            {
-                return true;
-            }
-            return false;
-        }
-        public static float Parse(string s)
+        public static bool TryParse(string? s, out float f) => TryParse(s.AsSpan(), out f);
+
+        public static bool TryParse(ReadOnlySpan<char> s, out float f) =>
+            float.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out f);
+
+        public static float Parse(string? s) => Parse(s.AsSpan());
+
+        public static float Parse(ReadOnlySpan<char> s)
         {
             TryParse(s, out float f);
             return f;
@@ -210,59 +209,37 @@ namespace CodeWalker
 
         public static Vector2 ParseVector2String(string s)
         {
-            Vector2 p = new(0.0f);
-            string[] ss = s.Split(',');
-            if (ss.Length > 0)
-            {
-                TryParse(ss[0].Trim(), out p.X);
-            }
-            if (ss.Length > 1)
-            {
-                TryParse(ss[1].Trim(), out p.Y);
-            }
-            return p;
+            ArgumentNullException.ThrowIfNull(s);
+            Span<float> components = stackalloc float[2];
+            ParseVectorComponents(s.AsSpan(), components);
+            return new Vector2(components[0], components[1]);
         }
         public static Vector3 ParseVector3String(string s)
         {
-            Vector3 p = new(0.0f);
-            string[] ss = s.Split(',');
-            if (ss.Length > 0)
-            {
-                TryParse(ss[0].Trim(), out p.X);
-            }
-            if (ss.Length > 1)
-            {
-                TryParse(ss[1].Trim(), out p.Y);
-            }
-            if (ss.Length > 2)
-            {
-                TryParse(ss[2].Trim(), out p.Z);
-            }
-            return p;
+            ArgumentNullException.ThrowIfNull(s);
+            Span<float> components = stackalloc float[3];
+            ParseVectorComponents(s.AsSpan(), components);
+            return new Vector3(components[0], components[1], components[2]);
         }
         public static Vector4 ParseVector4String(string s)
         {
-            Vector4 p = new(0.0f);
-            string[] ss = s.Split(',');
-            if (ss.Length > 0)
-            {
-                TryParse(ss[0].Trim(), out p.X);
-            }
-            if (ss.Length > 1)
-            {
-                TryParse(ss[1].Trim(), out p.Y);
-            }
-            if (ss.Length > 2)
-            {
-                TryParse(ss[2].Trim(), out p.Z);
-            }
-            if (ss.Length > 3)
-            {
-                TryParse(ss[3].Trim(), out p.W);
-            }
-            return p;
+            ArgumentNullException.ThrowIfNull(s);
+            Span<float> components = stackalloc float[4];
+            ParseVectorComponents(s.AsSpan(), components);
+            return new Vector4(components[0], components[1], components[2], components[3]);
         }
 
+
+        private static void ParseVectorComponents(ReadOnlySpan<char> text, Span<float> components)
+        {
+            components.Clear();
+            int index = 0;
+            foreach (var range in text.Split(','))
+            {
+                components[index++] = Parse(text[range].Trim());
+                if (index == components.Length) break;
+            }
+        }
 
         public static float Saturate(float f)
         {

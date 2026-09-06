@@ -124,7 +124,7 @@ namespace CodeWalker.Project.Panels
                                     ismilo = true;
                                     if (ent.MloInstance?.Entities != null)
                                     {
-                                        Dictionary<string, YtypFile> typdepdict;
+                                        Dictionary<string, YtypFile>? typdepdict;
                                         if (!typdeps.TryGetValue(ytypname, out typdepdict))
                                         {
                                             typdepdict = new Dictionary<string, YtypFile>();
@@ -193,7 +193,7 @@ namespace CodeWalker.Project.Panels
                             if (mloa != null)
                             {
                                 interiors.Add(mloa.Name);
-                                Dictionary<string, YtypFile> typdepdict;
+                                Dictionary<string, YtypFile>? typdepdict;
                                 if (!typdeps.TryGetValue(ytypname, out typdepdict))
                                 {
                                     typdepdict = new Dictionary<string, YtypFile>();

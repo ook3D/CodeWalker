@@ -883,7 +883,7 @@ namespace CodeWalker.Rendering
         {
             GeometryCount += batch.Count;
 
-            RenderableModel model = null;
+            RenderableModel? model = null;
 
             VertexType vtyp = 0;
             bool vtypok = false;
@@ -936,7 +936,7 @@ namespace CodeWalker.Rendering
         {
             GeometryCount += batch.Count;
 
-            RenderableModel model = null;
+            RenderableModel? model = null;
             VertexType vtyp = 0;
             bool vtypok = false;
 
@@ -1015,7 +1015,7 @@ namespace CodeWalker.Rendering
 
             var bucket = EnsureRenderBucket(b);
 
-            ShaderBatch batch = null;
+            ShaderBatch? batch = null;
             ShaderKey key = new ShaderKey();
             key.ShaderName = (shader!=null) ? shader.Name : new MetaHash(0);
             key.ShaderFile = (shader!=null) ? shader.FileName : new MetaHash(0);
@@ -1060,7 +1060,7 @@ namespace CodeWalker.Rendering
 
         public ShaderRenderBucket EnsureRenderBucket(int index)
         {
-            ShaderRenderBucket bucket = null;
+            ShaderRenderBucket? bucket = null;
             while (index >= RenderBuckets.Count)
             {
                 RenderBuckets.Add(new ShaderRenderBucket(RenderBuckets.Count));
@@ -1271,7 +1271,7 @@ namespace CodeWalker.Rendering
 
                 var material = kvp.Value.Geometries[0].Geom.DrawableGeom.Shader;
                 uint alphaMode = MaterialAlpha.Mode(kvp.Key.ShaderFile.Hash, material.RenderBucket);
-                List<ShaderBatch> b = null;
+                List<ShaderBatch>? b = null;
                 switch (kvp.Key.ShaderFile.Hash)
                 {
                     #region default batches

@@ -321,10 +321,10 @@ namespace CodeWalker.Tools
             SelectedOffset = offset;
             SelectedLength = length;
 
-            RpfFileEntry rfe = entry as RpfFileEntry;
+            RpfFileEntry? rfe = entry as RpfFileEntry;
             if (rfe == null)
             {
-                RpfDirectoryEntry rde = entry as RpfDirectoryEntry;
+                RpfDirectoryEntry? rde = entry as RpfDirectoryEntry;
                 if (rde != null)
                 {
                     FileInfoLabel.Text = rde.Path + " (Directory)";
@@ -808,9 +808,9 @@ namespace CodeWalker.Tools
                         {
                             if (entry is RpfDirectoryEntry)
                             {
-                                RpfDirectoryEntry direntry = entry as RpfDirectoryEntry;
+                                RpfDirectoryEntry? direntry = entry as RpfDirectoryEntry;
 
-                                TreeNode node = AddEntryNode(entry, null);
+                                TreeNode? node = AddEntryNode(entry, null);
 
                                 foreach (RpfFileEntry cfentry in direntry.Files)
                                 {
@@ -868,14 +868,14 @@ namespace CodeWalker.Tools
                 MessageBox.Show("Please scan the GTAV folder first.");
                 return;
             }
-            TreeNode node = MainTreeView.SelectedNode;
+            TreeNode? node = MainTreeView.SelectedNode;
             if (node == null)
             {
                 MessageBox.Show("Please select a file to export.");
                 return;
             }
 
-            RpfFileEntry rfe = node.Tag as RpfFileEntry;
+            RpfFileEntry? rfe = node.Tag as RpfFileEntry;
             if (rfe == null)
             {
                 MessageBox.Show("Please select a file to export.");
@@ -896,7 +896,7 @@ namespace CodeWalker.Tools
                 }
 
 
-                RpfResourceFileEntry rrfe = rfe as RpfResourceFileEntry;
+                RpfResourceFileEntry? rrfe = rfe as RpfResourceFileEntry;
                 if (rrfe != null) //add resource header if this is a resource file.
                 {
                     data = ResourceBuilder.AddResourceHeader(rrfe, data);
@@ -985,7 +985,7 @@ namespace CodeWalker.Tools
             bool hex = SearchHexRadioButton.Checked;
             bool casesen = SearchCaseSensitiveCheckBox.Checked || hex;
             bool bothdirs = SearchBothDirectionsCheckBox.Checked;
-            string[] ignoreexts = null;
+            string[]? ignoreexts = null;
             byte[] searchbytes1;
             byte[] searchbytes2;
             int bytelen;
@@ -1076,7 +1076,7 @@ namespace CodeWalker.Tools
                             return;
                         }
 
-                        RpfFileEntry fentry = entry as RpfFileEntry;
+                        RpfFileEntry? fentry = entry as RpfFileEntry;
                         if (fentry == null) continue;
 
                         curfile++;
@@ -1241,7 +1241,7 @@ namespace CodeWalker.Tools
 
         private void SelTexturesListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Texture tex = null;
+            Texture? tex = null;
             if (SelTexturesListView.SelectedItems.Count == 1)
             {
                 tex = SelTexturesListView.SelectedItems[0].Tag as Texture;
@@ -1251,7 +1251,7 @@ namespace CodeWalker.Tools
 
         private void SelTextureMipTrackBar_Scroll(object sender, EventArgs e)
         {
-            Texture tex = null;
+            Texture? tex = null;
             if (SelTexturesListView.SelectedItems.Count == 1)
             {
                 tex = SelTexturesListView.SelectedItems[0].Tag as Texture;

@@ -107,7 +107,7 @@ namespace CodeWalker.GameFiles
 
             BuildFromTextureList(textures);
         }
-        public static void WriteXmlNode(TextureDictionary d, StringBuilder sb, int indent, string ddsfolder, string name = "TextureDictionary")
+        public static void WriteXmlNode(TextureDictionary? d, StringBuilder sb, int indent, string ddsfolder, string name = "TextureDictionary")
         {
             if (d == null) return;
             if ((d.Textures?.data_items == null) || (d.Textures.data_items.Length == 0))
@@ -121,7 +121,7 @@ namespace CodeWalker.GameFiles
                 YtdXml.CloseTag(sb, indent, name);
             }
         }
-        public static TextureDictionary ReadXmlNode(XmlNode node, string ddsfolder)
+        public static TextureDictionary ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var td = new TextureDictionary();
@@ -140,7 +140,7 @@ namespace CodeWalker.GameFiles
 
         public Texture Lookup(uint hash)
         {
-            Texture tex = null;
+            Texture? tex = null;
             if (Dict != null)
             {
                 Dict.TryGetValue(hash, out tex);

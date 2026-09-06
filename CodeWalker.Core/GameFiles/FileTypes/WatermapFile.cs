@@ -195,7 +195,7 @@ namespace CodeWalker.GameFiles
                     var o = y * Width + x;
                     
                     reflist.Clear();
-                    WaterItemRef[] refarr = null;
+                    WaterItemRef[]? refarr = null;
                     if (n >= 0)
                     {
                         var h = CompWatermapRefs[n];

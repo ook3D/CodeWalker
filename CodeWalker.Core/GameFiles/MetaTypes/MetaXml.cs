@@ -833,13 +833,13 @@ namespace CodeWalker.GameFiles
 
             public MetaStructureInfo GetStructureInfo(MetaName name)
             {
-                MetaStructureInfo i = null;
+                MetaStructureInfo? i = null;
                 structInfos.TryGetValue(name, out i);
                 return i;
             }
             public MetaEnumInfo GetEnumInfo(MetaName name)
             {
-                MetaEnumInfo i = null;
+                MetaEnumInfo? i = null;
                 enumInfos.TryGetValue(name, out i);
                 return i;
             }
@@ -982,7 +982,7 @@ namespace CodeWalker.GameFiles
                         //uint fCount = (entry.ReferenceKey >> 16) & 0x0000FFFF;
                         uint fEntry = (entry.ReferenceKey & 0xFFF);
                         var fEnt = (fEntry != 0xFFF) ? structInfo.GetEntry((int)fEntry) : null;
-                        PsoEnumInfo flagsInfo = null;
+                        PsoEnumInfo? flagsInfo = null;
                         if ((fEnt != null) && (fEnt.EntryNameHash == (MetaName)MetaTypeName.ARRAYINFO))
                         {
                             flagsInfo = cont.GetEnumInfo((MetaName)fEnt.ReferenceKey);
@@ -1730,13 +1730,13 @@ namespace CodeWalker.GameFiles
 
             public PsoStructureInfo GetStructureInfo(MetaName name)
             {
-                PsoStructureInfo i = null;
+                PsoStructureInfo? i = null;
                 StructDict.TryGetValue(name, out i);
                 return i;
             }
             public PsoEnumInfo GetEnumInfo(MetaName name)
             {
-                PsoEnumInfo i = null;
+                PsoEnumInfo? i = null;
                 EnumDict.TryGetValue(name, out i);
                 return i;
             }
@@ -1962,7 +1962,7 @@ namespace CodeWalker.GameFiles
             else SelfClosingTag(sb, indent, name);
         }
 
-        public static void WriteRawArrayContent<T>(StringBuilder sb, T[] arr, int ind, Func<T, string> formatter = null, int arrRowSize = 10) where T : struct
+        public static void WriteRawArrayContent<T>(StringBuilder sb, T[] arr, int ind, Func<T, string>? formatter = null, int arrRowSize = 10) where T : struct
         {
             var aCount = arr?.Length ?? 0;
             for (int n = 0; n < aCount; n++)
@@ -1970,14 +1970,14 @@ namespace CodeWalker.GameFiles
                 var col = n % arrRowSize;
                 if (col == 0) Indent(sb, ind);
                 if (col > 0) sb.Append(" ");
-                string str = (formatter != null) ? formatter(arr[n]) : arr[n].ToString();
+                string? str = (formatter != null) ? formatter(arr[n]) : arr[n].ToString();
                 sb.Append(str);
                 bool lastcol = (col == (arrRowSize - 1));
                 bool lastn = (n == (aCount - 1));
                 if (lastcol || lastn) sb.AppendLine();
             }
         }
-        public static void WriteRawArray<T>(StringBuilder sb, T[] arr, int ind, string name, string typeName, Func<T, string> formatter = null, int arrRowSize = 10) where T : struct
+        public static void WriteRawArray<T>(StringBuilder sb, T[] arr, int ind, string name, string typeName, Func<T, string>? formatter = null, int arrRowSize = 10) where T : struct
         {
             var aCount = arr?.Length ?? 0;
             //var arrRowSize = 10;
@@ -1991,7 +1991,7 @@ namespace CodeWalker.GameFiles
                     for (int n = 0; n < aCount; n++)
                     {
                         if (n > 0) sb.Append(" ");
-                        string str = (formatter != null) ? formatter(arr[n]) : arr[n].ToString();
+                        string? str = (formatter != null) ? formatter(arr[n]) : arr[n].ToString();
                         sb.Append(str);
                     }
                     CloseTag(sb, 0, name);
@@ -2004,7 +2004,7 @@ namespace CodeWalker.GameFiles
                         var col = n % arrRowSize;
                         if (col == 0) Indent(sb, aind);
                         if (col > 0) sb.Append(" ");
-                        string str = (formatter != null) ? formatter(arr[n]) : arr[n].ToString();
+                        string? str = (formatter != null) ? formatter(arr[n]) : arr[n].ToString();
                         sb.Append(str);
                         bool lastcol = (col == (arrRowSize - 1));
                         bool lastn = (n == (aCount - 1));
@@ -2253,7 +2253,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static string XmlEscape(string unescaped)
+        public static string XmlEscape(string? unescaped)
         {
             if (unescaped == null) return null;
             XmlDocument doc = new();

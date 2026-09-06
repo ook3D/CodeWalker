@@ -349,7 +349,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentRule?.AmbientRule == null) return;
 
-            var val = (Dat151AmbientRule.ExplicitSpawnType)ExplicitSpawnCombo.SelectedItem;
+            if (ExplicitSpawnCombo.SelectedItem is not Dat151AmbientRule.ExplicitSpawnType val) return;
             if (CurrentRule.AmbientRule.ExplicitSpawn != val)
             {
                 CurrentRule.AmbientRule.ExplicitSpawn = val;

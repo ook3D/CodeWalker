@@ -87,7 +87,7 @@ public partial class MenuForm : Form
                 return;
             }
 
-            Thread thread = new(new ThreadStart(() => {
+            Thread? thread = new(new ThreadStart(() => {
                 try
                 {
                     worldFormOpen = true;
@@ -138,7 +138,7 @@ public partial class MenuForm : Form
 
         private void ProjectButton_Click(object sender, EventArgs e)
         {
-            Project.ProjectForm f = new(null);
+            Project.ProjectForm? f = new(null);
             f.Show(this);
         }
     }

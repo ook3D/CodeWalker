@@ -138,7 +138,7 @@ namespace CodeWalker.GameFiles
         {
             XmlDocument xmldoc = new();
             xmldoc.LoadXml(xml); //maybe better load xml.ToLower() and use "cmapparenttxds/txdrelationships/item" as xpath?
-            XmlNodeList items = xmldoc.SelectNodes("CMapParentTxds/txdRelationships/Item | CMapParentTxds/txdRelationships/item");
+            XmlNodeList? items = xmldoc.SelectNodes("CMapParentTxds/txdRelationships/Item | CMapParentTxds/txdRelationships/item");
 
             TxdRelationships = new Dictionary<string, string>();
             for (int i = 0; i < items.Count; i++)

@@ -263,7 +263,7 @@ namespace CodeWalker
 
         public KeyBindings(StringCollection sc)
         {
-            foreach (string s in sc)
+            foreach (string? s in sc)
             {
                 string[] parts = s.Split(':');
                 if (parts.Length == 2)

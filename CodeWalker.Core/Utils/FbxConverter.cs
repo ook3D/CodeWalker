@@ -229,7 +229,7 @@ namespace CodeWalker
         private FbxModel TryConvertModel(FbxNode mnode)
         {
 
-            FbxNode geonode = null;
+            FbxNode? geonode = null;
             List<FbxNode> matnodes = [];
             foreach (var cnode in mnode.Connections)
             {
@@ -973,14 +973,14 @@ namespace CodeWalker
         }
 
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return Equals(obj as FbxVertex);
         }
-        public bool Equals(FbxVertex other)
+        public bool Equals(FbxVertex? other)
         {
             return (other != null)
-                && ((Bytes == null) ? (other.Bytes == null) : Bytes.SequenceEqual(other.Bytes));
+                && ((Bytes == null) ? (other.Bytes == null) : (other.Bytes != null && Bytes.SequenceEqual(other.Bytes)));
         }
         public override int GetHashCode()
         {

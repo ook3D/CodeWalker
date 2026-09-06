@@ -172,7 +172,7 @@ namespace CodeWalker.Project.Panels
 
         private string GetProjectFolder()
         {
-            string projectFolder = Path.GetDirectoryName(CurrentProjectFile?.Filepath);
+            string? projectFolder = Path.GetDirectoryName(CurrentProjectFile?.Filepath);
             if (string.IsNullOrEmpty(projectFolder))
             {
                 projectFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -190,10 +190,10 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
+        private void BackgroundWorker_DoWork(object? sender, DoWorkEventArgs e)
         {
-            var context = (GenerationContext)e.Argument;
-            var worker = (BackgroundWorker)sender;
+            var context = (GenerationContext?)e.Argument;
+            var worker = (BackgroundWorker?)sender;
             var token = cancellationTokenSource.Token;
 
             try
@@ -392,7 +392,7 @@ namespace CodeWalker.Project.Panels
                 if (token.IsCancellationRequested) { e.Cancel = true; return; }
                 worker.ReportProgress(55, "Performing polygon merging...");
                 
-                List<NavSurfacePoly> polygons = null;
+                List<NavSurfacePoly>? polygons = null;
                 try
                 {
                     polygons = builder.PerformPolygonMerging((status) => worker.ReportProgress(-1, status));
@@ -449,7 +449,7 @@ namespace CodeWalker.Project.Panels
                 if (token.IsCancellationRequested) { e.Cancel = true; return; }
                 worker.ReportProgress(75, "Splitting polygons into grid cells...");
                 
-                List<NavSurfacePoly> splitPolygons = null;
+                List<NavSurfacePoly>? splitPolygons = null;
                 try
                 {
                     splitPolygons = builder.SplitPolygonsIntoGridCells(polygons, (status) => worker.ReportProgress(-1, status));
@@ -488,7 +488,7 @@ namespace CodeWalker.Project.Panels
                 if (token.IsCancellationRequested) { e.Cancel = true; return; }
                 worker.ReportProgress(85, "Converting to YNV files...");
                 
-                List<YnvFile> ynvFiles = null;
+                List<YnvFile>? ynvFiles = null;
                 try
                 {
                     ynvFiles = builder.ConvertToYnvFiles(splitPolygons, (status) => worker.ReportProgress(-1, status));
@@ -678,7 +678,7 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        private void BackgroundWorker_ProgressChanged(object? sender, ProgressChangedEventArgs e)
         {
             if (e.ProgressPercentage >= 0)
             {
@@ -691,7 +691,7 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private void BackgroundWorker_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
         {
             isGenerating = false;
             GenerateButton.Enabled = true;

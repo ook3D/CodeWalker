@@ -44,9 +44,9 @@ namespace CodeWalker.World
 
             XmlDocument weatherxml = rpfman.GetFileXml(filename, timecycle.UseModdedData);
 
-            XmlElement weather = weatherxml.DocumentElement;
+            XmlElement? weather = weatherxml.DocumentElement;
 
-            XmlNodeList weathergpufx = weather.SelectNodes("WeatherGpuFx/Item");
+            XmlNodeList? weathergpufx = weather.SelectNodes("WeatherGpuFx/Item");
             WeatherGpuFx.Clear();
             for (int i = 0; i < weathergpufx.Count; i++)
             {
@@ -55,7 +55,7 @@ namespace CodeWalker.World
                 WeatherGpuFx[weathergpufxi.Name] = weathergpufxi;
             }
 
-            XmlNodeList weathertypes = weather.SelectNodes("WeatherTypes/Item");
+            XmlNodeList? weathertypes = weather.SelectNodes("WeatherTypes/Item");
             WeatherTypes.Clear();
             for (int i = 0; i < weathertypes.Count; i++)
             {
@@ -64,7 +64,7 @@ namespace CodeWalker.World
                 WeatherTypes[weathertype.Name] = weathertype;
             }
 
-            XmlNodeList weathercycles = weather.SelectNodes("WeatherCycles/Item");
+            XmlNodeList? weathercycles = weather.SelectNodes("WeatherCycles/Item");
             WeatherCycles.Clear();
             for (int i = 0; i < weathercycles.Count; i++)
             {
@@ -356,7 +356,7 @@ namespace CodeWalker.World
         {
             if ((TimeCycleData != null) && (TimeCycleData.Regions != null))
             {
-                WeatherCycleKeyframeRegion r;
+                WeatherCycleKeyframeRegion? r;
                 if (TimeCycleData.Regions.TryGetValue(name, out r))
                 {
                     return r;
@@ -439,7 +439,7 @@ namespace CodeWalker.World
 
         public float GetCurrentValue(string name, int sample, float curblend)
         {
-            WeatherCycleKeyframeDataEntry e;
+            WeatherCycleKeyframeDataEntry? e;
             if (Data.TryGetValue(name, out e))
             {
                 if (sample >= e.Values.Length)
@@ -470,7 +470,7 @@ namespace CodeWalker.World
         {
             //read data node
             Name = node.Name;
-            string[] strvals = node.InnerText.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            string[]? strvals = node.InnerText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             Values = new float[strvals.Length];
             for (int i = 0; i < strvals.Length; i++)
             {

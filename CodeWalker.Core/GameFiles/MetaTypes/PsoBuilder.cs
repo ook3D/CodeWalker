@@ -110,14 +110,14 @@ namespace CodeWalker.GameFiles
             return new PsoPOINTER(ptr.BlockID, ptr.Offset);
         }
 
-        public Array_Structure AddItemArrayPtr<T>(MetaName type, T[] items) where T : struct //helper method for AddItemArray<T>
+        public Array_Structure AddItemArrayPtr<T>(MetaName type, T[]? items) where T : struct //helper method for AddItemArray<T>
         {
             if ((items == null) || (items.Length == 0)) return new Array_Structure();
             var ptr = AddItemArray(type, items);
             return new Array_Structure(ptr.Pointer, ptr.Length);
         }
 
-        public Array_Structure AddItemArrayPtr(MetaName type, byte[][] data) //helper method for AddItemArray<T>
+        public Array_Structure AddItemArrayPtr(MetaName type, byte[][]? data) //helper method for AddItemArray<T>
         {
             if ((data == null) || (data.Length == 0)) return new Array_Structure();
 
@@ -144,7 +144,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public Array_StructurePointer AddPointerArray(PsoPOINTER[] arr)
+        public Array_StructurePointer AddPointerArray(PsoPOINTER[]? arr)
         {
             if ((arr == null) || (arr.Length == 0)) return new Array_StructurePointer();
             var ptr = AddItemArray((MetaName)MetaTypeName.PsoPOINTER, arr);
@@ -180,49 +180,49 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public Array_Vector3 AddPaddedVector3ArrayPtr(Vector4[] items)
+        public Array_Vector3 AddPaddedVector3ArrayPtr(Vector4[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_Vector3();
             var ptr = AddItemArray((MetaName)1, items); //(MetaName)MetaTypeName.VECTOR4  padded to vec4...
             return new Array_Vector3(ptr.Pointer, items.Length);
         }
-        public Array_Vector3 AddVector2ArrayPtr(Vector2[] items)
+        public Array_Vector3 AddVector2ArrayPtr(Vector2[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_Vector3();
             var ptr = AddItemArray((MetaName)1, items); //(MetaName)MetaTypeName.VECTOR4  padded to vec4...?
             return new Array_Vector3(ptr.Pointer, items.Length);
         }
-        public Array_uint AddHashArrayPtr(MetaHash[] items)
+        public Array_uint AddHashArrayPtr(MetaHash[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_uint();
             var ptr = AddItemArray((MetaName)6, items); //(MetaName)MetaTypeName.HASH
             return new Array_uint(ptr.Pointer, items.Length);
         }
-        public Array_uint AddUIntArrayPtr(uint[] items)
+        public Array_uint AddUIntArrayPtr(uint[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_uint();
             var ptr = AddItemArray((MetaName)6, items);
             return new Array_uint(ptr.Pointer, items.Length);
         }
-        public Array_uint AddSIntArrayPtr(int[] items)
+        public Array_uint AddSIntArrayPtr(int[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_uint();
             var ptr = AddItemArray((MetaName)5, items);
             return new Array_uint(ptr.Pointer, items.Length);
         }
-        public Array_ushort AddUShortArrayPtr(ushort[] items)
+        public Array_ushort AddUShortArrayPtr(ushort[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_ushort();
             var ptr = AddItemArray((MetaName)4, items);
             return new Array_ushort(ptr.Pointer, items.Length);
         }
-        public Array_byte AddByteArrayPtr(byte[] items)
+        public Array_byte AddByteArrayPtr(byte[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_byte();
             var ptr = AddItemArray((MetaName)2, items);
             return new Array_byte(ptr.Pointer, items.Length);
         }
-        public Array_float AddFloatArrayPtr(float[] items)
+        public Array_float AddFloatArrayPtr(float[]? items)
         {
             if ((items == null) || (items.Length == 0)) return new Array_float();
             var ptr = AddItemArray((MetaName)7, items); //MetaName.PsoFLOAT ? comes up as (MetaName)MetaTypeName.POINTER due to RSC meta values
@@ -270,7 +270,7 @@ namespace CodeWalker.GameFiles
 
         public PsoStructureInfo AddMapNodeStructureInfo(MetaName valType)
         {
-            PsoStructureInfo inf = null;
+            PsoStructureInfo? inf = null;
 
             if (valType == 0)
             {

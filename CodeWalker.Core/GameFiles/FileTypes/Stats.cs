@@ -44,7 +44,7 @@ namespace CodeWalker.GameFiles
 
         public static string GetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))
@@ -56,7 +56,7 @@ namespace CodeWalker.GameFiles
         }
         public static string TryGetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))

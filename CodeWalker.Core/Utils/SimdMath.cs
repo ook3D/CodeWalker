@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace CodeWalker.Core.Utils;
 
@@ -97,49 +98,22 @@ public static class SimdMath
         if (source.Length != destination.Length)
             throw new ArgumentException("Source and destination spans must have the same length");
 
+        // SharpDX.Vector3 stores three consecutive floats. Scalar multiplication does
+        // not need to gather/scatter components into separate SIMD scratch buffers.
+        var values = MemoryMarshal.Cast<SharpDX.Vector3, float>(source);
+        var output = MemoryMarshal.Cast<SharpDX.Vector3, float>(destination);
         int i = 0;
-        int simdLength = source.Length - (source.Length % System.Numerics.Vector<float>.Count);
-
-        if (System.Numerics.Vector.IsHardwareAccelerated && simdLength >= System.Numerics.Vector<float>.Count)
+        if (System.Numerics.Vector.IsHardwareAccelerated)
         {
-            var scalarVec = new System.Numerics.Vector<float>(scalar);
-
-            // Reuse scratch buffers; stackalloc inside the loop grows with input size.
-            Span<float> xValues = stackalloc float[System.Numerics.Vector<float>.Count];
-            Span<float> yValues = stackalloc float[System.Numerics.Vector<float>.Count];
-            Span<float> zValues = stackalloc float[System.Numerics.Vector<float>.Count];
-            Span<float> rxValues = stackalloc float[System.Numerics.Vector<float>.Count];
-            Span<float> ryValues = stackalloc float[System.Numerics.Vector<float>.Count];
-            Span<float> rzValues = stackalloc float[System.Numerics.Vector<float>.Count];
-
-            for (; i < simdLength; i += System.Numerics.Vector<float>.Count)
+            int width = System.Numerics.Vector<float>.Count;
+            var multiplier = new System.Numerics.Vector<float>(scalar);
+            for (; i <= values.Length - width; i += width)
             {
-                for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < source.Length; j++)
-                {
-                    xValues[j] = source[i + j].X;
-                    yValues[j] = source[i + j].Y;
-                    zValues[j] = source[i + j].Z;
-                }
-
-                var vx = new System.Numerics.Vector<float>(xValues) * scalarVec;
-                var vy = new System.Numerics.Vector<float>(yValues) * scalarVec;
-                var vz = new System.Numerics.Vector<float>(zValues) * scalarVec;
-
-                vx.CopyTo(rxValues);
-                vy.CopyTo(ryValues);
-                vz.CopyTo(rzValues);
-
-                for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < destination.Length; j++)
-                {
-                    destination[i + j] = new SharpDX.Vector3(rxValues[j], ryValues[j], rzValues[j]);
-                }
+                var batch = new System.Numerics.Vector<float>(values.Slice(i, width));
+                (batch * multiplier).CopyTo(output.Slice(i, width));
             }
         }
-
-        for (; i < source.Length; i++)
-        {
-            destination[i] = source[i] * scalar;
-        }
+        for (; i < values.Length; i++) output[i] = values[i] * scalar;
     }
 
     /// <summary>

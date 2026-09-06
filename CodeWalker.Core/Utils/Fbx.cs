@@ -237,7 +237,7 @@ namespace CodeWalker
         {
             public readonly string String;
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 var id = obj as Identifier;
                 if (id != null)
@@ -885,8 +885,8 @@ namespace CodeWalker
         protected static bool ReadHeader(Stream stream)
         {
             var buf = new byte[headerString.Length];
-            stream.Read(buf, 0, buf.Length);
-            return CheckEqual(buf, headerString);
+            int read = stream.ReadAtLeast(buf, buf.Length, throwOnEndOfStream: false);
+            return read == buf.Length && CheckEqual(buf, headerString);
         }
 
         // Turns out this is the algorithm they use to generate the footer. Who knew!
@@ -1161,7 +1161,7 @@ namespace CodeWalker
                 {
                     stream.BaseStream.Position = endPos - sizeof(int);
                     var checksumBytes = new byte[sizeof(int)];
-                    stream.BaseStream.Read(checksumBytes, 0, checksumBytes.Length);
+                    stream.BaseStream.ReadExactly(checksumBytes);
                     int checksum = 0;
                     for (int i = 0; i < checksumBytes.Length; i++)
                         checksum = (checksum << 8) + checksumBytes[i];
@@ -1261,7 +1261,7 @@ namespace CodeWalker
 
             // Read footer code
             var footerCode = new byte[footerCodeSize];
-            stream.BaseStream.Read(footerCode, 0, footerCode.Length);
+            stream.BaseStream.ReadExactly(footerCode);
             if (errorLevel >= FbxErrorLevel.Strict)
             {
                 var validCode = GenerateFooterCode(document);
@@ -1381,7 +1381,7 @@ namespace CodeWalker
             stream.Write(compress ? 1 : 0);
 
             var sw = stream;
-            FbxDeflateWithChecksum codec = null;
+            FbxDeflateWithChecksum? codec = null;
 
             var compressLengthPos = stream.BaseStream.Position;
             stream.Write(0); // Placeholder compressed length
@@ -1418,7 +1418,7 @@ namespace CodeWalker
             }
         }
 
-        void WriteProperty(object obj, int id)
+        void WriteProperty(object? obj, int id)
         {
             if (obj == null)
                 return;
@@ -1576,8 +1576,8 @@ namespace CodeWalker
                     if (!(node.Properties[2] is long)) { continue; }
                     long cid = (long)node.Properties[1];
                     long pid = (long)node.Properties[2];
-                    FbxNode cnode;
-                    FbxNode pnode;
+                    FbxNode? cnode;
+                    FbxNode? pnode;
                     fobjdict.TryGetValue(cid, out cnode);
                     fobjdict.TryGetValue(pid, out pnode);
                     if (cnode == null) { continue; }

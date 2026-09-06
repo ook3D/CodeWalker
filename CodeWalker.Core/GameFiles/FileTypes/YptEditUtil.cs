@@ -117,7 +117,7 @@ namespace CodeWalker.GameFiles
         {
             var items = eff.EventEmitters?.data_items;
             int count = Math.Min(eff.EventEmittersCount, items?.Length ?? 0);
-            ParticleEventEmitter src = null;
+            ParticleEventEmitter? src = null;
             for (int i = 0; i < count; i++) { if (items[i] != null) { src = items[i]; break; } }
             if (src == null) return null; //nothing to clone (blank emitters not supported yet)
             if (eff.EventEmittersCount >= 32) return null;
@@ -170,7 +170,7 @@ namespace CodeWalker.GameFiles
             RemoveBehaviourFrom(prule.DrawBehaviours, beh);
         }
 
-        private static void AppendBehaviour(ResourcePointerList64<ParticleBehaviour> list, ParticleBehaviour beh)
+        private static void AppendBehaviour(ResourcePointerList64<ParticleBehaviour>? list, ParticleBehaviour beh)
         {
             if (list == null) return;
             var items = (list.data_items ?? Array.Empty<ParticleBehaviour>()).Where(x => x != null).ToList();

@@ -27,73 +27,6 @@ namespace CodeWalker.Rendering
     }
 
 
-    // Loads common:/data/effects/ptxclipregions.dat - the per-texture sprite-sheet frame UV rects.
-    // Without this, atlas frames can only be guessed (square grid), which is wrong for most sheets.
-    public static class ParticleClipRegions
-    {
-        public class ClipRegion
-        {
-            public int Cols;
-            public int Rows;
-            public Vector4[] Frames; //each = (uMin, vMin, uMax, vMax) ready for ParticleInstance.UVRect
-        }
-
-        static Dictionary<uint, ClipRegion> regions;
-        static bool attempted;
-
-        public static void EnsureLoaded(GameFileCache gfc)
-        {
-            if (attempted) return;
-            attempted = true;
-            regions = new Dictionary<uint, ClipRegion>();
-            try
-            {
-                var rpfman = gfc?.RpfMan;
-                if (rpfman == null) return;
-                string txt = rpfman.GetFileUTF8Text("common:/data/effects/ptxclipregions.dat");
-                if (string.IsNullOrEmpty(txt)) return;
-                Parse(txt);
-            }
-            catch { }
-        }
-
-        static void Parse(string txt)
-        {
-            var toks = txt.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            int i = 0;
-            if (toks.Length < 2) return;
-            int numTextures = ParseInt(toks[i++]);
-            i++; //total clip-region (frame) count - not needed
-            for (int t = 0; (t < numTextures) && (i + 2 < toks.Length); t++)
-            {
-                string name = toks[i++];
-                int cols = ParseInt(toks[i++]);
-                int rows = ParseInt(toks[i++]);
-                int frames = Math.Max(0, cols * rows);
-                var cr = new ClipRegion { Cols = cols, Rows = rows, Frames = new Vector4[frames] };
-                for (int f = 0; (f < frames) && (i + 3 < toks.Length); f++)
-                {
-                    float uMin = ParseF(toks[i++]);
-                    float uMax = ParseF(toks[i++]);
-                    float vMin = ParseF(toks[i++]);
-                    float vMax = ParseF(toks[i++]);
-                    cr.Frames[f] = new Vector4(uMin, vMin, uMax, vMax);
-                }
-                regions[JenkHash.GenHash(name.ToLowerInvariant())] = cr;
-            }
-        }
-
-        public static ClipRegion Get(uint texHash)
-        {
-            if ((regions != null) && (texHash != 0) && regions.TryGetValue(texHash, out var c)) return c;
-            return null;
-        }
-
-        static int ParseInt(string s) { return int.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int v) ? v : 0; }
-        static float ParseF(string s) { return float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : 0f; }
-    }
-
-
     public static class ParticleKeyframeEval
     {
         // Evaluate a keyframe prop at normalized time t (linear interp on KeyframeTime.X, clamped both ends).
@@ -161,7 +94,7 @@ namespace CodeWalker.Rendering
 
         private readonly Random rnd = new Random(0x50544658); //"PTFX"
 
-        public ParticleEffectInst(ParticleEffectRule rule, YptFile owner, GameFileCache gfc = null)
+        public ParticleEffectInst(ParticleEffectRule rule, YptFile owner, GameFileCache? gfc = null)
         {
             Rule = rule;
             Owner = owner;
@@ -413,7 +346,7 @@ namespace CodeWalker.Rendering
         bool oneShotDone;
         float spawnAccum;
 
-        public static ParticleEmitterInst TryCreate(ParticleEventEmitter ee, ParticleEffectRule effect, YptFile owner, GameFileCache gfc = null, Random rnd = null)
+        public static ParticleEmitterInst TryCreate(ParticleEventEmitter ee, ParticleEffectRule effect, YptFile owner, GameFileCache? gfc = null, Random? rnd = null)
         {
             var prule = ee?.ParticleRule;
             if (prule == null) return null;
@@ -468,7 +401,7 @@ namespace CodeWalker.Rendering
 
         // Resolve the child effect rule an EffectSpawner points at: prefer the resolved pointer, else look it up
         // by name in the ypt's effect-rule dictionary (binary loads don't run AssignChildren).
-        static ParticleEffectRule ResolveSpawnerRule(ParticleEffectSpawner spawner, YptFile owner)
+        static ParticleEffectRule ResolveSpawnerRule(ParticleEffectSpawner? spawner, YptFile owner)
         {
             if (spawner == null) return null;
             if (spawner.EffectRule != null) return spawner.EffectRule;
@@ -966,7 +899,7 @@ namespace CodeWalker.Rendering
             Particles.Add(p);
         }
 
-        Vector3 SampleDomain(ParticleDomain dom, float t, Random rnd)
+        Vector3 SampleDomain(ParticleDomain? dom, float t, Random rnd)
         {
             if (dom == null) return Vector3.Zero;
 

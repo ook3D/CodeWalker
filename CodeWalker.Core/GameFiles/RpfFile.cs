@@ -567,7 +567,7 @@ namespace CodeWalker.GameFiles
                         dataSpan.CopyTo(decr);
                     }
 
-                    byte[] defl = decr;
+                    byte[]? defl = decr;
 
                     if (entry.FileSize > 0) // compressed
                     {
@@ -804,7 +804,7 @@ namespace CodeWalker.GameFiles
 
                 byte[] deflated = DecompressBytes(decr);
 
-                byte[] data = null;
+                byte[]? data = null;
 
                 if (deflated != null)
                 {
@@ -825,9 +825,9 @@ namespace CodeWalker.GameFiles
 
         public static T GetFile<T>(RpfEntry e) where T : class, PackedFile, new()
         {
-            T file = null;
-            byte[] data = null;
-            RpfFileEntry entry = e as RpfFileEntry;
+            T? file = null;
+            byte[]? data = null;
+            RpfFileEntry? entry = e as RpfFileEntry;
             if (entry != null)
             {
                 data = entry.File.ExtractFile(entry);
@@ -841,8 +841,8 @@ namespace CodeWalker.GameFiles
         }
         public static T GetFile<T>(RpfEntry e, byte[] data) where T : class, PackedFile, new()
         {
-            T file = null;
-            RpfFileEntry entry = e as RpfFileEntry;
+            T? file = null;
+            RpfFileEntry? entry = e as RpfFileEntry;
             if ((data != null))
             {
                 if (entry == null)
@@ -859,7 +859,7 @@ namespace CodeWalker.GameFiles
 
         public static T GetResourceFile<T>(byte[] data) where T : class, PackedFile, new()
         {
-            T file = null;
+            T? file = null;
             RpfFileEntry entry = CreateResourceFileEntry(ref data, 0);
             if ((data != null) && (entry != null))
             {
@@ -1065,7 +1065,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        private RpfDirectoryEntry FindSubDirectory(RpfDirectoryEntry dir, string name)
+        private RpfDirectoryEntry FindSubDirectory(RpfDirectoryEntry? dir, string name)
         {
             if (dir == null) return null;
             if (dir.Directories == null) return null;
@@ -1254,7 +1254,7 @@ namespace CodeWalker.GameFiles
                 foreach (var entry in temp)
                 {
                     AllEntries.Add(entry);
-                    RpfDirectoryEntry dir = entry as RpfDirectoryEntry;
+                    RpfDirectoryEntry? dir = entry as RpfDirectoryEntry;
                     if (dir != null)
                     {
                         stack.Push(dir);
@@ -1328,10 +1328,10 @@ namespace CodeWalker.GameFiles
         }
         private RpfFileEntry FindFirstFileAfter(uint block)
         {
-            RpfFileEntry nextentry = null;
+            RpfFileEntry? nextentry = null;
             foreach (var entry in AllEntries)
             {
-                RpfFileEntry fe = entry as RpfFileEntry;
+                RpfFileEntry? fe = entry as RpfFileEntry;
                 if ((fe != null) && (fe.FileOffset > block))
                 {
                     if ((nextentry == null) || (fe.FileOffset < nextentry.FileOffset))
@@ -1353,7 +1353,7 @@ namespace CodeWalker.GameFiles
             List<RpfFileEntry> allfiles = new List<RpfFileEntry>();
             foreach (var entry in AllEntries)
             {
-                RpfFileEntry rfe = entry as RpfFileEntry;
+                RpfFileEntry? rfe = entry as RpfFileEntry;
                 if (rfe != null)
                 {
                     allfiles.Add(rfe);
@@ -1398,7 +1398,7 @@ namespace CodeWalker.GameFiles
             uint endblock = 0;
             foreach (var entry in AllEntries)
             {
-                RpfFileEntry e = entry as RpfFileEntry;
+                RpfFileEntry? e = entry as RpfFileEntry;
                 if (e != null)
                 {
                     uint ecnt = GetBlockCount(e.GetFileSize());
@@ -1578,7 +1578,7 @@ namespace CodeWalker.GameFiles
             FileSize = stream.Position - StartPos;
         }
 
-        private void UpdatePaths(RpfDirectoryEntry dir = null)
+        private void UpdatePaths(RpfDirectoryEntry? dir = null)
         {
             //recursively update paths, including in child RPFs.
             if (dir == null)
@@ -1590,7 +1590,7 @@ namespace CodeWalker.GameFiles
             {
                 file.Path = dir.Path + "\\" + file.NameLower;
 
-                RpfBinaryFileEntry binf = file as RpfBinaryFileEntry;
+                RpfBinaryFileEntry? binf = file as RpfBinaryFileEntry;
                 if ((binf != null) && file.NameLower.EndsWith(".rpf"))
                 {
                     RpfFile childrpf = FindChildArchive(binf);
@@ -1614,7 +1614,7 @@ namespace CodeWalker.GameFiles
 
         public RpfFile FindChildArchive(RpfFileEntry f)
         {
-            RpfFile c = null;
+            RpfFile? c = null;
             if (Children != null)
             {
                 foreach (var child in Children)//kinda messy, but no other option really...
@@ -1851,7 +1851,7 @@ namespace CodeWalker.GameFiles
             }
 
 
-            RpfFileEntry entry = null;
+            RpfFileEntry? entry = null;
             uint len = (uint)data.Length;
 
 
@@ -2046,8 +2046,8 @@ namespace CodeWalker.GameFiles
                 throw new Exception("Root RPF file " + fpath + " does not exist!");
             }
 
-            RpfDirectoryEntry entryasdir = entry as RpfDirectoryEntry;
-            RpfFileEntry entryasfile = entry as RpfFileEntry;//it has to be one or the other...
+            RpfDirectoryEntry? entryasdir = entry as RpfDirectoryEntry;
+            RpfFileEntry? entryasfile = entry as RpfFileEntry;//it has to be one or the other...
 
             if (entryasdir != null)
             {
@@ -2103,7 +2103,7 @@ namespace CodeWalker.GameFiles
             return (encryption == RpfEncryption.OPEN) || (encryption == RpfEncryption.NG);
         }
 
-        public static bool IsValidEncryption(RpfFile file, bool recursive = false)
+        public static bool IsValidEncryption(RpfFile? file, bool recursive = false)
         {
             if (file == null) return false;
 
@@ -2140,7 +2140,7 @@ namespace CodeWalker.GameFiles
             return true;
         }
 
-        public static bool EnsureValidEncryption(RpfFile file, Func<RpfFile, bool> confirm, bool recursive = false)
+        public static bool EnsureValidEncryption(RpfFile? file, Func<RpfFile, bool> confirm, bool recursive = false)
         {
             if (file == null) return false;
 
@@ -2215,7 +2215,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static void Defragment(RpfFile file, Action<string, float> progress = null, bool recursive = true)
+        public static void Defragment(RpfFile file, Action<string, float>? progress = null, bool recursive = true)
         {
             if (file?.AllEntries == null) return;
 
@@ -2332,7 +2332,7 @@ namespace CodeWalker.GameFiles
             return dirpath;
         }
 
-        private static bool IsValidPath(string path)
+        private static bool IsValidPath(string? path)
         {
             if (string.IsNullOrEmpty(path)) return false;
             if (path.Length > 500) return false; //a long path is most likely an attempt to crash CW, so skip it

@@ -41,7 +41,7 @@ namespace CodeWalker.Project.Panels
             
         }
 
-        private void onDockStateChanged(object sender, EventArgs e)
+        private void onDockStateChanged(object? sender, EventArgs e)
         {
             if(DockState == DockState.Hidden)
             {

@@ -76,7 +76,7 @@ namespace CodeWalker
         public MCScenarioChainingEdge ScenarioEdge { get; set; }
         public AudioPlacement Audio { get; set; }
 
-        public MapSelection[] MultipleSelectionItems { get; private set; }
+        public MapSelection[]? MultipleSelectionItems { get; private set; }
         public Vector3 MultipleSelectionCenter { get; set; }
         public Quaternion MultipleSelectionRotation { get; set; }
         public Vector3 MultipleSelectionScale { get; set; }
@@ -946,7 +946,7 @@ namespace CodeWalker
         }
 
 
-        public void SetMultipleSelectionItems(MapSelection[] items)
+        public void SetMultipleSelectionItems(MapSelection[]? items)
         {
             if ((items != null) && (items.Length == 0)) items = null;
             MultipleSelectionItems = items;
@@ -954,7 +954,7 @@ namespace CodeWalker
             var center = Vector3.Zero;
             if (items != null)
             {
-                Dictionary<BoundVertex, int> collVerts = null;
+                Dictionary<BoundVertex, int>? collVerts = null;
                 for (int i = 0; i < items.Length; i++)
                 {
                     center += items[i].WidgetPosition;
@@ -995,7 +995,7 @@ namespace CodeWalker
                 {
                     var dpos = newpos - MultipleSelectionCenter;// oldpos;
                     if (dpos == Vector3.Zero) return; //nothing moved.. (probably due to snap)
-                    YmapEntityDef ent = null;//hack to use an entity for multple selections... buggy if entities mismatch!!!
+                    YmapEntityDef? ent = null;//hack to use an entity for multple selections... buggy if entities mismatch!!!
                     for (int i = 0; i < MultipleSelectionItems.Length; i++)
                     {
                         var collVert = MultipleSelectionItems[i].CollisionVertex;
@@ -1108,7 +1108,7 @@ namespace CodeWalker
                     var cen = MultipleSelectionCenter;
                     var orinv = Quaternion.Invert(MultipleSelectionRotation);
                     var trans = newrot * orinv;
-                    YmapEntityDef ent = null;//hack to use an entity for multple selections... buggy if entities mismatch!!!
+                    YmapEntityDef? ent = null;//hack to use an entity for multple selections... buggy if entities mismatch!!!
                     for (int i = 0; i < MultipleSelectionItems.Length; i++)
                     {
                         var collVert = MultipleSelectionItems[i].CollisionVertex;
@@ -1216,7 +1216,7 @@ namespace CodeWalker
                     var ori = MultipleSelectionRotation;
                     var orinv = Quaternion.Invert(ori);
                     var rsca = newscale / MultipleSelectionScale;
-                    YmapEntityDef ent = null;//hack to use an entity for multple selections... buggy if entities mismatch!!!
+                    YmapEntityDef? ent = null;//hack to use an entity for multple selections... buggy if entities mismatch!!!
                     for (int i = 0; i < MultipleSelectionItems.Length; i++)
                     {
                         var collVert = MultipleSelectionItems[i].CollisionVertex;
@@ -1498,7 +1498,7 @@ namespace CodeWalker
             return null;
         }
 
-        public static MapSelection FromProjectObject(WorldForm worldForm, object o, object parent = null)
+        public static MapSelection FromProjectObject(WorldForm worldForm, object o, object? parent = null)
         {
             const float nrad = 0.5f;
             var ms = new MapSelection();

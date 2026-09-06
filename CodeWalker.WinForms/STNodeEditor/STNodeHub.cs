@@ -76,7 +76,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         void output_DisConnected(object sender, STNodeOptionEventArgs e) {
-            STNodeOption op = sender as STNodeOption;
+            if (sender is not STNodeOption op) return;
             if (op.ConnectionCount != 0) return;
             int nIndex = this.OutputOptions.IndexOf(op);
             if (this.InputOptions[nIndex].ConnectionCount != 0) return;
@@ -87,7 +87,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         void output_Connected(object sender, STNodeOptionEventArgs e) {
-            STNodeOption op = sender as STNodeOption;
+            if (sender is not STNodeOption op) return;
             int nIndex = this.OutputOptions.IndexOf(op);
             var t = typeof(object);
             if (this.InputOptions[nIndex].DataType == t) {
@@ -101,7 +101,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         void input_DisConnected(object sender, STNodeOptionEventArgs e) {
-            STNodeOption op = sender as STNodeOption;
+            if (sender is not STNodeOption op) return;
             if (op.ConnectionCount != 0) return;
             int nIndex = this.InputOptions.IndexOf(op);
             if (this.OutputOptions[nIndex].ConnectionCount != 0) return;
@@ -112,7 +112,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         void input_DataTransfer(object sender, STNodeOptionEventArgs e) {
-            STNodeOption op = sender as STNodeOption;
+            if (sender is not STNodeOption op) return;
             int nIndex = this.InputOptions.IndexOf(op);
             if (e.Status != ConnectionStatus.Connected)
                 this.OutputOptions[nIndex].Data = null;
@@ -122,7 +122,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         void input_Connected(object sender, STNodeOptionEventArgs e) {
-            STNodeOption op = sender as STNodeOption;
+            if (sender is not STNodeOption op) return;
             int nIndex = this.InputOptions.IndexOf(op);
             var t = typeof(object);
             if (op.DataType == t) {

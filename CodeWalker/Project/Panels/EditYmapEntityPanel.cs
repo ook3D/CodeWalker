@@ -24,7 +24,7 @@ namespace CodeWalker.Project.Panels
         {
             var sameEntity = (entity == CurrentEntity);
             CurrentEntity = entity;
-            MloInstanceData instance = entity?.MloParent?.MloInstance;
+            MloInstanceData? instance = entity?.MloParent?.MloInstance;
             CurrentMCEntity = instance?.TryGetArchetypeEntity(entity);
             Tag = entity;
             LoadEntity(sameEntity);
@@ -545,7 +545,7 @@ namespace CodeWalker.Project.Panels
         {
             if (populatingui) return;
             if (CurrentEntity == null) return;
-            rage__eLodType lodLevel = (rage__eLodType)EntityLodLevelComboBox.SelectedItem;
+            if (EntityLodLevelComboBox.SelectedItem is not rage__eLodType lodLevel) return;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentEntity._CEntityDef.lodLevel != lodLevel)
@@ -580,7 +580,7 @@ namespace CodeWalker.Project.Panels
         {
             if (populatingui) return;
             if (CurrentEntity == null) return;
-            rage__ePriorityLevel priorityLevel = (rage__ePriorityLevel)EntityPriorityLevelComboBox.SelectedItem;
+            if (EntityPriorityLevelComboBox.SelectedItem is not rage__ePriorityLevel priorityLevel) return;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentEntity._CEntityDef.priorityLevel != priorityLevel)
@@ -817,7 +817,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentEntity == null) return;
 
-            string parentName = parentEntityTextBox.Text?.Trim();
+            string? parentName = parentEntityTextBox.Text?.Trim();
             if (string.IsNullOrEmpty(parentName)) return;
 
             var parentEntities = CurrentEntity.Ymap.Parent.AllEntities;

@@ -28,7 +28,7 @@ namespace CodeWalker.Forms
         private ModelForm ModelForm = null;
 
 
-        public YtdForm(ExploreForm exploreForm = null, ModelForm modelForm = null)
+        public YtdForm(ExploreForm? exploreForm = null, ModelForm? modelForm = null)
         {
             ExploreForm = exploreForm;
             ModelForm = modelForm;
@@ -194,7 +194,7 @@ namespace CodeWalker.Forms
         }
 
 
-        private void AddTextures(string[] filenames = null)
+        private void AddTextures(string[]? filenames = null)
         {
             if (TexDict.Textures?.data_items == null) return;
 
@@ -300,7 +300,7 @@ namespace CodeWalker.Forms
             UpdateModelFormTextures();
         }
 
-        private void RenameTexture(string name)
+        private void RenameTexture(string? name)
         {
             if (string.IsNullOrEmpty(name)) return;
             if (TexDict?.Textures?.data_items == null) return;
@@ -754,7 +754,7 @@ namespace CodeWalker.Forms
 
         private void TexturesListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Texture tex = null;
+            Texture? tex = null;
             if (TexturesListView.SelectedItems.Count == 1)
             {
                 tex = TexturesListView.SelectedItems[0].Tag as Texture;
@@ -803,7 +803,7 @@ namespace CodeWalker.Forms
 
         private void SelTextureMipTrackBar_Scroll(object sender, EventArgs e)
         {
-            Texture tex = null;
+            Texture? tex = null;
             if (TexturesListView.SelectedItems.Count == 1)
             {
                 tex = TexturesListView.SelectedItems[0].Tag as Texture;

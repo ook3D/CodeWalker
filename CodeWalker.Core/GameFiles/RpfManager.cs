@@ -223,7 +223,7 @@ namespace CodeWalker.GameFiles
                             {
                                 entry.NameHash = JenkHash.GenHash(entry.NameLower);
                                 int ind = entry.NameLower.LastIndexOf('.');
-                                entry.ShortNameHash = ind > 0 ? JenkHash.GenHash(entry.NameLower.Substring(0, ind)) : entry.NameHash;
+                                entry.ShortNameHash = ind > 0 ? JenkHash.GenHash(entry.NameLower.AsSpan(0, ind)) : entry.NameHash;
                                 if (entry.ShortNameHash != 0)
                                 {
                                     //EntryHashDict[entry.ShortNameHash] = entry;
@@ -384,7 +384,7 @@ namespace CodeWalker.GameFiles
                 entry.Path = relpath;
                 entry.NameHash = JenkHash.GenHash(entry.NameLower);
                 int ind = entry.NameLower.LastIndexOf('.');
-                entry.ShortNameHash = ind > 0 ? JenkHash.GenHash(entry.NameLower.Substring(0, ind)) : entry.NameHash;
+                entry.ShortNameHash = ind > 0 ? JenkHash.GenHash(entry.NameLower.AsSpan(0, ind)) : entry.NameHash;
                 rpf.Root = new RpfDirectoryEntry();
                 rpf.AllEntries = new List<RpfEntry> { entry };
                 return entry;
@@ -401,7 +401,7 @@ namespace CodeWalker.GameFiles
 
         public RpfFile FindRpfFile(string path, bool exactPathOnly)
         {
-            RpfFile file = null; //check the dictionary
+            RpfFile? file = null; //check the dictionary
 
             if (EnableMods && ModRpfDict.TryGetValue(path, out file))
             {
@@ -437,7 +437,7 @@ namespace CodeWalker.GameFiles
 
         public RpfEntry GetEntry(string path, bool includeMods)
         {
-            RpfEntry entry;
+            RpfEntry? entry;
             string pathl = path.ToLowerInvariant();
             if (includeMods && EnableMods && ModEntryDict.TryGetValue(pathl, out entry))
             {
@@ -478,7 +478,7 @@ namespace CodeWalker.GameFiles
         {
             XmlDocument doc = new();
             var entry = GetEntry(path, includeMods) as RpfFileEntry;
-            string text = (entry == null) ? null : TextUtil.GetUTF8Text(entry.File.ExtractFile(entry));
+            string? text = (entry == null) ? null : TextUtil.GetUTF8Text(entry.File.ExtractFile(entry));
             if (!string.IsNullOrEmpty(text))
             {
                 doc.LoadXml(text);
@@ -683,7 +683,7 @@ namespace CodeWalker.GameFiles
                             }
                             if (nlow.EndsWith(".nametable"))
                             {
-                                RpfBinaryFileEntry binfe = entry as RpfBinaryFileEntry;
+                                RpfBinaryFileEntry? binfe = entry as RpfBinaryFileEntry;
                                 if (binfe != null)
                                 {
                                     byte[] data = file.ExtractFile(binfe);
@@ -737,7 +737,7 @@ namespace CodeWalker.GameFiles
             var datPath = Path.Combine(dir, "strings.dat");
             var txtPath = Path.Combine(dir, "strings.txt");
             
-            string[] lines = null;
+            string[]? lines = null;
             
             if (File.Exists(datPath))
             {
@@ -748,7 +748,7 @@ namespace CodeWalker.GameFiles
                     using (var reader = new StreamReader(gzipStream, Encoding.UTF8))
                     {
                         var linesList = new List<string>();
-                        string line;
+                        string? line;
                         while ((line = reader.ReadLine()) != null)
                         {
                             linesList.Add(line);

@@ -326,7 +326,7 @@ namespace CodeWalker.Rendering
 
             context.ClearDepthStencilView(DepthTextureDSV, DepthStencilClearFlags.Depth, 1.0f, 0);
             // Set a null render target so as not to render color.
-            context.OutputMerger.SetRenderTargets(DepthTextureDSV, (RenderTargetView)null);
+            context.OutputMerger.SetRenderTargets(DepthTextureDSV, (RenderTargetView?)null);
 
             context.OutputMerger.SetDepthStencilState(DepthRenderDS);
 

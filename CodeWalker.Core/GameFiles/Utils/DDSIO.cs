@@ -156,7 +156,7 @@ namespace CodeWalker.Utils
             int h = i0.height;
             int imglen = i0.slicePitch;// h * i0.rowPitch;
             byte[] imgdata = new byte[imglen];
-            byte[] px = null;// = new byte[w * h * 4];
+            byte[]? px = null;// = new byte[w * h * 4];
 
             if (i0.pixels + imglen > img.Data.Length)
             { throw new Exception("Mipmap not in texture!"); }

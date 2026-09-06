@@ -10,7 +10,7 @@
     <Company>dexyfex software</Company>
     <Authors>dexyfex</Authors>
     <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>13.0</LangVersion>
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
@@ -28,7 +28,7 @@
     <PackageReference Include="DockPanelSuite.ThemeVS2015" Version="3.1.1" />
     <PackageReference Include="FCTB" Version="2.16.24" />
     <PackageReference Include="SharpDX" Version="4.2.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="SharpDX.D3DCompiler" Version="4.2.0" />
     <PackageReference Include="SharpDX.Direct2D1" Version="4.2.0" />
     <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />

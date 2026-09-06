@@ -183,7 +183,7 @@ namespace CodeWalker.GameFiles
         {
             Name = entry.Name;
             RpfFileEntry = entry;
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 MemoryStream ms = new(data);
@@ -231,7 +231,7 @@ namespace CodeWalker.GameFiles
                     if ((offset < 0) || (block.Data == null) || (offset >= block.Data.Length))
                     { continue; }
 
-                    Archetype a = null;
+                    Archetype? a = null;
                     switch (block.StructureNameHash)
                     {
                         case MetaName.CBaseArchetypeDef:

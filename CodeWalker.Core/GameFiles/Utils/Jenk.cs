@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,36 +29,31 @@ namespace CodeWalker.GameFiles
 
         public static uint GenHash(string text, JenkHashInputEncoding encoding)
         {
-            uint h = 0;
-            byte[] chars;
-
-            switch (encoding)
+            ArgumentNullException.ThrowIfNull(text);
+            var encoder = encoding == JenkHashInputEncoding.ASCII
+                ? System.Text.Encoding.ASCII : System.Text.Encoding.UTF8;
+            // Both encodings fit short names in this buffer, avoiding a byte-count pass.
+            int byteCount = text.Length <= 80 ? 256 : encoder.GetByteCount(text);
+            byte[]? rented = null;
+            Span<byte> bytes = byteCount <= 256
+                ? stackalloc byte[256]
+                : (rented = ArrayPool<byte>.Shared.Rent(byteCount));
+            try
             {
-                default:
-                case JenkHashInputEncoding.UTF8:
-                    chars = UTF8Encoding.UTF8.GetBytes(text);
-                    break;
-                case JenkHashInputEncoding.ASCII:
-                    chars = ASCIIEncoding.ASCII.GetBytes(text);
-                    break;
+                int written = encoder.GetBytes(text.AsSpan(), bytes);
+                return GenHash((ReadOnlySpan<byte>)bytes[..written]);
             }
-
-            for (uint i = 0; i < chars.Length; i++)
+            finally
             {
-                h += chars[i];
-                h += (h << 10);
-                h ^= (h >> 6);
+                if (rented != null) ArrayPool<byte>.Shared.Return(rented);
             }
-            h += (h << 3);
-            h ^= (h >> 11);
-            h += (h << 15);
-
-            return h;
         }
 
-        public static uint GenHash(string text)
+        public static uint GenHash(string text) => GenHash(text.AsSpan());
+
+        // Preserve the game's low-byte character hashing; this is not UTF-8 hashing.
+        public static uint GenHash(ReadOnlySpan<char> text)
         {
-            if (text == null) return 0;
             uint h = 0;
             for (int i = 0; i < text.Length; i++)
             {
@@ -74,8 +70,14 @@ namespace CodeWalker.GameFiles
 
         public static uint GenHash(byte[] data)
         {
+            ArgumentNullException.ThrowIfNull(data);
+            return GenHash(data.AsSpan());
+        }
+
+        public static uint GenHash(ReadOnlySpan<byte> data)
+        {
             uint h = 0;
-            for (uint i = 0; i < data.Length; i++)
+            for (int i = 0; i < data.Length; i++)
             {
                 h += data[i];
                 h += (h << 10);
@@ -234,7 +236,7 @@ namespace CodeWalker.GameFiles
 
         public static string GetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))
@@ -246,7 +248,7 @@ namespace CodeWalker.GameFiles
         }
         public static string TryGetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))
@@ -259,7 +261,7 @@ namespace CodeWalker.GameFiles
 
         public static string[] GetAllStrings()
         {
-            string[] res = null;
+            string[]? res = null;
             lock (syncRoot)
             {
                 res = Index.Values.ToArray();

@@ -473,7 +473,7 @@ namespace CodeWalker.Rendering
                 context.ResolveSubresource(Primary.TextureMS, sr, Primary.Texture, sr, Format.R32G32B32A32_Float);
             }
 
-            context.OutputMerger.SetRenderTargets((RenderTargetView)null);
+            context.OutputMerger.SetRenderTargets((RenderTargetView?)null);
 
             if (FixedAvgLuminance.HasValue) WriteFixedLuminance(context, FixedAvgLuminance.Value);
             else ProcessLuminance(context);
@@ -718,7 +718,7 @@ namespace CodeWalker.Rendering
 
             context.Dispatch(X, Y, Z);
 
-            ShaderResourceView[] ppSRVNULL = { null, null, null };
+            ShaderResourceView[]? ppSRVNULL = { null, null, null };
             context.ComputeShader.SetUnorderedAccessView(0, null);
             context.ComputeShader.SetShaderResources(0, 3, ppSRVNULL);
             context.ComputeShader.SetConstantBuffer(0, null);

@@ -340,7 +340,7 @@ namespace CodeWalker.GameFiles
             }
             foreach (var reldata in RelDatas)
             {
-                RelSound snd = reldata as RelSound;
+                RelSound? snd = reldata as RelSound;
                 if (snd != null)
                 {
                     if (snd.ChildSoundsCount > 0)
@@ -349,7 +349,7 @@ namespace CodeWalker.GameFiles
                         for (int i = 0; i < snd.ChildSoundsCount; i++)
                         {
                             var audhash = snd.ChildSoundsHashes[i];
-                            RelData auddata = null;
+                            RelData? auddata = null;
                             if (RelDataDict.TryGetValue(audhash, out auddata))
                             {
                                 snd.ChildSounds[i] = auddata;
@@ -398,7 +398,7 @@ namespace CodeWalker.GameFiles
                     var hashOffset = HashTableOffsets[i];
                     var hash = HashTable[i];
                     var itemOffset = hashOffset - 8;
-                    Dat4SpeechData speechData = null;
+                    Dat4SpeechData? speechData = null;
                     speechDict.TryGetValue(itemOffset, out speechData);
                     if (speechData != null)
                     {
@@ -414,7 +414,7 @@ namespace CodeWalker.GameFiles
                     var packOffset = PackTableOffsets[i];
                     var pack = PackTable[i];
                     var itemOffset = packOffset - 12;
-                    Dat4SpeechData speechData = null;
+                    Dat4SpeechData? speechData = null;
                     speechDict.TryGetValue(itemOffset, out speechData);
                     if (speechData != null)
                     {
@@ -754,7 +754,7 @@ namespace CodeWalker.GameFiles
 
         public RelData CreateRelData(RelDatFileType relType, int dataType)
         {
-            RelData d = null;
+            RelData? d = null;
             switch (relType)
             {
                 case RelDatFileType.Dat54DataEntries:
@@ -1048,7 +1048,7 @@ namespace CodeWalker.GameFiles
             bw.Write(DataUnkVal);
 
 
-            RelData lastrd = null;//debug
+            RelData? lastrd = null;//debug
 
             for (int i = 0; i < RelDatasSorted.Length; i++)
             {
@@ -1442,7 +1442,7 @@ namespace CodeWalker.GameFiles
         public static Dictionary<HashesMapKey, List<HashesMapValue>> HashesMap { get; set; } = new Dictionary<HashesMapKey, List<HashesMapValue>>();
         private static void AddHashesMapItem(ref HashesMapKey key, HashesMapValue val)
         {
-            List<HashesMapValue> values = null;
+            List<HashesMapValue>? values = null;
             if (!HashesMap.TryGetValue(key, out values))
             {
                 values = new List<HashesMapValue>();
@@ -2012,7 +2012,7 @@ namespace CodeWalker.GameFiles
                     // support old format: <MaxHeaderSize value="1023" /> or <ParentOverrides value="0x03FF" />
                     uint legacyValue = Xml.GetChildUIntAttribute(node, "MaxHeaderSize", "value") | Xml.GetChildUIntAttribute(node, "ParentOverrides", "value");
                     // support new format: <ParentOverrides><VolumeOverridesParent value="true" />...</ParentOverrides>
-                    XmlNode poNode = node.SelectSingleNode("ParentOverrides");
+                    XmlNode? poNode = node.SelectSingleNode("ParentOverrides");
                     if (poNode != null && poNode.HasChildNodes)
                     {
                         ushort flags = 0;
@@ -2020,7 +2020,7 @@ namespace CodeWalker.GameFiles
                         {
                             if (Enum.TryParse(flagNode.Name, out ParentOverrideFlags flag))
                             {
-                                string valueStr = flagNode.Attributes?["value"]?.Value;
+                                string? valueStr = flagNode.Attributes?["value"]?.Value;
                                 if (string.Equals(valueStr, "true", StringComparison.OrdinalIgnoreCase))
                                 {
                                     flags |= (ushort)(1 << (int)flag);
@@ -3795,7 +3795,7 @@ namespace CodeWalker.GameFiles
             ChannelVolume5 = (short)Xml.GetChildIntAttribute(node, "ChannelVolume5", "value");
             ParentSound = XmlRel.GetHash(Xml.GetChildInnerText(node, "ParentSound"));
             GranularClock = Xml.GetChildRawVector2Array(node, "GranularClock");
-            GranularClockCount = (byte)GranularClock?.Length;
+            GranularClockCount = (byte)(GranularClock?.Length ?? 0);
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
@@ -6256,14 +6256,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("AmbientZoneFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("AmbientZoneFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out AmbientZoneFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -6536,14 +6536,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("AmbientRuleFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("AmbientRuleFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out AmbientRuleFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -6787,14 +6787,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("StaticEmitterFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("StaticEmitterFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out StaticEmitterFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -6906,14 +6906,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("InteriorSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("InteriorSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out InteriorSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -7072,14 +7072,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("InteriorRoomFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("InteriorRoomFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out InteriorRoomFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -7283,14 +7283,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("RadioStationSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("RadioStationSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out RadioStationSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -7440,14 +7440,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("RadioStationTrackListFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("RadioStationTrackListFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out RadioStationTrackListFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -7528,14 +7528,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ReplayRadioStationTrackListFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ReplayRadioStationTrackListFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ReplayRadioStationTrackListFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -7789,14 +7789,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("StartTrackActionFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("StartTrackActionFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out StartTrackActionFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -7949,14 +7949,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("StopTrackActionFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("StopTrackActionFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out StopTrackActionFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -8394,14 +8394,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("StartOneShotActionFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("StartOneShotActionFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out StartOneShotActionFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -8827,14 +8827,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ModelAudioCollisionSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ModelAudioCollisionSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ModelAudioCollisionSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -9437,14 +9437,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("CollisionMaterialSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("CollisionMaterialSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out CollisionMaterialSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -10170,14 +10170,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ForceRadioTrackActionFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ForceRadioTrackActionFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ForceRadioTrackActionFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -10994,14 +10994,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ShoreLinePoolAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ShoreLinePoolAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ShoreLinePoolAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -11104,14 +11104,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ShoreLineLakeAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ShoreLineLakeAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ShoreLineLakeAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -11215,14 +11215,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ShoreLineRiverAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ShoreLineRiverAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ShoreLineRiverAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -11353,14 +11353,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ShoreLineOceanAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ShoreLineOceanAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ShoreLineOceanAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -11808,14 +11808,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("GranularEngineAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("GranularEngineAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out GranularEngineAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -12276,14 +12276,14 @@ namespace CodeWalker.GameFiles
         {
 
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("CarAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("CarAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out CarAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -12800,14 +12800,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ScannerVehicleParamsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ScannerVehicleParamsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ScannerVehicleParamsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -13186,14 +13186,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("WeaponSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("WeaponSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out WeaponSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -13373,14 +13373,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ExplosionAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ExplosionAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ExplosionAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -13724,14 +13724,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("EntityEmitterFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("EntityEmitterFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out EntityEmitterFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -14062,14 +14062,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("BoatAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("BoatAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out BoatAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -14733,14 +14733,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("PlaneAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("PlaneAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out PlaneAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -15310,14 +15310,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("HeliAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("HeliAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out HeliAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -16069,14 +16069,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("SpeechParamsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("SpeechParamsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out SpeechParamsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -16470,14 +16470,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("SpeechContextFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("SpeechContextFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out SpeechContextFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -16639,14 +16639,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("SpeechContextVirtualFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("SpeechContextVirtualFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out SpeechContextVirtualFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -17506,14 +17506,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ScriptedScannerLineFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ScriptedScannerLineFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ScriptedScannerLineFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -18009,14 +18009,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("EnvironmentRuleFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("EnvironmentRuleFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out EnvironmentRuleFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -18158,14 +18158,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("DoorTuningParamsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("DoorTuningParamsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out DoorTuningParamsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -18592,14 +18592,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("DirectionalAmbienceFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("DirectionalAmbienceFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out DirectionalAmbienceFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -19427,14 +19427,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("MicrophoneSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("MicrophoneSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out MicrophoneSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -19816,14 +19816,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ClothAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ClothAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ClothAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -20263,14 +20263,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("ReflectionsSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("ReflectionsSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out ReflectionsSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -20497,14 +20497,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("PedScenarioAudioSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("PedScenarioAudioSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out PedScenarioAudioSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -21718,14 +21718,14 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             uint flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
-            XmlNode flagsNode = node.SelectSingleNode("RandomisedRadioEmitterSettingsFlags");
+            XmlNode? flagsNode = node.SelectSingleNode("RandomisedRadioEmitterSettingsFlags");
             if (flagsNode != null)
             {
                 foreach (XmlNode flagNode in flagsNode.ChildNodes)
                 {
                     if (Enum.TryParse(flagNode.Name, out RandomisedRadioEmitterSettingsFlags flag))
                     {
-                        string valueStr = flagNode.Attributes?["value"]?.Value;
+                        string? valueStr = flagNode.Attributes?["value"]?.Value;
                         if (Enum.TryParse(valueStr, true, out TristateValue value))
                         {
                             SetTristateValue(ref flags, (int)flag, value);
@@ -23191,7 +23191,7 @@ namespace CodeWalker.GameFiles
             var reasm = Assemble(disasm.Disassembly, Variables);//TODO: adjust disassembly code to make this not necessary
             RelXml.OpenTag(sb, indent, "Assembly");
             var reader = new StringReader(disasm.Disassembly);
-            string line;
+            string? line;
             while ((line = reader.ReadLine()) != null)
             {
                 RelXml.Indent(sb, indent + 1);
@@ -23616,7 +23616,7 @@ namespace CodeWalker.GameFiles
             public List<float> Constants { get; set; } = new List<float>();
         }
 
-        public static AssembleResult Assemble(string assembly, Dat10SynthVariable[] variables, Action<string, int> onError = null)
+        public static AssembleResult Assemble(string assembly, Dat10SynthVariable[] variables, Action<string, int>? onError = null)
         {
             var result = new AssembleResult();
 
@@ -23624,7 +23624,7 @@ namespace CodeWalker.GameFiles
             using (var mem = new MemoryStream())
             using (var bw = new BinaryWriter(mem))
             {
-                string line;
+                string? line;
                 int lineNumber = 1;
                 while ((line = reader.ReadLine()) != null)
                 {
@@ -24586,7 +24586,7 @@ namespace CodeWalker.GameFiles
 
             public string ToString(float[] constants, Dat10SynthVariable[] variables)
             {
-                var stateBlock = Parameters.Cast<Parameter?>().SingleOrDefault(p => p.Value.IsStateBlock);
+                var stateBlock = Parameters.Where(p => p.IsStateBlock).Cast<Parameter?>().SingleOrDefault();
                 var inputsStr = string.Join(", ", Parameters.Where(p => p.IsInput).Select(p => p.ToString(constants, variables)));
                 var outputsStr = string.Join(", ", Parameters.Where(p => p.IsOutput).Select(p => p.ToString(constants, variables))) +
                                     (stateBlock.HasValue ? " " + stateBlock.Value.ToString(constants, variables) : "");
@@ -26867,7 +26867,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static MetaHash GetHash(string str)
+        public static MetaHash GetHash(string? str)
         {
             if (string.IsNullOrEmpty(str))
             {

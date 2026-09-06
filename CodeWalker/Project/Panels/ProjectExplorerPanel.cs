@@ -326,7 +326,7 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private void LoadYmapTreeNodes(YmapFile ymap, TreeNode node)
+        private void LoadYmapTreeNodes(YmapFile? ymap, TreeNode node)
         {
             if (ymap == null) return;
 
@@ -420,7 +420,7 @@ namespace CodeWalker.Project.Panels
             }
 
         }
-        private void LoadYtypTreeNodes(YtypFile ytyp, TreeNode node)
+        private void LoadYtypTreeNodes(YtypFile? ytyp, TreeNode node)
         {
             if (ytyp == null) return;
 
@@ -525,7 +525,7 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        private void LoadYbnTreeNodes(YbnFile ybn, TreeNode node)
+        private void LoadYbnTreeNodes(YbnFile? ybn, TreeNode node)
         {
             if (ybn == null) return;
 
@@ -573,7 +573,7 @@ namespace CodeWalker.Project.Panels
             }
 
         }
-        private void LoadYndTreeNodes(YndFile ynd, TreeNode node)
+        private void LoadYndTreeNodes(YndFile? ynd, TreeNode node)
         {
             if (ynd == null) return;
 
@@ -614,7 +614,7 @@ namespace CodeWalker.Project.Panels
             }
 
         }
-        private void LoadYnvTreeNodes(YnvFile ynv, TreeNode node)//TODO!
+        private void LoadYnvTreeNodes(YnvFile? ynv, TreeNode node)//TODO!
         {
             if (ynv == null) return;
 
@@ -638,7 +638,7 @@ namespace CodeWalker.Project.Panels
 
 
         }
-        private void LoadTrainTrackTreeNodes(TrainTrack track, TreeNode node)
+        private void LoadTrainTrackTreeNodes(TrainTrack? track, TreeNode node)
         {
             if (track == null) return;
 
@@ -984,7 +984,7 @@ namespace CodeWalker.Project.Panels
 
 
 
-        private TreeNode GetChildTreeNode(TreeNode node, string name)
+        private TreeNode GetChildTreeNode(TreeNode? node, string name)
         {
             if (node == null) return null;
             var nodes = node.Nodes.Find(name, false);
@@ -996,7 +996,7 @@ namespace CodeWalker.Project.Panels
             if (ymap != null && fileTreeNodes.TryGetValue(ymap, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindEntityTreeNode(YmapEntityDef ent)
+        public TreeNode FindEntityTreeNode(YmapEntityDef? ent)
         {
             if (ent == null) return null;
             TreeNode ymapnode = FindYmapTreeNode(ent.Ymap);
@@ -1010,7 +1010,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindCarGenTreeNode(YmapCarGen cargen)
+        public TreeNode FindCarGenTreeNode(YmapCarGen? cargen)
         {
             if (cargen == null) return null;
             TreeNode ymapnode = FindYmapTreeNode(cargen.Ymap);
@@ -1024,7 +1024,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindLodLightTreeNode(YmapLODLight lodlight)
+        public TreeNode FindLodLightTreeNode(YmapLODLight? lodlight)
         {
             if (lodlight == null) return null;
             TreeNode ymapnode = FindYmapTreeNode(lodlight.Ymap);
@@ -1038,7 +1038,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindBoxOccluderTreeNode(YmapBoxOccluder box)
+        public TreeNode FindBoxOccluderTreeNode(YmapBoxOccluder? box)
         {
             if (box == null) return null;
             TreeNode ymapnode = FindYmapTreeNode(box.Ymap);
@@ -1052,7 +1052,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindOccludeModelTreeNode(YmapOccludeModel model)
+        public TreeNode FindOccludeModelTreeNode(YmapOccludeModel? model)
         {
             if (model == null) return null;
             TreeNode ymapnode = FindYmapTreeNode(model.Ymap);
@@ -1066,7 +1066,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindOccludeModelTriangleTreeNode(YmapOccludeModelTriangle tri)
+        public TreeNode FindOccludeModelTriangleTreeNode(YmapOccludeModelTriangle? tri)
         {
             if (tri == null) return null;
             TreeNode ymapnode = FindYmapTreeNode(tri.Ymap);
@@ -1080,7 +1080,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindGrassTreeNode(YmapGrassInstanceBatch batch)
+        public TreeNode FindGrassTreeNode(YmapGrassInstanceBatch? batch)
         {
             if (batch == null) return null;
             TreeNode ymapnode = FindYmapTreeNode(batch.Ymap);
@@ -1099,7 +1099,7 @@ namespace CodeWalker.Project.Panels
             if (ytyp != null && fileTreeNodes.TryGetValue(ytyp, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindArchetypeTreeNode(Archetype archetype)
+        public TreeNode FindArchetypeTreeNode(Archetype? archetype)
         {
             if (archetype == null) return null;
             var ytypnode = FindYtypTreeNode(archetype.Ytyp);
@@ -1113,7 +1113,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindMloRoomTreeNode(MCMloRoomDef room)
+        public TreeNode FindMloRoomTreeNode(MCMloRoomDef? room)
         {
             if (room == null) return null;
 
@@ -1132,7 +1132,7 @@ namespace CodeWalker.Project.Panels
 
             return null;
         }
-        public TreeNode FindMloPortalTreeNode(MCMloPortalDef portal)
+        public TreeNode FindMloPortalTreeNode(MCMloPortalDef? portal)
         {
             if (portal == null) return null;
 
@@ -1151,7 +1151,7 @@ namespace CodeWalker.Project.Panels
 
             return null;
         }
-        public TreeNode FindMloEntitySetTreeNode(MCMloEntitySet entset)
+        public TreeNode FindMloEntitySetTreeNode(MCMloEntitySet? entset)
         {
             if (entset == null) return null;
 
@@ -1221,7 +1221,7 @@ namespace CodeWalker.Project.Panels
             if (ybn != null && fileTreeNodes.TryGetValue(ybn, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindCollisionBoundsTreeNode(Bounds b)
+        public TreeNode FindCollisionBoundsTreeNode(Bounds? b)
         {
             if (b == null) return null;
             var bnode = (b.Parent != null) ? FindCollisionBoundsTreeNode(b.Parent) : FindYbnTreeNode(b.GetRootYbn());
@@ -1233,7 +1233,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindCollisionPolyTreeNode(BoundPolygon p)
+        public TreeNode FindCollisionPolyTreeNode(BoundPolygon? p)
         {
             if (p == null) return null;
             var ybnnode = FindCollisionBoundsTreeNode(p.Owner);
@@ -1242,7 +1242,7 @@ namespace CodeWalker.Project.Panels
             polynode.Tag = p;
             return polynode;
         }
-        public TreeNode FindCollisionVertexTreeNode(BoundVertex v)
+        public TreeNode FindCollisionVertexTreeNode(BoundVertex? v)
         {
             if (v == null) return null;
             var ybnnode = FindCollisionBoundsTreeNode(v.Owner);
@@ -1256,7 +1256,7 @@ namespace CodeWalker.Project.Panels
             if (ynd != null && fileTreeNodes.TryGetValue(ynd, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindPathNodeTreeNode(YndNode n)
+        public TreeNode FindPathNodeTreeNode(YndNode? n)
         {
             if (n == null) return null;
             TreeNode yndnode = FindYndTreeNode(n.Ynd);
@@ -1291,7 +1291,7 @@ namespace CodeWalker.Project.Panels
             if (ynv != null && fileTreeNodes.TryGetValue(ynv, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindNavPolyTreeNode(YnvPoly p)
+        public TreeNode FindNavPolyTreeNode(YnvPoly? p)
         {
             if (p == null) return null;
             TreeNode ynvnode = FindYnvTreeNode(p.Ynv);
@@ -1300,7 +1300,7 @@ namespace CodeWalker.Project.Panels
             polynode.Tag = p;
             return polynode;
         }
-        public TreeNode FindNavPointTreeNode(YnvPoint p)
+        public TreeNode FindNavPointTreeNode(YnvPoint? p)
         {
             if (p == null) return null;
             TreeNode ynvnode = FindYnvTreeNode(p.Ynv);
@@ -1315,7 +1315,7 @@ namespace CodeWalker.Project.Panels
             //}
             //return null;
         }
-        public TreeNode FindNavPortalTreeNode(YnvPortal p)
+        public TreeNode FindNavPortalTreeNode(YnvPortal? p)
         {
             if (p == null) return null;
             TreeNode ynvnode = FindYnvTreeNode(p.Ynv);
@@ -1335,7 +1335,7 @@ namespace CodeWalker.Project.Panels
             if (track != null && fileTreeNodes.TryGetValue(track, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindTrainNodeTreeNode(TrainTrackNode n)
+        public TreeNode FindTrainNodeTreeNode(TrainTrackNode? n)
         {
             if (n == null) return null;
             TreeNode tracknode = FindTrainTrackTreeNode(n.Track);
@@ -1353,7 +1353,7 @@ namespace CodeWalker.Project.Panels
             if (ymt != null && fileTreeNodes.TryGetValue(ymt, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindScenarioNodeTreeNode(ScenarioNode p)
+        public TreeNode FindScenarioNodeTreeNode(ScenarioNode? p)
         {
             if (p == null) return null;
             TreeNode ymtnode = FindScenarioTreeNode(p.Ymt);
@@ -1371,7 +1371,7 @@ namespace CodeWalker.Project.Panels
             if (rel != null && fileTreeNodes.TryGetValue(rel, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindAudioAmbientZoneTreeNode(AudioPlacement zone)
+        public TreeNode FindAudioAmbientZoneTreeNode(AudioPlacement? zone)
         {
             if (zone == null) return null;
             TreeNode relnode = FindAudioRelTreeNode(zone.RelFile);
@@ -1384,7 +1384,7 @@ namespace CodeWalker.Project.Panels
             }
             return zonesnode;
         }
-        public TreeNode FindAudioAmbientRuleTreeNode(AudioPlacement rule)
+        public TreeNode FindAudioAmbientRuleTreeNode(AudioPlacement? rule)
         {
             if (rule == null) return null;
             TreeNode relnode = FindAudioRelTreeNode(rule.RelFile);
@@ -1420,7 +1420,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindAudioStaticEmitterTreeNode(AudioPlacement emitter)
+        public TreeNode FindAudioStaticEmitterTreeNode(AudioPlacement? emitter)
         {
             if (emitter == null) return null;
             TreeNode relnode = FindAudioRelTreeNode(emitter.RelFile);
@@ -1434,7 +1434,7 @@ namespace CodeWalker.Project.Panels
             }
             return zonenode;
         }
-        public TreeNode FindAudioAmbientZoneListTreeNode(Dat151AmbientZoneList list)
+        public TreeNode FindAudioAmbientZoneListTreeNode(Dat151AmbientZoneList? list)
         {
             if (list == null) return null;
             TreeNode relnode = FindAudioRelTreeNode(list.Rel);
@@ -1447,7 +1447,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindAudioStaticEmitterListTreeNode(Dat151StaticEmitterList list)
+        public TreeNode FindAudioStaticEmitterListTreeNode(Dat151StaticEmitterList? list)
         {
             if (list == null) return null;
             TreeNode relnode = FindAudioRelTreeNode(list.Rel);
@@ -1460,7 +1460,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindAudioInteriorTreeNode(Dat151InteriorSettings interior)
+        public TreeNode FindAudioInteriorTreeNode(Dat151InteriorSettings? interior)
         {
             if (interior == null) return null;
             TreeNode relnode = FindAudioRelTreeNode(interior.Rel);
@@ -1473,7 +1473,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindAudioInteriorRoomTreeNode(Dat151InteriorRoom room)
+        public TreeNode FindAudioInteriorRoomTreeNode(Dat151InteriorRoom? room)
         {
             if (room == null) return null;
             TreeNode relnode = FindAudioRelTreeNode(room.Rel);
@@ -2126,7 +2126,7 @@ namespace CodeWalker.Project.Panels
                 tn.Text = archetype._BaseArchetypeDef.ToString();
             }
         }
-        public void UpdateEntityTreeNode(YmapEntityDef ent)
+        public void UpdateEntityTreeNode(YmapEntityDef? ent)
         {
             if (ent == null) return;
             var tn = FindEntityTreeNode(ent);
@@ -2517,7 +2517,7 @@ namespace CodeWalker.Project.Panels
             nnode.Tag = node;
             return nnode;
         }
-        public TreeNode AddCollisionBoundsTreeNode(Bounds b, Bounds parent)
+        public TreeNode AddCollisionBoundsTreeNode(Bounds? b, Bounds parent)
         {
             if (b == null) return null;
             TreeNode parentnode;
@@ -2772,7 +2772,7 @@ namespace CodeWalker.Project.Panels
             }
             return catnode;
         }
-        public void AddYmapFileTreeNode(YmapFile ymap)
+        public void AddYmapFileTreeNode(YmapFile? ymap)
         {
             if (ymap == null) return;
             var ymapsnode = GetOrCreateCategoryNode("Ymap Files", "Ymap");
@@ -2784,7 +2784,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[ymap] = ymapnode;
             LoadYmapTreeNodes(ymap, ymapnode);
         }
-        public void AddYtypFileTreeNode(YtypFile ytyp)
+        public void AddYtypFileTreeNode(YtypFile? ytyp)
         {
             if (ytyp == null) return;
             var ytypsnode = GetOrCreateCategoryNode("Ytyp Files", "Ytyp");
@@ -2796,7 +2796,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[ytyp] = ytypnode;
             LoadYtypTreeNodes(ytyp, ytypnode);
         }
-        public void AddYbnFileTreeNode(YbnFile ybn)
+        public void AddYbnFileTreeNode(YbnFile? ybn)
         {
             if (ybn == null) return;
             var ybnsnode = GetOrCreateCategoryNode("Ybn Files", "Ybn");
@@ -2808,7 +2808,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[ybn] = ybnnode;
             LoadYbnTreeNodes(ybn, ybnnode);
         }
-        public void AddYndFileTreeNode(YndFile ynd)
+        public void AddYndFileTreeNode(YndFile? ynd)
         {
             if (ynd == null) return;
             var yndsnode = GetOrCreateCategoryNode("Ynd Files", "Ynd");
@@ -2820,7 +2820,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[ynd] = yndnode;
             LoadYndTreeNodes(ynd, yndnode);
         }
-        public void AddYnvFileTreeNode(YnvFile ynv)
+        public void AddYnvFileTreeNode(YnvFile? ynv)
         {
             if (ynv == null) return;
             var ynvsnode = GetOrCreateCategoryNode("Ynv Files", "Ynv");
@@ -2832,7 +2832,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[ynv] = ynvnode;
             LoadYnvTreeNodes(ynv, ynvnode);
         }
-        public void AddTrainTrackFileTreeNode(TrainTrack track)
+        public void AddTrainTrackFileTreeNode(TrainTrack? track)
         {
             if (track == null) return;
             var trainsnode = GetOrCreateCategoryNode("Trains Files", "Trains");
@@ -2844,7 +2844,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[track] = tracknode;
             LoadTrainTrackTreeNodes(track, tracknode);
         }
-        public void AddScenarioFileTreeNode(YmtFile ymt)
+        public void AddScenarioFileTreeNode(YmtFile? ymt)
         {
             if (ymt == null) return;
             var scenariosnode = GetOrCreateCategoryNode("Scenario Files", "Scenarios");
@@ -2856,7 +2856,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[ymt] = ymtnode;
             LoadScenarioTreeNodes(ymt, ymtnode);
         }
-        public void AddAudioRelFileTreeNode(RelFile rel)
+        public void AddAudioRelFileTreeNode(RelFile? rel)
         {
             if (rel == null) return;
             var audiorelsnode = GetOrCreateCategoryNode("Audio Rel Files", "AudioRels");
@@ -2868,7 +2868,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes[rel] = relnode;
             LoadAudioRelTreeNodes(rel, relnode);
         }
-        public void AddYdrFileTreeNode(YdrFile ydr)
+        public void AddYdrFileTreeNode(YdrFile? ydr)
         {
             if (ydr == null) return;
             var ydrsnode = GetOrCreateCategoryNode("Ydr Files", "Ydr");
@@ -2878,7 +2878,7 @@ namespace CodeWalker.Project.Panels
             ydrnode.Tag = ydr;
             fileTreeNodes[ydr] = ydrnode;
         }
-        public void AddYddFileTreeNode(YddFile ydd)
+        public void AddYddFileTreeNode(YddFile? ydd)
         {
             if (ydd == null) return;
             var yddsnode = GetOrCreateCategoryNode("Ydd Files", "Ydd");
@@ -2888,7 +2888,7 @@ namespace CodeWalker.Project.Panels
             yddnode.Tag = ydd;
             fileTreeNodes[ydd] = yddnode;
         }
-        public void AddYftFileTreeNode(YftFile yft)
+        public void AddYftFileTreeNode(YftFile? yft)
         {
             if (yft == null) return;
             var yftsnode = GetOrCreateCategoryNode("Yft Files", "Yft");
@@ -2898,7 +2898,7 @@ namespace CodeWalker.Project.Panels
             yftnode.Tag = yft;
             fileTreeNodes[yft] = yftnode;
         }
-        public void AddYtdFileTreeNode(YtdFile ytd)
+        public void AddYtdFileTreeNode(YtdFile? ytd)
         {
             if (ytd == null) return;
             var ytdsnode = GetOrCreateCategoryNode("Ytd Files", "Ytd");
@@ -2908,7 +2908,7 @@ namespace CodeWalker.Project.Panels
             ytdnode.Tag = ytd;
             fileTreeNodes[ytd] = ytdnode;
         }
-        public void RemoveFileTreeNode(object file)
+        public void RemoveFileTreeNode(object? file)
         {
             if (file == null) return;
             if (!fileTreeNodes.TryGetValue(file, out var node)) return;
@@ -3371,7 +3371,7 @@ namespace CodeWalker.Project.Panels
 
         private void ProjectTreeView_DragDrop(object sender, DragEventArgs e)
         {
-            string[] files = (string[]) e.Data.GetData(DataFormats.FileDrop);
+            string[]? files = (string[]?) e.Data.GetData(DataFormats.FileDrop);
             ProjectForm.OpenFiles(files);
 
         }

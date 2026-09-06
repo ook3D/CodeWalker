@@ -25,14 +25,14 @@ namespace CodeWalker.World
 
             string trainsfilename = "common.rpf\\data\\levels\\gta5\\trains.xml";
             XmlDocument trainsxml = rpfman.GetFileXml(trainsfilename);
-            XmlElement trainsdata = trainsxml.DocumentElement;
+            XmlElement? trainsdata = trainsxml.DocumentElement;
             //TODO: parse train_configs
 
 
             string tracksfilename = "common.rpf\\data\\levels\\gta5\\traintracks.xml";
             XmlDocument tracksxml = rpfman.GetFileXml(tracksfilename);
-            XmlElement tracksdata = tracksxml.DocumentElement;
-            XmlNodeList tracks = tracksdata.SelectNodes("train_track");
+            XmlElement? tracksdata = tracksxml.DocumentElement;
+            XmlNodeList? tracks = tracksdata.SelectNodes("train_track");
 
             TrainTracks.Clear();
             for (int i = 0; i < tracks.Count; i++)
@@ -308,7 +308,7 @@ namespace CodeWalker.World
 
 
 
-        public TrainTrackNode AddNode(TrainTrackNode afternode = null)
+        public TrainTrackNode AddNode(TrainTrackNode? afternode = null)
         {
             int cnt = Nodes?.Count ?? 0;
             TrainTrackNode tn = new();

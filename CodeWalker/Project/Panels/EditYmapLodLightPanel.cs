@@ -280,7 +280,7 @@ namespace CodeWalker.Project.Panels
         {
             if (populatingui) return;
             if (CurrentLodLight == null) return;
-            var t = (LightType)TypeComboBox.SelectedItem;
+            if (TypeComboBox.SelectedItem is not LightType t) return;
             lock (ProjectForm.ProjectSyncRoot)
             {
                 if (CurrentLodLight.Type != t)

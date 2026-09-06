@@ -25,7 +25,7 @@ namespace CodeWalker.Project
             XmlDocument doc = new();
             doc.LoadXml(xmlstr);
 
-            XmlElement root = doc.DocumentElement;
+            XmlElement? root = doc.DocumentElement;
 
 
             //see:
@@ -121,7 +121,7 @@ namespace CodeWalker.Project
         public void Init(XmlNode node)
         {
 
-            XmlElement enode = node as XmlElement;
+            XmlElement? enode = node as XmlElement;
 
             var hashstr = Xml.GetChildInnerText(node, "ModelHash").ToLowerInvariant();
             if (hashstr.StartsWith("0x")) hashstr = hashstr.Substring(2);

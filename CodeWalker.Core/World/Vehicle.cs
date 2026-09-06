@@ -39,7 +39,7 @@ namespace CodeWalker.World
             MetaHash modelhashhi = JenkHash.GenHash(modelnamel + "_hi");
             var yfthash = hidef ? modelhashhi : modelhash;
 
-            VehicleInitData vid = null;
+            VehicleInitData? vid = null;
             if (gfc.VehiclesInitDict.TryGetValue(modelhash, out vid))
             {
                 bool vehiclechange = NameHash != modelhash;
@@ -68,7 +68,7 @@ namespace CodeWalker.World
                         Thread.Sleep(1);//kinda hacky
                         ConvRoofDict = gfc.GetYcd(ycdhash);
                     }
-                    ClipMapEntry cme = null;
+                    ClipMapEntry? cme = null;
                     ConvRoofDict?.ClipMap?.TryGetValue(cliphash, out cme);
                     ConvRoofClip = cme;
                 }

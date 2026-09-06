@@ -127,7 +127,7 @@ namespace CodeWalker.World
                             {
                                 try
                                 {
-                                    CScenarioPointRegionDef[] regionDefs = null;
+                                    CScenarioPointRegionDef[]? regionDefs = null;
 
                                     // Try loading as PSO/YMT first
                                     YmtFile dlcmanifest = rpfman.GetFile<YmtFile>(fentry);
@@ -206,7 +206,7 @@ namespace CodeWalker.World
                                             string regionfilenameLower = regionfilename.ToLowerInvariant();
 
                                             // Search for the region file across ALL RPFs (including parent DLC RPFs)
-                                            YmtFile regionymt = null;
+                                            YmtFile? regionymt = null;
                                             bool found = false;
 
                                             foreach (var searchRpf in rpfFilesToScan)
@@ -338,7 +338,7 @@ namespace CodeWalker.World
             }
         }
 
-        private void LoadTypes(MCScenarioPointRegion r, MCScenarioPoint scp)
+        private void LoadTypes(MCScenarioPointRegion r, MCScenarioPoint? scp)
         {
             if (scp == null) return;
 
@@ -416,7 +416,7 @@ namespace CodeWalker.World
             }
 
         }
-        private void LoadTypes(MCScenarioPointRegion r, MCScenarioChainingNode spn)
+        private void LoadTypes(MCScenarioPointRegion r, MCScenarioChainingNode? spn)
         {
             if (spn == null) return;
             var types = Scenarios.ScenarioTypes; //these are loaded by Scenarios.Init
@@ -706,7 +706,7 @@ namespace CodeWalker.World
 
         private ScenarioNode EnsureNode(MCScenarioChainingNode cnode)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(cnode.Position, out exnode) && (exnode.ChainingNode == null))
             {
                 exnode.ChainingNode = cnode;
@@ -724,7 +724,7 @@ namespace CodeWalker.World
         }
         private ScenarioNode EnsureNode(MCScenarioPoint point)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(point.Position, out exnode) && (exnode.MyPoint == null))
             {
                 exnode.MyPoint = point;
@@ -743,7 +743,7 @@ namespace CodeWalker.World
         }
         private ScenarioNode EnsureNode(MCExtensionDefSpawnPoint point)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(point.Position, out exnode) && (exnode.LoadSavePoint == null))
             {
                 exnode.LoadSavePoint = point;
@@ -761,7 +761,7 @@ namespace CodeWalker.World
         }
         private ScenarioNode EnsureClusterNode(MCScenarioPointCluster cluster)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(cluster.Position, out exnode) && (exnode.Cluster == null))
             {
                 exnode.Cluster = cluster;
@@ -778,7 +778,7 @@ namespace CodeWalker.World
         }
         private ScenarioNode EnsureClusterNode(MCScenarioPoint point)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(point.Position, out exnode) && (exnode.ClusterMyPoint == null))
             {
                 exnode.ClusterMyPoint = point;
@@ -797,7 +797,7 @@ namespace CodeWalker.World
         }
         private ScenarioNode EnsureClusterNode(MCExtensionDefSpawnPoint point)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(point.Position, out exnode) && (exnode.ClusterLoadSavePoint == null))
             {
                 exnode.ClusterLoadSavePoint = point;
@@ -814,7 +814,7 @@ namespace CodeWalker.World
         }
         private ScenarioNode EnsureEntityNode(MCExtensionDefSpawnPoint point)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(point.Position, out exnode) && (exnode.EntityPoint == null))
             {
                 exnode.EntityPoint = point;
@@ -832,7 +832,7 @@ namespace CodeWalker.World
         }
         private ScenarioNode EnsureEntityNode(MCScenarioEntityOverride entity)
         {
-            ScenarioNode exnode;
+            ScenarioNode? exnode;
             if (NodeDict.TryGetValue(entity.Position, out exnode) && (exnode.Entity == null))
             {
                 exnode.Entity = entity;
@@ -853,7 +853,7 @@ namespace CodeWalker.World
 
 
 
-        public ScenarioNode AddNode(ScenarioNode copy = null)
+        public ScenarioNode AddNode(ScenarioNode? copy = null)
         {
             var n = new ScenarioNode(Ymt);
 
@@ -928,7 +928,7 @@ namespace CodeWalker.World
                     //create a new edge connecting from the existing node...
                     if ((copy?.ChainingNode != null) && (Region.Paths.Edges != null))
                     {
-                        MCScenarioChainingEdge exEdge = null;
+                        MCScenarioChainingEdge? exEdge = null;
                         foreach (var edge in Region.Paths.Edges)
                         {
                             if (edge.NodeTo == copy.ChainingNode)
@@ -970,7 +970,7 @@ namespace CodeWalker.World
         }
 
 
-        public bool RemoveNode(ScenarioNode node)
+        public bool RemoveNode(ScenarioNode? node)
         {
             if (node == null) return false;
 
@@ -1858,7 +1858,7 @@ namespace CodeWalker.World
             foreach (XmlNode item in items)
             {
                 var typestr = Xml.GetStringAttribute(item, "type");
-                ScenarioType typeobj = null;
+                ScenarioType? typeobj = null;
                 switch (typestr)
                 {
                     case "CScenarioPlayAnimsInfo":
@@ -2070,7 +2070,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (TypeRefs == null) return null;
-                ScenarioTypeRef st;
+                ScenarioTypeRef? st;
                 TypeRefs.TryGetValue(hash, out st);
                 return st;
             }
@@ -2080,7 +2080,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (Types == null) return null;
-                ScenarioType st;
+                ScenarioType? st;
                 Types.TryGetValue(hash, out st);
                 return st;
             }
@@ -2090,7 +2090,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (TypeGroups == null) return null;
-                ScenarioTypeGroup tg;
+                ScenarioTypeGroup? tg;
                 TypeGroups.TryGetValue(hash, out tg);
                 return tg;
             }
@@ -2100,7 +2100,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (PropSets == null) return null;
-                AmbientModelSet ms;
+                AmbientModelSet? ms;
                 PropSets.TryGetValue(hash, out ms);
                 return ms;
             }
@@ -2110,7 +2110,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (PedModelSets == null) return null;
-                AmbientModelSet ms;
+                AmbientModelSet? ms;
                 if(!PedModelSets.TryGetValue(hash, out ms))
                 {
                     string s_hash = hash.ToString("X");
@@ -2129,7 +2129,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (VehicleModelSets == null) return null;
-                AmbientModelSet ms;
+                AmbientModelSet? ms;
                 if(!VehicleModelSets.TryGetValue(hash, out ms))
                 {
                     string s_hash = hash.ToString("X");
@@ -2148,7 +2148,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (AnimGroups == null) return null;
-                ConditionalAnimsGroup ag;
+                ConditionalAnimsGroup? ag;
                 AnimGroups.TryGetValue(hash, out ag);
                 return ag;
             }
@@ -2158,7 +2158,7 @@ namespace CodeWalker.World
             lock (SyncRoot)
             {
                 if (ClipSets == null) return null;
-                string clipDictName;
+                string? clipDictName;
                 ClipSets.TryGetValue(hash, out clipDictName);
                 return clipDictName;
             }

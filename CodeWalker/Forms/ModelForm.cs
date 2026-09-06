@@ -141,7 +141,7 @@ namespace CodeWalker.Forms
 
 
 
-        public ModelForm(ExploreForm ExpForm = null)
+        public ModelForm(ExploreForm? ExpForm = null)
         {
             InitializeComponent();
 
@@ -283,52 +283,57 @@ namespace CodeWalker.Forms
 
             if (pauserendering) return;
 
-            if (!Monitor.TryEnter(Renderer.RenderSyncRoot, 50))
+            var renderLock = Renderer.RenderSyncRoot;
+            if (!renderLock.TryEnter(50))
             { return; } //couldn't get a lock, try again next time
-
-            UpdateControlInputs(elapsed);
-
-
-
-            Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
-
-            UpdateWidgets();
-
-            UpdateParticles(elapsed);
-
-            Renderer.BeginRender(context);
-
-            Renderer.RenderSkyAndClouds();
-
-
-            RenderSingleItem();
-
-
-            RenderGrid(context);
-
-            RenderLightSelection();
-
-            if (particleEffect != null)
+            try
             {
-                Renderer.RenderParticleModels(particleEffect);
+                UpdateControlInputs(elapsed);
+
+
+
+                Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
+
+                UpdateWidgets();
+
+                UpdateParticles(elapsed);
+
+                Renderer.BeginRender(context);
+
+                Renderer.RenderSkyAndClouds();
+
+
+                RenderSingleItem();
+
+
+                RenderGrid(context);
+
+                RenderLightSelection();
+
+                if (particleEffect != null)
+                {
+                    Renderer.RenderParticleModels(particleEffect);
+                }
+
+                Renderer.RenderQueued();
+
+                if (particleEffect != null)
+                {
+                    Renderer.RenderParticleEffect(particleEffect);
+                }
+
+                Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
+
+                Renderer.RenderFinalPass();
+
+                RenderWidgets();
+
+                Renderer.EndRender();
             }
-
-            Renderer.RenderQueued();
-
-            if (particleEffect != null)
+            finally
             {
-                Renderer.RenderParticleEffect(particleEffect);
+                renderLock.Exit();
             }
-
-            Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
-
-            Renderer.RenderFinalPass();
-
-            RenderWidgets();
-
-            Renderer.EndRender();
-
-            Monitor.Exit(Renderer.RenderSyncRoot);
         }
         public bool ConfirmQuit()
         {
@@ -598,7 +603,7 @@ namespace CodeWalker.Forms
                 {
                     if (showLightGizmos)
                     {
-                        Bone bone = null;
+                        Bone? bone = null;
                         Skeleton?.BonesMap?.TryGetValue(selectedLight.BoneId, out bone);
                         Renderer.RenderSelectionDrawableLight(selectedLight, bone);
                     }
@@ -642,7 +647,7 @@ namespace CodeWalker.Forms
             if (newpos == oldpos) return;
             if (selectedLight == null || lightForm == null || !editingLights) return;
 
-            Bone bone = null;
+            Bone? bone = null;
             Skeleton?.BonesMap?.TryGetValue(selectedLight.BoneId, out bone);
             if (bone != null)
             {
@@ -784,7 +789,7 @@ namespace CodeWalker.Forms
 
 
 
-        public void LoadModel(YdrFile ydr)
+        public void LoadModel(YdrFile? ydr)
         {
             if (ydr == null) return;
 
@@ -819,7 +824,7 @@ namespace CodeWalker.Forms
 
             UpdateModelsUI(ydr.Drawable);
         }
-        public void LoadModels(YddFile ydd)
+        public void LoadModels(YddFile? ydd)
         {
             if (ydd == null) return;
 
@@ -855,7 +860,7 @@ namespace CodeWalker.Forms
 
             DetailsPropertyGrid.SelectedObject = ydd;
         }
-        public void LoadModel(YftFile yft)
+        public void LoadModel(YftFile? yft)
         {
             if (yft == null) return;
 
@@ -897,7 +902,7 @@ namespace CodeWalker.Forms
 
             UpdateModelsUI(yft.Fragment?.Drawable, yft.Fragment);
         }
-        public void LoadModel(YbnFile ybn)
+        public void LoadModel(YbnFile? ybn)
         {
             if (ybn == null) return;
 
@@ -912,7 +917,7 @@ namespace CodeWalker.Forms
 
             UpdateBoundsUI(ybn);
         }
-        public void LoadParticles(YptFile ypt)
+        public void LoadParticles(YptFile? ypt)
         {
             if (ypt == null) return;
 
@@ -1074,31 +1079,31 @@ namespace CodeWalker.Forms
             }
         }
 
-        private void ParticleEffectComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        private void ParticleEffectComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
             particleEffectIndex = ParticleEffectComboBox.SelectedIndex - 1; //index 0 is "(none)" -> -1
             particleRestart = true;
             particleEffectDirty = true;
         }
 
-        private void ParticlePlayButton_Click(object sender, EventArgs e)
+        private void ParticlePlayButton_Click(object? sender, EventArgs e)
         {
             particlePlaying = !particlePlaying;
             ParticlePlayButton.Text = particlePlaying ? "Pause" : "Play";
         }
 
-        private void ParticleRestartButton_Click(object sender, EventArgs e)
+        private void ParticleRestartButton_Click(object? sender, EventArgs e)
         {
             particleRestart = true;
             particlePlaying = true;
             ParticlePlayButton.Text = "Pause";
         }
 
-        private void ParticleSpeedTrackBar_Scroll(object sender, EventArgs e)
+        private void ParticleSpeedTrackBar_Scroll(object? sender, EventArgs e)
         {
             particleTimeScale = ParticleSpeedTrackBar.Value / 100.0f;
         }
-        public void LoadNavmesh(YnvFile ynv)
+        public void LoadNavmesh(YnvFile? ynv)
         {
             if (ynv == null) return;
 
@@ -1221,7 +1226,7 @@ namespace CodeWalker.Forms
         private void SelectClip(string name)
         {
             MetaHash cliphash = JenkHash.GenHash(name);
-            ClipMapEntry cme = null;
+            ClipMapEntry? cme = null;
             Ycd?.ClipMap?.TryGetValue(cliphash, out cme);
             AnimClip = cme;
         }
@@ -1334,7 +1339,7 @@ namespace CodeWalker.Forms
 
 
 
-        private void UpdateModelsUI(DrawableBase drawable, object detailsObject = null)
+        private void UpdateModelsUI(DrawableBase drawable, object? detailsObject = null)
         {
             DetailsPropertyGrid.SelectedObject = detailsObject ?? drawable;
 
@@ -1479,7 +1484,7 @@ namespace CodeWalker.Forms
             //AddDrawableModelsTreeNodes(drawable.DrawableModels?.Extra, "X Detail", false, dnode);
 
         }
-        private void AddDrawableModelsTreeNodes(DrawableModel[] models, string prefix, bool check, TreeNode parentDrawableNode = null)
+        private void AddDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check, TreeNode? parentDrawableNode = null)
         {
             if (models == null) return;
 
@@ -1601,7 +1606,7 @@ namespace CodeWalker.Forms
 
 
 
-        private void UpdateEmbeddedTextures(DrawableBase dwbl)
+        private void UpdateEmbeddedTextures(DrawableBase? dwbl)
         {
             if (dwbl == null) return;
 
@@ -1712,8 +1717,8 @@ namespace CodeWalker.Forms
 
         private void ShowMaterialEditor()
         {
-            DrawableBase drawable = null;
-            Dictionary<uint, Drawable> dict = null;
+            DrawableBase? drawable = null;
+            Dictionary<uint, Drawable>? dict = null;
 
 
             if ((Ydr != null) && (Ydr.Loaded))
@@ -1765,7 +1770,7 @@ namespace CodeWalker.Forms
 
         private void ShowTextureEditor()
         {
-            TextureDictionary td = null;
+            TextureDictionary? td = null;
 
             if ((Ydr != null) && (Ydr.Loaded))
             {
@@ -1782,7 +1787,7 @@ namespace CodeWalker.Forms
 
             if (td != null)
             {
-                YtdForm f = new(null, this);
+                YtdForm? f = new(null, this);
                 f.Show(this);
                 f.LoadTexDict(td, fileName);
             }
@@ -1794,8 +1799,8 @@ namespace CodeWalker.Forms
 
         private void ShowLightEditor()
         {
-            DrawableBase drawable = null;
-            Dictionary<uint, Drawable> dict = null;
+            DrawableBase? drawable = null;
+            Dictionary<uint, Drawable>? dict = null;
 
             if ((Ydr != null) && (Ydr.Loaded))
             {
@@ -1912,7 +1917,7 @@ namespace CodeWalker.Forms
 
 
 
-            byte[] fileBytes = null;
+            byte[]? fileBytes = null;
 
 #if !DEBUG
             try
@@ -2375,7 +2380,7 @@ namespace CodeWalker.Forms
 
         }
 
-        private void ModelForm_MouseWheel(object sender, MouseEventArgs e)
+        private void ModelForm_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (e.Delta != 0)
             {

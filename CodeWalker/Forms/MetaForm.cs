@@ -445,7 +445,7 @@ namespace CodeWalker.Forms
 
             if(metaFormat == MetaFormat.XML) return false;//what are we even doing here?
 
-            byte[] data = null;
+            byte[]? data = null;
 
 #if !DEBUG
             try

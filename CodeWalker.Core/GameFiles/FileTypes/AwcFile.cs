@@ -438,14 +438,14 @@ namespace CodeWalker.GameFiles
 
             BuildStreamDict();
         }
-        public static void WriteXmlNode(AwcFile f, StringBuilder sb, int indent, string wavfolder, string name = "AudioWaveContainer")
+        public static void WriteXmlNode(AwcFile? f, StringBuilder sb, int indent, string wavfolder, string name = "AudioWaveContainer")
         {
             if (f == null) return;
             AwcXml.OpenTag(sb, indent, name);
             f.WriteXml(sb, indent + 1, wavfolder);
             AwcXml.CloseTag(sb, indent, name);
         }
-        public static AwcFile ReadXmlNode(XmlNode node, string wavfolder)
+        public static AwcFile ReadXmlNode(XmlNode? node, string wavfolder)
         {
             if (node == null) return null;
             var f = new AwcFile();
@@ -1109,7 +1109,7 @@ namespace CodeWalker.GameFiles
             {
                 var export = !string.IsNullOrEmpty(wavfolder);
                 var fname = Name?.Replace("/", "")?.Replace("\\", "") ?? "0x0";
-                byte[] fdata = null;
+                byte[]? fdata = null;
                 if (MidiChunk != null)
                 {
                     fname += ".midi";
@@ -1522,9 +1522,9 @@ namespace CodeWalker.GameFiles
 
         public byte[] GetWavFile()
         {
-            var ms = GetWavStream();
+            using var ms = GetWavStream();
             var data = new byte[ms.Length];
-            ms.Read(data, 0, (int)ms.Length);
+            ms.ReadExactly(data);
             return data;
         }
 
@@ -3150,7 +3150,7 @@ namespace CodeWalker.GameFiles
 
         public static AwcFile GetAwc(XmlDocument doc, string inputFolder = "")
         {
-            AwcFile r = null;
+            AwcFile? r = null;
 
             var node = doc.DocumentElement;
             if (node != null)

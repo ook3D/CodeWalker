@@ -34,7 +34,7 @@ namespace CodeWalker.GameFiles
             Name = entry.Name;
             RpfFileEntry = entry;
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");

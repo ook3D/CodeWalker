@@ -84,7 +84,7 @@ namespace CodeWalker.GameFiles
             Name = entry.Name;
             RpfFileEntry = entry;
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");
@@ -259,7 +259,7 @@ namespace CodeWalker.GameFiles
                     for (int n = 0; n < vc; n++)
                     {
                         Vector3 v = poly.Vertices[n];
-                        YnvEdge e = ((poly.Edges != null) && (n < poly.Edges.Length)) ? poly.Edges[n] : null;
+                        YnvEdge? e = ((poly.Edges != null) && (n < poly.Edges.Length)) ? poly.Edges[n] : null;
                         ushort ind;
                         if (!vertdict.TryGetValue(v, out ind))
                         {
@@ -406,7 +406,7 @@ namespace CodeWalker.GameFiles
             if ((Nav.ContentFlags & NavMeshFlags.Vehicle) == 0) depth = 2;
             //vehicle navmesh has a single level, static has 3..
 
-            NavMeshSector orig = Nav.SectorTree;
+            NavMeshSector? orig = Nav.SectorTree;
             NavMeshSector root = new();
             root.SetAABBs(orig.AABBMin.XYZ(), orig.AABBMax.XYZ());
 
@@ -972,7 +972,7 @@ namespace CodeWalker.GameFiles
                     pcenter += Vertices[i];
                 }
             }
-            float c = ((float)Vertices?.Length);
+            float c = (Vertices?.Length ?? 0);
             if (c == 0.0f) c = 1.0f;
             Position = pcenter * (1.0f / c);
         }

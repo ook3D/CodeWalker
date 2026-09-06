@@ -43,9 +43,9 @@ namespace CodeWalker.World
             var rpfman = GameFileCache.RpfMan;
             XmlDocument waterxml = rpfman.GetFileXml(filename);
 
-            XmlElement waterdata = waterxml.DocumentElement;
+            XmlElement? waterdata = waterxml.DocumentElement;
 
-            XmlNodeList waterquads = waterdata.SelectNodes("WaterQuads/Item");
+            XmlNodeList? waterquads = waterdata.SelectNodes("WaterQuads/Item");
             for (int i = 0; i < waterquads.Count; i++)
             {
                 var waterquad = new WaterQuad();
@@ -53,7 +53,7 @@ namespace CodeWalker.World
                 WaterQuads.Add(waterquad);
             }
 
-            XmlNodeList calmingquads = waterdata.SelectNodes("CalmingQuads/Item");
+            XmlNodeList? calmingquads = waterdata.SelectNodes("CalmingQuads/Item");
             for (int i = 0; i < calmingquads.Count; i++)
             {
                 var calmingquad = new WaterCalmingQuad();
@@ -61,7 +61,7 @@ namespace CodeWalker.World
                 CalmingQuads.Add(calmingquad);
             }
 
-            XmlNodeList wavequads = waterdata.SelectNodes("WaveQuads/Item");
+            XmlNodeList? wavequads = waterdata.SelectNodes("WaveQuads/Item");
             for (int i = 0; i < wavequads.Count; i++)
             {
                 var wavequad = new WaterWaveQuad();

@@ -502,7 +502,7 @@ namespace CodeWalker.World
                     var cell = NodeGrid.Cells[x, y];
                     string fname = "nodes" + cell.ID + ".ynd";
                     uint fnhash = JenkHash.GenHash(fname);
-                    RpfFileEntry fentry = null;
+                    RpfFileEntry? fentry = null;
                     if (yndentries.TryGetValue(fnhash, out fentry))
                     {
                         cell.Ynd = rpfman.GetFile<YndFile>(fentry);
@@ -630,7 +630,7 @@ namespace CodeWalker.World
             }
         }
 
-        public void BuildYndLinks(YndFile ynd, List<YndLink> tlinks = null, List<YndLink> nlinks = null)
+        public void BuildYndLinks(YndFile ynd, List<YndLink>? tlinks = null, List<YndLink>? nlinks = null)
         {
             var ynodes = ynd.Nodes;
             var nodes = ynd.NodeDictionary?.Nodes;
@@ -681,7 +681,7 @@ namespace CodeWalker.World
             ynd.Links = tlinks.ToArray();
 
         }
-        public void BuildYndVerts(YndFile ynd, YndNode[] selectedNodes, List<EditorVertex> tverts = null)
+        public void BuildYndVerts(YndFile ynd, YndNode[] selectedNodes, List<EditorVertex>? tverts = null)
         {
             var laneColour = (uint)new Color4(0f, 0f, 1f, 1f).ToRgba();
             var ynodes = ynd.Nodes;
@@ -823,7 +823,7 @@ namespace CodeWalker.World
             }
 
         }
-        public void BuildYndData(YndFile ynd, List<EditorVertex> tverts = null, List<YndLink> tlinks = null, List<YndLink> nlinks = null)
+        public void BuildYndData(YndFile ynd, List<EditorVertex>? tverts = null, List<YndLink>? tlinks = null, List<YndLink>? nlinks = null)
         {
 
             BuildYndLinks(ynd, tlinks, nlinks);
@@ -984,7 +984,7 @@ namespace CodeWalker.World
                     var cell = NavGrid.Cells[x, y];
                     string fname = "navmesh[" + cell.FileX.ToString() + "][" + cell.FileY.ToString() + "].ynv";
                     uint fnhash = JenkHash.GenHash(fname);
-                    RpfFileEntry fentry = null;
+                    RpfFileEntry? fentry = null;
                     if (ynventries.TryGetValue(fnhash, out fentry))
                     {
                         cell.YnvEntry = fentry as RpfResourceFileEntry;
@@ -1251,7 +1251,7 @@ namespace CodeWalker.World
         {
             MetaHash ymapname = new(ymaphash);
             uint ymaptime;
-            MetaHash[] weathers;
+            MetaHash[]? weathers;
             if ((hour >= 0) && (hour <= 23))
             {
                 if (ymaptimes.TryGetValue(ymapname, out ymaptime))
@@ -1400,7 +1400,7 @@ namespace CodeWalker.World
         }
 
 
-        public SpaceRayIntersectResult RayIntersect(Ray ray, float maxdist = float.MaxValue, bool[] layers = null, bool testDrawableCollisions = true)
+        public SpaceRayIntersectResult RayIntersect(Ray ray, float maxdist = float.MaxValue, bool[]? layers = null, bool testDrawableCollisions = true)
         {
             var res = new SpaceRayIntersectResult();
             if (GameFileCache == null) return res;
@@ -1671,7 +1671,7 @@ namespace CodeWalker.World
             return res;
         }
 
-        public SpaceSphereIntersectResult SphereIntersect(BoundingSphere sph, bool[] layers = null)
+        public SpaceSphereIntersectResult SphereIntersect(BoundingSphere sph, bool[]? layers = null)
         {
             var res = new SpaceSphereIntersectResult();
             if (GameFileCache == null) return res;
@@ -1895,7 +1895,7 @@ namespace CodeWalker.World
             return res;
         }
 
-        private bool EntityCollisionsEnabled(YmapEntityDef ent)
+        private bool EntityCollisionsEnabled(YmapEntityDef? ent)
         {
             if (ent == null)
             { return false; } //entity slot can be null while ymaps are being mutated (e.g. grass-batch painting)
@@ -2149,7 +2149,7 @@ namespace CodeWalker.World
             RootNode.TrySplit(SplitThreshold);
         }
 
-        public List<BoundsStoreItem> GetItems(ref Vector3 min, ref Vector3 max, bool[] layers = null)
+        public List<BoundsStoreItem> GetItems(ref Vector3 min, ref Vector3 max, bool[]? layers = null)
         {
             var items = new List<BoundsStoreItem>();
             if (RootNode != null)
@@ -2158,7 +2158,7 @@ namespace CodeWalker.World
             }
             return items;
         }
-        public List<BoundsStoreItem> GetItems(ref Ray ray, bool[] layers = null)
+        public List<BoundsStoreItem> GetItems(ref Ray ray, bool[]? layers = null)
         {
             var items = new List<BoundsStoreItem>();
             if (RootNode != null)
@@ -2238,7 +2238,7 @@ namespace CodeWalker.World
             Items = newItems;
         }
 
-        public void GetItems(ref Vector3 min, ref Vector3 max, List<BoundsStoreItem> items, bool[] layers = null)
+        public void GetItems(ref Vector3 min, ref Vector3 max, List<BoundsStoreItem> items, bool[]? layers = null)
         {
             if ((max.X >= BBMin.X) && (min.X <= BBMax.X) && (max.Y >= BBMin.Y) && (min.Y <= BBMax.Y))
             {
@@ -2270,7 +2270,7 @@ namespace CodeWalker.World
                 }
             }
         }
-        public void GetItems(ref Ray ray, List<BoundsStoreItem> items, bool[] layers = null)
+        public void GetItems(ref Ray ray, List<BoundsStoreItem> items, bool[]? layers = null)
         {
             var box = new BoundingBox(BBMin, BBMax);
             if (ray.Intersects(ref box))

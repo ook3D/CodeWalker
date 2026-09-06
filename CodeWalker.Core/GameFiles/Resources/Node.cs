@@ -197,7 +197,7 @@ namespace CodeWalker.GameFiles
             YndXml.ValueTag(sb, indent, "VehicleNodeCount", NodesCountVehicle.ToString());
             YndXml.ValueTag(sb, indent, "PedNodeCount", NodesCountPed.ToString());
 
-            XmlNodeWrapper[] nodes = null;
+            XmlNodeWrapper[]? nodes = null;
             int nodecount = Nodes?.Length ?? 0;
             if (nodecount > 0)
             {
@@ -210,7 +210,7 @@ namespace CodeWalker.GameFiles
             YndXml.WriteItemArray(sb, nodes, indent, "Nodes");
 
 
-            XmlJunctionWrapper[] juncs = null;
+            XmlJunctionWrapper[]? juncs = null;
             int junccount = Junctions?.Length ?? 0;
             if (junccount > 0)
             {
@@ -413,7 +413,7 @@ namespace CodeWalker.GameFiles
             YndXml.ValueTag(sb, indent, "Flags4", ((Flags1 >> 24) & 0xFF).ToString());
             YndXml.ValueTag(sb, indent, "Flags5", linkCountUnk.ToString());
 
-            NodeLink[] links = null;
+            NodeLink[]? links = null;
             if (linkCount > 0)
             {
                 links = new NodeLink[linkCount];
@@ -544,7 +544,7 @@ namespace CodeWalker.GameFiles
             YndXml.ValueTag(sb, indent, "SizeX", HeightmapDimX.ToString());
             YndXml.ValueTag(sb, indent, "SizeY", HeightmapDimY.ToString());
 
-            byte[] hmdata = null;
+            byte[]? hmdata = null;
             int hmbcount = HeightmapDimX * HeightmapDimY;
             if (hmbcount > 0)
             {

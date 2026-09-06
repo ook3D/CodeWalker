@@ -99,7 +99,7 @@ namespace CodeWalker
         {
             if (ray.Intersects(Box) == false) return null;
 
-            TriangleBVHItem hit = null;
+            TriangleBVHItem? hit = null;
             if (Triangles != null)
             {
                 for (int i = 0; i < Triangles.Length; i++)

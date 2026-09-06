@@ -217,54 +217,59 @@ namespace CodeWalker
 
             GameFileCache.BeginFrame();
 
-            if (!Monitor.TryEnter(Renderer.RenderSyncRoot, 50))
+            var renderLock = Renderer.RenderSyncRoot;
+            if (!renderLock.TryEnter(50))
             { return; } //couldn't get a lock, try again next time
+            try
+            {
+                UpdateControlInputs(elapsed);
+                //space.Update(elapsed);
 
-            UpdateControlInputs(elapsed);
-            //space.Update(elapsed);
-
-            Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
-
-
-
-            //UpdateWidgets();
-            //BeginMouseHitTest();
+                Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
 
 
 
-
-            Renderer.BeginRender(context);
-
-            Renderer.RenderSkyAndClouds();
-
-            Renderer.SelectedDrawable = null;// SelectedItem.Drawable;
+                //UpdateWidgets();
+                //BeginMouseHitTest();
 
 
-            Renderer.RenderPed(SelectedPed);
-
-            //UpdateMouseHitsFromRenderer();
-            //RenderSelection();
 
 
-            RenderGrid(context);
+                Renderer.BeginRender(context);
+
+                Renderer.RenderSkyAndClouds();
+
+                Renderer.SelectedDrawable = null;// SelectedItem.Drawable;
 
 
-            Renderer.RenderQueued();
+                Renderer.RenderPed(SelectedPed);
 
-            //Renderer.RenderBounds(MapSelectionMode.Entity);
+                //UpdateMouseHitsFromRenderer();
+                //RenderSelection();
 
-            //Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
 
-            //RenderMoused();
+                RenderGrid(context);
 
-            Renderer.RenderFinalPass();
 
-            //RenderMarkers();
-            //RenderWidgets();
+                Renderer.RenderQueued();
 
-            Renderer.EndRender();
+                //Renderer.RenderBounds(MapSelectionMode.Entity);
 
-            Monitor.Exit(Renderer.RenderSyncRoot);
+                //Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
+
+                //RenderMoused();
+
+                Renderer.RenderFinalPass();
+
+                //RenderMarkers();
+                //RenderWidgets();
+
+                Renderer.EndRender();
+            }
+            finally
+            {
+                renderLock.Exit();
+            }
 
             //UpdateMarkerSelectionPanelInvoke();
         }
@@ -523,7 +528,7 @@ namespace CodeWalker
             //AddDrawableModelsTreeNodes(drawable.DrawableModels?.Extra, "X Detail", false, dnode, tnode);
 
         }
-        private void AddDrawableModelsTreeNodes(DrawableModel[] models, string prefix, bool check, TreeNode parentDrawableNode = null, TreeNode parentTextureNode = null)
+        private void AddDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check, TreeNode? parentDrawableNode = null, TreeNode? parentTextureNode = null)
         {
             if (models == null) return;
 
@@ -766,7 +771,7 @@ namespace CodeWalker
             UpdateModelsUI();
         }
 
-        public void LoadModel(YftFile yft, bool movecamera = true)
+        public void LoadModel(YftFile? yft, bool movecamera = true)
         {
             if (yft == null) return;
 
@@ -888,7 +893,7 @@ namespace CodeWalker
         private void SelectClip(string name)
         {
             MetaHash cliphash = JenkHash.GenHash(name);
-            ClipMapEntry cme = null;
+            ClipMapEntry? cme = null;
             SelectedPed.Ycd?.ClipMap?.TryGetValue(cliphash, out cme);
             SelectedPed.AnimClip = cme;
         }
@@ -1155,7 +1160,7 @@ namespace CodeWalker
 
         }
 
-        private void PedsForm_MouseWheel(object sender, MouseEventArgs e)
+        private void PedsForm_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (e.Delta != 0)
             {

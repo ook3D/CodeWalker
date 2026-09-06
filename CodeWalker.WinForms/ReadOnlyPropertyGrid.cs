@@ -15,6 +15,7 @@ namespace CodeWalker.WinForms
         public ReadOnlyPropertyGrid()
         {
             InitializeComponent();
+            Disposed += (_, _) => ClearReadOnlyProvider();
         }
 
         protected override void OnPaint(PaintEventArgs pe)
@@ -39,33 +40,34 @@ namespace CodeWalker.WinForms
             }
         }
 
-        private TypeDescriptionProvider provider = null;
-        private object providedObject = null;
+        private TypeDescriptionProvider? provider;
+        private object? providedObject;
 
         protected override void OnSelectedObjectsChanged(EventArgs e)
         {
-            if (providedObject != null) SetObjectAsReadOnly(providedObject, false);
             SetObjectAsReadOnly(SelectedObject, _readOnly);
             base.OnSelectedObjectsChanged(e);
         }
 
-        private void SetObjectAsReadOnly(object selectedObject, bool isReadOnly)
+        private void ClearReadOnlyProvider()
         {
-            if (SelectedObject != null)
+            if (provider != null && providedObject != null)
             {
-                if (isReadOnly)
-                {
-                    provider = TypeDescriptor.AddAttributes(SelectedObject, new Attribute[] { new ReadOnlyAttribute(_readOnly) });
-                    providedObject = SelectedObject;
-                }
-                else if (provider != null)
-                {
-                    TypeDescriptor.RemoveProvider(provider, this.SelectedObject);
-                    provider = null;
-                    providedObject = null;
-                }
-                Refresh();
+                TypeDescriptor.RemoveProvider(provider, providedObject);
             }
+            provider = null;
+            providedObject = null;
+        }
+
+        private void SetObjectAsReadOnly(object? selectedObject, bool isReadOnly)
+        {
+            ClearReadOnlyProvider();
+            if (isReadOnly && selectedObject != null)
+            {
+                provider = TypeDescriptor.AddAttributes(selectedObject, ReadOnlyAttribute.Yes);
+                providedObject = selectedObject;
+            }
+            Refresh();
         }
     }
 }

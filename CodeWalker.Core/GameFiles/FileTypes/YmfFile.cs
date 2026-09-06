@@ -27,7 +27,7 @@ namespace CodeWalker.GameFiles
         {
             FileEntry = entry;
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 MemoryStream ms = new(data);

@@ -105,9 +105,9 @@ namespace CodeWalker.ParticleEditorWpf.ViewModels
 
         public void AttachHost(ParticleViewportHost h) { host = h; }
 
-        private readonly object fallbackLock = new object();
-        //the render thread guards the data with Monitor.TryEnter on this same Lock instance; cast to object to use Monitor semantics
-        private object RenderLock => (host != null) ? (object)host.RenderSyncRoot : fallbackLock;
+        private readonly System.Threading.Lock fallbackLock = new();
+        // Use the same Lock primitive as the render thread.
+        private System.Threading.Lock RenderLock => (host != null) ? host.RenderSyncRoot : fallbackLock;
 
 
         #region selection

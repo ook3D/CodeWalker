@@ -38,13 +38,13 @@ namespace CodeWalker.GameFiles
             //Hash = entry.ShortNameHash;
 
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");
             }
 
-            ResourceDataReader rd = null;
+            ResourceDataReader? rd = null;
             try
             {
                 rd = new ResourceDataReader(resentry, data);

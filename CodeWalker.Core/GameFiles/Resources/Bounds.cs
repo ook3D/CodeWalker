@@ -475,7 +475,7 @@ namespace CodeWalker.GameFiles
                 YbnXml.CloseTag(sb, indent, name);
             }
         }
-        public static Bounds ReadXmlNode(XmlNode node, object owner = null, BoundComposite parent = null)
+        public static Bounds ReadXmlNode(XmlNode? node, object? owner = null, BoundComposite? parent = null)
         {
             if (node == null) return null;
             var typestr = Xml.GetStringAttribute(node, "type");
@@ -2189,7 +2189,7 @@ namespace CodeWalker.GameFiles
                     var e2 = new BoundEdgeRef(btri.vertIndex2, btri.vertIndex3);
                     var e3 = new BoundEdgeRef(btri.vertIndex3, btri.vertIndex1);
 
-                    if (edgedict.TryGetValue(e1, out BoundEdge edge1))
+                    if (edgedict.TryGetValue(e1, out BoundEdge? edge1))
                     {
                         if (edge1.Triangle2 != null)
                         {
@@ -2205,7 +2205,7 @@ namespace CodeWalker.GameFiles
                     {
                         edgedict[e1] = new BoundEdge(btri, 0);
                     }
-                    if (edgedict.TryGetValue(e2, out BoundEdge edge2))
+                    if (edgedict.TryGetValue(e2, out BoundEdge? edge2))
                     {
                         if (edge2.Triangle2 != null)
                         {
@@ -2221,7 +2221,7 @@ namespace CodeWalker.GameFiles
                     {
                         edgedict[e2] = new BoundEdge(btri, 1);
                     }
-                    if (edgedict.TryGetValue(e3, out BoundEdge edge3))
+                    if (edgedict.TryGetValue(e3, out BoundEdge? edge3))
                     {
                         if (edge3.Triangle2 != null)
                         {
@@ -2483,7 +2483,7 @@ namespace CodeWalker.GameFiles
 
         private BoundPolygon CreatePolygon(BoundPolygonType type)
         {
-            BoundPolygon p = null;
+            BoundPolygon? p = null;
             switch (type)
             {
                 case BoundPolygonType.Triangle:
@@ -4750,7 +4750,7 @@ namespace CodeWalker.GameFiles
         public static int MaxTreeNodeCount = 127; //max number of nodes found in any tree
 
 
-        public static BVH Build(List<BVHBuilderItem> items, int itemThreshold)
+        public static BVH Build(List<BVHBuilderItem>? items, int itemThreshold)
         {
             if (items == null) return null;
             var bvh = new BVH();

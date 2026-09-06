@@ -79,7 +79,7 @@ namespace CodeWalker.Project.Panels
             {
                 CurrentRoom.RoomName = NameTextBox.Text;
 
-                TreeNode tn = ProjectForm.ProjectExplorer?.FindMloRoomTreeNode(CurrentRoom);
+                TreeNode? tn = ProjectForm.ProjectExplorer?.FindMloRoomTreeNode(CurrentRoom);
                 if (tn != null)
                 {
                     tn.Text = CurrentRoom.Index.ToString() + ": " + CurrentRoom.RoomName;

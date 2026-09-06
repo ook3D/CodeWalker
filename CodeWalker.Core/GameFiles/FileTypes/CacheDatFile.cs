@@ -151,7 +151,7 @@ namespace CodeWalker.GameFiles
             }
             foreach (var mapnode in AllMapNodes)
             {
-                MapDataStoreNode pnode;
+                MapDataStoreNode? pnode;
                 if (MapNodeDict.TryGetValue(mapnode.ParentName, out pnode))
                 {
                     pnode.AddChildToList(mapnode);
@@ -170,7 +170,7 @@ namespace CodeWalker.GameFiles
             BoundsStoreDict = new Dictionary<MetaHash, BoundsStoreItem>();
             foreach (BoundsStoreItem item in AllBoundsStoreItems)
             {
-                BoundsStoreItem mbsi = null;
+                BoundsStoreItem? mbsi = null;
                 if (BoundsStoreDict.TryGetValue(item.Name, out mbsi))
                 { }
                 BoundsStoreDict[item.Name] = item;
@@ -185,7 +185,7 @@ namespace CodeWalker.GameFiles
                 //InteriorProxyDict[prx.Name] = prx;//can't do this! multiples with same name different pos
 
 
-                MapDataStoreNode mnode = null;
+                MapDataStoreNode? mnode = null;
                 if (MapNodeDict.TryGetValue(prx.Parent, out mnode))
                 {
                     mnode.AddInteriorToList(prx);

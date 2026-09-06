@@ -44,7 +44,7 @@ namespace CodeWalker.World
         {
             foreach (var reldata in relfile.RelDatas)
             {
-                AudioPlacement placement = null;
+                AudioPlacement? placement = null;
                 if (reldata is Dat151AmbientZone)
                 {
                     placement = new AudioPlacement(relfile, reldata as Dat151AmbientZone);
@@ -70,7 +70,7 @@ namespace CodeWalker.World
 
             foreach (var relfile in relfiles)
             {
-                AudioPlacement[] fileplacements = null;
+                AudioPlacement[]? fileplacements = null;
                 if (!PlacementsDict.TryGetValue(relfile, out fileplacements))
                 {
                     List<AudioPlacement> newplacements = new();
@@ -86,7 +86,7 @@ namespace CodeWalker.World
 
         }
 
-        public AudioPlacement FindPlacement(RelFile relfile, Dat151RelData reldata)
+        public AudioPlacement FindPlacement(RelFile? relfile, Dat151RelData reldata)
         {
             if (relfile == null) return null;
             if (reldata == null) return null;

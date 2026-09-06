@@ -218,7 +218,7 @@ namespace CodeWalker.Forms
             if (!(exploreForm?.EditMode ?? false)) return false;
             if (rpfFileEntry?.Parent == null) return false;
 
-            byte[] data = null;
+            byte[]? data = null;
 
             data = Encoding.UTF8.GetBytes(txt);
 

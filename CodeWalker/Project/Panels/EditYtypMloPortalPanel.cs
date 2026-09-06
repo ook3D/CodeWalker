@@ -83,7 +83,7 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateProjectExplorer()
         {
-            TreeNode tn = ProjectForm.ProjectExplorer?.FindMloPortalTreeNode(CurrentPortal);
+            TreeNode? tn = ProjectForm.ProjectExplorer?.FindMloPortalTreeNode(CurrentPortal);
             if (tn != null)
             {
                 tn.Text = CurrentPortal.Name;

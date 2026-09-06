@@ -115,7 +115,7 @@ namespace CodeWalker.Rendering
             DeviceContext context,
             Camera camera,
             ShaderManager shaders,
-            Renderable renderable,
+            Renderable? renderable,
             Vector3 camrel,
             Quaternion orientation,
             Vector3 scale,

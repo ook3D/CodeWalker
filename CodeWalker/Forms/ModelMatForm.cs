@@ -112,7 +112,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private void AddDrawableModelsTreeNodes(DrawableModel[] models, string prefix, TreeNode parentDrawableNode = null)
+        private void AddDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, TreeNode? parentDrawableNode = null)
         {
             if (models == null) return;
 
@@ -211,7 +211,7 @@ namespace CodeWalker.Forms
             MaterialPropertiesPanel.Controls.Add(tmpPanel);
         }
 
-        private void ParamTextBox_TextChanged(object sender, EventArgs e)
+        private void ParamTextBox_TextChanged(object? sender, EventArgs e)
         {
             var tb = sender as TextBox;
             var parm = tb?.Tag as ShaderParameter;

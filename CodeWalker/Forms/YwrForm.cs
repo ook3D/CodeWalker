@@ -92,7 +92,7 @@ namespace CodeWalker.Forms
             MainListView.Items.Clear();
             foreach (var entry in ywr.Waypoints.Entries)
             {
-                string[] row =
+                string[]? row =
                 {
                     FloatUtil.ToString(entry.Position.X),
                     FloatUtil.ToString(entry.Position.Y),

@@ -88,7 +88,7 @@ namespace CodeWalker.GameFiles
             Name = entry.Name;
             RpfFileEntry = entry;
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 NonMetaLoad(data);
@@ -282,7 +282,7 @@ namespace CodeWalker.GameFiles
                 //build the entity hierarchy.
                 List<YmapEntityDef> roots = new(instcount);
                 List<YmapEntityDef> alldefs = new(instcount);
-                List<YmapEntityDef> mlodefs = null;
+                List<YmapEntityDef>? mlodefs = null;
 
                 if (CEntityDefs != null)
                 {
@@ -320,7 +320,7 @@ namespace CodeWalker.GameFiles
                     }
                     else
                     {
-                        YmapEntityDef p = alldefs[pind];
+                        YmapEntityDef? p = alldefs[pind];
                         if ((p._CEntityDef.lodLevel <= d._CEntityDef.lodLevel) ||
                             ((p._CEntityDef.lodLevel == rage__eLodType.LODTYPES_DEPTH_ORPHANHD) &&
                              (d._CEntityDef.lodLevel != rage__eLodType.LODTYPES_DEPTH_ORPHANHD)))
@@ -966,7 +966,7 @@ namespace CodeWalker.GameFiles
                     int pind = ent._CEntityDef.parentIndex;
                     if (pind >= 0) //connect root entities to parents if they have them..
                     {
-                        YmapEntityDef p = null;
+                        YmapEntityDef? p = null;
                         if ((pymap != null) && (pymap.AllEntities != null))
                         {
                             if ((pind < pymap.AllEntities.Length))
@@ -1026,7 +1026,7 @@ namespace CodeWalker.GameFiles
             LodManagerUpdate = true;
         }
 
-        public bool RemoveEntity(YmapEntityDef ent)
+        public bool RemoveEntity(YmapEntityDef? ent)
         {
             //used by the editor to remove from the ymap.
             if (ent == null) return false;
@@ -1152,7 +1152,7 @@ namespace CodeWalker.GameFiles
             LodManagerUpdate = true;
         }
 
-        public void EnsureRootEntity(YmapEntityDef ent)
+        public void EnsureRootEntity(YmapEntityDef? ent)
         {
             if (ent == null) return;
             if (RootEntities != null)
@@ -1168,7 +1168,7 @@ namespace CodeWalker.GameFiles
             RootEntities = rootents.ToArray();
         }
 
-        public void RemoveRootEntity(YmapEntityDef ent)
+        public void RemoveRootEntity(YmapEntityDef? ent)
         {
             if ((ent == null) || (RootEntities == null)) return;
             List<YmapEntityDef> rootents = new();
@@ -1194,7 +1194,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveCarGen(YmapCarGen cargen)
+        public bool RemoveCarGen(YmapCarGen? cargen)
         {
             if (cargen == null) return false;
 
@@ -1248,7 +1248,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public bool RemoveLodLight(YmapLODLight lodlight)
+        public bool RemoveLodLight(YmapLODLight? lodlight)
         {
             if (lodlight == null) return false;
 
@@ -1290,7 +1290,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void AddBoxOccluder(YmapBoxOccluder box)
+        public void AddBoxOccluder(YmapBoxOccluder? box)
         {
             if (box == null) return;
             var boxes = new List<YmapBoxOccluder>();
@@ -1303,7 +1303,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveBoxOccluder(YmapBoxOccluder box)
+        public bool RemoveBoxOccluder(YmapBoxOccluder? box)
         {
             if (box == null) return false;
             var newboxes = new List<YmapBoxOccluder>();
@@ -1331,7 +1331,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void AddOccludeModel(YmapOccludeModel model)
+        public void AddOccludeModel(YmapOccludeModel? model)
         {
             if (model == null) return;
             var models = new List<YmapOccludeModel>();
@@ -1343,7 +1343,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveOccludeModel(YmapOccludeModel model)
+        public bool RemoveOccludeModel(YmapOccludeModel? model)
         {
             if (model == null) return false;
             var newmodels = new List<YmapOccludeModel>();
@@ -1371,7 +1371,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void AddOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        public void AddOccludeModelTriangle(YmapOccludeModelTriangle? tri)
         {
             if (tri == null) return;
             if (tri.Model == null) return;
@@ -1387,7 +1387,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        public bool RemoveOccludeModelTriangle(YmapOccludeModelTriangle? tri)
         {
             if (tri == null) return false;
             if (tri.Model == null) return false;
@@ -1426,7 +1426,7 @@ namespace CodeWalker.GameFiles
             UpdateGrassPhysDict(true);
         }
 
-        public bool RemoveGrassBatch(YmapGrassInstanceBatch batch)
+        public bool RemoveGrassBatch(YmapGrassInstanceBatch? batch)
         {
             if (batch == null) return false;
 
@@ -1778,7 +1778,7 @@ namespace CodeWalker.GameFiles
                 for (int i = 0; i < TimeCycleModifiers.Length; i++)
                 {
                     var tcm = TimeCycleModifiers[i];
-                    World.TimecycleMod wtcm;
+                    World.TimecycleMod? wtcm;
                     if (gfc.TimeCycleModsDict.TryGetValue(tcm.CTimeCycleModifier.name.Hash, out wtcm))
                     {
                         tcm.TimeCycleModData = wtcm;
@@ -2198,7 +2198,7 @@ namespace CodeWalker.GameFiles
             _CEntityDef.scaleXY = s.X;
             _CEntityDef.scaleZ = s.Z;
 
-            MloInstanceData mloInstance = MloParent?.MloInstance;
+            MloInstanceData? mloInstance = MloParent?.MloInstance;
             if (mloInstance != null)
             {
                 var mcEntity = mloInstance.TryGetArchetypeEntity(this);
@@ -2221,7 +2221,7 @@ namespace CodeWalker.GameFiles
         {
             if (!(MloParent.Archetype is MloArchetype mloArchetype)) return;
 
-            MCEntityDef entity = null;
+            MCEntityDef? entity = null;
             if ((MloEntitySet?.Entities != null) && (MloEntitySet?.EntitySet?.Entities != null))
             {
                 var idx = MloEntitySet.Entities.IndexOf(this);
@@ -2334,7 +2334,7 @@ namespace CodeWalker.GameFiles
             ChildrenMerged = merged.ToArray();
         }
 
-        public void RemoveChild(YmapEntityDef c)
+        public void RemoveChild(YmapEntityDef? c)
         {
             if (c == null) return;
             if (Children != null)
@@ -2472,8 +2472,8 @@ namespace CodeWalker.GameFiles
             var dd = db as Drawable;
             var fd = db as FragDrawable;
             var skel = db.Skeleton;
-            LightAttributes[] lightAttrs = null;
-            Bounds b = null;
+            LightAttributes[]? lightAttrs = null;
+            Bounds? b = null;
             if (dd != null)
             {
                 lightAttrs = dd.LightAttributes?.data_items;
@@ -2515,7 +2515,7 @@ namespace CodeWalker.GameFiles
                 var la = lightAttrs[i];
 
                 var xform = Matrix.Identity;
-                if ((bones != null) && (bones.TryGetValue(la.BoneId, out Bone bone)))
+                if ((bones != null) && (bones.TryGetValue(la.BoneId, out Bone? bone)))
                 {
                     xform = bone.AbsTransform;
                 }
@@ -3206,7 +3206,7 @@ namespace CodeWalker.GameFiles
 
         public PathBVH BVH { get; set; }
 
-        public void Init(YmapDistantLODLights parent)
+        public void Init(YmapDistantLODLights? parent)
         {
             if (parent == null) return;
 

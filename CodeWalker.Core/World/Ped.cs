@@ -89,7 +89,7 @@ namespace CodeWalker.World
             }
 
 
-            CPedModelInfo__InitData initdata = null;
+            CPedModelInfo__InitData? initdata = null;
             if (!gfc.PedsInitDict.TryGetValue(pedhash, out initdata))
             {
                 IsLoading = false;
@@ -109,11 +109,11 @@ namespace CodeWalker.World
             Yed = gfc.GetYed(yedhash);
             Yft = gfc.GetYft(pedhash);
 
-            PedFile pedFile = null;
+            PedFile? pedFile = null;
             gfc.PedVariationsDict?.TryGetValue(pedhash, out pedFile);
             Ymt = pedFile;
 
-            Dictionary<MetaHash, RpfFileEntry> peddict = null;
+            Dictionary<MetaHash, RpfFileEntry>? peddict = null;
             gfc.PedDrawableDicts.TryGetValue(NameHash, out peddict);
             DrawableFilesDict = peddict;
             DrawableFiles = DrawableFilesDict?.Values.ToArray();
@@ -124,7 +124,7 @@ namespace CodeWalker.World
             ClothFilesDict = peddict;
             ClothFiles = ClothFilesDict?.Values.ToArray();
 
-            RpfFileEntry clothFile = null;
+            RpfFileEntry? clothFile = null;
             if (ClothFilesDict?.TryGetValue(pedhash, out clothFile) ?? false)
             {
                 Yld = gfc.GetFileUncached<YldFile>(clothFile);
@@ -136,12 +136,12 @@ namespace CodeWalker.World
             Skeleton = Yft?.Fragment?.Drawable?.Skeleton?.Clone();
 
             MetaHash cliphash = JenkHash.GenHash("idle");
-            ClipMapEntry cme = null;
+            ClipMapEntry? cme = null;
             Ycd?.ClipMap?.TryGetValue(cliphash, out cme);
             AnimClip = cme;
 
             var exprhash = JenkHash.GenHash(initdata.ExpressionName.ToLowerInvariant());
-            Expression expr = null;
+            Expression? expr = null;
             Yed?.ExprMap?.TryGetValue(exprhash, out expr);
             Expression = expr;
 
@@ -211,45 +211,45 @@ namespace CodeWalker.World
             MetaHash texhash = JenkHash.GenHash(tex.ToLowerInvariant());
 
             // Start loading all required files in parallel
-            YddFile yddFile = null;
-            YtdFile ytdFile = null;
-            YldFile yldFile = null;
+            YddFile? yddFile = null;
+            YtdFile? ytdFile = null;
+            YldFile? yldFile = null;
 
             // Check if drawable is in the main ped YDD first
-            Drawable d = null;
+            Drawable? d = null;
             if (Ydd?.Dict != null)
             {
                 Ydd.Dict.TryGetValue(namehash, out d);
             }
 
             // If not found, need to load from component-specific file
-            if (d == null && DrawableFilesDict != null && DrawableFilesDict.TryGetValue(namehash, out RpfFileEntry drawableFile))
+            if (d == null && DrawableFilesDict != null && DrawableFilesDict.TryGetValue(namehash, out RpfFileEntry? drawableFile))
             {
                 yddFile = gfc.GetFileUncached<YddFile>(drawableFile);
             }
 
             // Check if texture is in the main ped YTD first
-            Texture t = null;
+            Texture? t = null;
             if (Ytd?.TextureDict?.Dict != null)
             {
                 Ytd.TextureDict.Dict.TryGetValue(texhash, out t);
             }
 
             // If not found, need to load from component-specific file
-            if (t == null && TextureFilesDict != null && TextureFilesDict.TryGetValue(texhash, out RpfFileEntry textureFile))
+            if (t == null && TextureFilesDict != null && TextureFilesDict.TryGetValue(texhash, out RpfFileEntry? textureFile))
             {
                 ytdFile = gfc.GetFileUncached<YtdFile>(textureFile);
             }
 
             // Check if cloth is in the main ped YLD first
-            CharacterCloth cc = null;
+            CharacterCloth? cc = null;
             if (Yld?.Dict != null)
             {
                 Yld.Dict.TryGetValue(namehash, out cc);
             }
 
             // If not found, need to load from component-specific file
-            if (cc == null && ClothFilesDict != null && ClothFilesDict.TryGetValue(namehash, out RpfFileEntry clothFile))
+            if (cc == null && ClothFilesDict != null && ClothFilesDict.TryGetValue(namehash, out RpfFileEntry? clothFile))
             {
                 yldFile = gfc.GetFileUncached<YldFile>(clothFile);
             }
@@ -288,14 +288,14 @@ namespace CodeWalker.World
                 cc = yldFile.ClothDictionary.Clothes.data_items[0];
             }
 
-            ClothInstance c = null;
+            ClothInstance? c = null;
             if (cc != null)
             {
                 c = new ClothInstance();
                 c.Init(cc, Skeleton);
             }
 
-            Expression e = null;
+            Expression? e = null;
             if (Yed?.ExprMap != null)
             {
                 Yed.ExprMap.TryGetValue(namehash, out e);

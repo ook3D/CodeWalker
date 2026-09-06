@@ -90,7 +90,7 @@ namespace CodeWalker.Tools
         {
             var typestr = TypeComboBox.Text;
             var typespl = typestr.Split(new[] { " : " }, StringSplitOptions.RemoveEmptyEntries);
-            Dictionary<MetaHash, RelData> dict = null;
+            Dictionary<MetaHash, RelData>? dict = null;
             byte typeid = 255;
             if (typespl.Length == 2)
             {
@@ -134,7 +134,7 @@ namespace CodeWalker.Tools
 
         }
 
-        private string GetRelDataTitleString(RelData item)
+        private string GetRelDataTitleString(RelData? item)
         {
             if (item == null) return "";
             var h = item.NameHash;
@@ -231,7 +231,7 @@ namespace CodeWalker.Tools
             HierarchyTreeView.NodeMouseHover += HierarchyTreeView_NodeMouseHover;
         }
 
-        private void HierarchyTreeView_NodeMouseHover(object sender, TreeNodeMouseHoverEventArgs e)
+        private void HierarchyTreeView_NodeMouseHover(object? sender, TreeNodeMouseHoverEventArgs e)
         {
             var item = e.Node.Tag as RelData;
             if (item != null)
@@ -248,7 +248,7 @@ namespace CodeWalker.Tools
             }
         }
 
-        private void HierarchyTreeView_DrawNode(object sender, DrawTreeNodeEventArgs e)
+        private void HierarchyTreeView_DrawNode(object? sender, DrawTreeNodeEventArgs e)
         {
             var treeView = sender as TreeView;
             var bounds = e.Bounds;
@@ -309,7 +309,7 @@ namespace CodeWalker.Tools
         }
 
 
-        private void LoadItemHierarchy(RelData item, TreeNode parentNode = null)
+        private void LoadItemHierarchy(RelData item, TreeNode? parentNode = null)
         {
             TreeNode node;
             if (parentNode == null)
@@ -406,7 +406,7 @@ namespace CodeWalker.Tools
             }
         }
 
-        private void AddHashGroup(TreeNode parentNode, IEnumerable<MetaHash> hashes, Dictionary<MetaHash, RelData> dict, string groupName, Color groupColor)
+        private void AddHashGroup(TreeNode parentNode, IEnumerable<MetaHash>? hashes, Dictionary<MetaHash, RelData> dict, string groupName, Color groupColor)
         {
             if (hashes == null) return;
             
@@ -431,7 +431,7 @@ namespace CodeWalker.Tools
             
             foreach (var h in hashList)
             {
-                if (dict.TryGetValue(h, out RelData child))
+                if (dict.TryGetValue(h, out RelData? child))
                 {
                     LoadItemHierarchy(child, groupNode);
                 }
@@ -463,7 +463,7 @@ namespace CodeWalker.Tools
 
         private void NameComboBox_TextChanged(object sender, EventArgs e)
         {
-            if (NameComboLookup.TryGetValue(NameComboBox.Text, out RelData item))
+            if (NameComboLookup.TryGetValue(NameComboBox.Text, out RelData? item))
             {
                 LoadItemHierarchy(item);
             }

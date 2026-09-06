@@ -310,7 +310,7 @@ namespace CodeWalker.GameFiles
         {
             if (DataMapSection == null) return null;
             if (DataMapSection.Entries == null) return null;
-            PsoDataMappingEntry block = null;
+            PsoDataMappingEntry? block = null;
             var ind = id - 1;
             var blocks = DataMapSection.Entries;
             if ((ind >= 0) && (ind < blocks.Length))

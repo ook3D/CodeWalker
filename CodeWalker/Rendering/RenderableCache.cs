@@ -104,7 +104,7 @@ namespace CodeWalker.Rendering
         private RenderableCacheLookup<WaterQuad, RenderableWaterQuad> waterquads = new RenderableCacheLookup<WaterQuad, RenderableWaterQuad>(4194304, Settings.Default.GPUCacheTime); //4MB - todo: make this a setting
 
 
-        private object updateSyncRoot = new object();
+        private readonly Lock updateSyncRoot = new();
 
         private Device currentDevice;
 
@@ -270,7 +270,7 @@ namespace CodeWalker.Rendering
         public abstract void Unload();
     }
 
-    public class RenderableCacheLookup<TKey, TVal> where TVal: RenderableCacheItem<TKey>, new()
+    public class RenderableCacheLookup<TKey, TVal> where TKey : notnull where TVal: RenderableCacheItem<TKey>, new()
     {
         private ConcurrentQueue<TVal> itemsToLoad = new ConcurrentQueue<TVal>();
         private ConcurrentQueue<TVal> itemsToUnload = new ConcurrentQueue<TVal>();
@@ -329,7 +329,7 @@ namespace CodeWalker.Rendering
 
         public int LoadProc(Device device, int maxitemsperloop)
         {
-            TVal item;
+            TVal? item;
             LoadedCount = 0;
             while (itemsToLoad.TryDequeue(out item))
             {
@@ -384,8 +384,8 @@ namespace CodeWalker.Rendering
         public void RenderThreadSync(Device device)
         {
             LastFrameTime = DateTime.UtcNow.ToBinary();
-            TVal item;
-            TKey key;
+            TVal? item;
+            TKey? key;
             while (keysToInvalidate.TryDequeue(out key))
             {
                 if (cacheitems.TryGetValue(key, out item))
@@ -399,7 +399,7 @@ namespace CodeWalker.Rendering
             }
             while (itemsToUnload.TryDequeue(out item))
             {
-                if ((item.Key != null) && (cacheitems.ContainsKey(item.Key)))
+                if (item.Key != null)
                 {
                     cacheitems.Remove(item.Key);
                 }
@@ -413,7 +413,7 @@ namespace CodeWalker.Rendering
         public TVal Get(TKey key)
         {
             if (key == null) return null;
-            TVal item = null;
+            TVal? item = null;
             if (!cacheitems.TryGetValue(key, out item))
             {
                 item = new TVal();
@@ -439,7 +439,7 @@ namespace CodeWalker.Rendering
         }
         public void UpdateImmediate(TKey key, Device device)
         {
-            TVal item;
+            TVal? item;
             if (cacheitems.TryGetValue(key, out item))
             {
                 Interlocked.Add(ref CacheUse, -item.DataSize);

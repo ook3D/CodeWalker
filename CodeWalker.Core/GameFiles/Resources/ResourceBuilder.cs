@@ -72,7 +72,7 @@ namespace CodeWalker.GameFiles
                 var r = FindBestBlock(maxSize);
                 if (r != null)
                 {
-                    if (BlockDict.TryGetValue(r, out LinkedListNode<ResourceBuilderBlock> ln))
+                    if (BlockDict.TryGetValue(r, out LinkedListNode<ResourceBuilderBlock>? ln))
                     {
                         BlockList.Remove(ln);
                         BlockDict.Remove(r);
@@ -835,7 +835,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static byte[] AddResourceHeader(RpfResourceFileEntry entry, byte[] data)
+        public static byte[] AddResourceHeader(RpfResourceFileEntry entry, byte[]? data)
         {
             if (data == null) return null;
             byte[] newdata = new byte[data.Length + 16];

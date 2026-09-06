@@ -42,7 +42,6 @@ namespace CodeWalker.Forms
         bool initedOk = false;
 
         bool MouseLButtonDown = false;
-        bool MouseRButtonDown = false;
         int MouseX, MouseY;
         System.Drawing.Point MouseLastPoint;
 
@@ -124,10 +123,10 @@ namespace CodeWalker.Forms
         }
 
         //show/hide a single emitter (by its ParticleEventEmitter) in the preview. Keeps simulating; just not drawn.
-        public void SetEmitterVisible(ParticleEventEmitter ee, bool visible)
+        public void SetEmitterVisible(ParticleEventEmitter? ee, bool visible)
         {
             if (ee == null) return;
-            lock ((object)Renderer.RenderSyncRoot)
+            lock (Renderer.RenderSyncRoot)
             {
                 if (visible) hiddenEmitters.Remove(ee); else hiddenEmitters.Add(ee);
                 if (particleEffect != null)
@@ -197,33 +196,38 @@ namespace CodeWalker.Forms
             frametimer.Restart();
 
             GameFileCache.BeginFrame();
-            if (!Monitor.TryEnter(Renderer.RenderSyncRoot, 50)) return;
-
-            UpdateControlInputs(elapsed);
-            Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
-
-            UpdateParticles(elapsed);
-
-            Renderer.BeginRender(context);
-            // Skip the sky: the dark HdrClearColour backdrop gives the fire the high-contrast, sharp in-game look.
-            Renderer.SelectedDrawable = null;
-
-            //guard the particle render so a transient issue can't kill the render thread (would freeze the view)
+            var renderLock = Renderer.RenderSyncRoot;
+            if (!renderLock.TryEnter(50)) return;
             try
             {
-                if (particleEffect != null) Renderer.RenderParticleModels(particleEffect);
-                Renderer.RenderQueued();
-                if (particleEffect != null) Renderer.RenderParticleEffect(particleEffect);
+                UpdateControlInputs(elapsed);
+                Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
+
+                UpdateParticles(elapsed);
+
+                Renderer.BeginRender(context);
+                // Skip the sky: the dark HdrClearColour backdrop gives the fire the high-contrast, sharp in-game look.
+                Renderer.SelectedDrawable = null;
+
+                //guard the particle render so a transient issue can't kill the render thread (would freeze the view)
+                try
+                {
+                    if (particleEffect != null) Renderer.RenderParticleModels(particleEffect);
+                    Renderer.RenderQueued();
+                    if (particleEffect != null) Renderer.RenderParticleEffect(particleEffect);
+                }
+                catch (Exception ex)
+                {
+                    lastRenderError = ex.Message;
+                }
+
+                Renderer.RenderFinalPass();
+                Renderer.EndRender();
             }
-            catch (Exception ex)
+            finally
             {
-                lastRenderError = ex.Message;
+                renderLock.Exit();
             }
-
-            Renderer.RenderFinalPass();
-            Renderer.EndRender();
-
-            Monitor.Exit(Renderer.RenderSyncRoot);
         }
 
         public void BuffersResized(int w, int h) { Renderer.BuffersResized(w, h); }
@@ -234,7 +238,7 @@ namespace CodeWalker.Forms
 
         #region init / content
 
-        private void ParticleViewportHost_Load(object sender, EventArgs e)
+        private void ParticleViewportHost_Load(object? sender, EventArgs e)
         {
             if (!initedOk) return;
             if (!GTAFolder.UpdateGTAFolder(true)) return;
@@ -359,26 +363,24 @@ namespace CodeWalker.Forms
             Input.Update();
         }
 
-        private void ParticleViewportHost_MouseDown(object sender, MouseEventArgs e)
+        private void ParticleViewportHost_MouseDown(object? sender, MouseEventArgs e)
         {
             switch (e.Button)
             {
                 case MouseButtons.Left: MouseLButtonDown = true; break;
-                case MouseButtons.Right: MouseRButtonDown = true; break;
             }
             MouseLastPoint = e.Location;
             MouseX = e.X; MouseY = e.Y;
             Focus();
         }
-        private void ParticleViewportHost_MouseUp(object sender, MouseEventArgs e)
+        private void ParticleViewportHost_MouseUp(object? sender, MouseEventArgs e)
         {
             switch (e.Button)
             {
                 case MouseButtons.Left: MouseLButtonDown = false; break;
-                case MouseButtons.Right: MouseRButtonDown = false; break;
             }
         }
-        private void ParticleViewportHost_MouseMove(object sender, MouseEventArgs e)
+        private void ParticleViewportHost_MouseMove(object? sender, MouseEventArgs e)
         {
             int dx = e.X - MouseX;
             int dy = e.Y - MouseY;
@@ -386,11 +388,11 @@ namespace CodeWalker.Forms
             MouseX = e.X; MouseY = e.Y;
             MouseLastPoint = e.Location;
         }
-        private void ParticleViewportHost_MouseWheel(object sender, MouseEventArgs e)
+        private void ParticleViewportHost_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (e.Delta != 0) camera.MouseZoom(e.Delta);
         }
-        private void ParticleViewportHost_KeyDown(object sender, KeyEventArgs e)
+        private void ParticleViewportHost_KeyDown(object? sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Space)
             {

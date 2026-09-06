@@ -39,7 +39,7 @@ namespace CodeWalker.GameFiles
             FilePath = Name;
 
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 NonMetaLoad(data);
