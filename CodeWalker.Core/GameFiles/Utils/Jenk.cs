@@ -199,7 +199,7 @@ namespace CodeWalker.GameFiles
     public static class JenkIndex
     {
         public static Dictionary<uint, string> Index = new();
-        private static object syncRoot = new object();
+        private static readonly System.Threading.Lock syncRoot = new();
 
         public static void Clear()
         {
@@ -215,13 +215,8 @@ namespace CodeWalker.GameFiles
             if (hash == 0) return true;
             lock (syncRoot)
             {
-                if (!Index.ContainsKey(hash))
-                {
-                    Index.Add(hash, str);
-                    return false;
-                }
+                return !Index.TryAdd(hash, str);
             }
-            return true;
         }
 
         public static void EnsureRange(IReadOnlyDictionary<uint, string> items)

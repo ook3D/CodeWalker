@@ -50,7 +50,7 @@ public class Camera(float smoothness, float sensitivity, float fov)
     public Ray MouseRay;
     private float MouseX = 0;
     private float MouseY = 0;
-    private object syncRoot = new();
+    private readonly System.Threading.Lock syncRoot = new();
 
 
         public void SetMousePosition(int x, int y)

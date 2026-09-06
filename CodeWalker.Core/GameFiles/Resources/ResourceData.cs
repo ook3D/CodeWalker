@@ -30,6 +30,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CodeWalker.GameFiles
@@ -121,49 +122,69 @@ namespace CodeWalker.GameFiles
 
 
         /// <summary>
-        /// Reads data from the underlying stream. This is the only method that directly accesses
-        /// the data in the underlying stream.
+        /// Reads resource data through the shared span-based stream routing.
         /// </summary>
         protected override byte[] ReadFromStream(int count, bool ignoreEndianess = false)
         {
+            return base.ReadFromStream(count, ignoreEndianess);
+        }
+
+        private Stream GetReadStream(out long addressBase)
+        {
+            Stream stream;
             if ((Position & SYSTEM_BASE) == SYSTEM_BASE)
             {
-                // read from system stream...
-
-                systemStream.Position = Position & ~0x50000000;
-
-                var buffer = new byte[count];
-                systemStream.Read(buffer, 0, count);
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    Array.Reverse(buffer);
-                }
-
-                Position = systemStream.Position | 0x50000000;
-                return buffer;
-
+                addressBase = SYSTEM_BASE;
+                stream = systemStream;
             }
-            if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
+            else if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
             {
-                // read from graphic stream...
-
-                graphicsStream.Position = Position & ~0x60000000;
-
-                var buffer = new byte[count];
-                graphicsStream.Read(buffer, 0, count);
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    Array.Reverse(buffer);
-                }
-
-                Position = graphicsStream.Position | 0x60000000;
-                return buffer;
+                addressBase = GRAPHICS_BASE;
+                stream = graphicsStream;
             }
-            throw new Exception("illegal position!");
+            else
+            {
+                throw new InvalidDataException($"Illegal resource position: 0x{Position:X}.");
+            }
+
+            stream.Position = Position & ~addressBase;
+            return stream;
+        }
+
+        protected override void ReadFromStream(Span<byte> buffer, bool ignoreEndianess = false)
+        {
+            var stream = GetReadStream(out var addressBase);
+            try
+            {
+                stream.ReadExactly(buffer);
+            }
+            finally
+            {
+                Position = stream.Position | addressBase;
+            }
+            if (!ignoreEndianess && Endianess == Endianess.BigEndian)
+            {
+                buffer.Reverse();
+            }
+        }
+
+        protected override async ValueTask ReadFromStreamAsync(Memory<byte> buffer,
+            bool ignoreEndianess, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var stream = GetReadStream(out var addressBase);
+            try
+            {
+                await stream.ReadExactlyAsync(buffer, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                Position = stream.Position | addressBase;
+            }
+            if (!ignoreEndianess && Endianess == Endianess.BigEndian)
+            {
+                buffer.Span.Reverse();
+            }
         }
 
         /// <summary>
@@ -176,9 +197,8 @@ namespace CodeWalker.GameFiles
             {
                 // make sure to return the same object if the same
                 // block is read again...
-                if (blockPool.ContainsKey(Position))
+                if (blockPool.TryGetValue(Position, out var block))
                 {
-                    var block = blockPool[Position];
                     if (block is T tblk)
                     {
                         Position += block.BlockLength;

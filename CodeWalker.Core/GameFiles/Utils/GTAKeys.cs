@@ -110,7 +110,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        private static readonly object NGEncryptTablesLock = new object();
+        private static readonly System.Threading.Lock NGEncryptTablesLock = new();
 
         public static bool NGEncryptTablesReady
         {
