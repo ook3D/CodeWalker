@@ -28,6 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Xml;
@@ -54,8 +55,8 @@ namespace CodeWalker.GameFiles
         public uint Unknown_14h { get; set; } // 0x00000001
         public uint Unknown_18h { get; set; } // 0x00000001
         public uint Unknown_1Ch { get; set; } // 0x00000001
-        public ResourceSimpleList64_uint BoundNameHashes;
-        public ResourcePointerList64<Bounds> Bounds { get; set; }
+        public ResourceSimpleList64_uint BoundNameHashes = new();
+        public ResourcePointerList64<Bounds> Bounds { get; set; } = new();
 
         /// <summary>
         /// Reads the data-block from a stream.
@@ -69,8 +70,8 @@ namespace CodeWalker.GameFiles
             this.Unknown_14h = reader.ReadUInt32();
             this.Unknown_18h = reader.ReadUInt32();
             this.Unknown_1Ch = reader.ReadUInt32();
-            this.BoundNameHashes = reader.ReadBlock<ResourceSimpleList64_uint>();
-            this.Bounds = reader.ReadBlock<ResourcePointerList64<Bounds>>();
+            this.BoundNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
+            this.Bounds = reader.ReadRequiredBlock<ResourcePointerList64<Bounds>>();
         }
 
         /// <summary>
@@ -166,10 +167,10 @@ namespace CodeWalker.GameFiles
         }
 
         public bool HasChanged { get; set; } = false;
-        public BoundComposite Parent { get; set; }
-        public YbnFile OwnerYbn { get; set; }
-        public object Owner { get; set; }
-        public string OwnerName { get; set; }
+        public BoundComposite? Parent { get; set; }
+        public YbnFile? OwnerYbn { get; set; }
+        public object? Owner { get; set; }
+        public string OwnerName { get; set; } = string.Empty;
         public bool OwnerIsFragment
         {
             get
@@ -194,7 +195,7 @@ namespace CodeWalker.GameFiles
             var t = Type.ToString();
             return t + ": " + n;
         }
-        public YbnFile GetRootYbn()
+        public YbnFile? GetRootYbn()
         {
             var r = OwnerYbn;
             var p = Parent;
@@ -205,7 +206,7 @@ namespace CodeWalker.GameFiles
             }
             return r;
         }
-        public object GetRootOwner()
+        public object? GetRootOwner()
         {
             var r = Owner;
             var p = Parent;
@@ -475,7 +476,7 @@ namespace CodeWalker.GameFiles
                 YbnXml.CloseTag(sb, indent, name);
             }
         }
-        public static Bounds ReadXmlNode(XmlNode? node, object? owner = null, BoundComposite? parent = null)
+        public static Bounds? ReadXmlNode(XmlNode? node, object? owner = null, BoundComposite? parent = null)
         {
             if (node == null) return null;
             var typestr = Xml.GetStringAttribute(node, "type");
@@ -496,9 +497,9 @@ namespace CodeWalker.GameFiles
             reader.Position += 16;
             var type = (BoundsType)reader.ReadByte();
             reader.Position -= 17;
-            return Create(type);
+            return Create(type) ?? throw new InvalidDataException($"Unsupported bounds type: {type}.");
         }
-        public static Bounds Create(BoundsType type)
+        public static Bounds? Create(BoundsType type)
         {
             switch (type)
             {
@@ -979,24 +980,24 @@ namespace CodeWalker.GameFiles
         public uint Unknown_12Ch { get; set; } // 0x00000000
 
 
-        public Vector3[] VerticesShrunk { get; set; } // Vertices but shrunk by margin along normal
-        public BoundPolygon[] Polygons { get; set; }
-        public Vector3[] Vertices { get; set; }
-        public BoundMaterialColour[] VertexColours { get; set; }//not sure, it seems like colours anyway, see eg. prologue03_10.ybn
-        public BoundGeomOctants Octants { get; set; }
-        public BoundMaterial_s[] Materials { get; set; }
-        public BoundMaterialColour[] MaterialColours { get; set; }
-        public byte[] PolygonMaterialIndices { get; set; }
+        public Vector3[]? VerticesShrunk { get; set; } // Vertices but shrunk by margin along normal
+        public BoundPolygon[] Polygons { get; set; } = [];
+        public Vector3[] Vertices { get; set; } = [];
+        public BoundMaterialColour[]? VertexColours { get; set; }//not sure, it seems like colours anyway, see eg. prologue03_10.ybn
+        public BoundGeomOctants? Octants { get; set; }
+        public BoundMaterial_s[] Materials { get; set; } = [];
+        public BoundMaterialColour[]? MaterialColours { get; set; }
+        public byte[] PolygonMaterialIndices { get; set; } = [];
 
-        private ResourceSystemStructBlock<BoundVertex_s> VerticesShrunkBlock = null;
-        private ResourceSystemDataBlock PolygonsBlock = null;
-        private ResourceSystemStructBlock<BoundVertex_s> VerticesBlock = null;
-        private ResourceSystemStructBlock<BoundMaterialColour> VertexColoursBlock = null;
-        private ResourceSystemStructBlock<BoundMaterial_s> MaterialsBlock = null;
-        private ResourceSystemStructBlock<BoundMaterialColour> MaterialColoursBlock = null;
-        private ResourceSystemStructBlock<byte> PolygonMaterialIndicesBlock = null;
+        private ResourceSystemStructBlock<BoundVertex_s>? VerticesShrunkBlock;
+        private ResourceSystemDataBlock? PolygonsBlock;
+        private ResourceSystemStructBlock<BoundVertex_s>? VerticesBlock;
+        private ResourceSystemStructBlock<BoundMaterialColour>? VertexColoursBlock;
+        private ResourceSystemStructBlock<BoundMaterial_s>? MaterialsBlock;
+        private ResourceSystemStructBlock<BoundMaterialColour>? MaterialColoursBlock;
+        private ResourceSystemStructBlock<byte>? PolygonMaterialIndicesBlock;
 
-        private BoundVertex[] VertexObjects = null; //for use by the editor, created as needed by GetVertexObject()
+        private BoundVertex?[]? VertexObjects; //for use by the editor, created as needed by GetVertexObject()
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -1071,11 +1072,11 @@ namespace CodeWalker.GameFiles
 
             this.Octants = reader.ReadBlockAt<BoundGeomOctants>(this.OctantsPointer, this.OctantItemsPointer);
 
-            this.Materials = reader.ReadStructsAt<BoundMaterial_s>(this.MaterialsPointer, (this.MaterialsCount < 4) ? 4u : MaterialsCount);
+            this.Materials = reader.ReadStructsAt<BoundMaterial_s>(this.MaterialsPointer, (this.MaterialsCount < 4) ? 4u : MaterialsCount) ?? [];
 
             this.MaterialColours = reader.ReadStructsAt<BoundMaterialColour>(this.MaterialColoursPointer, this.MaterialColoursCount);
 
-            this.PolygonMaterialIndices = reader.ReadBytesAt(this.PolygonMaterialIndicesPointer, (uint)PolygonsCount);
+            this.PolygonMaterialIndices = reader.ReadBytesAt(this.PolygonMaterialIndicesPointer, (uint)PolygonsCount) ?? [];
 
 
 
@@ -1223,7 +1224,7 @@ namespace CodeWalker.GameFiles
 
             Materials = XmlMeta.ReadItemArray<BoundMaterial_s>(node, "Materials");
             MaterialColours = XmlYbn.GetChildRawBoundMaterialColourArray(node, "MaterialColours");
-            Vertices = Xml.GetChildRawVector3ArrayNullable(node, "Vertices");
+            Vertices = Xml.GetChildRawVector3ArrayNullable(node, "Vertices") ?? [];
             VertexColours = XmlYbn.GetChildRawBoundMaterialColourArray(node, "VertexColours");
 
             var pnode = node.SelectSingleNode("Polygons");
@@ -1363,24 +1364,21 @@ namespace CodeWalker.GameFiles
 
             Polygons = new BoundPolygon[PolygonsCount];
             uint polybytecount = PolygonsCount * 16;
-            var polygonData = reader.ReadBytesAt(PolygonsPointer, polybytecount);
+            var polygonData = reader.ReadBytesAt(PolygonsPointer, polybytecount) ?? [];
             for (int i = 0; i < PolygonsCount; i++)
             {
                 var offset = i * 16;
                 byte b0 = polygonData[offset];
                 polygonData[offset] = (byte)(b0 & 0xF8);//mask it off
                 BoundPolygonType type = (BoundPolygonType)(b0 & 7);
-                BoundPolygon p = CreatePolygon(type);
-                if (p != null)
-                {
-                    p.Index = i;
-                    p.Read(polygonData, offset);
-                }
+                BoundPolygon p = CreatePolygon(type) ?? throw new InvalidDataException($"Unsupported polygon type: {type}.");
+                p.Index = i;
+                p.Read(polygonData, offset);
                 Polygons[i] = p;
             }
         }
 
-        public BoundVertex GetVertexObject(int index)
+        public BoundVertex? GetVertexObject(int index)
         {
             //gets a cached object which references a single vertex in this geometry
             if (Vertices == null) return null;
@@ -1488,7 +1486,7 @@ namespace CodeWalker.GameFiles
                 switch (polygon.Type)
                 {
                     case BoundPolygonType.Triangle:
-                        var ptri = polygon as BoundPolygonTriangle;
+                        var ptri = (BoundPolygonTriangle)polygon;
                         p1 = GetVertexPos(ptri.vertIndex1);
                         p2 = GetVertexPos(ptri.vertIndex2);
                         p3 = GetVertexPos(ptri.vertIndex3);
@@ -1496,14 +1494,14 @@ namespace CodeWalker.GameFiles
                         if (polyhit) n1 = Vector3.Normalize(Vector3.Cross(p2 - p1, p3 - p1));
                         break;
                     case BoundPolygonType.Sphere:
-                        var psph = polygon as BoundPolygonSphere;
+                        var psph = (BoundPolygonSphere)polygon;
                         tsph.Center = GetVertexPos(psph.sphereIndex);
                         tsph.Radius = psph.sphereRadius;
                         polyhit = sph.Intersects(ref tsph);
                         if (polyhit) n1 = Vector3.Normalize(sph.Center - tsph.Center);
                         break;
                     case BoundPolygonType.Capsule:
-                        var pcap = polygon as BoundPolygonCapsule;
+                        var pcap = (BoundPolygonCapsule)polygon;
                         var tcap = new BoundingCapsule();
                         tcap.PointA = GetVertexPos(pcap.capsuleIndex1);
                         tcap.PointB = GetVertexPos(pcap.capsuleIndex2);
@@ -1511,7 +1509,7 @@ namespace CodeWalker.GameFiles
                         polyhit = sph.Intersects(ref tcap, out n1);
                         break;
                     case BoundPolygonType.Box:
-                        var pbox = polygon as BoundPolygonBox;
+                        var pbox = (BoundPolygonBox)polygon;
                         p1 = GetVertexPos(pbox.boxIndex1);//corner
                         p2 = GetVertexPos(pbox.boxIndex2);
                         p3 = GetVertexPos(pbox.boxIndex3);
@@ -1550,7 +1548,7 @@ namespace CodeWalker.GameFiles
                         }
                         break;
                     case BoundPolygonType.Cylinder:
-                        var pcyl = polygon as BoundPolygonCylinder;
+                        var pcyl = (BoundPolygonCylinder)polygon;
                         //var tcyl = new BoundingCylinder();
                         //tcyl.PointA = GetVertexPos(pcyl.cylinderIndex1);
                         //tcyl.PointB = GetVertexPos(pcyl.cylinderIndex2);
@@ -1601,7 +1599,7 @@ namespace CodeWalker.GameFiles
                 switch (polygon.Type)
                 {
                     case BoundPolygonType.Triangle:
-                        var ptri = polygon as BoundPolygonTriangle;
+                        var ptri = (BoundPolygonTriangle)polygon;
                         p1 = GetVertexPos(ptri.vertIndex1);
                         p2 = GetVertexPos(ptri.vertIndex2);
                         p3 = GetVertexPos(ptri.vertIndex3);
@@ -1609,14 +1607,14 @@ namespace CodeWalker.GameFiles
                         if (polyhit) n1 = Vector3.Normalize(Vector3.Cross(p2 - p1, p3 - p1));
                         break;
                     case BoundPolygonType.Sphere:
-                        var psph = polygon as BoundPolygonSphere;
+                        var psph = (BoundPolygonSphere)polygon;
                         tsph.Center = GetVertexPos(psph.sphereIndex);
                         tsph.Radius = psph.sphereRadius;
                         polyhit = ray.Intersects(ref tsph, out polyhittestdist);
                         if (polyhit) n1 = Vector3.Normalize((ray.Position + ray.Direction * polyhittestdist) - tsph.Center);
                         break;
                     case BoundPolygonType.Capsule:
-                        var pcap = polygon as BoundPolygonCapsule;
+                        var pcap = (BoundPolygonCapsule)polygon;
                         var tcap = new BoundingCapsule();
                         tcap.PointA = GetVertexPos(pcap.capsuleIndex1);
                         tcap.PointB = GetVertexPos(pcap.capsuleIndex2);
@@ -1626,7 +1624,7 @@ namespace CodeWalker.GameFiles
                         if (polyhit) n1 = tcap.Normal(ref res.Position);
                         break;
                     case BoundPolygonType.Box:
-                        var pbox = polygon as BoundPolygonBox;
+                        var pbox = (BoundPolygonBox)polygon;
                         p1 = GetVertexPos(pbox.boxIndex1);//corner
                         p2 = GetVertexPos(pbox.boxIndex2);
                         p3 = GetVertexPos(pbox.boxIndex3);
@@ -1662,7 +1660,7 @@ namespace CodeWalker.GameFiles
                         }
                         break;
                     case BoundPolygonType.Cylinder:
-                        var pcyl = polygon as BoundPolygonCylinder;
+                        var pcyl = (BoundPolygonCylinder)polygon;
                         var tcyl = new BoundingCylinder();
                         tcyl.PointA = GetVertexPos(pcyl.cylinderIndex1);
                         tcyl.PointB = GetVertexPos(pcyl.cylinderIndex2);
@@ -1678,7 +1676,7 @@ namespace CodeWalker.GameFiles
                     res.Hit = true;
                     res.Position = (ray.Position + ray.Direction * polyhittestdist);
                     res.Normal = n1;
-                    res.HitVertex = (polygon != null) ? polygon.NearestVertex(res.Position) : new BoundVertexRef(-1, float.MaxValue);
+                    res.HitVertex = polygon.NearestVertex(res.Position);
                     res.HitPolygon = polygon;
                     res.HitBounds = this;
                     res.Material = polygon.Material;
@@ -1759,6 +1757,7 @@ namespace CodeWalker.GameFiles
             uint[] getVerticesInOctant(int octant)
             {
                 List<uint> octantIndices = new();
+                if (VerticesShrunk == null) return [];
 
                 for (uint ind1 = 0; ind1 < VerticesShrunk.Length; ind1++)
                 {
@@ -2385,7 +2384,7 @@ namespace CodeWalker.GameFiles
                 {
                     for (int i = 0; i < VertexObjects.Length; i++)
                     {
-                        if (VertexObjects[i] != null) VertexObjects[i].Index = i;
+                        if (VertexObjects[i] is { } vertexObject) vertexObject.Index = i;
                     }
                 }
 
@@ -2453,9 +2452,10 @@ namespace CodeWalker.GameFiles
             return index;
         }
 
-        public BoundPolygon AddPolygon(BoundPolygonType type)
+        public BoundPolygon? AddPolygon(BoundPolygonType type)
         {
             var p = CreatePolygon(type);
+            if (p == null) return null;
 
             var polys = Polygons?.ToList() ?? new List<BoundPolygon>();
             var polymats = PolygonMaterialIndices?.ToList() ?? new List<byte>();
@@ -2481,7 +2481,7 @@ namespace CodeWalker.GameFiles
             return p;
         }
 
-        private BoundPolygon CreatePolygon(BoundPolygonType type)
+        private BoundPolygon? CreatePolygon(BoundPolygonType type)
         {
             BoundPolygon? p = null;
             switch (type)
@@ -2529,7 +2529,7 @@ namespace CodeWalker.GameFiles
         public uint Unknown_14Ch { get; set; } // 0x00000000
 
         // reference data
-        public BVH BVH { get; set; }
+        public BVH? BVH { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -2607,7 +2607,7 @@ namespace CodeWalker.GameFiles
 
         public void BuildBVH(bool updateParent = true)
         {
-            if ((Polygons?.Length ?? 0) <= 0) //in some des_ drawables?
+            if (Polygons.Length == 0) //in some des_ drawables?
             {
                 if (BVH != null)
                 { }
@@ -2619,7 +2619,7 @@ namespace CodeWalker.GameFiles
                 //var tnodes = BVHBuilder.Unbuild(BVH);
             }
 
-            var items = new List<BVHBuilderItem>();
+            var items = new List<BVHBuilderItem?>();
             for (int i = 0; i < Polygons.Length; i++)
             {
                 var poly = Polygons[i];
@@ -2845,21 +2845,21 @@ namespace CodeWalker.GameFiles
         public ulong BVHPointer { get; set; }
 
         // reference data
-        public ResourcePointerArray64<Bounds> Children { get; set; }
-        public Matrix4F_s[] ChildrenTransformation1 { get; set; }
-        public Matrix4F_s[] ChildrenTransformation2 { get; set; }
-        public AABB_s[] ChildrenBoundingBoxes { get; set; }
-        public BoundCompositeChildrenFlags[] ChildrenFlags1 { get; set; }
-        public BoundCompositeChildrenFlags[] ChildrenFlags2 { get; set; }
+        public ResourcePointerArray64<Bounds>? Children { get; set; }
+        public Matrix4F_s[]? ChildrenTransformation1 { get; set; }
+        public Matrix4F_s[]? ChildrenTransformation2 { get; set; }
+        public AABB_s[]? ChildrenBoundingBoxes { get; set; }
+        public BoundCompositeChildrenFlags[]? ChildrenFlags1 { get; set; }
+        public BoundCompositeChildrenFlags[]? ChildrenFlags2 { get; set; }
 
-        public BVH BVH { get; set; }
+        public BVH? BVH { get; set; }
 
 
-        private ResourceSystemStructBlock<Matrix4F_s> ChildrenTransformation1Block = null;
-        private ResourceSystemStructBlock<Matrix4F_s> ChildrenTransformation2Block = null;
-        private ResourceSystemStructBlock<AABB_s> ChildrenBoundingBoxesBlock = null;
-        private ResourceSystemStructBlock<BoundCompositeChildrenFlags> ChildrenFlags1Block = null;
-        private ResourceSystemStructBlock<BoundCompositeChildrenFlags> ChildrenFlags2Block = null;
+        private ResourceSystemStructBlock<Matrix4F_s>? ChildrenTransformation1Block;
+        private ResourceSystemStructBlock<Matrix4F_s>? ChildrenTransformation2Block;
+        private ResourceSystemStructBlock<AABB_s>? ChildrenBoundingBoxesBlock;
+        private ResourceSystemStructBlock<BoundCompositeChildrenFlags>? ChildrenFlags1Block;
+        private ResourceSystemStructBlock<BoundCompositeChildrenFlags>? ChildrenFlags2Block;
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -3056,13 +3056,14 @@ namespace CodeWalker.GameFiles
                 var cnodes = cnode.SelectNodes("Item");
                 if (cnodes?.Count > 0)
                 {
-                    var blist = new List<Bounds>();
+                    var arr = new Bounds[cnodes.Count];
+                    var childIndex = 0;
                     foreach (XmlNode inode in cnodes)
                     {
                         var b = Bounds.ReadXmlNode(inode, Owner, this);
-                        blist.Add(b);
+                        if (b != null) arr[childIndex] = b;
+                        childIndex++;
                     }
-                    var arr = blist.ToArray();
                     Children = new ResourcePointerArray64<Bounds>();
                     Children.data_items = arr;
 
@@ -3151,7 +3152,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            var items = new List<BVHBuilderItem>();
+            var items = new List<BVHBuilderItem?>();
             for (int i = 0; i < Children.data_items.Length; i++)
             {
                 var child = Children.data_items[i];
@@ -3414,7 +3415,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public abstract class BoundPolygon : IMetaXmlItem
     {
         public BoundPolygonType Type { get; set; }
-        public BoundGeometry Owner { get; set; } //for browsing/editing convenience
+        public BoundGeometry? Owner { get; set; } //for browsing/editing convenience
         public BoundMaterial_s Material
         {
             get
@@ -3630,9 +3631,9 @@ namespace CodeWalker.GameFiles
         {
             if (Owner != null)
             {
-                verts[Owner.GetVertexObject(vertIndex1)] = vertIndex1;
-                verts[Owner.GetVertexObject(vertIndex2)] = vertIndex2;
-                verts[Owner.GetVertexObject(vertIndex3)] = vertIndex3;
+                if (Owner.GetVertexObject(vertIndex1) is { } vertex_vertIndex1) verts[vertex_vertIndex1] = vertIndex1;
+                if (Owner.GetVertexObject(vertIndex2) is { } vertex_vertIndex2) verts[vertex_vertIndex2] = vertIndex2;
+                if (Owner.GetVertexObject(vertIndex3) is { } vertex_vertIndex3) verts[vertex_vertIndex3] = vertIndex3;
             }
         }
 
@@ -3807,7 +3808,7 @@ namespace CodeWalker.GameFiles
         {
             if (Owner != null)
             {
-                verts[Owner.GetVertexObject(sphereIndex)] = sphereIndex;
+                if (Owner.GetVertexObject(sphereIndex) is { } vertex_sphereIndex) verts[vertex_sphereIndex] = sphereIndex;
             }
         }
 
@@ -3969,8 +3970,8 @@ namespace CodeWalker.GameFiles
         {
             if (Owner != null)
             {
-                verts[Owner.GetVertexObject(capsuleIndex1)] = capsuleIndex1;
-                verts[Owner.GetVertexObject(capsuleIndex2)] = capsuleIndex2;
+                if (Owner.GetVertexObject(capsuleIndex1) is { } vertex_capsuleIndex1) verts[vertex_capsuleIndex1] = capsuleIndex1;
+                if (Owner.GetVertexObject(capsuleIndex2) is { } vertex_capsuleIndex2) verts[vertex_capsuleIndex2] = capsuleIndex2;
             }
         }
 
@@ -4162,10 +4163,10 @@ namespace CodeWalker.GameFiles
         {
             if (Owner != null)
             {
-                verts[Owner.GetVertexObject(boxIndex1)] = boxIndex1;
-                verts[Owner.GetVertexObject(boxIndex2)] = boxIndex2;
-                verts[Owner.GetVertexObject(boxIndex3)] = boxIndex3;
-                verts[Owner.GetVertexObject(boxIndex4)] = boxIndex4;
+                if (Owner.GetVertexObject(boxIndex1) is { } vertex_boxIndex1) verts[vertex_boxIndex1] = boxIndex1;
+                if (Owner.GetVertexObject(boxIndex2) is { } vertex_boxIndex2) verts[vertex_boxIndex2] = boxIndex2;
+                if (Owner.GetVertexObject(boxIndex3) is { } vertex_boxIndex3) verts[vertex_boxIndex3] = boxIndex3;
+                if (Owner.GetVertexObject(boxIndex4) is { } vertex_boxIndex4) verts[vertex_boxIndex4] = boxIndex4;
             }
         }
 
@@ -4331,8 +4332,8 @@ namespace CodeWalker.GameFiles
         {
             if (Owner != null)
             {
-                verts[Owner.GetVertexObject(cylinderIndex1)] = cylinderIndex1;
-                verts[Owner.GetVertexObject(cylinderIndex2)] = cylinderIndex2;
+                if (Owner.GetVertexObject(cylinderIndex1) is { } vertex_cylinderIndex1) verts[vertex_cylinderIndex1] = cylinderIndex1;
+                if (Owner.GetVertexObject(cylinderIndex2) is { } vertex_cylinderIndex2) verts[vertex_cylinderIndex2] = cylinderIndex2;
             }
         }
 
@@ -4391,7 +4392,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public class BoundEdge //convenience class for updating edge indices
     {
         public BoundPolygonTriangle Triangle1 { get; set; }
-        public BoundPolygonTriangle Triangle2 { get; set; }
+        public BoundPolygonTriangle? Triangle2 { get; set; }
         public int EdgeID1 { get; set; }
         public int EdgeID2 { get; set; }
 
@@ -4415,7 +4416,7 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class BoundVertex //class for editing convenience, to hold a reference to a BoundGeometry vertex
     {
-        public BoundGeometry Owner { get; set; }
+        public BoundGeometry? Owner { get; set; }
         public int Index { get; set; }
 
         public Vector3 Position
@@ -4493,14 +4494,14 @@ namespace CodeWalker.GameFiles
             if ((parameters?.Length ?? 0) < 1)
             { return; } //shouldn't happen!
 
-            ulong ptr = (ulong)parameters[0]; //pointer array pointer
+            ulong ptr = (ulong)(parameters?[0] ?? throw new ArgumentException("An octant pointer is required.", nameof(parameters))); //pointer array pointer
 
             for (int i = 0; i < 8; i++)
             {
                 Counts[i] = reader.ReadUInt32();
             }
 
-            ulong[] ptrlist = reader.ReadUlongsAt(ptr, 8, false);
+            ulong[] ptrlist = reader.ReadUlongsAt(ptr, 8, false) ?? throw new InvalidDataException("The octant pointer table is missing.");
 
             //if (ptr != (ulong)reader.Position)
             //{ }//no hit
@@ -4508,7 +4509,7 @@ namespace CodeWalker.GameFiles
 
             for (int i = 0; i < 8; i++)
             {
-                Items[i] = reader.ReadUintsAt(ptrlist[i], Counts[i], false);
+                Items[i] = reader.ReadUintsAt(ptrlist[i], Counts[i], false) ?? [];
 
                 //if (ptrlist[i] != ptr)
                 //{ ptr = ptrlist[i]; }//no hit
@@ -4554,7 +4555,7 @@ namespace CodeWalker.GameFiles
         {
             for (int i = 0; i < 8; i++)
             {
-                Counts[i] = (i < (Items?.Length ?? 0)) ? (uint)(Items[i]?.Length ?? 0) : 0;
+                Counts[i] = (Items != null && i < Items.Length) ? (uint)(Items[i]?.Length ?? 0) : 0;
             }
         }
 
@@ -4618,7 +4619,7 @@ namespace CodeWalker.GameFiles
         }
 
         // structure data
-        public ResourceSimpleList64b_s<BVHNode_s> Nodes { get; set; }
+        public ResourceSimpleList64b_s<BVHNode_s> Nodes { get; set; } = new();
         public uint Unknown_10h { get; set; } // 0x00000000
         public uint Unknown_14h { get; set; } // 0x00000000
         public uint Unknown_18h { get; set; } // 0x00000000
@@ -4628,7 +4629,7 @@ namespace CodeWalker.GameFiles
         public Vector4 BoundingBoxCenter { get; set; }
         public Vector4 QuantumInverse { get; set; }
         public Vector4 Quantum { get; set; } // bounding box dimension / 2^16
-        public ResourceSimpleList64_s<BVHTreeInfo_s> Trees { get; set; }
+        public ResourceSimpleList64_s<BVHTreeInfo_s> Trees { get; set; } = new();
 
         /// <summary>
         /// Reads the data-block from a stream.
@@ -4636,7 +4637,7 @@ namespace CodeWalker.GameFiles
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             // read structure data
-            this.Nodes = reader.ReadBlock<ResourceSimpleList64b_s<BVHNode_s>>();
+            this.Nodes = reader.ReadRequiredBlock<ResourceSimpleList64b_s<BVHNode_s>>();
             this.Unknown_10h = reader.ReadUInt32();
             this.Unknown_14h = reader.ReadUInt32();
             this.Unknown_18h = reader.ReadUInt32();
@@ -4646,7 +4647,7 @@ namespace CodeWalker.GameFiles
             this.BoundingBoxCenter = reader.ReadVector4();
             this.QuantumInverse = reader.ReadVector4();
             this.Quantum = reader.ReadVector4();
-            this.Trees = reader.ReadBlock<ResourceSimpleList64_s<BVHTreeInfo_s>>();
+            this.Trees = reader.ReadRequiredBlock<ResourceSimpleList64_s<BVHTreeInfo_s>>();
         }
 
         /// <summary>
@@ -4750,7 +4751,8 @@ namespace CodeWalker.GameFiles
         public static int MaxTreeNodeCount = 127; //max number of nodes found in any tree
 
 
-        public static BVH Build(List<BVHBuilderItem>? items, int itemThreshold)
+        [return: NotNullIfNotNull(nameof(items))]
+        public static BVH? Build(List<BVHBuilderItem?>? items, int itemThreshold)
         {
             if (items == null) return null;
             var bvh = new BVH();
@@ -4806,7 +4808,7 @@ namespace CodeWalker.GameFiles
             for (int i = 0; i < nodes.Count; i++)
             {
                 var node = nodes[i];
-                var id = ((node.Items?.Count ?? 0) > 0) ? node.Items[0].Index : 0;
+                var id = (node.Items is { Count: > 0 }) ? node.Items[0].Index : 0;
                 var tn = node.TotalNodes;
                 var bn = new BVHNode_s();
                 bn.Min = (node.Min - c) * qi;
@@ -4850,9 +4852,9 @@ namespace CodeWalker.GameFiles
             return bvh;
         }
 
-        public static BVHBuilderNode[] Unbuild(BVH bvh)
+        public static BVHBuilderNode[] Unbuild(BVH? bvh)
         {
-            if ((bvh?.Trees?.data_items == null) || (bvh?.Nodes?.data_items == null)) return null;
+            if ((bvh?.Trees?.data_items == null) || (bvh?.Nodes?.data_items == null)) return [];
 
             var nodes = new List<BVHBuilderNode>();
             foreach (var tree in bvh.Trees.data_items)
@@ -4868,8 +4870,8 @@ namespace CodeWalker.GameFiles
     }
     public class BVHBuilderNode
     {
-        public List<BVHBuilderNode> Children;
-        public List<BVHBuilderItem> Items;
+        public List<BVHBuilderNode>? Children;
+        public List<BVHBuilderItem>? Items;
         public Vector3 Min;
         public Vector3 Max;
         public int Index;
@@ -5031,7 +5033,7 @@ namespace CodeWalker.GameFiles
         }
         public void GatherTrees(List<BVHBuilderNode> trees)
         {
-            if ((TotalNodes > BVHBuilder.MaxTreeNodeCount) && ((Children?.Count ?? 0) > 0))
+            if ((TotalNodes > BVHBuilder.MaxTreeNodeCount) && (Children is { Count: > 0 }))
             {
                 foreach (var child in Children)
                 {
@@ -5102,8 +5104,8 @@ namespace CodeWalker.GameFiles
         public Vector3 Min;
         public Vector3 Max;
         public int Index;
-        public Bounds Bounds;
-        public BoundPolygon Polygon;
+        public Bounds? Bounds;
+        public BoundPolygon? Polygon;
     }
 
 
@@ -5226,7 +5228,7 @@ namespace CodeWalker.GameFiles
     {
         public byte Index { get; set; }
 
-        public BoundsMaterialData MaterialData
+        public BoundsMaterialData? MaterialData
         {
             get
             {
@@ -5251,29 +5253,29 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class BoundsMaterialData
     {
-        public string Name { get; set; }
-        public string Filter { get; set; }
-        public string FXGroup { get; set; }
-        public string VFXDisturbanceType { get; set; }
-        public string RumbleProfile { get; set; }
-        public string ReactWeaponType { get; set; }
-        public string Friction { get; set; }
-        public string Elasticity { get; set; }
-        public string Density { get; set; }
-        public string TyreGrip { get; set; }
-        public string WetGrip { get; set; }
-        public string TyreDrag { get; set; }
-        public string TopSpeedMult { get; set; }
-        public string Softness { get; set; }
-        public string Noisiness { get; set; }
-        public string PenetrationResistance { get; set; }
-        public string SeeThru { get; set; }
-        public string ShootThru { get; set; }
-        public string ShootThruFX { get; set; }
-        public string NoDecal { get; set; }
-        public string Porous { get; set; }
-        public string HeatsTyre { get; set; }
-        public string Material { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Filter { get; set; } = string.Empty;
+        public string FXGroup { get; set; } = string.Empty;
+        public string VFXDisturbanceType { get; set; } = string.Empty;
+        public string RumbleProfile { get; set; } = string.Empty;
+        public string ReactWeaponType { get; set; } = string.Empty;
+        public string Friction { get; set; } = string.Empty;
+        public string Elasticity { get; set; } = string.Empty;
+        public string Density { get; set; } = string.Empty;
+        public string TyreGrip { get; set; } = string.Empty;
+        public string WetGrip { get; set; } = string.Empty;
+        public string TyreDrag { get; set; } = string.Empty;
+        public string TopSpeedMult { get; set; } = string.Empty;
+        public string Softness { get; set; } = string.Empty;
+        public string Noisiness { get; set; } = string.Empty;
+        public string PenetrationResistance { get; set; } = string.Empty;
+        public string SeeThru { get; set; } = string.Empty;
+        public string ShootThru { get; set; } = string.Empty;
+        public string ShootThruFX { get; set; } = string.Empty;
+        public string NoDecal { get; set; } = string.Empty;
+        public string Porous { get; set; } = string.Empty;
+        public string HeatsTyre { get; set; } = string.Empty;
+        public string Material { get; set; } = string.Empty;
 
         public Color Colour { get; set; }
 
@@ -5285,12 +5287,12 @@ namespace CodeWalker.GameFiles
 
     public static class BoundsMaterialTypes
     {
-        private static Dictionary<string, Color> ColourDict;
-        public static List<BoundsMaterialData> Materials;
+        private static Dictionary<string, Color> ColourDict = new();
+        public static List<BoundsMaterialData> Materials = [];
 
         public static void Init(GameFileCache gameFileCache)
         {
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.");
 
             var dic = new Dictionary<string,Color>();
             string filename2 = "common.rpf\\data\\effects\\materialfx.dat";
@@ -5428,14 +5430,14 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static BoundsMaterialData GetMaterial(BoundsMaterialType type)
+        public static BoundsMaterialData? GetMaterial(BoundsMaterialType type)
         {
             if (Materials == null) return null;
             if (type.Index >= Materials.Count) return null;
             return Materials[type.Index];
         }
 
-        public static BoundsMaterialData GetMaterial(byte index)
+        public static BoundsMaterialData? GetMaterial(byte index)
         {
             if (Materials == null) return null;
             if ((int)index >= Materials.Count) return null;

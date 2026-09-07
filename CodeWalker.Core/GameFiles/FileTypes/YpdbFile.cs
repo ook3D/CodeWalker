@@ -1,4 +1,5 @@
-﻿using SharpDX;
+﻿using System;
+using SharpDX;
 using System.IO;
 using TC = System.ComponentModel.TypeConverterAttribute;
 using EXP = System.ComponentModel.ExpandableObjectConverter;
@@ -13,10 +14,10 @@ namespace CodeWalker.GameFiles
         public int PoseMatcherVersion { get; set; } // 0
         public uint Signature { get; set; }
         public int SamplesCount { get; set; }
-        public PoseMatcherMatchSample[] Samples { get; set; }
+        public PoseMatcherMatchSample[] Samples { get; set; } = [];
         public int BoneTagsCount { get; set; }
-        public ushort[] BoneTags { get; set; }
-        public PoseMatcherWeightSet WeightSet { get; set; }
+        public ushort[] BoneTags { get; set; } = [];
+        public PoseMatcherWeightSet? WeightSet { get; set; }
         public float Unk7 { get; set; } // 0.033333f
         public int Unk8 { get; set; } // 1
 
@@ -27,7 +28,7 @@ namespace CodeWalker.GameFiles
         {
         }
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             if (entry != null)
             {
@@ -132,7 +133,7 @@ namespace CodeWalker.GameFiles
                     w.Write(boneTag);
             }
 
-            WeightSet.Write(w);
+            (WeightSet ?? throw new InvalidOperationException("A pose matcher weight set must be loaded before saving.")).Write(w);
 
             w.Write(Unk7);
             w.Write(Unk8);
@@ -162,7 +163,7 @@ namespace CodeWalker.GameFiles
             BoneTags = Xml.GetChildRawUshortArray(node, "BoneTags");
             BoneTagsCount = (BoneTags?.Length ?? 0);
             WeightSet = new PoseMatcherWeightSet(node);
-            Samples = XmlMeta.ReadItemArray<PoseMatcherMatchSample>(node, "Samples");
+            Samples = XmlMeta.ReadItemArray<PoseMatcherMatchSample>(node, "Samples") ?? [];
             SamplesCount = (Samples?.Length ?? 0);
         }
     }
@@ -173,7 +174,7 @@ namespace CodeWalker.GameFiles
         public MetaHash ClipSet { get; set; } // from clip_sets.ymt/xml
         public MetaHash Clip { get; set; }
         public float Offset { get; set; }//probably time offset, allows for multiple samples per clip
-        public PoseMatcherPointCloud PointCloud { get; set; }
+        public PoseMatcherPointCloud? PointCloud { get; set; }
 
         public PoseMatcherMatchSample()
         { }
@@ -208,7 +209,7 @@ namespace CodeWalker.GameFiles
 
             w.Write(Offset);
 
-            PointCloud.Write(w);
+            (PointCloud ?? throw new InvalidOperationException("A pose matcher point cloud must be loaded before saving.")).Write(w);
         }
 
         public void WriteXml(StringBuilder sb, int indent)
@@ -236,9 +237,9 @@ namespace CodeWalker.GameFiles
     {
         // rage::crpmPointCloud
         public int PointsCount { get; set; }
-        public Vector3[] Points { get; set; }
+        public Vector3[] Points { get; set; } = [];
         public int WeightsCount { get; set; } // == PointsCount
-        public float[] Weights { get; set; }
+        public float[] Weights { get; set; } = [];
         public Vector3 BoundsMin { get; set; }
         public Vector3 BoundsMax { get; set; }
         public float WeightsSum { get; set; }
@@ -325,7 +326,7 @@ namespace CodeWalker.GameFiles
     {
         // rage::crWeightSet
         public int WeightsCount { get; set; }
-        public float[] Weights { get; set; }
+        public float[] Weights { get; set; } = [];
 
         public PoseMatcherWeightSet(DataReader r)
         {
@@ -401,7 +402,7 @@ namespace CodeWalker.GameFiles
         public static YpdbFile GetYpdb(XmlDocument doc)
         {
             YpdbFile ypdb = new();
-            ypdb.ReadXml(doc.DocumentElement);
+            ypdb.ReadXml(doc.DocumentElement ?? throw new XmlException("The pose matcher document must have a root element."));
             return ypdb;
         }
 

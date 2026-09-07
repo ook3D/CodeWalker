@@ -16,7 +16,7 @@ namespace CodeWalker.Forms
 {
     public partial class TextForm : Form
     {
-        private string textValue;
+        private string textValue = string.Empty;
         public string TextValue
         {
             get { return textValue; }
@@ -27,7 +27,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -37,12 +37,12 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
         private bool modified = false;
 
-        private ExploreForm exploreForm = null;
-        public RpfFileEntry rpfFileEntry { get; private set; } = null;
+        private readonly ExploreForm? exploreForm;
+        public RpfFileEntry? rpfFileEntry { get; private set; }
 
 
         public enum TextFileType
@@ -55,7 +55,7 @@ namespace CodeWalker.Forms
 
 
 
-        public TextForm(ExploreForm owner)
+        public TextForm(ExploreForm? owner)
         {
             exploreForm = owner;
 
@@ -64,7 +64,7 @@ namespace CodeWalker.Forms
 
 
 
-        public void LoadText(string filename, string filepath, string text, RpfFileEntry e)
+        public void LoadText(string filename, string filepath, string text, RpfFileEntry? e)
         {
             fileType = TextFileType.Text;
             FileName = filename;
@@ -73,7 +73,7 @@ namespace CodeWalker.Forms
             rpfFileEntry = e;
             modified = false;
         }
-        public void LoadGxt2(string filename, string filepath, Gxt2File gxt)
+        public void LoadGxt2(string filename, string filepath, Gxt2File? gxt)
         {
             fileType = TextFileType.GXT2;
             FileName = filename;
@@ -82,7 +82,7 @@ namespace CodeWalker.Forms
             rpfFileEntry = gxt?.FileEntry;
             modified = false;
         }
-        public void LoadNametable(string filename, string filepath, byte[] data, RpfFileEntry e)
+        public void LoadNametable(string filename, string filepath, byte[] data, RpfFileEntry? e)
         {
             fileType = TextFileType.Nametable;
             FileName = filename;

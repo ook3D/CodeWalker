@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYtypMloEntSetPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public MCMloEntitySet CurrentEntitySet { get; set; }
+        public MCMloEntitySet? CurrentEntitySet { get; set; }
 
         private bool populatingui = false;
         private bool SelectingLocation = false;
@@ -25,13 +25,11 @@ namespace CodeWalker.Project.Panels
             InitializeComponent();
         }
 
-        public void SetEntitySet(MCMloEntitySet entset)
+        public void SetEntitySet(MCMloEntitySet? entset)
         {
             CurrentEntitySet = entset;
             Tag = entset;
             UpdateFormTitle();
-            MloInstanceData instance = ProjectForm.TryGetMloInstance(entset?.OwnerMlo);
-            //ProjectForm.WorldForm?.SelectMloEntitySet(entset, instance);
             UpdateControls();
         }
 
@@ -184,7 +182,7 @@ namespace CodeWalker.Project.Panels
         class LocationItem
         {
             public uint Location { get; set; }
-            public MCEntityDef Entity { get; set; }
+            public MCEntityDef? Entity { get; set; }
             public int Index { get; set; }
 
             public override string ToString()

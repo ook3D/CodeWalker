@@ -32,7 +32,7 @@ namespace CodeWalker.Project.Panels
             InitializeComponent();
         }
 
-        public YmapGrassInstanceBatch CurrentBatch { get; set; }
+        public YmapGrassInstanceBatch? CurrentBatch { get; set; }
 
         // Grass model randomization - uses existing batches in the ymap
         private static readonly Random _random = new Random();
@@ -50,7 +50,7 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateControls()
         {
-            if (ProjectForm?.CurrentProjectFile == null) return;
+            if (ProjectForm.CurrentProjectFile == null || CurrentBatch == null) return;
             if (ProjectForm.GrassBatchExistsInProject(CurrentBatch))
             {
                 GrassAddToProjectButton.Enabled = false;
@@ -113,7 +113,7 @@ namespace CodeWalker.Project.Panels
             if (!ProjectForm.DeleteGrassBatch()) return;
 
             ymap?.CalcExtents(); // Recalculate the extents after deleting the grass batch.
-            ProjectForm.WorldForm.SelectItem();
+            ProjectForm.WorldForm?.SelectItem();
         }
 
         private void GrassColorLabel_Click(object sender, EventArgs e)
@@ -140,6 +140,7 @@ namespace CodeWalker.Project.Panels
 
         private void ArchetypeNameTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentBatch == null) return;
             var archetypeHash = JenkHash.GenHash(ArchetypeNameTextBox.Text);
             var archetype = ProjectForm.GameFileCache.GetArchetype(archetypeHash);
             if (archetype == null)
@@ -151,7 +152,7 @@ namespace CodeWalker.Project.Panels
             var b = CurrentBatch.Batch;
             b.archetypeName = archetypeHash;
             CurrentBatch.Batch = b;
-            ProjectForm.WorldForm.UpdateGrassBatchGraphics(CurrentBatch);
+            ProjectForm.WorldForm?.UpdateGrassBatchGraphics(CurrentBatch);
             HashLabel.Text = $@"Hash: {archetypeHash}";
             UpdateFormTitle();
             CurrentBatch.HasChanged = true;
@@ -161,53 +162,58 @@ namespace CodeWalker.Project.Panels
 
         private void LodDistNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
+            if (CurrentBatch == null) return;
             var batch = CurrentBatch.Batch;
             batch.lodDist = (uint) LodDistNumericUpDown.Value;
             CurrentBatch.Batch = batch;
-            ProjectForm.WorldForm.UpdateGrassBatchGraphics(CurrentBatch);
+            ProjectForm.WorldForm?.UpdateGrassBatchGraphics(CurrentBatch);
             ProjectForm.SetYmapHasChanged(true);
         }
 
         private void LodFadeStartDistanceNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
+            if (CurrentBatch == null) return;
             var batch = CurrentBatch.Batch;
             batch.LodFadeStartDist = (float) LodFadeStartDistanceNumericUpDown.Value;
             CurrentBatch.Batch = batch;
-            ProjectForm.WorldForm.UpdateGrassBatchGraphics(CurrentBatch);
+            ProjectForm.WorldForm?.UpdateGrassBatchGraphics(CurrentBatch);
             ProjectForm.SetYmapHasChanged(true);
         }
 
         private void LodFadeRangeNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
+            if (CurrentBatch == null) return;
             var batch = CurrentBatch.Batch;
             batch.LodInstFadeRange = (float) LodFadeRangeNumericUpDown.Value;
             CurrentBatch.Batch = batch;
-            ProjectForm.WorldForm.UpdateGrassBatchGraphics(CurrentBatch);
+            ProjectForm.WorldForm?.UpdateGrassBatchGraphics(CurrentBatch);
             ProjectForm.SetYmapHasChanged(true);
         }
 
         private void OrientToTerrainNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
+            if (CurrentBatch == null) return;
             var batch = CurrentBatch.Batch;
             batch.OrientToTerrain = (float) OrientToTerrainNumericUpDown.Value;
             CurrentBatch.Batch = batch;
-            ProjectForm.WorldForm.UpdateGrassBatchGraphics(CurrentBatch);
+            ProjectForm.WorldForm?.UpdateGrassBatchGraphics(CurrentBatch);
             ProjectForm.SetYmapHasChanged(true);
         }
 
         private void ScaleRangeTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentBatch == null) return;
             var batch = CurrentBatch.Batch;
             var v = FloatUtil.ParseVector3String(ScaleRangeTextBox.Text);
             batch.ScaleRange = v;
             CurrentBatch.Batch = batch;
-            ProjectForm.WorldForm.UpdateGrassBatchGraphics(CurrentBatch);
+            ProjectForm.WorldForm?.UpdateGrassBatchGraphics(CurrentBatch);
             ProjectForm.SetYmapHasChanged(true);
         }
 
         private void OptimizeBatchButton_Click(object sender, EventArgs e)
         {
-            if (CurrentBatch.Instances == null || CurrentBatch.Instances.Length <= 0) return;
+            if (CurrentBatch?.Instances == null || CurrentBatch.Instances.Length <= 0) return;
             var d = MessageBox.Show(
                 @"You are about to split the selected batch into multiple parts. Are you sure you want to do this?",
                 @"Instance Optimizer", MessageBoxButtons.YesNo);
@@ -215,13 +221,14 @@ namespace CodeWalker.Project.Panels
             if (d == DialogResult.No)
                 return;
 
-            lock (ProjectForm.WorldForm.RenderSyncRoot)
+            void OptimizeBatch()
             {
-                var newBatches = CurrentBatch?.OptimizeInstances(CurrentBatch, (float)OptmizationThresholdNumericUpDown.Value);
+                if (CurrentBatch.Ymap is not { } ymap) return;
+                var newBatches = CurrentBatch.OptimizeInstances(CurrentBatch, (float)OptmizationThresholdNumericUpDown.Value);
                 if (newBatches == null || newBatches.Length <= 0) return;
 
                 // Remove our batch from the ymap
-                CurrentBatch.Ymap.RemoveGrassBatch(CurrentBatch);
+                ymap.RemoveGrassBatch(CurrentBatch);
                 foreach (var batch in newBatches)
                 {
                     var b = batch.Batch;
@@ -240,7 +247,17 @@ namespace CodeWalker.Project.Panels
                 CurrentBatch.Ymap.Save();
 
                 // TODO: Select the last grass batch in the new list on the project explorer.
-                ProjectForm.ProjectExplorer.TrySelectGrassBatchTreeNode(CurrentBatch.Ymap.GrassInstanceBatches[0]);
+                ProjectForm.ProjectExplorer?.TrySelectGrassBatchTreeNode(CurrentBatch.Ymap.GrassInstanceBatches[0]);
+            }
+
+            var worldForm = ProjectForm.WorldForm;
+            if (worldForm != null)
+            {
+                lock (worldForm.RenderSyncRoot) OptimizeBatch();
+            }
+            else
+            {
+                lock (ProjectForm.ProjectSyncRoot) OptimizeBatch();
             }
         }
 
@@ -265,12 +282,13 @@ namespace CodeWalker.Project.Panels
 
         private SpaceRayIntersectResult SpawnRayFunc(Vector3 spawnPos)
         {
-            var res = ProjectForm.WorldForm.Raycast(new Ray(spawnPos, -Vector3.UnitZ));
+            var res = ProjectForm.WorldForm?.Raycast(new Ray(spawnPos, -Vector3.UnitZ)) ?? default;
             return res;
         }
 
         internal void BatchChanged()
         {
+            if (CurrentBatch == null) return;
             UpdateControls();
             CurrentBatch.UpdateInstanceCount();
             CurrentBatch.HasChanged = true;

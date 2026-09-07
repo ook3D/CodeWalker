@@ -106,7 +106,7 @@ namespace CodeWalker.Rendering
 
         private readonly Lock updateSyncRoot = new();
 
-        private Device currentDevice;
+        private Device? currentDevice;
 
 
         public void OnDeviceCreated(Device device)
@@ -186,6 +186,7 @@ namespace CodeWalker.Rendering
 
         public void RenderThreadSync()
         {
+            if (currentDevice == null) return;
             renderables.RenderThreadSync(currentDevice);
             textures.RenderThreadSync(currentDevice);
             boundcomps.RenderThreadSync(currentDevice);
@@ -245,12 +246,12 @@ namespace CodeWalker.Rendering
         }
         public void Invalidate(YmapLODLight lodlight)
         {
-            lodlights.Invalidate(lodlight.LodLights?.Ymap);
-            distlodlights.Invalidate(lodlight.DistLodLights);
+            if (lodlight.LodLights?.Ymap is { } ymap) lodlights.Invalidate(ymap);
+            if (lodlight.DistLodLights is { } lights) distlodlights.Invalidate(lights);
         }
         public void InvalidateImmediate(YmapLODLights lodlightsonly)
         {
-            lodlights.UpdateImmediate(lodlightsonly?.Ymap, currentDevice);
+            if (lodlightsonly.Ymap is { } ymap && currentDevice != null) lodlights.UpdateImmediate(ymap, currentDevice);
         }
 
     }
@@ -258,7 +259,8 @@ namespace CodeWalker.Rendering
 
     public abstract class RenderableCacheItem<TKey>
     {
-        public TKey Key;
+        private TKey? key;
+        public TKey Key { get => key ?? throw new InvalidOperationException("Cache item is not initialized."); set => key = value; }
         public volatile bool IsLoaded = false;
         public volatile bool LoadQueued = false;
         public long LastUseTime = 0;
@@ -410,7 +412,8 @@ namespace CodeWalker.Rendering
 
         }
 
-        public TVal Get(TKey key)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(key))]
+        public TVal? Get(TKey? key)
         {
             if (key == null) return null;
             TVal? item = null;

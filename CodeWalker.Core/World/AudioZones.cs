@@ -11,7 +11,7 @@ namespace CodeWalker.World
     public class AudioZones
     {
         public volatile bool Inited = false;
-        public GameFileCache GameFileCache;
+        public GameFileCache? GameFileCache;
 
         public Dictionary<RelFile, AudioPlacement[]> PlacementsDict = new();
 
@@ -45,17 +45,17 @@ namespace CodeWalker.World
             foreach (var reldata in relfile.RelDatas)
             {
                 AudioPlacement? placement = null;
-                if (reldata is Dat151AmbientZone)
+                if (reldata is Dat151AmbientZone zone)
                 {
-                    placement = new AudioPlacement(relfile, reldata as Dat151AmbientZone);
+                    placement = new AudioPlacement(relfile, zone);
                 }
-                else if (reldata is Dat151AmbientRule)
+                else if (reldata is Dat151AmbientRule rule)
                 {
-                    placement = new AudioPlacement(relfile, reldata as Dat151AmbientRule);
+                    placement = new AudioPlacement(relfile, rule);
                 }
-                else if (reldata is Dat151StaticEmitter)
+                else if (reldata is Dat151StaticEmitter emitter)
                 {
-                    placement = new AudioPlacement(relfile, reldata as Dat151StaticEmitter);
+                    placement = new AudioPlacement(relfile, emitter);
                 }
                 if (placement != null)
                 {
@@ -86,7 +86,7 @@ namespace CodeWalker.World
 
         }
 
-        public AudioPlacement FindPlacement(RelFile? relfile, Dat151RelData reldata)
+        public AudioPlacement? FindPlacement(RelFile? relfile, Dat151RelData? reldata)
         {
             if (relfile == null) return null;
             if (reldata == null) return null;
@@ -109,12 +109,12 @@ namespace CodeWalker.World
 
     public class AudioPlacement
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public MetaHash NameHash { get; set; }
         public RelFile RelFile { get; set; }
-        public Dat151AmbientZone AmbientZone { get; set; }
-        public Dat151AmbientRule AmbientRule { get; set; }
-        public Dat151StaticEmitter StaticEmitter { get; set; }
+        public Dat151AmbientZone? AmbientZone { get; set; }
+        public Dat151AmbientRule? AmbientRule { get; set; }
+        public Dat151StaticEmitter? StaticEmitter { get; set; }
         public Dat151ZoneShape Shape { get; set; }
         public string ShortTypeName { get; set; }
         public string FullTypeName { get; set; }
@@ -171,7 +171,7 @@ namespace CodeWalker.World
             if (AmbientZone == null) return;
             var zone = AmbientZone;
 
-            Name = zone.Name;
+            Name = zone.GetNameString();
             NameHash = zone.NameHash;
             Shape = zone.Shape;
 
@@ -225,7 +225,7 @@ namespace CodeWalker.World
             if (AmbientRule == null) return;
             var rule = AmbientRule;
 
-            Name = rule.Name;
+            Name = rule.GetNameString();
             NameHash = rule.NameHash;
             Shape = Dat151ZoneShape.Sphere;
 
@@ -251,7 +251,7 @@ namespace CodeWalker.World
             if (StaticEmitter == null) return;
             var emitter = StaticEmitter;
 
-            Name = emitter.Name;
+            Name = emitter.GetNameString();
             NameHash = emitter.NameHash;
             Shape = Dat151ZoneShape.Sphere;
 

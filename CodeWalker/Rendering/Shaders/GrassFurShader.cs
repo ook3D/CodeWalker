@@ -81,8 +81,8 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<GrassFurShaderVSModelVars> VSModelVars;
         GpuVarsBuffer<GrassFurShaderMeshVars> MeshVars;
         GpuVarsBuffer<GrassFurShaderPSSceneVars> PSSceneVars;
-        SamplerState texsampler;
-        SamplerState heightsampler;
+        SamplerState? texsampler;
+        SamplerState? heightsampler;
 
         private Dictionary<VertexType, InputLayout> layouts = new Dictionary<VertexType, InputLayout>();
 
@@ -158,7 +158,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Vars.WindVector = Vector4.Zero;

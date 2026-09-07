@@ -176,7 +176,7 @@ namespace CodeWalker.Tools
         }
 
 
-        private string TryGetExtraString(uint hash)
+        private string? TryGetExtraString(uint hash)
         {
             string? str;
             extraStrings.TryGetValue(hash, out str);

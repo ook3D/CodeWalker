@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYtypMloPortalPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public MCMloPortalDef CurrentPortal { get; set; }
+        public MCMloPortalDef? CurrentPortal { get; set; }
 
         private bool populatingui = false;
 
@@ -30,7 +30,7 @@ namespace CodeWalker.Project.Panels
             CurrentPortal = portal;
             Tag = portal;
             UpdateFormTitle();
-            MloInstanceData instance = ProjectForm.TryGetMloInstance(portal?.OwnerMlo);
+            var instance = ProjectForm.TryGetMloInstance(portal?.OwnerMlo);
             //ProjectForm.WorldForm?.SelectMloPortal(portal, instance);
             UpdateControls();
         }
@@ -86,7 +86,7 @@ namespace CodeWalker.Project.Panels
             TreeNode? tn = ProjectForm.ProjectExplorer?.FindMloPortalTreeNode(CurrentPortal);
             if (tn != null)
             {
-                tn.Text = CurrentPortal.Name;
+                tn.Text = CurrentPortal?.Name ?? string.Empty;
             }
         }
 

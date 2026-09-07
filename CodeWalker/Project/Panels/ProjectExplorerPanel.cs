@@ -17,7 +17,7 @@ namespace CodeWalker.Project.Panels
     public partial class ProjectExplorerPanel : ProjectPanel
     {
         public ProjectForm ProjectForm { get; set; }
-        public ProjectFile CurrentProjectFile { get; set; }
+        public ProjectFile? CurrentProjectFile { get; set; }
 
         private bool inDoubleClick = false; //used in disabling double-click to expand tree nodes
         private List<TreeNode> SelectedNodes = new List<TreeNode>();
@@ -30,7 +30,7 @@ namespace CodeWalker.Project.Panels
         }
 
 
-        public void LoadProjectTree(ProjectFile projectFile)
+        public void LoadProjectTree(ProjectFile? projectFile)
         {
             ProjectTreeView.BeginUpdate();
             try
@@ -39,7 +39,7 @@ namespace CodeWalker.Project.Panels
             fileTreeNodes.Clear();
 
             CurrentProjectFile = projectFile;
-            if (CurrentProjectFile == null) { ProjectTreeView.EndUpdate(); return; }
+            if (CurrentProjectFile == null) return;
 
             var pcstr = CurrentProjectFile.HasChanged ? "*" : "";
 
@@ -692,10 +692,10 @@ namespace CodeWalker.Project.Panels
             //int entityOverrideCount = (sr.EntityOverrides?.Length ?? 0);
             //int chainCount = (sr.Paths?.Chains?.Length ?? 0);
             //int clusterCount = (sr.Clusters?.Length ?? 0);
-            //TreeNode pointsNode = null;
-            //TreeNode entityOverridesNode = null;
-            //TreeNode chainsNode = null;
-            //TreeNode clustersNode = null;
+            //var pointsNode = null;
+            //var entityOverridesNode = null;
+            //var chainsNode = null;
+            //var clustersNode = null;
             //if (pointCount > 0)
             //{
             //    pointsNode = node.Nodes.Add("Points (" + pointCount.ToString() + ")");
@@ -757,31 +757,31 @@ namespace CodeWalker.Project.Panels
             {
                 if (reldata is Dat151AmbientZone)
                 {
-                    zones.Add(reldata as Dat151AmbientZone);
+                    zones.Add((Dat151AmbientZone)reldata);
                 }
                 if (reldata is Dat151AmbientRule)
                 {
-                    rules.Add(reldata as Dat151AmbientRule);
+                    rules.Add((Dat151AmbientRule)reldata);
                 }
                 if (reldata is Dat151StaticEmitter)
                 {
-                    emitters.Add(reldata as Dat151StaticEmitter);
+                    emitters.Add((Dat151StaticEmitter)reldata);
                 }
                 if (reldata is Dat151AmbientZoneList)
                 {
-                    zonelists.Add(reldata as Dat151AmbientZoneList);
+                    zonelists.Add((Dat151AmbientZoneList)reldata);
                 }
                 if (reldata is Dat151StaticEmitterList)
                 {
-                    emitterlists.Add(reldata as Dat151StaticEmitterList);
+                    emitterlists.Add((Dat151StaticEmitterList)reldata);
                 }
                 if (reldata is Dat151InteriorSettings)
                 {
-                    interiors.Add(reldata as Dat151InteriorSettings);
+                    interiors.Add((Dat151InteriorSettings)reldata);
                 }
                 if (reldata is Dat151InteriorRoom)
                 {
-                    interiorrooms.Add(reldata as Dat151InteriorRoom);
+                    interiorrooms.Add((Dat151InteriorRoom)reldata);
                 }
             }
 
@@ -905,8 +905,9 @@ namespace CodeWalker.Project.Panels
             string name = ymap.RpfFileEntry?.Name ?? ymap.Name;
             ynode.Text = changestr + name;
         }
-        public void SetYtypHasChanged(YtypFile ytyp, bool changed)
+        public void SetYtypHasChanged(YtypFile? ytyp, bool changed)
         {
+            if (ytyp == null) return;
             var ynode = FindYtypTreeNode(ytyp);
             if (ynode == null) return;
             string changestr = changed ? "*" : "";
@@ -984,122 +985,124 @@ namespace CodeWalker.Project.Panels
 
 
 
-        private TreeNode GetChildTreeNode(TreeNode? node, string name)
+        private TreeNode? GetChildTreeNode(TreeNode? node, string name)
         {
             if (node == null) return null;
             var nodes = node.Nodes.Find(name, false);
             if ((nodes == null) || (nodes.Length != 1)) return null;
             return nodes[0];
         }
-        public TreeNode FindYmapTreeNode(YmapFile ymap)
+        public TreeNode? FindYmapTreeNode(YmapFile? ymap)
         {
+            if (ymap == null) return null;
             if (ymap != null && fileTreeNodes.TryGetValue(ymap, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindEntityTreeNode(YmapEntityDef? ent)
+        public TreeNode? FindEntityTreeNode(YmapEntityDef? ent)
         {
             if (ent == null) return null;
-            TreeNode ymapnode = FindYmapTreeNode(ent.Ymap);
+            var ymapnode = FindYmapTreeNode(ent.Ymap);
             if (ymapnode == null) return null;
             var entsnode = GetChildTreeNode(ymapnode, "Entities");
             if (entsnode == null) return null;
             for (int i = 0; i < entsnode.Nodes.Count; i++)
             {
-                TreeNode entnode = entsnode.Nodes[i];
+                var entnode = entsnode.Nodes[i];
                 if (entnode.Tag == ent) return entnode;
             }
             return null;
         }
-        public TreeNode FindCarGenTreeNode(YmapCarGen? cargen)
+        public TreeNode? FindCarGenTreeNode(YmapCarGen? cargen)
         {
             if (cargen == null) return null;
-            TreeNode ymapnode = FindYmapTreeNode(cargen.Ymap);
+            var ymapnode = FindYmapTreeNode(cargen.Ymap);
             if (ymapnode == null) return null;
             var cargensnode = GetChildTreeNode(ymapnode, "CarGens");
             if (cargensnode == null) return null;
             for (int i = 0; i < cargensnode.Nodes.Count; i++)
             {
-                TreeNode cargennode = cargensnode.Nodes[i];
+                var cargennode = cargensnode.Nodes[i];
                 if (cargennode.Tag == cargen) return cargennode;
             }
             return null;
         }
-        public TreeNode FindLodLightTreeNode(YmapLODLight? lodlight)
+        public TreeNode? FindLodLightTreeNode(YmapLODLight? lodlight)
         {
             if (lodlight == null) return null;
-            TreeNode ymapnode = FindYmapTreeNode(lodlight.Ymap);
+            var ymapnode = FindYmapTreeNode(lodlight.Ymap);
             if (ymapnode == null) return null;
             var lodlightsnode = GetChildTreeNode(ymapnode, "LodLights");
             if (lodlightsnode == null) return null;
             for (int i = 0; i < lodlightsnode.Nodes.Count; i++)
             {
-                TreeNode lodlightnode = lodlightsnode.Nodes[i];
+                var lodlightnode = lodlightsnode.Nodes[i];
                 if (lodlightnode.Tag == lodlight) return lodlightnode;
             }
             return null;
         }
-        public TreeNode FindBoxOccluderTreeNode(YmapBoxOccluder? box)
+        public TreeNode? FindBoxOccluderTreeNode(YmapBoxOccluder? box)
         {
             if (box == null) return null;
-            TreeNode ymapnode = FindYmapTreeNode(box.Ymap);
+            var ymapnode = FindYmapTreeNode(box.Ymap);
             if (ymapnode == null) return null;
             var boxesnode = GetChildTreeNode(ymapnode, "BoxOccluders");
             if (boxesnode == null) return null;
             for (int i = 0; i < boxesnode.Nodes.Count; i++)
             {
-                TreeNode boxnode = boxesnode.Nodes[i];
+                var boxnode = boxesnode.Nodes[i];
                 if (boxnode.Tag == box) return boxnode;
             }
             return null;
         }
-        public TreeNode FindOccludeModelTreeNode(YmapOccludeModel? model)
+        public TreeNode? FindOccludeModelTreeNode(YmapOccludeModel? model)
         {
             if (model == null) return null;
-            TreeNode ymapnode = FindYmapTreeNode(model.Ymap);
+            var ymapnode = FindYmapTreeNode(model.Ymap);
             if (ymapnode == null) return null;
             var modelsnode = GetChildTreeNode(ymapnode, "OccludeModels");
             if (modelsnode == null) return null;
             for (int i = 0; i < modelsnode.Nodes.Count; i++)
             {
-                TreeNode modelnode = modelsnode.Nodes[i];
+                var modelnode = modelsnode.Nodes[i];
                 if (modelnode.Tag == model) return modelnode;
             }
             return null;
         }
-        public TreeNode FindOccludeModelTriangleTreeNode(YmapOccludeModelTriangle? tri)
+        public TreeNode? FindOccludeModelTriangleTreeNode(YmapOccludeModelTriangle? tri)
         {
             if (tri == null) return null;
-            TreeNode ymapnode = FindYmapTreeNode(tri.Ymap);
+            var ymapnode = FindYmapTreeNode(tri.Ymap);
             if (ymapnode == null) return null;
             var modelsnode = GetChildTreeNode(ymapnode, "OccludeModels");
             if (modelsnode == null) return null;
             for (int i = 0; i < modelsnode.Nodes.Count; i++)
             {
-                TreeNode modelnode = modelsnode.Nodes[i];
+                var modelnode = modelsnode.Nodes[i];
                 if (modelnode.Tag == tri.Model) return modelnode;
             }
             return null;
         }
-        public TreeNode FindGrassTreeNode(YmapGrassInstanceBatch? batch)
+        public TreeNode? FindGrassTreeNode(YmapGrassInstanceBatch? batch)
         {
             if (batch == null) return null;
-            TreeNode ymapnode = FindYmapTreeNode(batch.Ymap);
+            var ymapnode = FindYmapTreeNode(batch.Ymap);
             if (ymapnode == null) return null;
             var batchnode = GetChildTreeNode(ymapnode, "GrassBatches");
             if (batchnode == null) return null;
             for (int i = 0; i < batchnode.Nodes.Count; i++)
             {
-                TreeNode grassnode = batchnode.Nodes[i];
+                var grassnode = batchnode.Nodes[i];
                 if (grassnode.Tag == batch) return grassnode;
             }
             return null;
         }
-        public TreeNode FindYtypTreeNode(YtypFile ytyp)
+        public TreeNode? FindYtypTreeNode(YtypFile? ytyp)
         {
+            if (ytyp == null) return null;
             if (ytyp != null && fileTreeNodes.TryGetValue(ytyp, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindArchetypeTreeNode(Archetype? archetype)
+        public TreeNode? FindArchetypeTreeNode(Archetype? archetype)
         {
             if (archetype == null) return null;
             var ytypnode = FindYtypTreeNode(archetype.Ytyp);
@@ -1113,7 +1116,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindMloRoomTreeNode(MCMloRoomDef? room)
+        public TreeNode? FindMloRoomTreeNode(MCMloRoomDef? room)
         {
             if (room == null) return null;
 
@@ -1132,7 +1135,7 @@ namespace CodeWalker.Project.Panels
 
             return null;
         }
-        public TreeNode FindMloPortalTreeNode(MCMloPortalDef? portal)
+        public TreeNode? FindMloPortalTreeNode(MCMloPortalDef? portal)
         {
             if (portal == null) return null;
 
@@ -1151,7 +1154,7 @@ namespace CodeWalker.Project.Panels
 
             return null;
         }
-        public TreeNode FindMloEntitySetTreeNode(MCMloEntitySet? entset)
+        public TreeNode? FindMloEntitySetTreeNode(MCMloEntitySet? entset)
         {
             if (entset == null) return null;
 
@@ -1170,8 +1173,9 @@ namespace CodeWalker.Project.Panels
 
             return null;
         }
-        public TreeNode FindMloEntityTreeNode(MCEntityDef ent)
+        public TreeNode? FindMloEntityTreeNode(MCEntityDef? ent)
         {
+            if (ent == null) return null;
             var entityroom = ent?.OwnerMlo?.GetEntityRoom(ent);
             if (entityroom != null)
             {
@@ -1216,12 +1220,13 @@ namespace CodeWalker.Project.Panels
 
             return null;
         }
-        public TreeNode FindYbnTreeNode(YbnFile ybn)
+        public TreeNode? FindYbnTreeNode(YbnFile? ybn)
         {
+            if (ybn == null) return null;
             if (ybn != null && fileTreeNodes.TryGetValue(ybn, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindCollisionBoundsTreeNode(Bounds? b)
+        public TreeNode? FindCollisionBoundsTreeNode(Bounds? b)
         {
             if (b == null) return null;
             var bnode = (b.Parent != null) ? FindCollisionBoundsTreeNode(b.Parent) : FindYbnTreeNode(b.GetRootYbn());
@@ -1233,7 +1238,7 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindCollisionPolyTreeNode(BoundPolygon? p)
+        public TreeNode? FindCollisionPolyTreeNode(BoundPolygon? p)
         {
             if (p == null) return null;
             var ybnnode = FindCollisionBoundsTreeNode(p.Owner);
@@ -1242,7 +1247,7 @@ namespace CodeWalker.Project.Panels
             polynode.Tag = p;
             return polynode;
         }
-        public TreeNode FindCollisionVertexTreeNode(BoundVertex? v)
+        public TreeNode? FindCollisionVertexTreeNode(BoundVertex? v)
         {
             if (v == null) return null;
             var ybnnode = FindCollisionBoundsTreeNode(v.Owner);
@@ -1251,15 +1256,16 @@ namespace CodeWalker.Project.Panels
             vertnode.Tag = v;
             return vertnode;
         }
-        public TreeNode FindYndTreeNode(YndFile ynd)
+        public TreeNode? FindYndTreeNode(YndFile? ynd)
         {
+            if (ynd == null) return null;
             if (ynd != null && fileTreeNodes.TryGetValue(ynd, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindPathNodeTreeNode(YndNode? n)
+        public TreeNode? FindPathNodeTreeNode(YndNode? n)
         {
             if (n == null) return null;
-            TreeNode yndnode = FindYndTreeNode(n.Ynd);
+            var yndnode = FindYndTreeNode(n.Ynd);
             if (yndnode == null) return null;
 
             // Search in the appropriate sub-group based on node type
@@ -1286,119 +1292,124 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindYnvTreeNode(YnvFile ynv)
+        public TreeNode? FindYnvTreeNode(YnvFile? ynv)
         {
+            if (ynv == null) return null;
             if (ynv != null && fileTreeNodes.TryGetValue(ynv, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindNavPolyTreeNode(YnvPoly? p)
+        public TreeNode? FindNavPolyTreeNode(YnvPoly? p)
         {
             if (p == null) return null;
-            TreeNode ynvnode = FindYnvTreeNode(p.Ynv);
+            var ynvnode = FindYnvTreeNode(p.Ynv);
             var polynode = GetChildTreeNode(ynvnode, "EditPoly");
             if (polynode == null) return null;
             polynode.Tag = p;
             return polynode;
         }
-        public TreeNode FindNavPointTreeNode(YnvPoint? p)
+        public TreeNode? FindNavPointTreeNode(YnvPoint? p)
         {
             if (p == null) return null;
-            TreeNode ynvnode = FindYnvTreeNode(p.Ynv);
+            var ynvnode = FindYnvTreeNode(p.Ynv);
             var pointnode = GetChildTreeNode(ynvnode, "EditPoint");
             if (pointnode == null) return null;
             pointnode.Tag = p;
             return pointnode;
             //for (int i = 0; i < pointsnode.Nodes.Count; i++)
             //{
-            //    TreeNode pnode = pointsnode.Nodes[i];
+            //    var pnode = pointsnode.Nodes[i];
             //    if (pnode.Tag == p) return pnode;
             //}
             //return null;
         }
-        public TreeNode FindNavPortalTreeNode(YnvPortal? p)
+        public TreeNode? FindNavPortalTreeNode(YnvPortal? p)
         {
             if (p == null) return null;
-            TreeNode ynvnode = FindYnvTreeNode(p.Ynv);
+            var ynvnode = FindYnvTreeNode(p.Ynv);
             var portalnode = GetChildTreeNode(ynvnode, "EditPortal");
             if (portalnode == null) return null;
             portalnode.Tag = p;
             return portalnode;
             //for (int i = 0; i < portalsnode.Nodes.Count; i++)
             //{
-            //    TreeNode pnode = portalsnode.Nodes[i];
+            //    var pnode = portalsnode.Nodes[i];
             //    if (pnode.Tag == p) return pnode;
             //}
             //return null;
         }
-        public TreeNode FindTrainTrackTreeNode(TrainTrack track)
+        public TreeNode? FindTrainTrackTreeNode(TrainTrack? track)
         {
+            if (track == null) return null;
             if (track != null && fileTreeNodes.TryGetValue(track, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindTrainNodeTreeNode(TrainTrackNode? n)
+        public TreeNode? FindTrainNodeTreeNode(TrainTrackNode? n)
         {
             if (n == null) return null;
-            TreeNode tracknode = FindTrainTrackTreeNode(n.Track);
+            var tracknode = FindTrainTrackTreeNode(n.Track);
             var nodesnode = GetChildTreeNode(tracknode, "Nodes");
             if (nodesnode == null) return null;
             for (int i = 0; i < nodesnode.Nodes.Count; i++)
             {
-                TreeNode nnode = nodesnode.Nodes[i];
+                var nnode = nodesnode.Nodes[i];
                 if (nnode.Tag == n) return nnode;
             }
             return null;
         }
-        public TreeNode FindScenarioTreeNode(YmtFile ymt)
+        public TreeNode? FindScenarioTreeNode(YmtFile? ymt)
         {
+            if (ymt == null) return null;
             if (ymt != null && fileTreeNodes.TryGetValue(ymt, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindScenarioNodeTreeNode(ScenarioNode? p)
+        public TreeNode? FindScenarioNodeTreeNode(ScenarioNode? p)
         {
             if (p == null) return null;
-            TreeNode ymtnode = FindScenarioTreeNode(p.Ymt);
+            var ymtnode = FindScenarioTreeNode(p.Ymt);
             var pointsnode = GetChildTreeNode(ymtnode, "Points");
             if (pointsnode == null) return null;
             for (int i = 0; i < pointsnode.Nodes.Count; i++)
             {
-                TreeNode pnode = pointsnode.Nodes[i];
+                var pnode = pointsnode.Nodes[i];
                 if (pnode.Tag == p) return pnode;
             }
             return null;
         }
-        public TreeNode FindAudioRelTreeNode(RelFile rel)
+        public TreeNode? FindAudioRelTreeNode(RelFile? rel)
         {
+            if (rel == null) return null;
             if (rel != null && fileTreeNodes.TryGetValue(rel, out var cached)) return cached;
             return null;
         }
-        public TreeNode FindAudioAmbientZoneTreeNode(AudioPlacement? zone)
+        public TreeNode? FindAudioAmbientZoneTreeNode(AudioPlacement? zone)
         {
             if (zone == null) return null;
-            TreeNode relnode = FindAudioRelTreeNode(zone.RelFile);
+            var relnode = FindAudioRelTreeNode(zone.RelFile);
             var zonesnode = GetChildTreeNode(relnode, "AmbientZones");
             if (zonesnode == null) return null;
             for (int i = 0; i < zonesnode.Nodes.Count; i++)
             {
-                TreeNode znode = zonesnode.Nodes[i];
+                var znode = zonesnode.Nodes[i];
                 if (znode.Tag == zone.AmbientZone) return znode;
             }
             return zonesnode;
         }
-        public TreeNode FindAudioAmbientRuleTreeNode(AudioPlacement? rule)
+        public TreeNode? FindAudioAmbientRuleTreeNode(AudioPlacement? rule)
         {
             if (rule == null) return null;
-            TreeNode relnode = FindAudioRelTreeNode(rule.RelFile);
+            var relnode = FindAudioRelTreeNode(rule.RelFile);
             var rulesnode = GetChildTreeNode(relnode, "AmbientRules");
             if (rulesnode == null) return null;
             for (int i = 0; i < rulesnode.Nodes.Count; i++)
             {
-                TreeNode rnode = rulesnode.Nodes[i];
+                var rnode = rulesnode.Nodes[i];
                 if (rnode.Tag == rule.AmbientRule) return rnode;
             }
             return rulesnode;
         }
-        public TreeNode FindAudioAmbientRuleTreeNode(uint hash)
+        public TreeNode? FindAudioAmbientRuleTreeNode(uint? hash)
         {
+            if (hash == null) return null;
             if (ProjectTreeView.Nodes.Count <= 0) return null;
             var projnode = ProjectTreeView.Nodes[0];
             var relsnode = GetChildTreeNode(projnode, "AudioRels");
@@ -1420,68 +1431,68 @@ namespace CodeWalker.Project.Panels
             }
             return null;
         }
-        public TreeNode FindAudioStaticEmitterTreeNode(AudioPlacement? emitter)
+        public TreeNode? FindAudioStaticEmitterTreeNode(AudioPlacement? emitter)
         {
             if (emitter == null) return null;
-            TreeNode relnode = FindAudioRelTreeNode(emitter.RelFile);
+            var relnode = FindAudioRelTreeNode(emitter.RelFile);
             var zonenode = GetChildTreeNode(relnode, "StaticEmitters");
             if (zonenode == null) return null;
             //zonenode.Tag = emitter;
             for (int i = 0; i < zonenode.Nodes.Count; i++)
             {
-                TreeNode znode = zonenode.Nodes[i];
+                var znode = zonenode.Nodes[i];
                 if (znode.Tag == emitter.StaticEmitter) return znode;
             }
             return zonenode;
         }
-        public TreeNode FindAudioAmbientZoneListTreeNode(Dat151AmbientZoneList? list)
+        public TreeNode? FindAudioAmbientZoneListTreeNode(Dat151AmbientZoneList? list)
         {
             if (list == null) return null;
-            TreeNode relnode = FindAudioRelTreeNode(list.Rel);
+            var relnode = FindAudioRelTreeNode(list.Rel);
             var zonelistsnode = GetChildTreeNode(relnode, "AmbientZoneLists");
             if (zonelistsnode == null) return null;
             for (int i = 0; i < zonelistsnode.Nodes.Count; i++)
             {
-                TreeNode lnode = zonelistsnode.Nodes[i];
+                var lnode = zonelistsnode.Nodes[i];
                 if (lnode.Tag == list) return lnode;
             }
             return null;
         }
-        public TreeNode FindAudioStaticEmitterListTreeNode(Dat151StaticEmitterList? list)
+        public TreeNode? FindAudioStaticEmitterListTreeNode(Dat151StaticEmitterList? list)
         {
             if (list == null) return null;
-            TreeNode relnode = FindAudioRelTreeNode(list.Rel);
+            var relnode = FindAudioRelTreeNode(list.Rel);
             var emitterlistsnode = GetChildTreeNode(relnode, "StaticEmitterLists");
             if (emitterlistsnode == null) return null;
             for (int i = 0; i < emitterlistsnode.Nodes.Count; i++)
             {
-                TreeNode enode = emitterlistsnode.Nodes[i];
+                var enode = emitterlistsnode.Nodes[i];
                 if (enode.Tag == list) return enode;
             }
             return null;
         }
-        public TreeNode FindAudioInteriorTreeNode(Dat151InteriorSettings? interior)
+        public TreeNode? FindAudioInteriorTreeNode(Dat151InteriorSettings? interior)
         {
             if (interior == null) return null;
-            TreeNode relnode = FindAudioRelTreeNode(interior.Rel);
+            var relnode = FindAudioRelTreeNode(interior.Rel);
             var interiorsnode = GetChildTreeNode(relnode, "Interiors");
             if (interiorsnode == null) return null;
             for (int i = 0; i < interiorsnode.Nodes.Count; i++)
             {
-                TreeNode enode = interiorsnode.Nodes[i];
+                var enode = interiorsnode.Nodes[i];
                 if (enode.Tag == interior) return enode;
             }
             return null;
         }
-        public TreeNode FindAudioInteriorRoomTreeNode(Dat151InteriorRoom? room)
+        public TreeNode? FindAudioInteriorRoomTreeNode(Dat151InteriorRoom? room)
         {
             if (room == null) return null;
-            TreeNode relnode = FindAudioRelTreeNode(room.Rel);
+            var relnode = FindAudioRelTreeNode(room.Rel);
             var roomsnode = GetChildTreeNode(relnode, "InteriorRooms");
             if (roomsnode == null) return null;
             for (int i = 0; i < roomsnode.Nodes.Count; i++)
             {
-                TreeNode enode = roomsnode.Nodes[i];
+                var enode = roomsnode.Nodes[i];
                 if (enode.Tag == room) return enode;
             }
             return null;
@@ -1495,9 +1506,10 @@ namespace CodeWalker.Project.Panels
         {
             ProjectTreeView.SelectedNode = null;
         }
-        public void TrySelectYmapTreeNode(YmapFile ymap)
+        public void TrySelectYmapTreeNode(YmapFile? ymap)
         {
-            TreeNode ymapnode = FindYmapTreeNode(ymap);
+            if (ymap == null) return;
+            var ymapnode = FindYmapTreeNode(ymap);
             if (ymapnode != null)
             {
                 if (ProjectTreeView.SelectedNode == ymapnode)
@@ -1510,9 +1522,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectEntityTreeNode(YmapEntityDef ent)
+        public void TrySelectEntityTreeNode(YmapEntityDef? ent)
         {
-            TreeNode entnode = FindEntityTreeNode(ent);
+            if (ent == null) return;
+            var entnode = FindEntityTreeNode(ent);
             if (entnode != null)
             {
                 if (ProjectTreeView.SelectedNode == entnode)
@@ -1525,9 +1538,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectCarGenTreeNode(YmapCarGen cargen)
+        public void TrySelectCarGenTreeNode(YmapCarGen? cargen)
         {
-            TreeNode cargennode = FindCarGenTreeNode(cargen);
+            if (cargen == null) return;
+            var cargennode = FindCarGenTreeNode(cargen);
             if (cargennode != null)
             {
                 if (ProjectTreeView.SelectedNode == cargennode)
@@ -1540,9 +1554,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectLodLightTreeNode(YmapLODLight lodlight)
+        public void TrySelectLodLightTreeNode(YmapLODLight? lodlight)
         {
-            TreeNode lodlightnode = FindLodLightTreeNode(lodlight);
+            if (lodlight == null) return;
+            var lodlightnode = FindLodLightTreeNode(lodlight);
             if (lodlightnode != null)
             {
                 if (ProjectTreeView.SelectedNode == lodlightnode)
@@ -1555,9 +1570,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectBoxOccluderTreeNode(YmapBoxOccluder box)
+        public void TrySelectBoxOccluderTreeNode(YmapBoxOccluder? box)
         {
-            TreeNode boxnode = FindBoxOccluderTreeNode(box);
+            if (box == null) return;
+            var boxnode = FindBoxOccluderTreeNode(box);
             if (boxnode != null)
             {
                 if (ProjectTreeView.SelectedNode == boxnode)
@@ -1570,9 +1586,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectOccludeModelTreeNode(YmapOccludeModel model)
+        public void TrySelectOccludeModelTreeNode(YmapOccludeModel? model)
         {
-            TreeNode modelnode = FindOccludeModelTreeNode(model);
+            if (model == null) return;
+            var modelnode = FindOccludeModelTreeNode(model);
             if (modelnode != null)
             {
                 if (ProjectTreeView.SelectedNode == modelnode)
@@ -1585,9 +1602,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectOccludeModelTriangleTreeNode(YmapOccludeModelTriangle tri)
+        public void TrySelectOccludeModelTriangleTreeNode(YmapOccludeModelTriangle? tri)
         {
-            TreeNode trinode = FindOccludeModelTriangleTreeNode(tri);
+            if (tri == null) return;
+            var trinode = FindOccludeModelTriangleTreeNode(tri);
             if (trinode != null)
             {
                 if (ProjectTreeView.SelectedNode == trinode)
@@ -1602,9 +1620,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectGrassBatchTreeNode(YmapGrassInstanceBatch grassBatch)
+        public void TrySelectGrassBatchTreeNode(YmapGrassInstanceBatch? grassBatch)
         {
-            TreeNode grassNode = FindGrassTreeNode(grassBatch);
+            if (grassBatch == null) return;
+            var grassNode = FindGrassTreeNode(grassBatch);
             if (grassNode != null)
             {
                 if (ProjectTreeView.SelectedNode == grassNode)
@@ -1617,9 +1636,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectMloEntityTreeNode(MCEntityDef ent)
+        public void TrySelectMloEntityTreeNode(MCEntityDef? ent)
         {
-            TreeNode entnode = FindMloEntityTreeNode(ent);
+            if (ent == null) return;
+            var entnode = FindMloEntityTreeNode(ent);
             if (entnode != null)
             {
                 if (ProjectTreeView.SelectedNode == entnode)
@@ -1632,9 +1652,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectMloRoomTreeNode(MCMloRoomDef room)
+        public void TrySelectMloRoomTreeNode(MCMloRoomDef? room)
         {
-            TreeNode roomnode = FindMloRoomTreeNode(room);
+            if (room == null) return;
+            var roomnode = FindMloRoomTreeNode(room);
             if (roomnode != null)
             {
                 if (ProjectTreeView.SelectedNode == roomnode)
@@ -1647,9 +1668,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectMloPortalTreeNode(MCMloPortalDef portal)
+        public void TrySelectMloPortalTreeNode(MCMloPortalDef? portal)
         {
-            TreeNode portalnode = FindMloPortalTreeNode(portal);
+            if (portal == null) return;
+            var portalnode = FindMloPortalTreeNode(portal);
             if (portalnode != null)
             {
                 if (ProjectTreeView.SelectedNode == portalnode)
@@ -1662,9 +1684,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectMloEntitySetTreeNode(MCMloEntitySet set)
+        public void TrySelectMloEntitySetTreeNode(MCMloEntitySet? set)
         {
-            TreeNode setnode = FindMloEntitySetTreeNode(set);
+            if (set == null) return;
+            var setnode = FindMloEntitySetTreeNode(set);
             if (setnode != null)
             {
                 if (ProjectTreeView.SelectedNode == setnode)
@@ -1677,9 +1700,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectArchetypeTreeNode(Archetype archetype)
+        public void TrySelectArchetypeTreeNode(Archetype? archetype)
         {
-            TreeNode archetypenode = FindArchetypeTreeNode(archetype);
+            if (archetype == null) return;
+            var archetypenode = FindArchetypeTreeNode(archetype);
             if (archetypenode != null)
             {
                 if (ProjectTreeView.SelectedNode == archetypenode)
@@ -1692,9 +1716,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectCollisionBoundsTreeNode(Bounds bounds)
+        public void TrySelectCollisionBoundsTreeNode(Bounds? bounds)
         {
-            TreeNode tnode = FindCollisionBoundsTreeNode(bounds);
+            if (bounds == null) return;
+            var tnode = FindCollisionBoundsTreeNode(bounds);
             if (tnode == null)
             {
                 tnode = FindYbnTreeNode(bounds?.GetRootYbn());
@@ -1711,9 +1736,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectCollisionPolyTreeNode(BoundPolygon poly)
+        public void TrySelectCollisionPolyTreeNode(BoundPolygon? poly)
         {
-            TreeNode tnode = FindCollisionPolyTreeNode(poly);
+            if (poly == null) return;
+            var tnode = FindCollisionPolyTreeNode(poly);
             if (tnode == null)
             {
                 tnode = FindCollisionBoundsTreeNode(poly?.Owner);
@@ -1734,9 +1760,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectCollisionVertexTreeNode(BoundVertex vert)
+        public void TrySelectCollisionVertexTreeNode(BoundVertex? vert)
         {
-            TreeNode tnode = FindCollisionVertexTreeNode(vert);
+            if (vert == null) return;
+            var tnode = FindCollisionVertexTreeNode(vert);
             if (tnode == null)
             {
                 tnode = FindCollisionBoundsTreeNode(vert?.Owner);
@@ -1757,9 +1784,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectPathNodeTreeNode(YndNode node)
+        public void TrySelectPathNodeTreeNode(YndNode? node)
         {
-            TreeNode tnode = FindPathNodeTreeNode(node);
+            if (node == null) return;
+            var tnode = FindPathNodeTreeNode(node);
             if (tnode == null)
             {
                 tnode = FindYndTreeNode(node?.Ynd);
@@ -1776,9 +1804,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectNavPolyTreeNode(YnvPoly poly)
+        public void TrySelectNavPolyTreeNode(YnvPoly? poly)
         {
-            TreeNode tnode = FindNavPolyTreeNode(poly);
+            if (poly == null) return;
+            var tnode = FindNavPolyTreeNode(poly);
             if (tnode == null)
             {
                 tnode = FindYnvTreeNode(poly?.Ynv);
@@ -1795,9 +1824,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectNavPointTreeNode(YnvPoint point)
+        public void TrySelectNavPointTreeNode(YnvPoint? point)
         {
-            TreeNode tnode = FindNavPointTreeNode(point);
+            if (point == null) return;
+            var tnode = FindNavPointTreeNode(point);
             if (tnode == null)
             {
                 tnode = FindYnvTreeNode(point?.Ynv);
@@ -1814,9 +1844,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectNavPortalTreeNode(YnvPortal portal)
+        public void TrySelectNavPortalTreeNode(YnvPortal? portal)
         {
-            TreeNode tnode = FindNavPortalTreeNode(portal);
+            if (portal == null) return;
+            var tnode = FindNavPortalTreeNode(portal);
             if (tnode == null)
             {
                 tnode = FindYnvTreeNode(portal?.Ynv);
@@ -1833,9 +1864,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectTrainNodeTreeNode(TrainTrackNode node)
+        public void TrySelectTrainNodeTreeNode(TrainTrackNode? node)
         {
-            TreeNode tnode = FindTrainNodeTreeNode(node);
+            if (node == null) return;
+            var tnode = FindTrainNodeTreeNode(node);
             if (tnode == null)
             {
                 tnode = FindTrainTrackTreeNode(node?.Track);
@@ -1852,9 +1884,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectScenarioTreeNode(YmtFile scenario)
+        public void TrySelectScenarioTreeNode(YmtFile? scenario)
         {
-            TreeNode tnode = FindScenarioTreeNode(scenario);
+            if (scenario == null) return;
+            var tnode = FindScenarioTreeNode(scenario);
             if (tnode != null)
             {
                 if (ProjectTreeView.SelectedNode == tnode)
@@ -1867,9 +1900,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectScenarioNodeTreeNode(ScenarioNode node)
+        public void TrySelectScenarioNodeTreeNode(ScenarioNode? node)
         {
-            TreeNode tnode = FindScenarioNodeTreeNode(node);
+            if (node == null) return;
+            var tnode = FindScenarioNodeTreeNode(node);
             if (tnode == null)
             {
                 tnode = FindScenarioTreeNode(node?.Ymt);
@@ -1886,9 +1920,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioRelTreeNode(RelFile rel)
+        public void TrySelectAudioRelTreeNode(RelFile? rel)
         {
-            TreeNode tnode = FindAudioRelTreeNode(rel);
+            if (rel == null) return;
+            var tnode = FindAudioRelTreeNode(rel);
             if (tnode != null)
             {
                 if (ProjectTreeView.SelectedNode == tnode)
@@ -1901,9 +1936,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioAmbientZoneTreeNode(AudioPlacement zone)
+        public void TrySelectAudioAmbientZoneTreeNode(AudioPlacement? zone)
         {
-            TreeNode tnode = FindAudioAmbientZoneTreeNode(zone);
+            if (zone == null) return;
+            var tnode = FindAudioAmbientZoneTreeNode(zone);
             if (tnode == null)
             {
                 tnode = FindAudioRelTreeNode(zone?.RelFile);
@@ -1920,9 +1956,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioAmbientRuleTreeNode(AudioPlacement rule)
+        public void TrySelectAudioAmbientRuleTreeNode(AudioPlacement? rule)
         {
-            TreeNode tnode = FindAudioAmbientRuleTreeNode(rule);
+            if (rule == null) return;
+            var tnode = FindAudioAmbientRuleTreeNode(rule);
             if (tnode == null)
             {
                 tnode = FindAudioRelTreeNode(rule?.RelFile);
@@ -1955,9 +1992,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioStaticEmitterTreeNode(AudioPlacement emitter)
+        public void TrySelectAudioStaticEmitterTreeNode(AudioPlacement? emitter)
         {
-            TreeNode tnode = FindAudioStaticEmitterTreeNode(emitter);
+            if (emitter == null) return;
+            var tnode = FindAudioStaticEmitterTreeNode(emitter);
             if (tnode == null)
             {
                 tnode = FindAudioRelTreeNode(emitter?.RelFile);
@@ -1974,9 +2012,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioAmbientZoneListTreeNode(Dat151AmbientZoneList list)
+        public void TrySelectAudioAmbientZoneListTreeNode(Dat151AmbientZoneList? list)
         {
-            TreeNode tnode = FindAudioAmbientZoneListTreeNode(list);
+            if (list == null) return;
+            var tnode = FindAudioAmbientZoneListTreeNode(list);
             if (tnode == null)
             {
                 tnode = FindAudioRelTreeNode(list?.Rel);
@@ -1993,9 +2032,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioStaticEmitterListTreeNode(Dat151StaticEmitterList list)
+        public void TrySelectAudioStaticEmitterListTreeNode(Dat151StaticEmitterList? list)
         {
-            TreeNode tnode = FindAudioStaticEmitterListTreeNode(list);
+            if (list == null) return;
+            var tnode = FindAudioStaticEmitterListTreeNode(list);
             if (tnode == null)
             {
                 tnode = FindAudioRelTreeNode(list?.Rel);
@@ -2012,9 +2052,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioInteriorTreeNode(Dat151InteriorSettings interior)
+        public void TrySelectAudioInteriorTreeNode(Dat151InteriorSettings? interior)
         {
-            TreeNode tnode = FindAudioInteriorTreeNode(interior);
+            if (interior == null) return;
+            var tnode = FindAudioInteriorTreeNode(interior);
             if (tnode == null)
             {
                 tnode = FindAudioRelTreeNode(interior?.Rel);
@@ -2031,9 +2072,10 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void TrySelectAudioInteriorRoomTreeNode(Dat151InteriorRoom room)
+        public void TrySelectAudioInteriorRoomTreeNode(Dat151InteriorRoom? room)
         {
-            TreeNode tnode = FindAudioInteriorRoomTreeNode(room);
+            if (room == null) return;
+            var tnode = FindAudioInteriorRoomTreeNode(room);
             if (tnode == null)
             {
                 tnode = FindAudioRelTreeNode(room?.Rel);
@@ -2054,72 +2096,81 @@ namespace CodeWalker.Project.Panels
 
 
 
-        public void UpdateYmapTreeNode(YmapFile ymap)
+        public void UpdateYmapTreeNode(YmapFile? ymap)
         {
+            if (ymap == null) return;
             var tn = FindYmapTreeNode(ymap);
             if (tn != null)
             {
                 tn.Text = ymap.RpfFileEntry?.Name ?? ymap.Name;
             }
         }
-        public void UpdateYtypTreeNode(YtypFile ytyp)
+        public void UpdateYtypTreeNode(YtypFile? ytyp)
         {
+            if (ytyp == null) return;
             var tn = FindYtypTreeNode(ytyp);
             if (tn != null)
             {
                 tn.Text = ytyp.RpfFileEntry?.Name ?? ytyp.Name;
             }
         }
-        public void UpdateYbnTreeNode(YbnFile ybn)
+        public void UpdateYbnTreeNode(YbnFile? ybn)
         {
+            if (ybn == null) return;
             var tn = FindYbnTreeNode(ybn);
             if (tn != null)
             {
                 tn.Text = ybn.RpfFileEntry?.Name ?? ybn.Name;
             }
         }
-        public void UpdateYndTreeNode(YndFile ynd)
+        public void UpdateYndTreeNode(YndFile? ynd)
         {
+            if (ynd == null) return;
             var tn = FindYndTreeNode(ynd);
             if (tn != null)
             {
                 tn.Text = ynd.RpfFileEntry?.Name ?? ynd.Name;
             }
         }
-        public void UpdateYnvTreeNode(YnvFile ynv)
+        public void UpdateYnvTreeNode(YnvFile? ynv)
         {
+            if (ynv == null) return;
             var tn = FindYnvTreeNode(ynv);
             if (tn != null)
             {
                 tn.Text = ynv.RpfFileEntry?.Name ?? ynv.Name;
             }
         }
-        public void UpdateTrainTrackTreeNode(TrainTrack track)
+        public void UpdateTrainTrackTreeNode(TrainTrack? track)
         {
+            if (track == null) return;
             var tn = FindTrainTrackTreeNode(track);
             if (tn != null)
             {
                 tn.Text = track.RpfFileEntry?.Name ?? track.Name;
             }
         }
-        public void UpdateScenarioTreeNode(YmtFile scenarios)
+        public void UpdateScenarioTreeNode(YmtFile? scenarios)
         {
+            if (scenarios == null) return;
             var tn = FindScenarioTreeNode(scenarios);
             if (tn != null)
             {
                 tn.Text = scenarios.RpfFileEntry?.Name ?? scenarios.Name;
             }
         }
-        public void UpdateAudioRelTreeNode(RelFile rel)
+        public void UpdateAudioRelTreeNode(RelFile? rel)
         {
+            if (rel == null) return;
             var tn = FindAudioRelTreeNode(rel);
             if (tn != null)
             {
                 tn.Text = rel.RpfFileEntry?.Name ?? rel.Name;
             }
         }
-        public void UpdateArchetypeTreeNode(Archetype archetype)
+        public void UpdateArchetypeTreeNode(Archetype? archetype)
         {
+            if (archetype == null) return;
             var tn = FindArchetypeTreeNode(archetype);
             if (tn != null)
             {
@@ -2152,119 +2203,134 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void UpdateCarGenTreeNode(YmapCarGen cargen)
+        public void UpdateCarGenTreeNode(YmapCarGen? cargen)
         {
+            if (cargen == null) return;
             var tn = FindCarGenTreeNode(cargen);
             if (tn != null)
             {
                 tn.Text = cargen.ToString();
             }
         }
-        public void UpdateLodLightTreeNode(YmapLODLight lodlight)
+        public void UpdateLodLightTreeNode(YmapLODLight? lodlight)
         {
+            if (lodlight == null) return;
             var tn = FindLodLightTreeNode(lodlight);
             if (tn != null)
             {
                 tn.Text = lodlight.ToString();
             }
         }
-        public void UpdateBoxOccluderTreeNode(YmapBoxOccluder box)
+        public void UpdateBoxOccluderTreeNode(YmapBoxOccluder? box)
         {
+            if (box == null) return;
             var tn = FindBoxOccluderTreeNode(box);
             if (tn != null)
             {
                 tn.Text = box.ToString();
             }
         }
-        public void UpdateOccludeModelTreeNode(YmapOccludeModel model)
+        public void UpdateOccludeModelTreeNode(YmapOccludeModel? model)
         {
+            if (model == null) return;
             var tn = FindOccludeModelTreeNode(model);
             if (tn != null)
             {
                 tn.Text = model.ToString();
             }
         }
-        public void UpdatePathNodeTreeNode(YndNode node)
+        public void UpdatePathNodeTreeNode(YndNode? node)
         {
+            if (node == null) return;
             var tn = FindPathNodeTreeNode(node);
             if (tn != null)
             {
                 tn.Text = node._RawData.ToString();
             }
         }
-        public void UpdateNavPolyTreeNode(YnvPoly poly)
+        public void UpdateNavPolyTreeNode(YnvPoly? poly)
         {
+            if (poly == null) return;
             var tn = FindNavPolyTreeNode(poly);
             if (tn != null)
             {
             }
         }
-        public void UpdateTrainNodeTreeNode(TrainTrackNode node)
+        public void UpdateTrainNodeTreeNode(TrainTrackNode? node)
         {
+            if (node == null) return;
             var tn = FindTrainNodeTreeNode(node);
             if (tn != null)
             {
                 tn.Text = node.ToString();
             }
         }
-        public void UpdateScenarioNodeTreeNode(ScenarioNode node)
+        public void UpdateScenarioNodeTreeNode(ScenarioNode? node)
         {
+            if (node == null) return;
             var tn = FindScenarioNodeTreeNode(node);
             if (tn != null)
             {
                 tn.Text = node.MedTypeName + ": " + node.StringText;
             }
         }
-        public void UpdateAudioAmbientZoneTreeNode(AudioPlacement zone)
+        public void UpdateAudioAmbientZoneTreeNode(AudioPlacement? zone)
         {
+            if (zone == null) return;
             var tn = FindAudioAmbientZoneTreeNode(zone);
             if (tn != null)
             {
                 tn.Text = zone.NameHash.ToString();
             }
         }
-        public void UpdateAudioAmbientRuleTreeNode(AudioPlacement rule)
+        public void UpdateAudioAmbientRuleTreeNode(AudioPlacement? rule)
         {
+            if (rule == null) return;
             var tn = FindAudioAmbientRuleTreeNode(rule);
             if (tn != null)
             {
                 tn.Text = rule.NameHash.ToString();
             }
         }
-        public void UpdateAudioStaticEmitterTreeNode(AudioPlacement emitter)
+        public void UpdateAudioStaticEmitterTreeNode(AudioPlacement? emitter)
         {
+            if (emitter == null) return;
             var tn = FindAudioStaticEmitterTreeNode(emitter);
             if (tn != null)
             {
                 tn.Text = emitter.NameHash.ToString();
             }
         }
-        public void UpdateAudioAmbientZoneListTreeNode(Dat151AmbientZoneList list)
+        public void UpdateAudioAmbientZoneListTreeNode(Dat151AmbientZoneList? list)
         {
+            if (list == null) return;
             var tn = FindAudioAmbientZoneListTreeNode(list);
             if (tn != null)
             {
                 tn.Text = list.NameHash.ToString();
             }
         }
-        public void UpdateAudioStaticEmitterListTreeNode(Dat151StaticEmitterList list)
+        public void UpdateAudioStaticEmitterListTreeNode(Dat151StaticEmitterList? list)
         {
+            if (list == null) return;
             var tn = FindAudioStaticEmitterListTreeNode(list);
             if (tn != null)
             {
                 tn.Text = list.NameHash.ToString();
             }
         }
-        public void UpdateAudioInteriorTreeNode(Dat151InteriorSettings interior)
+        public void UpdateAudioInteriorTreeNode(Dat151InteriorSettings? interior)
         {
+            if (interior == null) return;
             var tn = FindAudioInteriorTreeNode(interior);
             if (tn != null)
             {
                 tn.Text = interior.NameHash.ToString();
             }
         }
-        public void UpdateAudioInteriorRoomTreeNode(Dat151InteriorRoom room)
+        public void UpdateAudioInteriorRoomTreeNode(Dat151InteriorRoom? room)
         {
+            if (room == null) return;
             var tn = FindAudioInteriorRoomTreeNode(room);
             if (tn != null)
             {
@@ -2302,7 +2368,7 @@ namespace CodeWalker.Project.Panels
         }
 
 
-        public TreeNode AddEntityTreeNode(YmapEntityDef ent)
+        public TreeNode? AddEntityTreeNode(YmapEntityDef ent)
         {
             if (ent?.Ymap == null) return null;
             var ymapnode = FindYmapTreeNode(ent.Ymap);
@@ -2310,16 +2376,16 @@ namespace CodeWalker.Project.Panels
             var entsnode = GetChildTreeNode(ymapnode, "Entities");
             if (entsnode == null)
             {
-                entsnode = ymapnode.Nodes.Add("Entities (" + ent.Ymap.AllEntities.Length.ToString() + ")");
+                entsnode = ymapnode.Nodes.Add("Entities (" + (ent.Ymap?.AllEntities.Length ?? 0).ToString() + ")");
                 entsnode.Name = "Entities";
                 entsnode.Tag = ent.Ymap;
             }
             else
             {
-                entsnode.Text = "Entities (" + ent.Ymap.AllEntities.Length.ToString() + ")";
+                entsnode.Text = "Entities (" + (ent.Ymap?.AllEntities.Length ?? 0).ToString() + ")";
             }
             var edef = ent.CEntityDef;
-            int i = (ent.Ymap.AllEntities?.Length ?? 1) - 1;
+            int i = (ent.Ymap?.AllEntities.Length ?? 1) - 1;
             TreeNode enode;
             if (ProjectForm.displayentityindexes)
                 enode = entsnode.Nodes.Add($"[{i}] {edef.archetypeName}");
@@ -2328,7 +2394,7 @@ namespace CodeWalker.Project.Panels
             enode.Tag = ent;
             return enode;
         }
-        public TreeNode AddCarGenTreeNode(YmapCarGen cargen)
+        public TreeNode? AddCarGenTreeNode(YmapCarGen cargen)
         {
             if (cargen?.Ymap == null) return null;
             var ymapnode = FindYmapTreeNode(cargen.Ymap);
@@ -2336,19 +2402,19 @@ namespace CodeWalker.Project.Panels
             var cargensnode = GetChildTreeNode(ymapnode, "CarGens");
             if (cargensnode == null)
             {
-                cargensnode = ymapnode.Nodes.Add("Car Generators (" + cargen.Ymap.CarGenerators.Length.ToString() + ")");
+                cargensnode = ymapnode.Nodes.Add("Car Generators (" + (cargen.Ymap?.CarGenerators.Length ?? 0).ToString() + ")");
                 cargensnode.Name = "CarGens";
                 cargensnode.Tag = cargen.Ymap;
             }
             else
             {
-                cargensnode.Text = "Car Generators (" + cargen.Ymap.CarGenerators.Length.ToString() + ")";
+                cargensnode.Text = "Car Generators (" + (cargen.Ymap?.CarGenerators.Length ?? 0).ToString() + ")";
             }
             var cgnode = cargensnode.Nodes.Add(cargen.ToString());
             cgnode.Tag = cargen;
             return cgnode;
         }
-        public TreeNode AddLodLightTreeNode(YmapLODLight lodlight)
+        public TreeNode? AddLodLightTreeNode(YmapLODLight lodlight)
         {
             if (lodlight?.Ymap == null) return null;
             var ymapnode = FindYmapTreeNode(lodlight.Ymap);
@@ -2368,7 +2434,7 @@ namespace CodeWalker.Project.Panels
             llnode.Tag = lodlight;
             return llnode;
         }
-        public TreeNode AddBoxOccluderTreeNode(YmapBoxOccluder box)
+        public TreeNode? AddBoxOccluderTreeNode(YmapBoxOccluder box)
         {
             if (box?.Ymap == null) return null;
             var ymapnode = FindYmapTreeNode(box.Ymap);
@@ -2388,7 +2454,7 @@ namespace CodeWalker.Project.Panels
             boxnode.Tag = box;
             return boxnode;
         }
-        public TreeNode AddOccludeModelTreeNode(YmapOccludeModel model)
+        public TreeNode? AddOccludeModelTreeNode(YmapOccludeModel model)
         {
             if (model?.Ymap == null) return null;
             var ymapnode = FindYmapTreeNode(model.Ymap);
@@ -2408,7 +2474,7 @@ namespace CodeWalker.Project.Panels
             modnode.Tag = model;
             return modnode;
         }
-        public TreeNode AddGrassBatchTreeNode(YmapGrassInstanceBatch batch)
+        public TreeNode? AddGrassBatchTreeNode(YmapGrassInstanceBatch batch)
         {
             if (batch?.Ymap == null) return null;
             var ymapnode = FindYmapTreeNode(batch.Ymap);
@@ -2416,19 +2482,19 @@ namespace CodeWalker.Project.Panels
             var batchesnode = GetChildTreeNode(ymapnode, "GrassBatches");
             if (batchesnode == null)
             {
-                batchesnode = ymapnode.Nodes.Add("Grass Batches (" + batch.Ymap.GrassInstanceBatches.Length.ToString() + ")");
+                batchesnode = ymapnode.Nodes.Add("Grass Batches (" + (batch.Ymap?.GrassInstanceBatches.Length ?? 0).ToString() + ")");
                 batchesnode.Name = "GrassBatches";
                 batchesnode.Tag = batch.Ymap;
             }
             else
             {
-                batchesnode.Text = "Grass Batches (" + batch.Ymap.GrassInstanceBatches.Length.ToString() + ")";
+                batchesnode.Text = "Grass Batches (" + (batch.Ymap?.GrassInstanceBatches.Length ?? 0).ToString() + ")";
             }
             var gbnode = batchesnode.Nodes.Add(batch.ToString());
             gbnode.Tag = batch;
             return gbnode;
         }
-        public TreeNode AddArchetypeTreeNode(Archetype archetype)
+        public TreeNode? AddArchetypeTreeNode(Archetype? archetype)
         {
             if (archetype?.Ytyp == null) return null;
             var ytypnode = FindYtypTreeNode(archetype.Ytyp);
@@ -2436,20 +2502,20 @@ namespace CodeWalker.Project.Panels
             var archsnode = GetChildTreeNode(ytypnode, "Archetypes");
             if (archsnode == null)
             {
-                archsnode = ytypnode.Nodes.Add("Archetypes (" + archetype.Ytyp.AllArchetypes.Length.ToString() + ")");
+                archsnode = ytypnode.Nodes.Add("Archetypes (" + (archetype.Ytyp?.AllArchetypes.Length ?? 0).ToString() + ")");
                 archsnode.Name = "Archetypes";
                 archsnode.Tag = archetype.Ytyp;
             }
             else
             {
-                archsnode.Text = "Archetypes (" + archetype.Ytyp.AllArchetypes.Length.ToString() + ")";
+                archsnode.Text = "Archetypes (" + (archetype.Ytyp?.AllArchetypes.Length ?? 0).ToString() + ")";
             }
             var anode = archsnode.Nodes.Add(archetype.Name);
             anode.Tag = archetype;
             return anode;
         }
 
-        public TreeNode AddPathNodeTreeNode(YndNode node)
+        public TreeNode? AddPathNodeTreeNode(YndNode node)
         {
             if (node?.Ynd == null) return null;
             var yndnode = FindYndTreeNode(node.Ynd);
@@ -2476,7 +2542,7 @@ namespace CodeWalker.Project.Panels
             nnode.Tag = node;
             return nnode;
         }
-        public TreeNode AddTrainNodeTreeNode(TrainTrackNode node)
+        public TreeNode? AddTrainNodeTreeNode(TrainTrackNode node)
         {
             if (node?.Track == null) return null;
             var tracknode = FindTrainTrackTreeNode(node.Track);
@@ -2484,19 +2550,19 @@ namespace CodeWalker.Project.Panels
             var nodesnode = GetChildTreeNode(tracknode, "Nodes");
             if (nodesnode == null)
             {
-                nodesnode = tracknode.Nodes.Add("Nodes (" + node.Track.Nodes.Count.ToString() + ")");
+                nodesnode = tracknode.Nodes.Add("Nodes (" + (node.Track?.Nodes.Count ?? 0).ToString() + ")");
                 nodesnode.Name = "Nodes";
                 nodesnode.Tag = node.Track;
             }
             else
             {
-                nodesnode.Text = "Nodes (" + node.Track.Nodes.Count.ToString() + ")";
+                nodesnode.Text = "Nodes (" + (node.Track?.Nodes.Count ?? 0).ToString() + ")";
             }
             var nnode = nodesnode.Nodes.Add(node.ToString());
             nnode.Tag = node;
             return nnode;
         }
-        public TreeNode AddScenarioNodeTreeNode(ScenarioNode node)
+        public TreeNode? AddScenarioNodeTreeNode(ScenarioNode node)
         {
             if (node?.Ymt == null) return null;
             var ymtnode = FindScenarioTreeNode(node.Ymt);
@@ -2517,10 +2583,10 @@ namespace CodeWalker.Project.Panels
             nnode.Tag = node;
             return nnode;
         }
-        public TreeNode AddCollisionBoundsTreeNode(Bounds? b, Bounds parent)
+        public TreeNode? AddCollisionBoundsTreeNode(Bounds? b, Bounds? parent)
         {
             if (b == null) return null;
-            TreeNode parentnode;
+            TreeNode? parentnode;
             if (parent != null)
             {
                 parentnode = FindCollisionBoundsTreeNode(parent);
@@ -2543,7 +2609,7 @@ namespace CodeWalker.Project.Panels
             }
             return bnode;
         }
-        public TreeNode AddMloEntityTreeNode(MCEntityDef ent)
+        public TreeNode? AddMloEntityTreeNode(MCEntityDef ent)
         {
             if (ent?.OwnerMlo == null) return null;
             var room = ent.OwnerMlo.GetEntityRoom(ent);
@@ -2554,7 +2620,7 @@ namespace CodeWalker.Project.Panels
             entnode.Tag = ent;
             return entnode;
         }
-        public TreeNode AddMloRoomTreeNode(MCMloRoomDef room)
+        public TreeNode? AddMloRoomTreeNode(MCMloRoomDef room)
         {
             if (room?.OwnerMlo?.Ytyp == null) return null;
             var mlonode = FindArchetypeTreeNode(room.OwnerMlo);
@@ -2573,7 +2639,7 @@ namespace CodeWalker.Project.Panels
             roomnode.Tag = room;
             return roomnode;
         }
-        public TreeNode AddMloPortalTreeNode(MCMloPortalDef portal)
+        public TreeNode? AddMloPortalTreeNode(MCMloPortalDef portal)
         {
             if (portal?.OwnerMlo?.Ytyp == null) return null;
             var mlonode = FindArchetypeTreeNode(portal.OwnerMlo);
@@ -2592,7 +2658,7 @@ namespace CodeWalker.Project.Panels
             portalnode.Tag = portal;
             return portalnode;
         }
-        public TreeNode AddMloEntitySetTreeNode(MCMloEntitySet set)
+        public TreeNode? AddMloEntitySetTreeNode(MCMloEntitySet set)
         {
             if (set?.OwnerMlo?.Ytyp == null) return null;
             var mlonode = FindArchetypeTreeNode(set.OwnerMlo);
@@ -2611,7 +2677,7 @@ namespace CodeWalker.Project.Panels
             setnode.Tag = set;
             return setnode;
         }
-        public TreeNode AddAudioAmbientZoneTreeNode(AudioPlacement zone)
+        public TreeNode? AddAudioAmbientZoneTreeNode(AudioPlacement zone)
         {
             if (zone?.RelFile == null) return null;
             var relnode = FindAudioRelTreeNode(zone.RelFile);
@@ -2632,7 +2698,7 @@ namespace CodeWalker.Project.Panels
             znode.Tag = zone.AmbientZone;
             return znode;
         }
-        public TreeNode AddAudioAmbientRuleTreeNode(AudioPlacement rule)
+        public TreeNode? AddAudioAmbientRuleTreeNode(AudioPlacement rule)
         {
             if (rule?.RelFile == null) return null;
             var relnode = FindAudioRelTreeNode(rule.RelFile);
@@ -2653,7 +2719,7 @@ namespace CodeWalker.Project.Panels
             rnode.Tag = rule.AmbientRule;
             return rnode;
         }
-        public TreeNode AddAudioStaticEmitterTreeNode(AudioPlacement emitter)
+        public TreeNode? AddAudioStaticEmitterTreeNode(AudioPlacement emitter)
         {
             if (emitter?.RelFile == null) return null;
             var relnode = FindAudioRelTreeNode(emitter.RelFile);
@@ -2674,7 +2740,7 @@ namespace CodeWalker.Project.Panels
             enode.Tag = emitter.StaticEmitter;
             return enode;
         }
-        public TreeNode AddAudioAmbientZoneListTreeNode(Dat151AmbientZoneList list)
+        public TreeNode? AddAudioAmbientZoneListTreeNode(Dat151AmbientZoneList list)
         {
             if (list?.Rel == null) return null;
             var relnode = FindAudioRelTreeNode(list.Rel);
@@ -2695,7 +2761,7 @@ namespace CodeWalker.Project.Panels
             lnode.Tag = list;
             return lnode;
         }
-        public TreeNode AddAudioStaticEmitterListTreeNode(Dat151StaticEmitterList list)
+        public TreeNode? AddAudioStaticEmitterListTreeNode(Dat151StaticEmitterList list)
         {
             if (list?.Rel == null) return null;
             var relnode = FindAudioRelTreeNode(list.Rel);
@@ -2716,7 +2782,7 @@ namespace CodeWalker.Project.Panels
             lnode.Tag = list;
             return lnode;
         }
-        public TreeNode AddAudioInteriorTreeNode(Dat151InteriorSettings interior)
+        public TreeNode? AddAudioInteriorTreeNode(Dat151InteriorSettings interior)
         {
             if (interior?.Rel == null) return null;
             var relnode = FindAudioRelTreeNode(interior.Rel);
@@ -2737,7 +2803,7 @@ namespace CodeWalker.Project.Panels
             inode.Tag = interior;
             return inode;
         }
-        public TreeNode AddAudioInteriorRoomTreeNode(Dat151InteriorRoom room)
+        public TreeNode? AddAudioInteriorRoomTreeNode(Dat151InteriorRoom room)
         {
             if (room?.Rel == null) return null;
             var relnode = FindAudioRelTreeNode(room.Rel);
@@ -2759,7 +2825,7 @@ namespace CodeWalker.Project.Panels
             return rnode;
         }
 
-        private TreeNode GetOrCreateCategoryNode(string categoryName, string nodeName)
+        private TreeNode? GetOrCreateCategoryNode(string categoryName, string nodeName)
         {
             if (ProjectTreeView.Nodes.Count <= 0) return null;
             var projnode = ProjectTreeView.Nodes[0];
@@ -2922,26 +2988,29 @@ namespace CodeWalker.Project.Panels
         }
 
 
-        public void RemoveEntityTreeNode(YmapEntityDef ent)
+        public void RemoveEntityTreeNode(YmapEntityDef? ent)
         {
+            if (ent == null) return;
             var tn = FindEntityTreeNode(ent);
             if ((tn != null) && (tn.Parent != null))
             {
-                tn.Parent.Text = "Entities (" + ent.Ymap.AllEntities.Length.ToString() + ")";
+                tn.Parent.Text = "Entities (" + (ent.Ymap?.AllEntities.Length ?? 0).ToString() + ")";
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveCarGenTreeNode(YmapCarGen cargen)
+        public void RemoveCarGenTreeNode(YmapCarGen? cargen)
         {
+            if (cargen == null) return;
             var tn = FindCarGenTreeNode(cargen);
             if ((tn != null) && (tn.Parent != null))
             {
-                tn.Parent.Text = "Car Generators (" + cargen.Ymap.CarGenerators.Length.ToString() + ")";
+                tn.Parent.Text = "Car Generators (" + (cargen.Ymap?.CarGenerators.Length ?? 0).ToString() + ")";
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveLodLightTreeNode(YmapLODLight lodlight)
+        public void RemoveLodLightTreeNode(YmapLODLight? lodlight)
         {
+            if (lodlight == null) return;
             var lodlights = lodlight?.LodLights?.LodLights;
             var tn = FindLodLightTreeNode(lodlight);
             if ((tn != null) && (tn.Parent != null) && (lodlights != null))
@@ -2951,10 +3020,11 @@ namespace CodeWalker.Project.Panels
                 {
                     var pn = tn.Parent;
                     var yn = pn.Parent;
+                    if (yn == null) return;
                     yn.Nodes.Remove(pn);
-                    pn = yn.Nodes.Add("LOD Lights (" + (lodlights?.Length.ToString() ?? "0") + ")");
+                    pn = yn.Nodes.Add("LOD Lights (" + lodlights.Length.ToString() + ")");
                     pn.Name = "LodLights";
-                    pn.Tag = lodlight.LodLights.Ymap;
+                    pn.Tag = lodlight?.LodLights?.Ymap;
                     foreach (var ll in lodlights)
                     {
                         var ntn = pn.Nodes.Add(ll.ToString());
@@ -2967,8 +3037,9 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void RemoveBoxOccluderTreeNode(YmapBoxOccluder box)
+        public void RemoveBoxOccluderTreeNode(YmapBoxOccluder? box)
         {
+            if (box == null) return;
             var ymap = box?.Ymap;
             var tn = FindBoxOccluderTreeNode(box);
             if ((tn != null) && (tn.Parent != null) && (box != null))
@@ -2978,11 +3049,12 @@ namespace CodeWalker.Project.Panels
                 {
                     var pn = tn.Parent;
                     var yn = pn.Parent;
+                    if (yn == null) return;
                     yn.Nodes.Remove(pn);
                     pn = yn.Nodes.Add("Box Occluders (" + (ymap?.BoxOccluders?.Length.ToString() ?? "0") + ")");
                     pn.Name = "BoxOccluders";
                     pn.Tag = ymap;
-                    if (ymap.BoxOccluders != null)
+                    if (ymap?.BoxOccluders != null)
                     {
                         foreach (var b in ymap.BoxOccluders)
                         {
@@ -2997,8 +3069,9 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void RemoveOccludeModelTreeNode(YmapOccludeModel model)
+        public void RemoveOccludeModelTreeNode(YmapOccludeModel? model)
         {
+            if (model == null) return;
             var ymap = model?.Ymap;
             var tn = FindOccludeModelTreeNode(model);
             if ((tn != null) && (tn.Parent != null) && (model != null))
@@ -3008,11 +3081,12 @@ namespace CodeWalker.Project.Panels
                 {
                     var pn = tn.Parent;
                     var yn = pn.Parent;
+                    if (yn == null) return;
                     yn.Nodes.Remove(pn);
                     pn = yn.Nodes.Add("Occlude Models (" + (ymap?.OccludeModels?.Length.ToString() ?? "0") + ")");
                     pn.Name = "OccludeModels";
                     pn.Tag = ymap;
-                    if (ymap.OccludeModels != null)
+                    if (ymap?.OccludeModels != null)
                     {
                         foreach (var m in ymap.OccludeModels)
                         {
@@ -3027,34 +3101,38 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void RemoveGrassBatchTreeNode(YmapGrassInstanceBatch batch)
+        public void RemoveGrassBatchTreeNode(YmapGrassInstanceBatch? batch)
         {
+            if (batch == null) return;
             var tn = FindGrassTreeNode(batch);
             if ((tn != null) && (tn.Parent != null))
             {
-                tn.Parent.Text = "Grass Batches (" + batch.Ymap.GrassInstanceBatches.Length.ToString() + ")";
+                tn.Parent.Text = "Grass Batches (" + (batch.Ymap?.GrassInstanceBatches.Length ?? 0).ToString() + ")";
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveArchetypeTreeNode(Archetype archetype)
+        public void RemoveArchetypeTreeNode(Archetype? archetype)
         {
+            if (archetype == null) return;
             var tn = FindArchetypeTreeNode(archetype);
             if ((tn != null) && (tn.Parent != null))
             {
-                tn.Parent.Text = "Archetypes (" + archetype.Ytyp.AllArchetypes.Length.ToString() + ")";
+                tn.Parent.Text = "Archetypes (" + (archetype.Ytyp?.AllArchetypes.Length ?? 0).ToString() + ")";
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveMloEntityTreeNode(MCEntityDef ent)
+        public void RemoveMloEntityTreeNode(MCEntityDef? ent)
         {
+            if (ent == null) return;
             var tn = FindMloEntityTreeNode(ent);
             if ((tn != null) && (tn.Parent != null))
             {
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveMloRoomTreeNode(MCMloRoomDef room)
+        public void RemoveMloRoomTreeNode(MCMloRoomDef? room)
         {
+            if (room == null) return;
             var tn = FindMloRoomTreeNode(room);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3062,8 +3140,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveMloPortalTreeNode(MCMloPortalDef portal)
+        public void RemoveMloPortalTreeNode(MCMloPortalDef? portal)
         {
+            if (portal == null) return;
             var tn = FindMloPortalTreeNode(portal);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3071,8 +3150,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveMloEntitySetTreeNode(MCMloEntitySet set)
+        public void RemoveMloEntitySetTreeNode(MCMloEntitySet? set)
         {
+            if (set == null) return;
             var tn = FindMloEntitySetTreeNode(set);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3080,16 +3160,18 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveCollisionBoundsTreeNode(Bounds bounds)
+        public void RemoveCollisionBoundsTreeNode(Bounds? bounds)
         {
+            if (bounds == null) return;
             var tn = FindCollisionBoundsTreeNode(bounds);
             if ((tn != null) && (tn.Parent != null))
             {
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemovePathNodeTreeNode(YndNode node)
+        public void RemovePathNodeTreeNode(YndNode? node)
         {
+            if (node == null) return;
             var tn = FindPathNodeTreeNode(node);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3103,17 +3185,19 @@ namespace CodeWalker.Project.Panels
                 }
             }
         }
-        public void RemoveTrainNodeTreeNode(TrainTrackNode node)
+        public void RemoveTrainNodeTreeNode(TrainTrackNode? node)
         {
+            if (node == null) return;
             var tn = FindTrainNodeTreeNode(node);
             if ((tn != null) && (tn.Parent != null))
             {
-                tn.Parent.Text = "Nodes (" + node.Track.Nodes.Count.ToString() + ")";
+                tn.Parent.Text = "Nodes (" + (node.Track?.Nodes.Count ?? 0).ToString() + ")";
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveScenarioNodeTreeNode(ScenarioNode node)
+        public void RemoveScenarioNodeTreeNode(ScenarioNode? node)
         {
+            if (node == null) return;
             var tn = FindScenarioNodeTreeNode(node);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3121,8 +3205,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveAudioAmbientZoneTreeNode(AudioPlacement zone)
+        public void RemoveAudioAmbientZoneTreeNode(AudioPlacement? zone)
         {
+            if (zone == null) return;
             var tn = FindAudioAmbientZoneTreeNode(zone);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3131,7 +3216,7 @@ namespace CodeWalker.Project.Panels
                 {
                     if (reldata is Dat151AmbientZone)
                     {
-                        zones.Add(reldata as Dat151AmbientZone);
+                        zones.Add((Dat151AmbientZone)reldata);
                     }
                 }
 
@@ -3139,8 +3224,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveAudioAmbientRuleTreeNode(AudioPlacement rule)
+        public void RemoveAudioAmbientRuleTreeNode(AudioPlacement? rule)
         {
+            if (rule == null) return;
             var tn = FindAudioAmbientRuleTreeNode(rule);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3149,7 +3235,7 @@ namespace CodeWalker.Project.Panels
                 {
                     if (reldata is Dat151AmbientRule)
                     {
-                        rules.Add(reldata as Dat151AmbientRule);
+                        rules.Add((Dat151AmbientRule)reldata);
                     }
                 }
 
@@ -3157,8 +3243,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveAudioStaticEmitterTreeNode(AudioPlacement emitter)
+        public void RemoveAudioStaticEmitterTreeNode(AudioPlacement? emitter)
         {
+            if (emitter == null) return;
             var tn = FindAudioStaticEmitterTreeNode(emitter);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3167,7 +3254,7 @@ namespace CodeWalker.Project.Panels
                 {
                     if (reldata is Dat151StaticEmitter)
                     {
-                        emitters.Add(reldata as Dat151StaticEmitter);
+                        emitters.Add((Dat151StaticEmitter)reldata);
                     }
                 }
 
@@ -3175,8 +3262,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveAudioAmbientZoneListTreeNode(Dat151AmbientZoneList list)
+        public void RemoveAudioAmbientZoneListTreeNode(Dat151AmbientZoneList? list)
         {
+            if (list == null) return;
             var tn = FindAudioAmbientZoneListTreeNode(list);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3185,7 +3273,7 @@ namespace CodeWalker.Project.Panels
                 {
                     if (reldata is Dat151AmbientZoneList)
                     {
-                        zonelists.Add(reldata as Dat151AmbientZoneList);
+                        zonelists.Add((Dat151AmbientZoneList)reldata);
                     }
                 }
 
@@ -3193,8 +3281,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveAudioStaticEmitterListTreeNode(Dat151StaticEmitterList list)
+        public void RemoveAudioStaticEmitterListTreeNode(Dat151StaticEmitterList? list)
         {
+            if (list == null) return;
             var tn = FindAudioStaticEmitterListTreeNode(list);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3203,7 +3292,7 @@ namespace CodeWalker.Project.Panels
                 {
                     if (reldata is Dat151StaticEmitterList)
                     {
-                        emitterlists.Add(reldata as Dat151StaticEmitterList);
+                        emitterlists.Add((Dat151StaticEmitterList)reldata);
                     }
                 }
 
@@ -3211,8 +3300,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveAudioInteriorTreeNode(Dat151InteriorSettings interior)
+        public void RemoveAudioInteriorTreeNode(Dat151InteriorSettings? interior)
         {
+            if (interior == null) return;
             var tn = FindAudioInteriorTreeNode(interior);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3221,7 +3311,7 @@ namespace CodeWalker.Project.Panels
                 {
                     if (reldata is Dat151InteriorSettings)
                     {
-                        interiors.Add(reldata as Dat151InteriorSettings);
+                        interiors.Add((Dat151InteriorSettings)reldata);
                     }
                 }
 
@@ -3229,8 +3319,9 @@ namespace CodeWalker.Project.Panels
                 tn.Parent.Nodes.Remove(tn);
             }
         }
-        public void RemoveAudioInteriorRoomTreeNode(Dat151InteriorRoom room)
+        public void RemoveAudioInteriorRoomTreeNode(Dat151InteriorRoom? room)
         {
+            if (room == null) return;
             var tn = FindAudioInteriorRoomTreeNode(room);
             if ((tn != null) && (tn.Parent != null))
             {
@@ -3239,7 +3330,7 @@ namespace CodeWalker.Project.Panels
                 {
                     if (reldata is Dat151InteriorRoom)
                     {
-                        interiors.Add(reldata as Dat151InteriorRoom);
+                        interiors.Add((Dat151InteriorRoom)reldata);
                     }
                 }
 
@@ -3252,8 +3343,8 @@ namespace CodeWalker.Project.Panels
 
 
 
-        public event ProjectExplorerItemSelectHandler OnItemSelected;
-        public event ProjectExplorerItemActivateHandler OnItemActivated;
+        public event ProjectExplorerItemSelectHandler? OnItemSelected;
+        public event ProjectExplorerItemActivateHandler? OnItemActivated;
 
 
         private void ClearSelectedNodes()
@@ -3269,6 +3360,7 @@ namespace CodeWalker.Project.Panels
 
         private void ProjectTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
+            if (e.Node == null) return;
             bool focused = ProjectForm?.ContainsFocus ?? this.ContainsFocus;
             bool addSelection = focused && ((ModifierKeys & Keys.Control) > 0);
             bool fillSelection = focused && ((ModifierKeys & Keys.Shift) > 0);
@@ -3290,7 +3382,7 @@ namespace CodeWalker.Project.Panels
                 var snode = (SelectedNodes.Count == 0) ? null : SelectedNodes[SelectedNodes.Count - 1];
                 var pnode = snode?.Parent;
 
-                if ((pnode == null) || (pnode != e.Node?.Parent))
+                if ((pnode == null) || (pnode != e.Node.Parent))
                 {
                     SelectedNodes.Add(e.Node);
                 }
@@ -3331,7 +3423,7 @@ namespace CodeWalker.Project.Panels
                 {
                     node.BackColor = SystemColors.Highlight;
                     node.ForeColor = SystemColors.HighlightText;
-                    objs.Add(node.Tag);
+                    if (node.Tag is { } tag) objs.Add(tag);
                 }
                 OnItemSelected?.Invoke(objs.ToArray());
             }
@@ -3365,18 +3457,18 @@ namespace CodeWalker.Project.Panels
 
         private void ProjectTreeView_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetData(DataFormats.FileDrop) != null) //disabling drag and drop text
+            if (e.Data?.GetData(DataFormats.FileDrop) != null) //disabling drag and drop text
                 e.Effect = DragDropEffects.All;
         }
 
         private void ProjectTreeView_DragDrop(object sender, DragEventArgs e)
         {
-            string[]? files = (string[]?) e.Data.GetData(DataFormats.FileDrop);
+            string[]? files = (string[]?) e.Data?.GetData(DataFormats.FileDrop);
             ProjectForm.OpenFiles(files);
 
         }
 
     }
-    public delegate void ProjectExplorerItemSelectHandler(object item);
-    public delegate void ProjectExplorerItemActivateHandler(object item);
+    public delegate void ProjectExplorerItemSelectHandler(object? item);
+    public delegate void ProjectExplorerItemActivateHandler(object? item);
 }

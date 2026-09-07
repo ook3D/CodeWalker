@@ -12,7 +12,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class WatermapFile : GameFile, PackedFile
     {
-        public byte[] RawFileData { get; set; }
+        public byte[] RawFileData { get; set; } = [];
 
         public uint Magic { get; set; } = 0x574D4150; //'WMAP'
         public uint Version { get; set; } = 100;
@@ -31,23 +31,23 @@ namespace CodeWalker.GameFiles
         public ushort LakeCount { get; set; } //15
         public ushort PoolCount { get; set; } //314
         public ushort ColoursOffset { get; set; } //13316 
-        public byte[] Unks1 { get; set; }//2,2,16,48,16,48,32,0   ..?
+        public byte[] Unks1 { get; set; } = [];//2,2,16,48,16,48,32,0   ..?
 
-        public CompHeader[] CompHeaders { get; set; }
-        public short[] CompWatermapInds { get; set; }//indices into CompWatermapRefs
-        public WaterItemRef[] CompWatermapRefs { get; set; }//contains multibit, type, index1, [index2](optional)
-        public byte[] Zeros1 { get; set; }//x12
-        public Vector4[] RiverVecs { get; set; }
-        public WaterFlow[] Rivers { get; set; }
-        public Vector4[] LakeVecs { get; set; }
-        public WaterFlow[] Lakes { get; set; }
-        public WaterPool[] Pools { get; set; }
-        public Color[] Colours { get; set; }//x342
+        public CompHeader[] CompHeaders { get; set; } = [];
+        public short[] CompWatermapInds { get; set; } = [];//indices into CompWatermapRefs
+        public WaterItemRef[] CompWatermapRefs { get; set; } = [];//contains multibit, type, index1, [index2](optional)
+        public byte[] Zeros1 { get; set; } = [];//x12
+        public Vector4[] RiverVecs { get; set; } = [];
+        public WaterFlow[] Rivers { get; set; } = [];
+        public Vector4[] LakeVecs { get; set; } = [];
+        public WaterFlow[] Lakes { get; set; } = [];
+        public WaterPool[] Pools { get; set; } = [];
+        public Color[] Colours { get; set; } = [];//x342
         public uint ColourCount { get; set; }//342 (RiverCount + LakeCount + PoolCount)
 
 
-        public short[] GridWatermapInds { get; set; } //expanded from CompWatermapInds.
-        public WaterItemRef[][] GridWatermapRefs { get; set; } //expanded from CompWatermapHeaders. ends up max 7 items
+        public short[] GridWatermapInds { get; set; } = []; //expanded from CompWatermapInds.
+        public WaterItemRef[]?[] GridWatermapRefs { get; set; } = []; //expanded from CompWatermapHeaders. ends up max 7 items
 
 
         public WatermapFile() : base(null, GameFileType.Watermap)
@@ -339,7 +339,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            public WaterItem Item { get; set; } //lookup reference
+            public WaterItem? Item { get; set; } //lookup reference
             public Vector4 Vector
             {
                 get
@@ -375,7 +375,7 @@ namespace CodeWalker.GameFiles
 
             public WaterItemType Type { get; private set; }
 
-            public Vector4[] Vectors { get; set; }//built from packed data
+            public Vector4[] Vectors { get; set; } = [];//built from packed data
             public Color Colour { get; set; } //from the end of the file
 
             public WaterItem(WaterItemType type)
@@ -539,7 +539,7 @@ namespace CodeWalker.GameFiles
         public static WatermapFile GetWatermap(XmlDocument doc)
         {
             WatermapFile wmf = new();
-            wmf.ReadXml(doc.DocumentElement);
+            wmf.ReadXml(doc.DocumentElement ?? throw new XmlException("The water map document must have a root element."));
             return wmf;
         }
 

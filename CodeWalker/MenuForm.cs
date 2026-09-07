@@ -17,7 +17,7 @@ namespace CodeWalker;
 public partial class MenuForm : Form
     {
         private volatile bool worldFormOpen = false;
-        private WorldForm worldForm = null;
+        private WorldForm? worldForm;
 
         public MenuForm()
         {

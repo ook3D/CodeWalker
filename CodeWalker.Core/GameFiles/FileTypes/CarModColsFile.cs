@@ -14,10 +14,10 @@ namespace CodeWalker.GameFiles
 {
     [TC(typeof(EXP))] public class CarModColsFile : GameFile, PackedFile
     {
-        public PsoFile Pso { get; set; }
-        public string Xml { get; set; }
+        public PsoFile? Pso { get; set; }
+        public string Xml { get; set; } = string.Empty;
 
-        public CVehicleModColours VehicleModColours { get; set; }
+        public CVehicleModColours? VehicleModColours { get; set; }
 
         public CarModColsFile() : base(null, GameFileType.CarModCols)
         { }
@@ -33,7 +33,7 @@ namespace CodeWalker.GameFiles
 
 
             //always PSO .ymt
-            MemoryStream ms = new(data);
+            using MemoryStream ms = new(data);
             if (PsoFile.IsPSO(ms))
             {
                 Pso = new PsoFile();
@@ -72,12 +72,12 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class CVehicleModColours
     {
-        public CVehicleModColor[] metallic { get; set; }
-        public CVehicleModColor[] classic { get; set; }
-        public CVehicleModColor[] matte { get; set; }
-        public CVehicleModColor[] metals { get; set; }
-        public CVehicleModColor[] chrome { get; set; }
-        public CVehicleModPearlescentColors pearlescent { get; set; }
+        public CVehicleModColor[] metallic { get; set; } = [];
+        public CVehicleModColor[] classic { get; set; } = [];
+        public CVehicleModColor[] matte { get; set; } = [];
+        public CVehicleModColor[] metals { get; set; } = [];
+        public CVehicleModColor[] chrome { get; set; } = [];
+        public CVehicleModPearlescentColors? pearlescent { get; set; }
 
         public CVehicleModColours(XmlNode node)
         {
@@ -85,11 +85,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("metallic");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    metallic = new CVehicleModColor[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    metallic = new CVehicleModColor[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         metallic[i] = new CVehicleModColor(items[i]);
                     }
@@ -98,11 +98,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("classic");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    classic = new CVehicleModColor[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    classic = new CVehicleModColor[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         classic[i] = new CVehicleModColor(items[i]);
                     }
@@ -111,11 +111,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("matte");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    matte = new CVehicleModColor[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    matte = new CVehicleModColor[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         matte[i] = new CVehicleModColor(items[i]);
                     }
@@ -124,11 +124,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("metals");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    metals = new CVehicleModColor[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    metals = new CVehicleModColor[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         metals[i] = new CVehicleModColor(items[i]);
                     }
@@ -137,11 +137,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("chrome");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    chrome = new CVehicleModColor[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    chrome = new CVehicleModColor[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         chrome[i] = new CVehicleModColor(items[i]);
                     }
@@ -163,7 +163,7 @@ namespace CodeWalker.GameFiles
 
         public CVehicleModColor(XmlNode node)
         {
-            name = Xml.GetChildInnerText(node, "name");
+            name = Xml.GetChildInnerText(node, "name") ?? string.Empty;
             col = (byte)Xml.GetChildIntAttribute(node, "col", "value");
             spec = (byte)Xml.GetChildIntAttribute(node, "spec", "value");
         }
@@ -174,8 +174,8 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CVehicleModPearlescentColors
     {
-        public CVehicleModColor[] baseCols { get; set; }
-        public CVehicleModColor[] specCols { get; set; }
+        public CVehicleModColor[] baseCols { get; set; } = [];
+        public CVehicleModColor[] specCols { get; set; } = [];
 
         public CVehicleModPearlescentColors(XmlNode node)
         {
@@ -183,11 +183,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("baseCols");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    baseCols = new CVehicleModColor[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    baseCols = new CVehicleModColor[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         baseCols[i] = new CVehicleModColor(items[i]);
                     }
@@ -196,11 +196,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("specCols");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    specCols = new CVehicleModColor[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    specCols = new CVehicleModColor[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         specCols[i] = new CVehicleModColor(items[i]);
                     }

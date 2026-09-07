@@ -12,7 +12,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class HeightmapFile : GameFile, PackedFile
     {
-        public byte[] RawFileData { get; set; }
+        public byte[] RawFileData { get; set; } = [];
         public Endianess Endianess { get; set; } = Endianess.BigEndian;
 
         public uint Magic { get; set; } = 0x484D4150; //'HMAP'
@@ -25,9 +25,9 @@ namespace CodeWalker.GameFiles
         public Vector3 BBMin { get; set; }
         public Vector3 BBMax { get; set; }
         public uint Length { get; set; }
-        public CompHeader[] CompHeaders { get; set; }
-        public byte[] MaxHeights { get; set; }
-        public byte[] MinHeights { get; set; }
+        public CompHeader[] CompHeaders { get; set; } = [];
+        public byte[] MaxHeights { get; set; } = [];
+        public byte[] MinHeights { get; set; } = [];
 
         public HeightmapFile() : base(null, GameFileType.Heightmap)
         {
@@ -37,7 +37,7 @@ namespace CodeWalker.GameFiles
             RpfFileEntry = entry;
         }
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             RawFileData = data;
             if (entry != null)
@@ -350,7 +350,7 @@ namespace CodeWalker.GameFiles
         public static HeightmapFile GetHeightmap(XmlDocument doc)
         {
             HeightmapFile hmf = new();
-            hmf.ReadXml(doc.DocumentElement);
+            hmf.ReadXml(doc.DocumentElement ?? throw new XmlException("The heightmap document must have a root element."));
             return hmf;
         }
 

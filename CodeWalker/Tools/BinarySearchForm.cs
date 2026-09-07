@@ -20,8 +20,8 @@ namespace CodeWalker.Tools
         private volatile bool InProgress = false;
         private volatile bool AbortOperation = false;
 
-        private GameFileCache FileCache = null;
-        private RpfManager RpfMan = null;
+        private readonly GameFileCache? FileCache;
+        private RpfManager? RpfMan;
 
 
         public BinarySearchForm(GameFileCache? cache = null)
@@ -302,7 +302,7 @@ namespace CodeWalker.Tools
         }
 
         private List<RpfSearchResult> RpfSearchResults = new();
-        private RpfEntry RpfSelectedEntry = null;
+        private RpfEntry? RpfSelectedEntry;
         private int RpfSelectedOffset = -1;
         private int RpfSelectedLength = 0;
 
@@ -505,7 +505,7 @@ namespace CodeWalker.Tools
                             UpdateStatus(string.Format("{0} - Searching {1}/{2} : {3}", duration.ToString(@"hh\:mm\:ss"), curfile, totfiles, fentry.Path));
                         }
 
-                        byte[] filebytes = fentry.File.ExtractFile(fentry);
+                        var filebytes = fentry.File?.ExtractFile(fentry);
                         if (filebytes == null) continue;
 
 
@@ -670,7 +670,7 @@ namespace CodeWalker.Tools
         {
             SelectFile(RpfSelectedEntry, RpfSelectedOffset, RpfSelectedLength);
         }
-        private void SelectFile(RpfEntry entry, int offset, int length)
+        private void SelectFile(RpfEntry? entry, int offset, int length)
         {
             RpfSelectedEntry = entry;
             RpfSelectedOffset = offset;
@@ -702,7 +702,7 @@ namespace CodeWalker.Tools
                 typestr = "Binary";
             }
 
-            byte[] data = rfe.File.ExtractFile(rfe);
+            var data = rfe.File?.ExtractFile(rfe);
 
             int datalen = (data != null) ? data.Length : 0;
             FileInfoLabel.Text = rfe.Path + " (" + typestr + " file)  -  " + TextUtil.GetBytesReadable(datalen);
@@ -719,12 +719,12 @@ namespace CodeWalker.Tools
             Cursor = Cursors.Default;
         }
 
-        private void DisplayFileContentsText(RpfFileEntry rfe, byte[] data, int length, int offset)
+        private void DisplayFileContentsText(RpfFileEntry rfe, byte[]? data, int length, int offset)
         {
             if (data == null)
             {
                 Cursor = Cursors.Default;
-                DataTextBox.Text = "[Error extracting file! " + rfe.File.LastError + "]";
+                DataTextBox.Text = "[Error extracting file! " + rfe.File?.LastError + "]";
                 return;
             }
 
@@ -827,8 +827,14 @@ namespace CodeWalker.Tools
             {
                 string fpath = SaveFileDialog.FileName;
 
-                byte[] data = rfe.File.ExtractFile(rfe);
+                var data = rfe.File?.ExtractFile(rfe);
 
+
+                if (data == null)
+                {
+                    MessageBox.Show("Error extracting file! " + rfe.File?.LastError);
+                    return;
+                }
 
                 if (ExportCompressCheckBox.Checked)
                 {
@@ -844,7 +850,7 @@ namespace CodeWalker.Tools
 
                 if (data == null)
                 {
-                    MessageBox.Show("Error extracting file! " + rfe.File.LastError);
+                    MessageBox.Show("Error extracting file! " + rfe.File?.LastError);
                     return;
                 }
 

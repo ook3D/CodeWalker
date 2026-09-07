@@ -10,7 +10,7 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class VehicleLayoutsFile : GameFile, PackedFile
     {
-        public string Xml { get; set; }
+        public string Xml { get; set; } = string.Empty;
 
         public VehicleLayoutsFile() : base(null, GameFileType.VehicleLayouts)
         { }

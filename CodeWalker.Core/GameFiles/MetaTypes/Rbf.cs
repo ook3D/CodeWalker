@@ -39,9 +39,10 @@ namespace CodeWalker.GameFiles
     {
         private const int RBF_IDENT = 0x30464252;
 
-        public RbfStructure current { get; set; }
-        public Stack<RbfStructure> stack { get; set; }
-        public List<RbfEntryDescription> descriptors { get; set; }
+        public RbfStructure? current { get; set; }
+        private RbfStructure CurrentStructure => current ?? throw new InvalidDataException("The RBF root structure is missing.");
+        public Stack<RbfStructure> stack { get; set; } = new();
+        public List<RbfEntryDescription> descriptors { get; set; } = [];
         public Dictionary<string, int> outDescriptors { get; private set; } = new Dictionary<string, int>();
 
 
@@ -61,6 +62,7 @@ namespace CodeWalker.GameFiles
 
         public RbfStructure Load(Stream stream)
         {
+            current = null;
             stack = new Stack<RbfStructure>();
             descriptors = new List<RbfEntryDescription>();
 
@@ -86,7 +88,7 @@ namespace CodeWalker.GameFiles
                     {
                         if (reader.Position != reader.Length)
                             throw new Exception("Expected end of stream but was not.");
-                        return current;
+                        return CurrentStructure;
                     }
                 }
                 else if (descriptorIndex == 0xFD) // bytes
@@ -100,7 +102,7 @@ namespace CodeWalker.GameFiles
 
                     var bytesValue = new RbfBytes();
                     bytesValue.Value = data;
-                    current.Children.Add(bytesValue);
+                    CurrentStructure.Children.Add(bytesValue);
                 }
                 else
                 {
@@ -147,7 +149,7 @@ namespace CodeWalker.GameFiles
 
                         if (current != null)
                         {
-                            current.AddChild(structureValue);
+                            CurrentStructure.AddChild(structureValue);
                             stack.Push(current);
                         }
 
@@ -163,7 +165,7 @@ namespace CodeWalker.GameFiles
                         var intValue = new RbfUint32();
                         intValue.Name = descriptor.Name;
                         intValue.Value = reader.ReadUInt32();
-                        current.AddChild(intValue);
+                        CurrentStructure.AddChild(intValue);
                         break;
                     }
                 case 0x20:
@@ -171,7 +173,7 @@ namespace CodeWalker.GameFiles
                         var booleanValue = new RbfBoolean();
                         booleanValue.Name = descriptor.Name;
                         booleanValue.Value = true;
-                        current.AddChild(booleanValue);
+                        CurrentStructure.AddChild(booleanValue);
                         break;
                     }
                 case 0x30:
@@ -179,7 +181,7 @@ namespace CodeWalker.GameFiles
                         var booleanValue = new RbfBoolean();
                         booleanValue.Name = descriptor.Name;
                         booleanValue.Value = false;
-                        current.AddChild(booleanValue);
+                        CurrentStructure.AddChild(booleanValue);
                         break;
                     }
                 case 0x40:
@@ -187,7 +189,7 @@ namespace CodeWalker.GameFiles
                         var floatValue = new RbfFloat();
                         floatValue.Name = descriptor.Name;
                         floatValue.Value = reader.ReadSingle();
-                        current.AddChild(floatValue);
+                        CurrentStructure.AddChild(floatValue);
                         break;
                     }
                 case 0x50:
@@ -197,7 +199,7 @@ namespace CodeWalker.GameFiles
                         floatVectorValue.X = reader.ReadSingle();
                         floatVectorValue.Y = reader.ReadSingle();
                         floatVectorValue.Z = reader.ReadSingle();
-                        current.AddChild(floatVectorValue);
+                        CurrentStructure.AddChild(floatVectorValue);
                         break;
                     }
                 case 0x60:
@@ -208,7 +210,7 @@ namespace CodeWalker.GameFiles
                         var stringValue = new RbfString();
                         stringValue.Name = descriptor.Name;
                         stringValue.Value = value;
-                        current.AddChild(stringValue);
+                        CurrentStructure.AddChild(stringValue);
                         break;
                     }
                 default:
@@ -271,7 +273,7 @@ namespace CodeWalker.GameFiles
             var writer = new DataWriter(stream);
             writer.Write(RBF_IDENT);
 
-            current.Save(this, writer);
+            CurrentStructure.Save(this, writer);
         }
 
 
@@ -290,7 +292,7 @@ namespace CodeWalker.GameFiles
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfEntryDescription
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public int Type { get; set; }
         public override string ToString() { return Name + ": " + Type.ToString(); }
     }
@@ -302,8 +304,8 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfBytes : IRbfType
     {
-        public string Name { get; set; }
-        public byte[] Value { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public byte[] Value { get; set; } = [];
         public byte DataType => 0;
         public void Save(RbfFile root, DataWriter writer)
         {
@@ -316,7 +318,7 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfUint32 : IRbfType
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public uint Value { get; set; }
         public byte DataType => 0x10;
         public void Save(RbfFile file, DataWriter writer)
@@ -328,7 +330,7 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfBoolean : IRbfType
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public bool Value { get; set; }
         public byte DataType => (byte)((Value) ? 0x20 : 0x30);
         public void Save(RbfFile file, DataWriter writer)
@@ -339,7 +341,7 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfFloat : IRbfType
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public float Value { get; set; }
         public byte DataType => 0x40;
         public void Save(RbfFile file, DataWriter writer)
@@ -351,7 +353,7 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfFloat3 : IRbfType
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public float X { get; set; }
         public float Y { get; set; }
         public float Z { get; set; }
@@ -367,8 +369,8 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfString : IRbfType
     {
-        public string Name { get; set; }
-        public string Value { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
         public byte DataType => 0x60;
         public void Save(RbfFile file, DataWriter writer)
         {
@@ -380,13 +382,13 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class RbfStructure : IRbfType
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public List<IRbfType> Children { get; set; } = new List<IRbfType>();
         public List<IRbfType> Attributes { get; set; } = new List<IRbfType>();
         internal int PendingAttributes { get; set; }
         public byte DataType => 0;
         public override string ToString() { return Name + ": {" + Children.Count.ToString() + "}"; }
-        public IRbfType FindChild(string name)
+        public IRbfType? FindChild(string name)
         {
             foreach (var child in Children)
             {
@@ -395,7 +397,7 @@ namespace CodeWalker.GameFiles
             }
             return null;
         }
-        public IRbfType FindAttribute(string name)
+        public IRbfType? FindAttribute(string name)
         {
             foreach (var attr in Attributes)
             {

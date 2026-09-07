@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -44,10 +45,10 @@ namespace CodeWalker.GameFiles
         public uint Unknown_14h { get; set; } = 0;
         public uint Unknown_18h { get; set; } = 1;
         public uint Unknown_1Ch { get; set; } = 0;
-        public ResourceSimpleList64_s<MetaHash> ExpressionNameHashes { get; set; }
-        public ResourcePointerList64<Expression> Expressions { get; set; }
+        public ResourceSimpleList64_s<MetaHash> ExpressionNameHashes { get; set; } = new();
+        public ResourcePointerList64<Expression> Expressions { get; set; } = new();
 
-        public Dictionary<MetaHash, Expression> ExprMap { get; set; }
+        public Dictionary<MetaHash, Expression> ExprMap { get; set; } = new();
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -57,8 +58,8 @@ namespace CodeWalker.GameFiles
             Unknown_14h = reader.ReadUInt32();
             Unknown_18h = reader.ReadUInt32();
             Unknown_1Ch = reader.ReadUInt32();
-            ExpressionNameHashes = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
-            Expressions = reader.ReadBlock<ResourcePointerList64<Expression>>();
+            ExpressionNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
+            Expressions = reader.ReadRequiredBlock<ResourcePointerList64<Expression>>();
             BuildMap();
         }
         public override void Write(ResourceDataWriter writer, params object[] parameters)
@@ -127,7 +128,8 @@ namespace CodeWalker.GameFiles
                 YedXml.CloseTag(sb, indent, name);
             }
         }
-        public static ExpressionDictionary ReadXmlNode(XmlNode? node)
+        [return: NotNullIfNotNull(nameof(node))]
+        public static ExpressionDictionary? ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var ed = new ExpressionDictionary();
@@ -162,7 +164,8 @@ namespace CodeWalker.GameFiles
                 for (int i = 0; i < exprs.Length; i++)
                 {
                     var expr = exprs[i];
-                    var name = (i < names.Length) ? names[i] : (MetaHash)JenkHash.GenHash(expr?.GetShortName() ?? "");
+                    if (expr == null) continue;
+                    var name = (i < names.Length) ? names[i] : (MetaHash)JenkHash.GenHash(expr.GetShortName() ?? "");
                     expr.NameHash = name;
                     ExprMap[name] = expr;
                 }
@@ -186,10 +189,10 @@ namespace CodeWalker.GameFiles
         public uint Unknown_14h { get; set; } // 0x00000000
         public uint Unknown_18h { get; set; } // 0x00000000
         public uint Unknown_1Ch { get; set; } // 0x00000000
-        public ResourcePointerList64<ExpressionStream> Streams { get; set; }
-        public ResourceSimpleList64_s<ExpressionTrack> Tracks { get; set; } // bone tags / animation tracks
-        public ResourceSimpleList64<ExpressionSpringDescriptionBlock> Springs { get; set; } //compiled list of spring data from all DefineSpring Stream instructions
-        public ResourceSimpleList64_s<MetaHash> Variables { get; set; }
+        public ResourcePointerList64<ExpressionStream> Streams { get; set; } = new();
+        public ResourceSimpleList64_s<ExpressionTrack> Tracks { get; set; } = new(); // bone tags / animation tracks
+        public ResourceSimpleList64<ExpressionSpringDescriptionBlock> Springs { get; set; } = new(); //compiled list of spring data from all DefineSpring Stream instructions
+        public ResourceSimpleList64_s<MetaHash> Variables { get; set; } = new();
         public ulong NamePointer { get; set; }
         public ushort NameLength { get; set; } // name len
         public ushort NameCapacity { get; set; } // name len+1
@@ -203,10 +206,10 @@ namespace CodeWalker.GameFiles
         public uint Unknown_88h { get; set; } // 0x00000000
         public uint Unknown_8Ch { get; set; } // 0x00000000
 
-        public string_r Name { get; set; }
+        public string_r? Name { get; set; }
         public MetaHash NameHash { get; set; }
 
-        public Dictionary<ExpressionTrack, ExpressionTrack> BoneTracksDict { get; set; }
+        public Dictionary<ExpressionTrack, ExpressionTrack> BoneTracksDict { get; set; } = new();
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -219,10 +222,10 @@ namespace CodeWalker.GameFiles
             Unknown_14h = reader.ReadUInt32();
             Unknown_18h = reader.ReadUInt32();
             Unknown_1Ch = reader.ReadUInt32();
-            Streams = reader.ReadBlock<ResourcePointerList64<ExpressionStream>>();
-            Tracks = reader.ReadBlock<ResourceSimpleList64_s<ExpressionTrack>>();
-            Springs = reader.ReadBlock<ResourceSimpleList64<ExpressionSpringDescriptionBlock>>();
-            Variables = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
+            Streams = reader.ReadRequiredBlock<ResourcePointerList64<ExpressionStream>>();
+            Tracks = reader.ReadRequiredBlock<ResourceSimpleList64_s<ExpressionTrack>>();
+            Springs = reader.ReadRequiredBlock<ResourceSimpleList64<ExpressionSpringDescriptionBlock>>();
+            Variables = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
             NamePointer = reader.ReadUInt64();
             NameLength = reader.ReadUInt16();
             NameCapacity = reader.ReadUInt16();
@@ -289,12 +292,12 @@ namespace CodeWalker.GameFiles
             YedXml.ValueTag(sb, indent, "Signature", Signature.ToString()); // TODO: calculate signature?
             YedXml.ValueTag(sb, indent, "Unk7C", Unknown_7Ch.ToString());
 
-            if ((Tracks?.data_items?.Length ?? 0) > 0)
+            if ((Tracks.data_items.Length) > 0)
             {
                 YedXml.WriteItemArray(sb, Tracks.data_items, indent, "Tracks");
             }
 
-            if ((Streams?.data_items?.Length ?? 0) > 0)
+            if ((Streams.data_items.Length) > 0)
             {
                 YedXml.WriteItemArray(sb, Streams.data_items, indent, "Streams");
             }
@@ -303,7 +306,7 @@ namespace CodeWalker.GameFiles
         public void ReadXml(XmlNode node)
         {
             Name = new string_r();
-            Name.Value = Xml.GetChildInnerText(node, "Name");
+            Name.Value = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameLength = (ushort)Name.Value.Length;
             NameCapacity = (ushort)(NameLength + 1);
             NameHash = JenkHash.GenHash(GetShortName());
@@ -466,7 +469,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return Name?.ToString() ?? base.ToString();
+            return Name?.ToString() ?? base.ToString() ?? string.Empty;
         }
     }
 
@@ -480,12 +483,12 @@ namespace CodeWalker.GameFiles
         public uint Data2Length { get; set; }
         public ushort Data3Length { get; set; }
         public ushort Depth { get; set; }//or stack size?
-        public byte[] Data1 { get; set; }
-        public byte[] Data2 { get; set; }
-        public byte[] Data3 { get; set; }
+        public byte[] Data1 { get; set; } = [];
+        public byte[] Data2 { get; set; } = [];
+        public byte[] Data3 { get; set; } = [];
 
 
-        public ExpressionInstrBase[] Instructions { get; set; }
+        public ExpressionInstrBase[] Instructions { get; set; } = [];
 
 
 
@@ -817,9 +820,9 @@ namespace CodeWalker.GameFiles
         }
         [TC(typeof(EXP))] public class SourceComponent : IMetaXmlItem
         {
-            public float[] Weights { get; set; }
-            public float[] Offsets { get; set; }
-            public float[] Thresholds { get; set; }
+            public float[] Weights { get; set; } = [];
+            public float[] Offsets { get; set; } = [];
+            public float[] Thresholds { get; set; } = [];
 
             public SourceComponent() { }
             public SourceComponent(uint numSourceWeights)
@@ -846,9 +849,9 @@ namespace CodeWalker.GameFiles
         [TC(typeof(EXP))] public class Source : IMetaXmlItem
         {
             public SourceInfo Info { get; set; }
-            public SourceComponent X { get; set; }
-            public SourceComponent Y { get; set; }
-            public SourceComponent Z { get; set; }
+            public SourceComponent X { get; set; } = new();
+            public SourceComponent Y { get; set; } = new();
+            public SourceComponent Z { get; set; } = new();
 
             public Source()
             { }
@@ -914,18 +917,19 @@ namespace CodeWalker.GameFiles
 
             public void UpdateValues(uint numSourceWeights, int index, Vector4[] values)
             {
+                if (numSourceWeights == 0) return;
                 if (X == null) return;
                 if (Y == null) return;
                 if (Z == null) return;
-                if (X.Weights?.Length < numSourceWeights) return;
-                if (Y.Weights?.Length < numSourceWeights) return;
-                if (Z.Weights?.Length < numSourceWeights) return;
-                if (X.Offsets?.Length < numSourceWeights) return;
-                if (Y.Offsets?.Length < numSourceWeights) return;
-                if (Z.Offsets?.Length < numSourceWeights) return;
-                if (X.Thresholds?.Length < (numSourceWeights - 1)) return;
-                if (Y.Thresholds?.Length < (numSourceWeights - 1)) return;
-                if (Z.Thresholds?.Length < (numSourceWeights - 1)) return;
+                if (X.Weights.Length < numSourceWeights) return;
+                if (Y.Weights.Length < numSourceWeights) return;
+                if (Z.Weights.Length < numSourceWeights) return;
+                if (X.Offsets.Length < numSourceWeights) return;
+                if (Y.Offsets.Length < numSourceWeights) return;
+                if (Z.Offsets.Length < numSourceWeights) return;
+                if (X.Thresholds.Length < (numSourceWeights - 1)) return;
+                if (Y.Thresholds.Length < (numSourceWeights - 1)) return;
+                if (Z.Thresholds.Length < (numSourceWeights - 1)) return;
                 var j = index / 4;
                 var k = index % 4;
                 var v = j * (6 + 9 * (int)(numSourceWeights - 1));
@@ -961,8 +965,8 @@ namespace CodeWalker.GameFiles
         public uint SourceCount { get; set; } //updated automatically //0-84+, multiple of 4
         public uint NumSourceWeights { get; set; }//1-4
         public uint Unk1 { get; set; } // 0x00000000
-        public SourceInfo[] SourceInfos { get; set; }
-        public Vector4[] Values { get; set; }
+        public SourceInfo[] SourceInfos { get; set; } = [];
+        public Vector4[] Values { get; set; } = [];
 
         public uint RequiredValueCount => (SourceCount / 4) * (6 + ((NumSourceWeights - 1) * 9));
 
@@ -989,7 +993,7 @@ namespace CodeWalker.GameFiles
         }
         public override void Write(DataWriter w1, DataWriter w2)
         {
-            SourceCount = (uint)(SourceInfos?.Length ?? 0);
+            SourceCount = (uint)(SourceInfos.Length);
             NumSourceWeights = Math.Max(NumSourceWeights, 1);
             var valcnt = (NumSourceWeights - 1) * 9 + 6;
             var hlen = SourceCount * 4 + 16;
@@ -1029,7 +1033,7 @@ namespace CodeWalker.GameFiles
         {
             NumSourceWeights = Math.Max(Xml.GetChildUIntAttribute(node, "NumSourceWeights"), 1);
             var sources = XmlMeta.ReadItemArray<Source>(node, "Sources");
-            SourceCount = (uint)(sources?.Length ?? 0);
+            SourceCount = (uint)(sources.Length);
             SourceInfos = new SourceInfo[SourceCount];
             Values = new Vector4[RequiredValueCount];
             for (int i = 0; i < SourceCount; i++)
@@ -1211,7 +1215,7 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class ExpressionInstrSpring : ExpressionInstrBase
     {
-        public ExpressionSpringDescription SpringDescription { get; set; }
+        public ExpressionSpringDescription SpringDescription { get; set; } = new();
         public uint BoneTrackRot { get; set; }
         public uint BoneTrackPos { get; set; }
         public uint UnkUint13 { get; set; }//0
@@ -1350,7 +1354,7 @@ namespace CodeWalker.GameFiles
     {
         public override long BlockLength => 0xA0;
 
-        public ExpressionSpringDescription Spring { get; set; }
+        public ExpressionSpringDescription Spring { get; set; } = new();
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1365,7 +1369,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return Spring?.ToString() ?? base.ToString();
+            return Spring?.ToString() ?? base.ToString() ?? string.Empty;
         }
     }
 

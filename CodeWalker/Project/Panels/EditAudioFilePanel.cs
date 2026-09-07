@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditAudioFilePanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public RelFile CurrentFile { get; set; }
+        public RelFile? CurrentFile { get; set; }
 
         private bool populatingui = false;
 

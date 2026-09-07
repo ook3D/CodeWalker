@@ -9,15 +9,15 @@ namespace CodeWalker.Project.Panels
     public partial class EditYmapLodHierarchyPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
         private List<YmapFile> CurrentYmaps = new List<YmapFile>();
         private HashSet<YmapEntityDef> CurrentEntities = new HashSet<YmapEntityDef>();
         private Dictionary<YmapEntityDef, List<YmapEntityDef>> ChildMap = new Dictionary<YmapEntityDef, List<YmapEntityDef>>();
-        private YmapEntityDef MarkedParent = null;
+        private YmapEntityDef? MarkedParent = null;
 
         private List<uint> PendingYmapHashes = new List<uint>();
-        private Timer LoadTimer = null;
+        private Timer? LoadTimer = null;
         private int LoadAttempts = 0;
         private long LastAutoRefreshTime = 0;
         private bool AutoRefreshPending = false;
@@ -48,7 +48,7 @@ namespace CodeWalker.Project.Panels
             PendingYmapHashes.Clear();
             LoadAttempts = 0;
 
-            var gfc = ProjectForm?.GameFileCache;
+            var gfc = ProjectForm.GameFileCache;
             if ((Ymap == null) || (gfc == null) || !gfc.IsInited) return;
 
             uint hash = Ymap.RpfFileEntry?.ShortNameHash ?? Ymap._CMapData.name.Hash;
@@ -75,7 +75,7 @@ namespace CodeWalker.Project.Panels
             ProcessPendingYmaps();
         }
 
-        private static void CollectMapNodeNames(MapDataStoreNode node, List<uint> hashes, int depth)
+        private static void CollectMapNodeNames(MapDataStoreNode? node, List<uint> hashes, int depth)
         {
             if ((node == null) || (depth > 10) || (hashes.Count > 500)) return;
             hashes.Add(node.Name.Hash);
@@ -90,7 +90,7 @@ namespace CodeWalker.Project.Panels
 
         private void ProcessPendingYmaps()
         {
-            var gfc = ProjectForm?.GameFileCache;
+            var gfc = ProjectForm.GameFileCache;
             if ((gfc == null) || !gfc.IsInited)
             {
                 PendingYmapHashes.Clear();
@@ -160,7 +160,7 @@ namespace CodeWalker.Project.Panels
             Text = "LOD Hierarchy" + ((Ymap != null) ? (" - " + Ymap.Name) : string.Empty);
         }
 
-        private YmapEntityDef SelectedEntity
+        private YmapEntityDef? SelectedEntity
         {
             get { return GraphView.SelectedEntity; }
         }
@@ -195,7 +195,7 @@ namespace CodeWalker.Project.Panels
             CurrentYmaps.Clear();
             if (Ymap == null) return;
 
-            void add(YmapFile y)
+            void add(YmapFile? y)
             {
                 if ((y != null) && y.Loaded && !CurrentYmaps.Contains(y)) CurrentYmaps.Add(y);
             }
@@ -492,7 +492,7 @@ namespace CodeWalker.Project.Panels
 
         private static bool IsEntityInYmap(YmapEntityDef ent)
         {
-            var allents = ent?.Ymap?.AllEntities;
+            var allents = ent.Ymap?.AllEntities;
             if (allents == null) return false;
             return (ent.Index >= 0) && (ent.Index < allents.Length) && (allents[ent.Index] == ent);
         }
@@ -522,7 +522,7 @@ namespace CodeWalker.Project.Panels
             if (ents.Count == 0) return;
 
             string msg = (ents.Count == 1)
-                ? ("Unlink " + ents[0].Name + " from its LOD parent " + ents[0].Parent.Name + "?\nIt will become an orphan (parentIndex -1), and the parent's numChildren will be decremented.")
+                ? ("Unlink " + ents[0].Name + " from its LOD parent " + ents[0].Parent?.Name + "?\nIt will become an orphan (parentIndex -1), and the parent's numChildren will be decremented.")
                 : ("Unlink " + ents.Count.ToString() + " entities from their LOD parents?\nThey will become orphans (parentIndex -1), and their parents' numChildren will be decremented.");
             if (MessageBox.Show(msg, "Confirm unlink", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
 

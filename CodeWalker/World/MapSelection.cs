@@ -45,42 +45,42 @@ namespace CodeWalker
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public struct MapSelection
     {
-        public WorldForm WorldForm { get; set; }
-        public YmapEntityDef EntityDef { get; set; }
-        public Archetype Archetype { get; set; }
-        public DrawableBase Drawable { get; set; }
-        public DrawableGeometry Geometry { get; set; }
-        public MetaWrapper EntityExtension { get; set; }
-        public MetaWrapper ArchetypeExtension { get; set; }
-        public YmapTimeCycleModifier TimeCycleModifier { get; set; }
-        public YmapCarGen CarGenerator { get; set; }
-        public YmapGrassInstanceBatch GrassBatch { get; set; }
-        public YmapLODLight LodLight { get; set; }
-        public YmapBoxOccluder BoxOccluder { get; set; }
-        public YmapOccludeModelTriangle OccludeModelTri { get; set; }
-        public YmapEntityDef MloEntityDef { get; set; }
-        public MCMloRoomDef MloRoomDef { get; set; }
-        public WaterQuad WaterQuad { get; set; }
-        public WaterCalmingQuad CalmingQuad { get; set; }
-        public WaterWaveQuad WaveQuad { get; set; }
-        public Bounds CollisionBounds { get; set; }
-        public BoundPolygon CollisionPoly { get; set; }
-        public BoundVertex CollisionVertex { get; set; }
-        public YnvPoly NavPoly { get; set; }
-        public YnvPoint NavPoint { get; set; }
-        public YnvPortal NavPortal { get; set; }
-        public YndNode PathNode { get; set; }
-        public YndLink PathLink { get; set; }
-        public TrainTrackNode TrainTrackNode { get; set; }
-        public ScenarioNode ScenarioNode { get; set; }
-        public MCScenarioChainingEdge ScenarioEdge { get; set; }
-        public AudioPlacement Audio { get; set; }
+        public WorldForm? WorldForm { get; set; }
+        public YmapEntityDef? EntityDef { get; set; }
+        public Archetype? Archetype { get; set; }
+        public DrawableBase? Drawable { get; set; }
+        public DrawableGeometry? Geometry { get; set; }
+        public MetaWrapper? EntityExtension { get; set; }
+        public MetaWrapper? ArchetypeExtension { get; set; }
+        public YmapTimeCycleModifier? TimeCycleModifier { get; set; }
+        public YmapCarGen? CarGenerator { get; set; }
+        public YmapGrassInstanceBatch? GrassBatch { get; set; }
+        public YmapLODLight? LodLight { get; set; }
+        public YmapBoxOccluder? BoxOccluder { get; set; }
+        public YmapOccludeModelTriangle? OccludeModelTri { get; set; }
+        public YmapEntityDef? MloEntityDef { get; set; }
+        public MCMloRoomDef? MloRoomDef { get; set; }
+        public WaterQuad? WaterQuad { get; set; }
+        public WaterCalmingQuad? CalmingQuad { get; set; }
+        public WaterWaveQuad? WaveQuad { get; set; }
+        public Bounds? CollisionBounds { get; set; }
+        public BoundPolygon? CollisionPoly { get; set; }
+        public BoundVertex? CollisionVertex { get; set; }
+        public YnvPoly? NavPoly { get; set; }
+        public YnvPoint? NavPoint { get; set; }
+        public YnvPortal? NavPortal { get; set; }
+        public YndNode? PathNode { get; set; }
+        public YndLink? PathLink { get; set; }
+        public TrainTrackNode? TrainTrackNode { get; set; }
+        public ScenarioNode? ScenarioNode { get; set; }
+        public MCScenarioChainingEdge? ScenarioEdge { get; set; }
+        public AudioPlacement? Audio { get; set; }
 
         public MapSelection[]? MultipleSelectionItems { get; private set; }
         public Vector3 MultipleSelectionCenter { get; set; }
         public Quaternion MultipleSelectionRotation { get; set; }
         public Vector3 MultipleSelectionScale { get; set; }
-        public BoundVertex[] GatheredCollisionVerts { get; private set; } //for collision polys, need to move all the individual vertices instead
+        public BoundVertex[]? GatheredCollisionVerts { get; private set; } //for collision polys, need to move all the individual vertices instead
 
         public Vector3 BBOffset { get; set; }
         public Quaternion BBOrientation { get; set; }
@@ -372,7 +372,7 @@ namespace CodeWalker
             if (Audio != null) return true;
             return false;
         }
-        public UndoStep CreateUndoStep(WidgetMode mode, Vector3 startPos, Quaternion startRot, Vector3 startScale, WorldForm wf, bool editPivot)
+        public UndoStep? CreateUndoStep(WidgetMode mode, Vector3 startPos, Quaternion startRot, Vector3 startScale, WorldForm wf, bool editPivot)
         {
             if (MultipleSelectionItems != null)
             {
@@ -1064,10 +1064,11 @@ namespace CodeWalker
             }
             else if (PathNode != null)
             {
-                PathNode.SetYndNodePosition(WorldForm.Space, newpos, out var affectedFiles);
+                var worldForm = WorldForm ?? throw new InvalidOperationException("Moving path nodes requires an active world view.");
+                PathNode.SetYndNodePosition(worldForm.Space, newpos, out var affectedFiles);
                 foreach (var affectedFile in affectedFiles)
                 {
-                    WorldForm.UpdatePathYndGraphics(affectedFile, false);
+                    worldForm.UpdatePathYndGraphics(affectedFile, false);
                 }
             }
             else if (NavPoly != null)
@@ -1336,29 +1337,29 @@ namespace CodeWalker
 
                 foreach (var item in MultipleSelectionItems)
                 {
-                    if (item.PathNode != null)
+                    if (item.PathNode?.Ynd is { } filePathNode)
                     {
-                        pathYnds[item.PathNode.Ynd] = 1;
+                        pathYnds[filePathNode] = 1;
                     }
-                    if (item.NavPoly != null)
+                    if (item.NavPoly?.Ynv is { } fileNavPoly)
                     {
-                        navYnvs[item.NavPoly.Ynv] = 1;
+                        navYnvs[fileNavPoly] = 1;
                     }
-                    if (item.NavPoint != null)
+                    if (item.NavPoint?.Ynv is { } fileNavPoint)
                     {
-                        navYnvs[item.NavPoint.Ynv] = 1;
+                        navYnvs[fileNavPoint] = 1;
                     }
-                    if (item.NavPortal != null)
+                    if (item.NavPortal?.Ynv is { } fileNavPortal)
                     {
-                        navYnvs[item.NavPortal.Ynv] = 1;
+                        navYnvs[fileNavPortal] = 1;
                     }
                     if (item.TrainTrackNode != null)
                     {
-                        trainTracks[item.TrainTrackNode.Track] = 1;
+                        if (item.TrainTrackNode.Track is { } track) trainTracks[track] = 1;
                     }
-                    if (item.ScenarioNode != null)
+                    if (item.ScenarioNode?.Ymt is { } scenarioYmt)
                     {
-                        scenarioYmts[item.ScenarioNode.Ymt] = 1;
+                        scenarioYmts[scenarioYmt] = 1;
                     }
                     if (item.CollisionBounds != null)
                     {
@@ -1441,7 +1442,7 @@ namespace CodeWalker
                 }
                 if (TrainTrackNode != null)
                 {
-                    wf.UpdateTrainTrackGraphics(TrainTrackNode.Track, false);
+                    if (TrainTrackNode.Track is { } track) wf.UpdateTrainTrackGraphics(track, false);
                 }
                 if (ScenarioNode != null)
                 {
@@ -1469,13 +1470,13 @@ namespace CodeWalker
                 }
                 else if (OccludeModelTri?.Model != null)
                 {
-                    wf.UpdateOccludeModelGraphics(OccludeModelTri?.Model);
+                    if (OccludeModelTri?.Model is { } model) wf.UpdateOccludeModelGraphics(model);
                 }
             }
         }
 
 
-        public object GetProjectObject()
+        public object? GetProjectObject()
         {
             if (MultipleSelectionItems != null) return MultipleSelectionItems;
             else if (CollisionVertex != null) return CollisionVertex;
@@ -1498,7 +1499,7 @@ namespace CodeWalker
             return null;
         }
 
-        public static MapSelection FromProjectObject(WorldForm worldForm, object o, object? parent = null)
+        public static MapSelection FromProjectObject(WorldForm? worldForm, object o, object? parent = null)
         {
             const float nrad = 0.5f;
             var ms = new MapSelection();
@@ -1515,7 +1516,7 @@ namespace CodeWalker
             else if (o is YmapEntityDef entity)
             {
                 ms.EntityDef = entity;
-                ms.Archetype = entity?.Archetype;
+                ms.Archetype = entity.Archetype;
                 ms.AABB = new BoundingBox(entity.BBMin, entity.BBMax);
                 if (entity.MloInstance != null)
                 {

@@ -21,10 +21,10 @@ namespace CodeWalker.GameFiles
         public uint Unknown_14h { get; set; } // 0x00000000
         public uint RefCount { get; set; } = 1; // pgDictionary m_RefCount
         public uint Unknown_1Ch { get; set; } // 0x00000000
-        public ResourceSimpleList64_uint TextureNameHashes { get; set; }
-        public ResourcePointerList64<Texture> Textures { get; set; }
+        public ResourceSimpleList64_uint TextureNameHashes { get; set; } = new();
+        public ResourcePointerList64<Texture> Textures { get; set; } = new();
 
-        public Dictionary<uint, Texture> Dict { get; set; }
+        public Dictionary<uint, Texture> Dict { get; set; } = new();
 
         public long MemoryUsage
         {
@@ -58,8 +58,8 @@ namespace CodeWalker.GameFiles
             this.Unknown_14h = reader.ReadUInt32();
             this.RefCount = reader.ReadUInt32();
             this.Unknown_1Ch = reader.ReadUInt32();
-            this.TextureNameHashes = reader.ReadBlock<ResourceSimpleList64_uint>();
-            this.Textures = reader.ReadBlock<ResourcePointerList64<Texture>>();
+            this.TextureNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
+            this.Textures = reader.ReadRequiredBlock<ResourcePointerList64<Texture>>();
 
             BuildDict();
         }
@@ -121,7 +121,7 @@ namespace CodeWalker.GameFiles
                 YtdXml.CloseTag(sb, indent, name);
             }
         }
-        public static TextureDictionary ReadXmlNode(XmlNode? node, string ddsfolder)
+        public static TextureDictionary? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var td = new TextureDictionary();
@@ -138,7 +138,7 @@ namespace CodeWalker.GameFiles
             };
         }
 
-        public Texture Lookup(uint hash)
+        public Texture? Lookup(uint hash)
         {
             Texture? tex = null;
             if (Dict != null)
@@ -265,14 +265,14 @@ namespace CodeWalker.GameFiles
 
 
         // reference data
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public uint NameHash { get; set; }
 
-        private string_r NameBlock = null;
+        private string_r? NameBlock = null;
 
-        public TextureData Data { get; set; }
+        public TextureData? Data { get; set; }
 
-        public ShaderResourceViewG9 G9_SRV { get; set; }//make sure this is null if saving legacy version!
+        public ShaderResourceViewG9? G9_SRV { get; set; }//make sure this is null if saving legacy version!
 
 
 
@@ -338,7 +338,7 @@ namespace CodeWalker.GameFiles
                 Data = reader.ReadBlockAt<TextureData>(DataPointer, CalcDataSize());
                 G9_SRV = reader.ReadBlockAt<ShaderResourceViewG9>(G9_SRVPointer);
 
-                Name = reader.ReadStringAt(NamePointer);
+                Name = reader.ReadStringAt(NamePointer) ?? string.Empty;
                 if (!string.IsNullOrEmpty(Name))
                 {
                     NameHash = JenkHash.GenHash(Name.ToLowerInvariant());
@@ -478,7 +478,7 @@ namespace CodeWalker.GameFiles
                 // read reference data
                 this.Name = reader.ReadStringAt( //BlockAt<string_r>(
                     this.NamePointer // offset
-                );
+                ) ?? string.Empty;
 
                 if (!string.IsNullOrEmpty(Name))
                 {
@@ -661,8 +661,8 @@ namespace CodeWalker.GameFiles
         }
         public virtual void ReadXml(XmlNode node, string ddsfolder)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
-            NameHash = JenkHash.GenHash(Name?.ToLowerInvariant());
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
+            NameHash = JenkHash.GenHash(Name.ToLowerInvariant());
             Unknown_32h = (ushort)Xml.GetChildUIntAttribute(node, "Unk32", "value");
             Usage = Xml.GetChildEnumInnerText<TextureUsage>(node, "Usage");
             UsageFlags = Xml.GetChildEnumInnerText<TextureUsageFlags>(node, "UsageFlags");
@@ -964,12 +964,12 @@ namespace CodeWalker.GameFiles
             if (writer.IsGen9)
             {
                 writer.Write(0UL);
-                writer.WriteBlock(G9_SRV);//SRV embedded at offset 88 (base+8)
+                writer.WriteBlock(G9_SRV ?? throw new InvalidOperationException("The Gen9 texture view has not been created."));//SRV embedded at offset 88 (base+8)
                 writer.Write(0UL);
             }
             else
             {
-                this.DataPointer = (ulong)this.Data.FilePosition;
+                this.DataPointer = (ulong)(this.Data?.FilePosition ?? 0);
 
                 // write structure data
                 writer.Write(this.Width);
@@ -1075,7 +1075,7 @@ namespace CodeWalker.GameFiles
         public override IResourceBlock[] GetReferences()
         {
             var list = new List<IResourceBlock>(base.GetReferences());
-            list.Add(Data);
+            if (Data != null) list.Add(Data);
             return list.ToArray();
         }
         public override Tuple<long, IResourceBlock>[] GetParts()
@@ -1105,7 +1105,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public byte[] FullData { get; set; }
+        public byte[] FullData { get; set; } = [];
 
         /// <summary>
         /// Gets the texture data as a ReadOnlyMemory for zero-copy access

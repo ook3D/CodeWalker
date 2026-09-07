@@ -43,8 +43,8 @@ namespace CodeWalker.GameFiles
         // structure data
         public ulong Unknown_10h; // 0x0000000000000000
         public ulong Unknown_18h = 1; // 0x0000000000000001
-        public ResourceSimpleList64_s<MetaHash> ClothNameHashes { get; set; }
-        public ResourcePointerList64<CharacterCloth> Clothes { get; set; }
+        public ResourceSimpleList64_s<MetaHash> ClothNameHashes { get; set; } = new();
+        public ResourcePointerList64<CharacterCloth> Clothes { get; set; } = new();
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -53,8 +53,8 @@ namespace CodeWalker.GameFiles
             // read structure data
             this.Unknown_10h = reader.ReadUInt64();
             this.Unknown_18h = reader.ReadUInt64();
-            this.ClothNameHashes = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
-            this.Clothes = reader.ReadBlock<ResourcePointerList64<CharacterCloth>>();
+            this.ClothNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
+            this.Clothes = reader.ReadRequiredBlock<ResourcePointerList64<CharacterCloth>>();
 
             if (Clothes?.data_items != null)
             {
@@ -136,7 +136,8 @@ namespace CodeWalker.GameFiles
                 YldXml.CloseTag(sb, indent, name);
             }
         }
-        public static ClothDictionary ReadXmlNode(XmlNode? node)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(node))]
+        public static ClothDictionary? ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var cd = new ClothDictionary();
@@ -178,11 +179,11 @@ namespace CodeWalker.GameFiles
         public uint Unknown_7Ch; // 0x00000000
 
         // reference data
-        public ClothBridgeSimGfx BridgeSimGfx { get; set; }
-        public MorphController MorphController { get; set; }
-        public VerletCloth VerletCloth1 { get; set; }
-        public VerletCloth VerletCloth2 { get; set; }
-        public VerletCloth VerletCloth3 { get; set; }
+        public ClothBridgeSimGfx? BridgeSimGfx { get; set; }
+        public MorphController? MorphController { get; set; }
+        public VerletCloth? VerletCloth1 { get; set; }
+        public VerletCloth? VerletCloth2 { get; set; }
+        public VerletCloth? VerletCloth3 { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -296,7 +297,7 @@ namespace CodeWalker.GameFiles
         }
         public virtual void ReadXml(XmlNode node)
         {
-            Name = new PsoChar32(Xml.GetChildInnerText(node, "Name"));
+            Name = new PsoChar32(Xml.GetChildInnerText(node, "Name") ?? string.Empty);
             Type = Xml.GetChildUIntAttribute(node, "Type", "value");
             Unknown_78h = Xml.GetChildFloatAttribute(node, "Unknown78", "value");
             var bsnode = node.SelectSingleNode("BridgeSimGfx");
@@ -358,28 +359,28 @@ namespace CodeWalker.GameFiles
         public uint Unknown_14h { get; set; }
         public uint Unknown_18h { get; set; }
         public uint Unknown_1Ch; // 0x00000000
-        public ResourceSimpleList64_float Unknown_20h { get; set; }
-        public ResourceSimpleList64_float Unknown_30h { get; set; }
-        public ResourceSimpleList64_float Unknown_40h { get; set; }
+        public ResourceSimpleList64_float Unknown_20h { get; set; } = new();
+        public ResourceSimpleList64_float Unknown_30h { get; set; } = new();
+        public ResourceSimpleList64_float Unknown_40h { get; set; } = new();
         public ulong Unknown_50h; // 0x0000000000000000
         public ulong Unknown_58h; // 0x0000000000000000
-        public ResourceSimpleList64_float Unknown_60h { get; set; }
-        public ResourceSimpleList64_uint Unknown_70h { get; set; }
-        public ResourceSimpleList64_uint Unknown_80h { get; set; }
+        public ResourceSimpleList64_float Unknown_60h { get; set; } = new();
+        public ResourceSimpleList64_uint Unknown_70h { get; set; } = new();
+        public ResourceSimpleList64_uint Unknown_80h { get; set; } = new();
         public ulong Unknown_90h; // 0x0000000000000000
         public ulong Unknown_98h; // 0x0000000000000000
-        public ResourceSimpleList64_float Unknown_A0h { get; set; }
-        public ResourceSimpleList64_uint Unknown_B0h { get; set; }
-        public ResourceSimpleList64_uint Unknown_C0h { get; set; }
+        public ResourceSimpleList64_float Unknown_A0h { get; set; } = new();
+        public ResourceSimpleList64_uint Unknown_B0h { get; set; } = new();
+        public ResourceSimpleList64_uint Unknown_C0h { get; set; } = new();
         public ulong Unknown_D0h; // 0x0000000000000000
         public ulong Unknown_D8h; // 0x0000000000000000
-        public ResourceSimpleList64_ushort Unknown_E0h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_F0h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_100h { get; set; }
+        public ResourceSimpleList64_ushort Unknown_E0h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_F0h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_100h { get; set; } = new();
         public ulong Unknown_110h; // 0x0000000000000000
         public ulong Unknown_118h; // 0x0000000000000000
         public ulong Unknown_120h; // 0x0000000000000000
-        public ResourceSimpleList64_uint Unknown_128h { get; set; }
+        public ResourceSimpleList64_uint Unknown_128h { get; set; } = new();
         public ulong Unknown_138h; // 0x0000000000000000
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -392,28 +393,28 @@ namespace CodeWalker.GameFiles
             this.Unknown_14h = reader.ReadUInt32();
             this.Unknown_18h = reader.ReadUInt32();
             this.Unknown_1Ch = reader.ReadUInt32();
-            this.Unknown_20h = reader.ReadBlock<ResourceSimpleList64_float>();
-            this.Unknown_30h = reader.ReadBlock<ResourceSimpleList64_float>();
-            this.Unknown_40h = reader.ReadBlock<ResourceSimpleList64_float>();
+            this.Unknown_20h = reader.ReadRequiredBlock<ResourceSimpleList64_float>();
+            this.Unknown_30h = reader.ReadRequiredBlock<ResourceSimpleList64_float>();
+            this.Unknown_40h = reader.ReadRequiredBlock<ResourceSimpleList64_float>();
             this.Unknown_50h = reader.ReadUInt64();
             this.Unknown_58h = reader.ReadUInt64();
-            this.Unknown_60h = reader.ReadBlock<ResourceSimpleList64_float>();
-            this.Unknown_70h = reader.ReadBlock<ResourceSimpleList64_uint>();
-            this.Unknown_80h = reader.ReadBlock<ResourceSimpleList64_uint>();
+            this.Unknown_60h = reader.ReadRequiredBlock<ResourceSimpleList64_float>();
+            this.Unknown_70h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
+            this.Unknown_80h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
             this.Unknown_90h = reader.ReadUInt64();
             this.Unknown_98h = reader.ReadUInt64();
-            this.Unknown_A0h = reader.ReadBlock<ResourceSimpleList64_float>();
-            this.Unknown_B0h = reader.ReadBlock<ResourceSimpleList64_uint>();
-            this.Unknown_C0h = reader.ReadBlock<ResourceSimpleList64_uint>();
+            this.Unknown_A0h = reader.ReadRequiredBlock<ResourceSimpleList64_float>();
+            this.Unknown_B0h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
+            this.Unknown_C0h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
             this.Unknown_D0h = reader.ReadUInt64();
             this.Unknown_D8h = reader.ReadUInt64();
-            this.Unknown_E0h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_F0h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_100h = reader.ReadBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_E0h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_F0h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_100h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
             this.Unknown_110h = reader.ReadUInt64();
             this.Unknown_118h = reader.ReadUInt64();
             this.Unknown_120h = reader.ReadUInt64();
-            this.Unknown_128h = reader.ReadBlock<ResourceSimpleList64_uint>();
+            this.Unknown_128h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
             this.Unknown_138h = reader.ReadUInt64();
 
 
@@ -594,31 +595,31 @@ namespace CodeWalker.GameFiles
             Unknown_14h = Xml.GetChildUIntAttribute(node, "Unknown14", "value");
             Unknown_18h = Xml.GetChildUIntAttribute(node, "Unknown18", "value");
             Unknown_20h = new ResourceSimpleList64_float();
-            Unknown_20h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown20");
+            Unknown_20h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown20") ?? [];
             Unknown_30h = new ResourceSimpleList64_float();
-            Unknown_30h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown30");
+            Unknown_30h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown30") ?? [];
             Unknown_40h = new ResourceSimpleList64_float();
-            Unknown_40h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown40");
+            Unknown_40h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown40") ?? [];
             Unknown_60h = new ResourceSimpleList64_float();
-            Unknown_60h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown60");
+            Unknown_60h.data_items = Xml.GetChildRawFloatArrayNullable(node, "Unknown60") ?? [];
             Unknown_70h = new ResourceSimpleList64_uint();
-            Unknown_70h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown70");
+            Unknown_70h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown70") ?? [];
             Unknown_80h = new ResourceSimpleList64_uint();
-            Unknown_80h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown80");
+            Unknown_80h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown80") ?? [];
             Unknown_A0h = new ResourceSimpleList64_float();
-            Unknown_A0h.data_items = Xml.GetChildRawFloatArrayNullable(node, "UnknownA0");
+            Unknown_A0h.data_items = Xml.GetChildRawFloatArrayNullable(node, "UnknownA0") ?? [];
             Unknown_B0h = new ResourceSimpleList64_uint();
-            Unknown_B0h.data_items = Xml.GetChildRawUintArrayNullable(node, "UnknownB0");
+            Unknown_B0h.data_items = Xml.GetChildRawUintArrayNullable(node, "UnknownB0") ?? [];
             Unknown_C0h = new ResourceSimpleList64_uint();
-            Unknown_C0h.data_items = Xml.GetChildRawUintArrayNullable(node, "UnknownC0");
+            Unknown_C0h.data_items = Xml.GetChildRawUintArrayNullable(node, "UnknownC0") ?? [];
             Unknown_E0h = new ResourceSimpleList64_ushort();
-            Unknown_E0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownE0");
+            Unknown_E0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownE0") ?? [];
             Unknown_F0h = new ResourceSimpleList64_ushort();
-            Unknown_F0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownF0");
+            Unknown_F0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownF0") ?? [];
             Unknown_100h = new ResourceSimpleList64_ushort();
-            Unknown_100h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown100");
+            Unknown_100h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown100") ?? [];
             Unknown_128h = new ResourceSimpleList64_uint();
-            Unknown_128h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown128");
+            Unknown_128h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown128") ?? [];
         }
 
 
@@ -865,8 +866,8 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_58h; // 0x0000000000000000
         public ulong Unknown_60h; // 0x0000000000000000
         public ulong Unknown_68h; // 0x0000000000000000
-        public ResourceSimpleList64_s<Vector4> Vertices2 { get; set; } //vertex infos? original positions..?
-        public ResourceSimpleList64_s<Vector4> Vertices { get; set; } //vertex positions  (in bind pose?)
+        public ResourceSimpleList64_s<Vector4> Vertices2 { get; set; } = new(); //vertex infos? original positions..?
+        public ResourceSimpleList64_s<Vector4> Vertices { get; set; } = new(); //vertex positions  (in bind pose?)
         public ulong Unknown_90h; // 0x0000000000000000
         public ulong Unknown_98h; // 0x0000000000000000
         public ulong Unknown_A0h; // 0x0000000000000000
@@ -886,8 +887,8 @@ namespace CodeWalker.GameFiles
         public ushort Unknown_F8h = 3;       // 3 
         public ushort Unknown_FAh { get; set; } // 0, 2 (yft only)
         public uint Unknown_FCh; // 0x00000000
-        public ResourceSimpleList64_s<Unknown_C_004> Constraints2 { get; set; }
-        public ResourceSimpleList64_s<Unknown_C_004> Constraints { get; set; }
+        public ResourceSimpleList64_s<Unknown_C_004> Constraints2 { get; set; } = new();
+        public ResourceSimpleList64_s<Unknown_C_004> Constraints { get; set; } = new();
         public ulong Unknown_120h; // 0x0000000000000000
         public ulong Unknown_128h; // 0x0000000000000000
         public ulong BehaviorPointer { get; set; }
@@ -905,9 +906,9 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_178h; // 0x0000000000000000
 
         // reference data
-        public Bounds Bound { get; set; }
-        public EnvClothVerletBehavior Behavior { get; set; }
-        public Unknown_C_007 Unknown_140h_Data { get; set; }
+        public Bounds? Bound { get; set; }
+        public EnvClothVerletBehavior? Behavior { get; set; }
+        public Unknown_C_007? Unknown_140h_Data { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -928,8 +929,8 @@ namespace CodeWalker.GameFiles
             this.Unknown_58h = reader.ReadUInt64();
             this.Unknown_60h = reader.ReadUInt64();
             this.Unknown_68h = reader.ReadUInt64();
-            this.Vertices2 = reader.ReadBlock<ResourceSimpleList64_s<Vector4>>();
-            this.Vertices = reader.ReadBlock<ResourceSimpleList64_s<Vector4>>();
+            this.Vertices2 = reader.ReadRequiredBlock<ResourceSimpleList64_s<Vector4>>();
+            this.Vertices = reader.ReadRequiredBlock<ResourceSimpleList64_s<Vector4>>();
             this.Unknown_90h = reader.ReadUInt64();
             this.Unknown_98h = reader.ReadUInt64();
             this.Unknown_A0h = reader.ReadUInt64();
@@ -949,8 +950,8 @@ namespace CodeWalker.GameFiles
             this.Unknown_F8h = reader.ReadUInt16();
             this.Unknown_FAh = reader.ReadUInt16();
             this.Unknown_FCh = reader.ReadUInt32();
-            this.Constraints2 = reader.ReadBlock<ResourceSimpleList64_s<Unknown_C_004>>();
-            this.Constraints = reader.ReadBlock<ResourceSimpleList64_s<Unknown_C_004>>();
+            this.Constraints2 = reader.ReadRequiredBlock<ResourceSimpleList64_s<Unknown_C_004>>();
+            this.Constraints = reader.ReadRequiredBlock<ResourceSimpleList64_s<Unknown_C_004>>();
             this.Unknown_120h = reader.ReadUInt64();
             this.Unknown_128h = reader.ReadUInt64();
             this.BehaviorPointer = reader.ReadUInt64();
@@ -1306,9 +1307,9 @@ namespace CodeWalker.GameFiles
             Unknown_148h = (ushort)Xml.GetChildUIntAttribute(node, "Unknown148", "value");
             Unknown_158h = Xml.GetChildFloatAttribute(node, "Unknown158", "value");
             Vertices = new ResourceSimpleList64_s<Vector4>();
-            Vertices.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Vertices");
+            Vertices.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Vertices") ?? [];
             Vertices2 = new ResourceSimpleList64_s<Vector4>();
-            Vertices2.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Vertices2");
+            Vertices2.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Vertices2") ?? [];
             Constraints = new ResourceSimpleList64_s<Unknown_C_004>();
             Constraints.data_items = XmlMeta.ReadItemArray<Unknown_C_004>(node, "Constraints");
             Constraints2 = new ResourceSimpleList64_s<Unknown_C_004>();
@@ -1448,12 +1449,12 @@ namespace CodeWalker.GameFiles
         public uint Unknown_7Ch; // 0x00000000
 
         // reference data
-        public ClothInstanceTuning InstanceTuning { get; set; }
-        public FragDrawable Drawable { get; set; }
-        public ClothController Controller { get; set; }
-        public uint[] UnknownData { get; set; }
+        public ClothInstanceTuning? InstanceTuning { get; set; }
+        public FragDrawable? Drawable { get; set; }
+        public ClothController? Controller { get; set; }
+        public uint[] UnknownData { get; set; } = [];
 
-        private ResourceSystemStructBlock<uint> UnknownDataBlock = null;
+        private ResourceSystemStructBlock<uint>? UnknownDataBlock;
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1483,7 +1484,7 @@ namespace CodeWalker.GameFiles
             this.InstanceTuning = reader.ReadBlockAt<ClothInstanceTuning>(this.InstanceTuningPointer);
             this.Drawable = reader.ReadBlockAt<FragDrawable>(this.DrawablePointer);
             this.Controller = reader.ReadBlockAt<ClothController>(this.ControllerPointer);
-            this.UnknownData = reader.ReadUintsAt(this.UnknownPointer, this.UnknownCount1);
+            this.UnknownData = reader.ReadUintsAt(this.UnknownPointer, this.UnknownCount1) ?? [];
 
             if (this.Drawable != null)
             {
@@ -1586,7 +1587,7 @@ namespace CodeWalker.GameFiles
         public void ReadXml(XmlNode node, string ddsfolder)
         {
             Unknown_78h = Xml.GetChildUIntAttribute(node, "Unknown78", "value");
-            UnknownData = Xml.GetChildRawUintArrayNullable(node, "UnknownData");
+            UnknownData = Xml.GetChildRawUintArrayNullable(node, "UnknownData") ?? [];
             var cnode = node.SelectSingleNode("Controller");
             if (cnode != null)
             {
@@ -1636,14 +1637,14 @@ namespace CodeWalker.GameFiles
         public uint VFT { get; set; }
         public uint Unknown_4h = 1; // 0x00000001
         public ulong Unknown_8h; // 0x0000000000000000
-        public ResourceSimpleList64_s<Vector4> Unknown_10h { get; set; }
+        public ResourceSimpleList64_s<Vector4> Unknown_10h { get; set; } = new();
         public ulong ControllerPointer { get; set; }
         public ulong BoundPointer { get; set; }
-        public ResourceSimpleList64_uint Unknown_30h { get; set; } //bone ids - maps to items in Bound.Children
+        public ResourceSimpleList64_uint Unknown_30h { get; set; } = new(); //bone ids - maps to items in Bound.Children
         public ulong Unknown_40h; // 0x0000000000000000
         public ulong Unknown_48h; // 0x0000000000000000
         public Matrix Transform { get; set; }
-        public ResourceSimpleList64_uint Unknown_90h { get; set; }
+        public ResourceSimpleList64_uint Unknown_90h { get; set; } = new();
         public ulong Unknown_A0h; // 0x0000000000000000
         public ulong Unknown_A8h; // 0x0000000000000000
         public ulong Unknown_B0h; // 0x0000000000000000
@@ -1652,8 +1653,8 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_C8h; // 0x0000000000000000
 
         // reference data
-        public CharacterClothController Controller { get; set; }
-        public Bounds Bound { get; set; }
+        public CharacterClothController? Controller { get; set; }
+        public Bounds? Bound { get; set; }
 
         public MetaHash NameHash { get; set; }
 
@@ -1664,14 +1665,14 @@ namespace CodeWalker.GameFiles
             this.VFT = reader.ReadUInt32();
             this.Unknown_4h = reader.ReadUInt32();
             this.Unknown_8h = reader.ReadUInt64();
-            this.Unknown_10h = reader.ReadBlock<ResourceSimpleList64_s<Vector4>>();
+            this.Unknown_10h = reader.ReadRequiredBlock<ResourceSimpleList64_s<Vector4>>();
             this.ControllerPointer = reader.ReadUInt64();
             this.BoundPointer = reader.ReadUInt64();
-            this.Unknown_30h = reader.ReadBlock<ResourceSimpleList64_uint>();
+            this.Unknown_30h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
             this.Unknown_40h = reader.ReadUInt64();
             this.Unknown_48h = reader.ReadUInt64();
             this.Transform = reader.ReadMatrix();
-            this.Unknown_90h = reader.ReadBlock<ResourceSimpleList64_uint>();
+            this.Unknown_90h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
             this.Unknown_A0h = reader.ReadUInt64();
             this.Unknown_A8h = reader.ReadUInt64();
             this.Unknown_B0h = reader.ReadUInt64();
@@ -1768,11 +1769,11 @@ namespace CodeWalker.GameFiles
             NameHash = XmlRel.GetHash(Xml.GetChildInnerText(node, "Name"));
             Transform = Xml.GetChildMatrix(node, "Transform");
             Unknown_10h = new ResourceSimpleList64_s<Vector4>();
-            Unknown_10h.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Unknown10");
+            Unknown_10h.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Unknown10") ?? [];
             Unknown_30h = new ResourceSimpleList64_uint();
-            Unknown_30h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown30");
+            Unknown_30h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown30") ?? [];
             Unknown_90h = new ResourceSimpleList64_uint();
-            Unknown_90h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown90");
+            Unknown_90h.data_items = Xml.GetChildRawUintArrayNullable(node, "Unknown90") ?? [];
             var cnode = node.SelectSingleNode("Controller");
             if (cnode != null)
             {
@@ -1811,34 +1812,34 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0xF0;
 
         // structure data      
-        public ResourceSimpleList64_ushort Indices { get; set; }
-        public ResourceSimpleList64_s<Vector4> Vertices { get; set; }
+        public ResourceSimpleList64_ushort Indices { get; set; } = new();
+        public ResourceSimpleList64_s<Vector4> Vertices { get; set; } = new();
         public float Unknown_A0h { get; set; } = 0.04f; // 0x3D23D70A = 0.04f
         public uint Unknown_A4h; // 0x00000000
         public ulong Unknown_A8h; // 0x0000000000000000
-        public ResourceSimpleList64_uint Unknown_B0h { get; set; }// related to BridgeSimGfx.Unknown_E0h? same count as boneids...  anchor verts..?
-        public ResourceSimpleList64_s<CharClothBoneWeightsInds> BoneWeightsInds { get; set; }//bone weights / indices
+        public ResourceSimpleList64_uint Unknown_B0h { get; set; } = new();// related to BridgeSimGfx.Unknown_E0h? same count as boneids...  anchor verts..?
+        public ResourceSimpleList64_s<CharClothBoneWeightsInds> BoneWeightsInds { get; set; } = new();//bone weights / indices
         public ulong Unknown_D0h; // 0x0000000000000000
         public uint Unknown_D8h; // 0x00000000
         public float Unknown_DCh { get; set; } = 1.0f; // 0x3F800000 = 1.0f
-        public ResourceSimpleList64_uint BoneIds { get; set; }
+        public ResourceSimpleList64_uint BoneIds { get; set; } = new();
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             base.Read(reader, parameters);
 
             // read structure data         
-            this.Indices = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Vertices = reader.ReadBlock<ResourceSimpleList64_s<Vector4>>();
+            this.Indices = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Vertices = reader.ReadRequiredBlock<ResourceSimpleList64_s<Vector4>>();
             this.Unknown_A0h = reader.ReadSingle();
             this.Unknown_A4h = reader.ReadUInt32();
             this.Unknown_A8h = reader.ReadUInt64();
-            this.Unknown_B0h = reader.ReadBlock<ResourceSimpleList64_uint>();
-            this.BoneWeightsInds = reader.ReadBlock<ResourceSimpleList64_s<CharClothBoneWeightsInds>>();
+            this.Unknown_B0h = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
+            this.BoneWeightsInds = reader.ReadRequiredBlock<ResourceSimpleList64_s<CharClothBoneWeightsInds>>();
             this.Unknown_D0h = reader.ReadUInt64();
             this.Unknown_D8h = reader.ReadUInt32();
             this.Unknown_DCh = reader.ReadSingle();
-            this.BoneIds = reader.ReadBlock<ResourceSimpleList64_uint>();
+            this.BoneIds = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
 
 
 
@@ -1911,13 +1912,13 @@ namespace CodeWalker.GameFiles
             Unknown_A0h = Xml.GetChildFloatAttribute(node, "UnknownA0", "value");
             Unknown_DCh = Xml.GetChildFloatAttribute(node, "UnknownDC", "value");
             Vertices = new ResourceSimpleList64_s<Vector4>();
-            Vertices.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Vertices");
+            Vertices.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Vertices") ?? [];
             Indices = new ResourceSimpleList64_ushort();
-            Indices.data_items = Xml.GetChildRawUshortArrayNullable(node, "Indices");
+            Indices.data_items = Xml.GetChildRawUshortArrayNullable(node, "Indices") ?? [];
             Unknown_B0h = new ResourceSimpleList64_uint();
-            Unknown_B0h.data_items = Xml.GetChildRawUintArrayNullable(node, "UnknownB0");
+            Unknown_B0h.data_items = Xml.GetChildRawUintArrayNullable(node, "UnknownB0") ?? [];
             BoneIds = new ResourceSimpleList64_uint();
-            BoneIds.data_items = Xml.GetChildRawUintArrayNullable(node, "BoneIDs");
+            BoneIds.data_items = Xml.GetChildRawUintArrayNullable(node, "BoneIDs") ?? [];
             BoneWeightsInds = new ResourceSimpleList64_s<CharClothBoneWeightsInds>();
             BoneWeightsInds.data_items = XmlMeta.ReadItemArray<CharClothBoneWeightsInds>(node, "BoneWeightsIndices");
         }
@@ -1954,9 +1955,9 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_38h; // 0x0000000000000000
 
         // reference data
-        public Unknown_C_006 Unknown_18h_Data { get; set; }
-        public Unknown_C_006 Unknown_20h_Data { get; set; }
-        public Unknown_C_006 Unknown_28h_Data { get; set; }
+        public Unknown_C_006? Unknown_18h_Data { get; set; }
+        public Unknown_C_006? Unknown_20h_Data { get; set; }
+        public Unknown_C_006? Unknown_28h_Data { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -2141,16 +2142,16 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_38h; // 0x0000000000000000
         public ulong Unknown_40h; // 0x0000000000000000
         public ulong Unknown_48h; // 0x0000000000000000
-        public ResourceSimpleList64_s<Vector4> Unknown_50h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_60h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_70h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_80h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_90h { get; set; }
-        public ResourceSimpleList64_s<Vector4> Unknown_A0h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_B0h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_C0h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_D0h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_E0h { get; set; }
+        public ResourceSimpleList64_s<Vector4> Unknown_50h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_60h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_70h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_80h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_90h { get; set; } = new();
+        public ResourceSimpleList64_s<Vector4> Unknown_A0h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_B0h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_C0h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_D0h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_E0h { get; set; } = new();
         public ulong Unknown_F0h; // 0x0000000000000000
         public ulong Unknown_F8h; // 0x0000000000000000
         public ulong Unknown_100h; // 0x0000000000000000
@@ -2163,8 +2164,8 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_138h; // 0x0000000000000000
         public ulong Unknown_140h; // 0x0000000000000000
         public ulong Unknown_148h; // 0x0000000000000000
-        public ResourceSimpleList64_ushort Unknown_150h { get; set; }
-        public ResourceSimpleList64_ushort Unknown_160h { get; set; }
+        public ResourceSimpleList64_ushort Unknown_150h { get; set; } = new();
+        public ResourceSimpleList64_ushort Unknown_160h { get; set; } = new();
         public ulong Unknown_170h; // 0x0000000000000000
         public ulong Unknown_178h; // 0x0000000000000000
         public uint Unknown_180h { get; set; }
@@ -2184,16 +2185,16 @@ namespace CodeWalker.GameFiles
             this.Unknown_38h = reader.ReadUInt64();
             this.Unknown_40h = reader.ReadUInt64();
             this.Unknown_48h = reader.ReadUInt64();
-            this.Unknown_50h = reader.ReadBlock<ResourceSimpleList64_s<Vector4>>();
-            this.Unknown_60h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_70h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_80h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_90h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_A0h = reader.ReadBlock<ResourceSimpleList64_s<Vector4>>();
-            this.Unknown_B0h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_C0h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_D0h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_E0h = reader.ReadBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_50h = reader.ReadRequiredBlock<ResourceSimpleList64_s<Vector4>>();
+            this.Unknown_60h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_70h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_80h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_90h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_A0h = reader.ReadRequiredBlock<ResourceSimpleList64_s<Vector4>>();
+            this.Unknown_B0h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_C0h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_D0h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_E0h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
             this.Unknown_F0h = reader.ReadUInt64();
             this.Unknown_F8h = reader.ReadUInt64();
             this.Unknown_100h = reader.ReadUInt64();
@@ -2206,8 +2207,8 @@ namespace CodeWalker.GameFiles
             this.Unknown_138h = reader.ReadUInt64();
             this.Unknown_140h = reader.ReadUInt64();
             this.Unknown_148h = reader.ReadUInt64();
-            this.Unknown_150h = reader.ReadBlock<ResourceSimpleList64_ushort>();
-            this.Unknown_160h = reader.ReadBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_150h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
+            this.Unknown_160h = reader.ReadRequiredBlock<ResourceSimpleList64_ushort>();
             this.Unknown_170h = reader.ReadUInt64();
             this.Unknown_178h = reader.ReadUInt64();
             this.Unknown_180h = reader.ReadUInt32();
@@ -2390,29 +2391,29 @@ namespace CodeWalker.GameFiles
         {
             Unknown_180h = Xml.GetChildUIntAttribute(node, "Unknown180", "value");
             Unknown_50h = new ResourceSimpleList64_s<Vector4>();
-            Unknown_50h.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Unknown50");
+            Unknown_50h.data_items = Xml.GetChildRawVector4ArrayNullable(node, "Unknown50") ?? [];
             Unknown_60h = new ResourceSimpleList64_ushort();
-            Unknown_60h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown60");
+            Unknown_60h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown60") ?? [];
             Unknown_70h = new ResourceSimpleList64_ushort();
-            Unknown_70h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown70");
+            Unknown_70h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown70") ?? [];
             Unknown_80h = new ResourceSimpleList64_ushort();
-            Unknown_80h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown80");
+            Unknown_80h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown80") ?? [];
             Unknown_90h = new ResourceSimpleList64_ushort();
-            Unknown_90h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown90");
+            Unknown_90h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown90") ?? [];
             Unknown_A0h = new ResourceSimpleList64_s<Vector4>();
-            Unknown_A0h.data_items = Xml.GetChildRawVector4ArrayNullable(node, "UnknownA0");
+            Unknown_A0h.data_items = Xml.GetChildRawVector4ArrayNullable(node, "UnknownA0") ?? [];
             Unknown_B0h = new ResourceSimpleList64_ushort();
-            Unknown_B0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownB0");
+            Unknown_B0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownB0") ?? [];
             Unknown_C0h = new ResourceSimpleList64_ushort();
-            Unknown_C0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownC0");
+            Unknown_C0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownC0") ?? [];
             Unknown_D0h = new ResourceSimpleList64_ushort();
-            Unknown_D0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownD0");
+            Unknown_D0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownD0") ?? [];
             Unknown_E0h = new ResourceSimpleList64_ushort();
-            Unknown_E0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownE0");
+            Unknown_E0h.data_items = Xml.GetChildRawUshortArrayNullable(node, "UnknownE0") ?? [];
             Unknown_150h = new ResourceSimpleList64_ushort();
-            Unknown_150h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown150");
+            Unknown_150h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown150") ?? [];
             Unknown_160h = new ResourceSimpleList64_ushort();
-            Unknown_160h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown160");
+            Unknown_160h.data_items = Xml.GetChildRawUshortArrayNullable(node, "Unknown160") ?? [];
         }
 
         public override Tuple<long, IResourceBlock>[] GetParts()
@@ -2487,24 +2488,25 @@ namespace CodeWalker.GameFiles
 
     public class ClothInstance
     {
-        public CharacterCloth CharCloth { get; set; }
-        public EnvironmentCloth EnvCloth { get; set; }
-        public ClothController Controller { get; set; }
+        public CharacterCloth? CharCloth { get; set; }
+        public EnvironmentCloth? EnvCloth { get; set; }
+        public ClothController? Controller { get; set; }
 
-        public Bone[] Bones { get; set; }
+        public Bone?[] Bones { get; set; } = [];
         public Matrix Transform { get; set; } = Matrix.Identity;
-        public Vector4[] Vertices { get; set; }
+        public Vector4[] Vertices { get; set; } = [];
 
-        public Skeleton Skeleton { get; set; }
+        public Skeleton? Skeleton { get; set; }
 
 
         double CurrentTime = 0.0;
 
-        public void Init(CharacterCloth c, Skeleton s)
+        public void Init(CharacterCloth c, Skeleton? s)
         {
             CharCloth = c;
+            EnvCloth = null;
             Skeleton = s;
-            Init(c?.Controller);
+            Init(c.Controller);
 
             var cc = c.Controller;
             var verts = cc?.Vertices?.data_items;
@@ -2526,10 +2528,10 @@ namespace CodeWalker.GameFiles
             Transform = t;
 
 
-            var boneIds = cc.BoneIds?.data_items;
+            var boneIds = cc?.BoneIds?.data_items;
             if ((boneIds != null) && (Skeleton != null))
             {
-                Bones = new Bone[boneIds.Length];
+                Bones = new Bone?[boneIds.Length];
                 for (int i = 0; i < Bones.Length; i++)
                 {
                     var boneid = (ushort)boneIds[i];
@@ -2542,15 +2544,18 @@ namespace CodeWalker.GameFiles
 
 
         }
-        public void Init(EnvironmentCloth c, Skeleton s)
+        public void Init(EnvironmentCloth c, Skeleton? s)
         {
             EnvCloth = c;
+            CharCloth = null;
             Skeleton = s;
-            Init(c?.Controller);
+            Init(c.Controller);
         }
-        private void Init(ClothController cc)
+        private void Init(ClothController? cc)
         {
             Controller = cc;
+            Bones = [];
+            Vertices = [];
 
             var bg = cc?.BridgeSimGfx;
             var vc = bg?.VertexCount ?? 0;
@@ -2587,8 +2592,8 @@ namespace CodeWalker.GameFiles
             if (Bones == null)
             { return; }
 
-            var cv = charCont?.Vertices?.data_items;
-            if (Vertices.Length > cv?.Length)
+            var cv = charCont.Vertices?.data_items;
+            if (CharCloth == null || cv == null || Vertices.Length > cv.Length)
             { return; }
 
             var bounds = CharCloth.Bound as BoundComposite;

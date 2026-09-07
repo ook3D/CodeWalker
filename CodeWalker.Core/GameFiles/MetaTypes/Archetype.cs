@@ -17,7 +17,7 @@ public class Archetype
     public CBaseArchetypeDef BaseArchetypeDef => _BaseArchetypeDef; // for browsing.
 
     public MetaHash Hash { get; set; }
-    public YtypFile Ytyp { get; set; }
+    public YtypFile? Ytyp { get; set; }
     public MetaHash DrawableDict { get; set; }
     public MetaHash TextureDict { get; set; }
     public MetaHash ClipDict { get; set; }
@@ -26,7 +26,7 @@ public class Archetype
     public Vector3 BSCenter { get; set; }
     public float BSRadius { get; set; }
     public float LodDist { get; set; }
-    public MetaWrapper[] Extensions { get; set; }
+    public MetaWrapper[] Extensions { get; set; } = [];
 
 
 
@@ -87,8 +87,8 @@ public class TimeArchetype : Archetype
     public CTimeArchetypeDef TimeArchetypeDef => _TimeArchetypeDef; // for browsing.
 
     public uint TimeFlags { get; set; }
-    public bool[] ActiveHours { get; set; }
-    public string[] ActiveHoursText { get; set; }
+    public bool[] ActiveHours { get; set; } = [];
+    public string[] ActiveHoursText { get; set; } = [];
     public bool ExtraFlag { get { return ((TimeFlags >> 24) & 1) == 1; } }
 
 
@@ -150,11 +150,11 @@ public class MloArchetype : Archetype
     public CMloArchetypeDef _MloArchetypeDef;
     public CMloArchetypeDefData _MloArchetypeDefData;
 
-    public MCEntityDef[] entities { get; set; }
-    public MCMloRoomDef[] rooms { get; set; }
-    public MCMloPortalDef[] portals { get; set; }
-    public MCMloEntitySet[] entitySets { get; set; }
-    public CMloTimeCycleModifier[] timeCycleModifiers { get; set; }
+    public MCEntityDef[] entities { get; set; } = [];
+    public MCMloRoomDef[] rooms { get; set; } = [];
+    public MCMloPortalDef[] portals { get; set; } = [];
+    public MCMloEntitySet[] entitySets { get; set; } = [];
+    public CMloTimeCycleModifier[] timeCycleModifiers { get; set; } = [];
 
 
     public void Init(YtypFile ytyp, ref CMloArchetypeDef arch)
@@ -169,15 +169,15 @@ public class MloArchetype : Archetype
     {
         if (ent == null) return false;
 
-        if (roomIndex >= (rooms?.Length ?? 0))
+        if (roomIndex >= (rooms.Length))
         {
             throw new ArgumentOutOfRangeException($"Room index {roomIndex} exceeds the amount of rooms in {Name}.");
         }
-        if (portalIndex >= (portals?.Length ?? 0))
+        if (portalIndex >= (portals.Length))
         {
             throw new ArgumentOutOfRangeException($"Portal index {portalIndex} exceeds the amount of portals in {Name}.");
         }
-        if (entsetIndex >= (entitySets?.Length ?? 0))
+        if (entsetIndex >= (entitySets.Length))
         {
             throw new ArgumentOutOfRangeException($"EntitySet index {entsetIndex} exceeds the amount of entitySets in {Name}.");
         }
@@ -297,7 +297,7 @@ public class MloArchetype : Archetype
         if (room == null) return;
 
         room.OwnerMlo = this;
-        room.Index = rooms?.Length ?? 0;
+        room.Index = rooms.Length;
 
         var newrooms = rooms?.ToList() ?? new List<MCMloRoomDef>();
         newrooms.Add(room);
@@ -324,7 +324,7 @@ public class MloArchetype : Archetype
         if (portal == null) return;
 
         portal.OwnerMlo = this;
-        portal.Index = portals?.Length ?? 0;
+        portal.Index = portals.Length;
 
         var newportals = portals?.ToList() ?? new List<MCMloPortalDef>();
         newportals.Add(portal);
@@ -353,7 +353,7 @@ public class MloArchetype : Archetype
         if (set == null) return;
 
         set.OwnerMlo = this;
-        set.Index = entitySets?.Length ?? 0;
+        set.Index = entitySets.Length;
 
         var newsets = entitySets?.ToList() ?? new List<MCMloEntitySet>();
         newsets.Add(set);
@@ -519,7 +519,7 @@ public class MloArchetype : Archetype
         }
         return -1;
     }
-    public MCMloRoomDef GetEntityRoom(MCEntityDef ent)
+    public MCMloRoomDef? GetEntityRoom(MCEntityDef ent)
     {
         if (rooms == null) return null;
 
@@ -544,7 +544,7 @@ public class MloArchetype : Archetype
 
         return null;
     }
-    public MCMloPortalDef GetEntityPortal(MCEntityDef ent)
+    public MCMloPortalDef? GetEntityPortal(MCEntityDef ent)
     {
         if (portals == null) return null;
 
@@ -569,7 +569,7 @@ public class MloArchetype : Archetype
 
         return null;
     }
-    public MCMloEntitySet GetEntitySet(MCEntityDef ent)
+    public MCMloEntitySet? GetEntitySet(MCEntityDef ent)
     {
         if (entitySets == null) return null;
 
@@ -597,15 +597,15 @@ public class MloArchetype : Archetype
 public class MloInstanceData
 {
     public YmapEntityDef Owner { get; set; }
-    public MloArchetype MloArch { get; set; }
+    public MloArchetype? MloArch { get; set; }
     public CMloInstanceDef _Instance;
     public CMloInstanceDef Instance { get { return _Instance; } set { _Instance = value; } }
-    public MetaHash[] defaultEntitySets { get; set; }
+    public MetaHash[] defaultEntitySets { get; set; } = [];
 
-    public YmapEntityDef[] Entities { get; set; }
-    public MloInstanceEntitySet[] EntitySets { get; set; }
+    public YmapEntityDef[] Entities { get; set; } = [];
+    public MloInstanceEntitySet[] EntitySets { get; set; } = [];
 
-    public MloInstanceData(YmapEntityDef owner, MloArchetype mloa)
+    public MloInstanceData(YmapEntityDef owner, MloArchetype? mloa)
     {
         Owner = owner;
         MloArch = mloa;
@@ -686,7 +686,7 @@ public class MloInstanceData
                 { } //can't find archetype - des stuff eg {des_prologue_door}
             }
 
-            UpdateBBs(arch);
+            if (arch != null) UpdateBBs(arch);
         }
 
         if (EntitySets != null)
@@ -770,7 +770,7 @@ public class MloInstanceData
         }
     }
 
-    public MCEntityDef TryGetArchetypeEntity(YmapEntityDef? ymapEntity)
+    public MCEntityDef? TryGetArchetypeEntity(YmapEntityDef? ymapEntity)
     {
         if (ymapEntity == null) return null;
         if (Owner?.Archetype == null) return null;
@@ -802,7 +802,7 @@ public class MloInstanceData
         return null;
     }
 
-    public YmapEntityDef TryGetYmapEntity(MCEntityDef? mcEntity)
+    public YmapEntityDef? TryGetYmapEntity(MCEntityDef? mcEntity)
     {
         if (mcEntity == null) return null;
         if (Owner?.Archetype == null) return null;
@@ -1023,7 +1023,7 @@ public class MloInstanceEntitySet
 
     public uint[] Locations
     {
-        get { return EntitySet?.Locations; }
+        get { return EntitySet.Locations ?? []; }
         set { if (EntitySet != null) EntitySet.Locations = value; }
     }
 

@@ -11,16 +11,16 @@ namespace CodeWalker.Core.Utils
     {
         //converts files from legacy to enhanced format.
 
-        public string InputFolder;//source of files to convert
-        public string OutputFolder;//destination for converted files
+        public string? InputFolder;//source of files to convert
+        public string? OutputFolder;//destination for converted files
         public bool ProcessSubfolders = true;//recurse all the subfolders?
         public bool OverwriteExisting = true;//replace existing files in the output folder? (otherwise ignore)
         public bool CopyUnconverted = true;//also copy files that don't need converting?
-        public Func<string, string, bool> QuestionFunc;//(message, title, result) called from the calling thread only
-        public Action<string> ErrorAction;//this will be called from the calling thread only, for prechecks.
-        public Action<string> LogAction;//this will be called from the conversion task thread during processing.
-        public Action<float> ProgressAction;//will be called for each file being converted
-        public Action<bool> StartStopAction;//(bool start) called when actual conversion process begins/ends
+        public Func<string, string, bool>? QuestionFunc;//(message, title, result) called from the calling thread only
+        public Action<string>? ErrorAction;//this will be called from the calling thread only, for prechecks.
+        public Action<string>? LogAction;//this will be called from the conversion task thread during processing.
+        public Action<float>? ProgressAction;//will be called for each file being converted
+        public Action<bool>? StartStopAction;//(bool start) called when actual conversion process begins/ends
 
 
         public void Convert()
@@ -131,7 +131,8 @@ namespace CodeWalker.Core.Utils
                             //Log($"{relpath} - input file does not exist, skipping.");
                             continue;
                         }
-                        var outdir = Path.GetDirectoryName(outpath);
+                        var outdir = Path.GetDirectoryName(outpath)
+                            ?? throw new InvalidOperationException($"Cannot determine the output directory for {outpath}.");
                         if (Directory.Exists(outdir) == false)
                         {
                             Directory.CreateDirectory(outdir);
@@ -207,10 +208,10 @@ namespace CodeWalker.Core.Utils
 
                                     Progress(curentryprogress);
 
-                                    var dir = rfe.Parent;
+                                    var dir = rfe.Parent ?? throw new InvalidDataException("Resource has no parent directory.");
                                     var name = rfe.Name;
                                     var type = Path.GetExtension(rfe.NameLower);
-                                    var datain = trpf.ExtractFile(rfe);//unfortunately the data extracted here is decompressed but we need a compressed resource file to convert.
+                                    var datain = trpf.ExtractFile(rfe) ?? throw new IOException("Could not extract " + rfe.Path);//unfortunately the data extracted here is decompressed but we need a compressed resource file to convert.
                                     datain = ResourceBuilder.Compress(datain); //not completely ideal to recompress it...
                                     datain = ResourceBuilder.AddResourceHeader(rfe, datain);
 
@@ -265,7 +266,7 @@ namespace CodeWalker.Core.Utils
 
         }
 
-        public static byte[] TryConvert(byte[] data, string fileType, bool copyunconverted = false)
+        public static byte[]? TryConvert(byte[] data, string fileType, bool copyunconverted = false)
         {
             var log = new Action<string>((str) => { });
             var relpath = fileType;
@@ -274,7 +275,7 @@ namespace CodeWalker.Core.Utils
             if (copyunconverted) return dataout;
             return null;
         }
-        public static byte[] TryConvert(byte[] data, string fileType, Action<string> log, string relpath, bool copyunconverted, out bool converted)
+        public static byte[]? TryConvert(byte[] data, string fileType, Action<string> log, string relpath, bool copyunconverted, out bool converted)
         {
             converted = false;
             var exmsg = " - already gen9 format";

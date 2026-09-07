@@ -17,7 +17,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditProjectManifestPanel : ProjectPanel
     {
         public ProjectForm ProjectForm { get; set; }
-        public ProjectFile CurrentProjectFile { get; set; }
+        public ProjectFile? CurrentProjectFile { get; set; }
 
         public EditProjectManifestPanel(ProjectForm projectForm)
         {
@@ -71,7 +71,7 @@ namespace CodeWalker.Project.Panels
             sb.AppendLine("  <imapDependencies/>");
 
 
-            var getYtypName = new Func<YtypFile, string>((ytyp) =>
+            var getYtypName = new Func<YtypFile?, string>((ytyp) =>
             {
                 var ytypname = ytyp?.RpfFileEntry?.NameLower;
                 if (ytyp != null)
@@ -85,7 +85,7 @@ namespace CodeWalker.Project.Panels
                         ytypname = ytypname.Substring(0, ytypname.Length - 5);
                     }
                 }
-                return ytypname;
+                return ytypname ?? string.Empty;
             });
 
 

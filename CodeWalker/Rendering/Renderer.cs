@@ -22,12 +22,13 @@ namespace CodeWalker.Rendering
 
         private DXManager dxman = new DXManager();
         public DXManager DXMan { get { return dxman; } }
-        private Device currentdevice;
-        public Device Device { get { return currentdevice; } }
+        private Device? currentdevice;
+        public Device? Device { get { return currentdevice; } }
         private Lock rendersyncroot = new Lock();
         public Lock RenderSyncRoot { get { return rendersyncroot; } }
 
-        public ShaderManager shaders;
+        private ShaderManager? shaderManager;
+        public ShaderManager shaders { get => shaderManager ?? throw new InvalidOperationException("Renderer shaders have not been initialized."); set => shaderManager = value; }
 
         public Camera camera;
 
@@ -37,7 +38,8 @@ namespace CodeWalker.Rendering
         private float fcelapsed = 0.0f;
         private int fps = 0;
 
-        private DeviceContext context;
+        private DeviceContext? currentContext;
+        private DeviceContext context { get => currentContext ?? throw new InvalidOperationException("The renderer has no active device context."); set => currentContext = value; }
 
 
         public float timeofday = 12.0f;
@@ -79,7 +81,7 @@ namespace CodeWalker.Rendering
         public float MapViewDetail = 1.0f;
 
 
-        private UnitQuad markerquad = null;
+        private UnitQuad? markerquad;
         public bool markerdepthclip = Settings.Default.MarkerDepthClip;
 
 
@@ -87,7 +89,7 @@ namespace CodeWalker.Rendering
 
         private List<YmapEntityDef> renderworldentities = new List<YmapEntityDef>(512); //used when rendering world view.
         private List<RenderableEntity> renderworldrenderables = new List<RenderableEntity>(512);
-        private Dictionary<Archetype, Renderable> ArchetypeRenderables = new Dictionary<Archetype, Renderable>(256);
+        private Dictionary<Archetype, Renderable?> ArchetypeRenderables = new Dictionary<Archetype, Renderable?>(256);
         private Dictionary<YmapEntityDef, Renderable?> RequiredParents = new(128);
         private List<YmapEntityDef> RenderEntities = new List<YmapEntityDef>(512);
 
@@ -149,7 +151,7 @@ namespace CodeWalker.Rendering
 
         private YmapEntityDef SelectedCarGenEntity = new YmapEntityDef(); //placeholder entity object for drawing cars
 
-        public DrawableBase SelectedDrawable = null;
+        public DrawableBase? SelectedDrawable;
         public Dictionary<DrawableBase, bool> SelectionDrawableDrawFlags = new Dictionary<DrawableBase, bool>();
         public Dictionary<DrawableModel, bool> SelectionModelDrawFlags = new Dictionary<DrawableModel, bool>();
         public Dictionary<DrawableGeometry, bool> SelectionGeometryDrawFlags = new Dictionary<DrawableGeometry, bool>();
@@ -217,7 +219,7 @@ namespace CodeWalker.Rendering
         {
             renderableCache.OnDeviceDestroyed();
 
-            markerquad.Dispose();
+            markerquad?.Dispose();
 
             shaders.Dispose();
 
@@ -235,11 +237,11 @@ namespace CodeWalker.Rendering
 
         public void ReloadShaders()
         {
-            if (shaders != null)
+            if (shaderManager != null)
             {
                 shaders.Dispose();
             }
-            shaders = new ShaderManager(currentdevice, dxman);
+            shaders = new ShaderManager(currentdevice ?? throw new InvalidOperationException("The rendering device has not been created."), dxman);
         }
 
 
@@ -394,12 +396,12 @@ namespace CodeWalker.Rendering
 
         public string GetStatusText()
         {
-            int rgc = (shaders != null) ? shaders.RenderedGeometries : 0;
+            int rgc = (shaderManager != null) ? shaders.RenderedGeometries : 0;
             int crc = renderableCache.LoadedRenderableCount;
             int ctc = renderableCache.LoadedTextureCount;
             int tcrc = renderableCache.MemCachedRenderableCount;
             int tctc = renderableCache.MemCachedTextureCount;
-            long vr = renderableCache.TotalGraphicsMemoryUse + (shaders != null ? shaders.TotalGraphicsMemoryUse : 0);
+            long vr = renderableCache.TotalGraphicsMemoryUse + (shaderManager != null ? shaders.TotalGraphicsMemoryUse : 0);
             string vram = TextUtil.GetBytesReadable(vr);
             //StatsLabel.Text = string.Format("Drawn: {0} geom, Loaded: {1}/{5} dr, {2}/{6} tx, Vram: {3}, Fps: {4}", rgc, crc, ctc, vram, fps, tcrc, tctc);
             return string.Format("Drawn: {0} geom, Loaded: {1} dr, {2} tx, Vram: {3}, Fps: {4}", rgc, crc, ctc, vram, fps);
@@ -425,7 +427,7 @@ namespace CodeWalker.Rendering
         }
 
 
-        public void UpdateSelectionDrawFlags(DrawableModel model, DrawableGeometry geom, bool rem)
+        public void UpdateSelectionDrawFlags(DrawableModel? model, DrawableGeometry? geom, bool rem)
         {
             lock (rendersyncroot)
             {
@@ -484,7 +486,7 @@ namespace CodeWalker.Rendering
             Color4 lightnaturaldowncolour = new Color4(0.0f);
             Color4 lightartificialupcolour = new Color4(0.0f);
             Color4 lightartificialdowncolour = new Color4(0.0f);
-            bool hdr = (shaders != null) ? shaders.hdr : false;
+            bool hdr = (shaderManager != null) ? shaders.hdr : false;
             float hdrint = 1.0f;
             Vector3 sundir = Vector3.Up;
             Vector3 moondir = Vector3.Down;
@@ -548,7 +550,7 @@ namespace CodeWalker.Rendering
 
 
 
-            if (shaders != null)
+            if (shaderManager != null)
             {
                 shaders.SetGlobalLightParams(globalLights);
             }
@@ -601,16 +603,15 @@ namespace CodeWalker.Rendering
             shader.SetInputLayout(context, VertexType.Default);
             shader.SetSceneVars(context, camera, null, globalLights);
 
-            MapIcon? icon = null;
             foreach (var marker in batch)
             {
-                icon = marker.Icon;
+                if (marker.Icon is not { TexView: { } textureView } icon) continue;
                 Vector2 texs = new Vector2(icon.TexWidth, icon.TexHeight);
                 Vector2 size = texs * marker.Distance;
                 Vector2 offset = (new Vector2(texs.X, -texs.Y) - new Vector2(icon.Center.X, -icon.Center.Y) * 2.0f) * marker.Distance;
                 shader.SetMarkerVars(context, marker.CamRelPos, size, offset);
-                shader.SetTexture(context, icon.TexView);
-                markerquad.Draw(context);
+                shader.SetTexture(context, textureView);
+                markerquad?.Draw(context);
             }
 
             shader.UnbindResources(context);
@@ -694,7 +695,7 @@ namespace CodeWalker.Rendering
 
         public void RenderEntityOutline(Renderable? renderable, Vector3 camrel, Quaternion orientation, Vector3 scale, Vector4 outlineColour, int outlineWidth = 3)
         {
-            if (renderable == null || shaders?.Outline == null) return;
+            if (renderable == null || shaderManager?.Outline == null) return;
             shaders.Outline.RenderOutline(context, camera, shaders, renderable, camrel, orientation, scale, outlineColour, outlineWidth);
         }
 
@@ -978,7 +979,7 @@ namespace CodeWalker.Rendering
             v.Position = c5; SelectionLineVerts.Add(v);
         }
 
-        public void RenderSelectionDrawableLight(LightAttributes light, Bone bone)
+        public void RenderSelectionDrawableLight(LightAttributes light, Bone? bone)
         {
             var colblu = (uint)(new Color(0, 0, 255, 255).ToRgba());
             var colwht = (uint)(new Color(255, 255, 255, 255).ToRgba());
@@ -1056,6 +1057,7 @@ namespace CodeWalker.Rendering
             var pcolour = new Color4(1.0f, 1.0f, 1.0f, 0.2f);
             var colourval = (uint)pcolour.ToRgba();
             var ynv = poly.Ynv;
+            if (ynv == null) return;
             var ic = poly._RawData.IndexCount;
             var startid = poly._RawData.IndexID;
             var endid = startid + ic;
@@ -1092,6 +1094,7 @@ namespace CodeWalker.Rendering
         {
             //var colourval = (uint)colour.ToRgba();
             var ynv = poly.Ynv;
+            if (ynv == null) return;
             var ic = poly._RawData.IndexCount;
             var startid = poly._RawData.IndexID;
             var endid = startid + ic;
@@ -1153,7 +1156,7 @@ namespace CodeWalker.Rendering
             //}
         }
 
-        public void RenderSelectionCollisionPolyOutline(BoundPolygon poly, uint colourval, YmapEntityDef entity)
+        public void RenderSelectionCollisionPolyOutline(BoundPolygon poly, uint colourval, YmapEntityDef? entity)
         {
             var bgeom = poly?.Owner;
             if (bgeom == null) return;
@@ -1391,7 +1394,7 @@ namespace CodeWalker.Rendering
 
 
 
-        private void RenderSkeleton(Renderable renderable, YmapEntityDef entity)
+        private void RenderSkeleton(Renderable renderable, YmapEntityDef? entity)
         {
             RenderSkeletonItem item = new RenderSkeletonItem();
             item.Renderable = renderable;
@@ -1416,7 +1419,7 @@ namespace CodeWalker.Rendering
 
             foreach (var item in renderskeletonlist)
             {
-                YmapEntityDef entity = item.Entity;
+                var entity = item.Entity;
                 DrawableBase drawable = item.Renderable.Key;
                 Skeleton? skeleton = drawable?.Skeleton;
                 if (skeleton == null) continue;
@@ -1511,7 +1514,7 @@ namespace CodeWalker.Rendering
         }
 
 
-        private YmapEntityDef particleModelEntity;
+        private YmapEntityDef? particleModelEntity;
         private readonly List<KeyValuePair<float, ParticleInstance>> particleSortList = new List<KeyValuePair<float, ParticleInstance>>();
 
         // Enqueues model-type particles (DrawType==1) into the normal drawable pipeline.
@@ -1550,7 +1553,7 @@ namespace CodeWalker.Rendering
         }
 
         // Diagnostic counters for the particle preview (populated by RenderParticleEffect each frame).
-        public string ParticleRenderStats;
+        public string ParticleRenderStats = string.Empty;
 
         // Preview-only scale for big additive "glow" light sprites (em.IsGlow). They're meant to glow over a lit
         // scene; on the editor's black backdrop they show as a frame-filling disc. 1 = full, 0 = hidden.
@@ -1676,7 +1679,7 @@ namespace CodeWalker.Rendering
 
 
             DrawableBase? skydomeydr = null;
-            YddFile skydomeydd = gameFileCache.GetYdd(2640562617); //skydome hash
+            var skydomeydd = gameFileCache.GetYdd(2640562617); //skydome hash
             if ((skydomeydd != null) && (skydomeydd.Loaded) && (skydomeydd.Dict != null))
             {
                 foreach (var v in skydomeydd.Dict.Values) { skydomeydr = v; break; } //avoid LINQ boxing via FirstOrDefault
@@ -1684,7 +1687,7 @@ namespace CodeWalker.Rendering
 
             Texture? starfield = null;
             Texture? moon = null;
-            YtdFile skydomeytd = gameFileCache.GetYtd(2640562617); //skydome hash
+            var skydomeytd = gameFileCache.GetYtd(2640562617); //skydome hash
             if ((skydomeytd != null) && (skydomeytd.Loaded) && (skydomeytd.TextureDict != null) && (skydomeytd.TextureDict.Dict != null))
             {
                 skydomeytd.TextureDict.Dict.TryGetValue(1064311147, out starfield); //starfield hash
@@ -1713,7 +1716,7 @@ namespace CodeWalker.Rendering
                 moontex = renderableCache.GetRenderableTexture(moon);
             }
 
-            if ((sdrnd != null) && (sdrnd.IsLoaded) && (sftex != null) && (sftex.IsLoaded))
+            if ((skydomeydr != null) && (sdrnd != null) && (sdrnd.IsLoaded) && (sftex != null) && (sftex.IsLoaded))
             {
                 shaders.SetDepthStencilMode(context, DepthStencilMode.DisableAll);
                 shaders.SetRasterizerMode(context, RasterizerMode.Solid);
@@ -1739,7 +1742,7 @@ namespace CodeWalker.Rendering
                 RenderableModel? rmod = ((sdrnd.HDModels != null) && (sdrnd.HDModels.Length > 0)) ? sdrnd.HDModels[0] : null;
                 RenderableGeometry? rgeom = ((rmod != null) && (rmod.Geometries != null) && (rmod.Geometries.Length > 0)) ? rmod.Geometries[0] : null;
 
-                if ((rgeom != null) && (rgeom.VertexType == VertexType.PTT))
+                if ((rmod != null) && (rgeom != null) && (rgeom.VertexType == VertexType.PTT))
                 {
                     shader.SetModelVars(context, rmod);
                     shader.SetTextures(context, sftex);
@@ -1790,14 +1793,14 @@ namespace CodeWalker.Rendering
             {
                 //render one cloud fragment.
 
-                CloudHatFrag frag = clouds.HatManager.FindFrag(individualcloudfrag);
+                var frag = clouds.HatManager?.FindFrag(individualcloudfrag);
                 if (frag == null) return;
 
                 for (int i = 0; i < frag.Layers.Length; i++)
                 {
                     CloudHatFragLayer layer = frag.Layers[i];
                     uint dhash = JenkHash.GenHash(layer.Filename.ToLowerInvariant());
-                    Archetype arch = gameFileCache.GetArchetype(dhash);
+                    var arch = gameFileCache.GetArchetype(dhash);
                     if (arch == null)
                     { continue; }
 
@@ -1929,7 +1932,8 @@ namespace CodeWalker.Rendering
         {
             foreach (var scenario in ymts)
             {
-                RenderablePathBatch rnd = renderableCache.GetRenderablePathBatch(scenario.ScenarioRegion);
+                if (scenario.ScenarioRegion is not { } region) continue;
+                RenderablePathBatch rnd = renderableCache.GetRenderablePathBatch(region);
                 if ((rnd != null) && (rnd.IsLoaded))
                 {
                     shaders.Enqueue(rnd);
@@ -1951,7 +1955,7 @@ namespace CodeWalker.Rendering
 
 
 
-        public void RenderWorld(Dictionary<MetaHash, YmapFile> renderworldVisibleYmapDict, IEnumerable<Entity> spaceEnts)
+        public void RenderWorld(Dictionary<MetaHash, YmapFile> renderworldVisibleYmapDict, IEnumerable<Entity>? spaceEnts)
         {
             renderworldentities.Clear();
             renderworldrenderables.Clear();
@@ -2116,7 +2120,7 @@ namespace CodeWalker.Rendering
             RenderWorldYmapExtras();
         }
 
-        public void RenderWorld_Orig(Dictionary<MetaHash, YmapFile> renderworldVisibleYmapDict, IEnumerable<Entity> spaceEnts)
+        public void RenderWorld_Orig(Dictionary<MetaHash, YmapFile> renderworldVisibleYmapDict, IEnumerable<Entity>? spaceEnts)
         {
             renderworldentities.Clear();
             renderworldrenderables.Clear();
@@ -2203,7 +2207,7 @@ namespace CodeWalker.Rendering
                     var arch = ent.Archetype;
                     var pent = ent.Parent;
                     var drawable = gameFileCache.TryGetDrawable(arch);
-                    Renderable rndbl = TryGetRenderable(arch, drawable);
+                    var rndbl = TryGetRenderable(arch, drawable);
                     if ((rndbl != null) && rndbl.IsLoaded && (rndbl.AllTexturesLoaded || !waitforchildrentoload))
                     {
                         RenderableEntity rent = new RenderableEntity();
@@ -2605,7 +2609,7 @@ namespace CodeWalker.Rendering
 
 
 
-        private Renderable GetArchetypeRenderable(Archetype? arch)
+        private Renderable? GetArchetypeRenderable(Archetype? arch)
         {
             if (arch == null) return null;
 
@@ -2648,7 +2652,7 @@ namespace CodeWalker.Rendering
                         var ent = ents[i];
                         if (renderchildents && ent.Children != null) continue;
                         //if (rootent.CEntityDef.parentIndex == -1) continue;
-                        Archetype arch = ent.Archetype;
+                        var arch = ent.Archetype;
                         if (arch != null)
                         {
                             bool timed = (arch.Type == MetaName.CTimeArchetypeDef);
@@ -2679,13 +2683,13 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private bool RenderYmapLOD(YmapFile ymap, YmapEntityDef entity)
+        private bool RenderYmapLOD(YmapFile? ymap, YmapEntityDef entity)
         {
-            if (!ymap.Loaded) return false;
+            if (ymap == null || !ymap.Loaded) return false;
 
             ymap.EnsureChildYmaps(gameFileCache);
 
-            Archetype arch = entity.Archetype;
+            var arch = entity.Archetype;
             if (arch != null)
             {
                 bool timed = (arch.Type == MetaName.CTimeArchetypeDef);
@@ -2850,7 +2854,7 @@ namespace CodeWalker.Rendering
 
             uint ytdhash = 3154743001; //"graphics"
             uint texhash = 2236244673; //"distant_light"
-            YtdFile graphicsytd = gameFileCache.GetYtd(ytdhash);
+            var graphicsytd = gameFileCache.GetYtd(ytdhash);
             Texture? lighttex = null;
             if ((graphicsytd != null) && (graphicsytd.Loaded) && (graphicsytd.TextureDict != null) && (graphicsytd.TextureDict.Dict != null))
             {
@@ -2904,7 +2908,7 @@ namespace CodeWalker.Rendering
 
 
 
-        public bool RenderFragment(Archetype arch, YmapEntityDef ent, FragType f, uint txdhash = 0, ClipMapEntry? animClip = null)
+        public bool RenderFragment(Archetype? arch, YmapEntityDef? ent, FragType f, uint txdhash = 0, ClipMapEntry? animClip = null)
         {
 
             RenderDrawable(f.Drawable, arch, ent, txdhash, null, null, animClip);
@@ -2919,7 +2923,7 @@ namespace CodeWalker.Rendering
             {
                 var pl1 = f.PhysicsLODGroup.PhysicsLOD1;
                 //var groupnames = pl1?.GroupNames?.data_items;
-                var groups = pl1?.Groups?.data_items;
+                var groups = pl1.Groups?.data_items;
 
                 FragDrawable? wheel_f = null;
                 FragDrawable? wheel_r = null;
@@ -2978,7 +2982,7 @@ namespace CodeWalker.Rendering
                         for (int i = 0; i < pl1.Children.data_items.Length; i++)
                         {
                             var pch = pl1.Children.data_items[i];
-                            FragDrawable dwbl = pch.Drawable1;
+                            var dwbl = pch.Drawable1;
                             FragDrawable? dwblcopy = null;
                             switch (pch.BoneTag)
                             {
@@ -3177,7 +3181,7 @@ namespace CodeWalker.Rendering
             return true;
         }
 
-        public bool RenderArchetype(Archetype? arche, YmapEntityDef entity, Renderable? rndbl = null, bool cull = true, ClipMapEntry? animClip = null)
+        public bool RenderArchetype(Archetype? arche, YmapEntityDef? entity, Renderable? rndbl = null, bool cull = true, ClipMapEntry? animClip = null)
         {
             //enqueue a single archetype for rendering.
 
@@ -3278,14 +3282,14 @@ namespace CodeWalker.Rendering
             return res;
         }
 
-        public bool RenderDrawable(DrawableBase? drawable, Archetype arche, YmapEntityDef entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null)
+        public bool RenderDrawable(DrawableBase? drawable, Archetype? arche, YmapEntityDef? entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null)
         {
             //enqueue a single drawable for rendering.
 
             if (drawable == null)
                 return false;
 
-            Renderable rndbl = TryGetRenderable(arche, drawable, txdHash, txdExtra, diffOverride);
+            var rndbl = TryGetRenderable(arche, drawable, txdHash, txdExtra, diffOverride);
             if (rndbl == null)
                 return false;
 
@@ -3309,11 +3313,11 @@ namespace CodeWalker.Rendering
             return RenderRenderable(rndbl, arche, entity);
         }
 
-        private bool RenderRenderable(Renderable rndbl, Archetype arche, YmapEntityDef entity)
+        private bool RenderRenderable(Renderable? rndbl, Archetype? arche, YmapEntityDef? entity)
         {
             //enqueue a single renderable for rendering.
 
-            if (!rndbl.IsLoaded) return false;
+            if (rndbl == null || !rndbl.IsLoaded) return false;
 
 
             if (RenderedDrawablesListEnable) //for later hit tests
@@ -3419,9 +3423,9 @@ namespace CodeWalker.Rendering
                 var dd = rndbl.Key as Drawable;
                 var fd = rndbl.Key as FragDrawable;
                 var lights = dd?.LightAttributes?.data_items;
-                if ((lights == null) && (fd != null) && (fd?.OwnerFragment?.Drawable == fd))
+                if ((lights == null) && (fd?.OwnerFragment is { } ownerFragment) && (ownerFragment.Drawable == fd))
                 {
-                    lights = fd.OwnerFragment.LightAttributes?.data_items;
+                    lights = ownerFragment.LightAttributes.data_items;
                 }
                 if ((lights != null) && (lights.Length != rndbl.Lights.Length))
                 {
@@ -3435,7 +3439,7 @@ namespace CodeWalker.Rendering
                     var rndlight = rndbl.Lights[i];
                     var light = rndlight.OwnerLight;
 
-                    if (light.UpdateRenderable == true)
+                    if (light?.UpdateRenderable == true)
                     {
                         rndlight.Init(light);
                         light.UpdateRenderable = false;
@@ -3475,7 +3479,7 @@ namespace CodeWalker.Rendering
 
                     if (isselected)
                     {
-                        if (SelectionModelDrawFlags.ContainsKey(model.DrawableModel))
+                        if (model.DrawableModel != null && SelectionModelDrawFlags.ContainsKey(model.DrawableModel))
                         { continue; } //filter out models in selected item that aren't flagged for drawing.
                     }
 
@@ -3486,6 +3490,7 @@ namespace CodeWalker.Rendering
                     {
                         var geom = model.Geometries[gi];
                         var dgeom = geom.DrawableGeom;
+                        if (dgeom == null) continue;
 
                         if (dgeom.UpdateRenderableParameters) //when edited by material editor
                         {
@@ -3539,7 +3544,7 @@ namespace CodeWalker.Rendering
             }
             if (carhash == 0) carhash = 418536135; //"infernus"
 
-            YftFile caryft = gameFileCache.GetYft(carhash);
+            var caryft = gameFileCache.GetYft(carhash);
             if ((caryft != null) && (caryft.Loaded) && (caryft.Fragment != null))
             {
                 if (valign)
@@ -3764,7 +3769,7 @@ namespace CodeWalker.Rendering
         public void RenderVehicle(Vehicle vehicle, ClipMapEntry? animClip = null)
         {
 
-            YftFile yft = vehicle.Yft;
+            var yft = vehicle.Yft;
             if ((yft != null) && (yft.Loaded) && (yft.Fragment != null))
             {
                 var f = yft.Fragment;
@@ -3791,7 +3796,7 @@ namespace CodeWalker.Rendering
         public void RenderPed(Ped ped)
         {
 
-            YftFile yft = ped.Yft;// GameFileCache.GetYft(SelectedModelHash);
+            var yft = ped.Yft;// GameFileCache.GetYft(SelectedModelHash);
             if (yft != null)
             {
                 if (yft.Loaded)
@@ -3849,7 +3854,7 @@ namespace CodeWalker.Rendering
                 else if (drawable.Skeleton != skel)
                 {
                     var dskel = drawable.Skeleton; //put the bones of the fragment into the drawable. drawable's bones in this case seem messed up!
-                    if (skel.Bones?.Items != null)
+                    if (skel.Bones?.Items != null && dskel.Bones?.Items != null)
                     {
                         for (int b = 0; b < skel.Bones.Items.Length; b++)
                         {
@@ -3883,7 +3888,8 @@ namespace CodeWalker.Rendering
 
         public void RenderHideEntity(YmapEntityDef ent)
         {
-            var hash = ent?.EntityHash ?? 0;
+            if (ent == null) return;
+            var hash = ent.EntityHash;
             if (hash == 0) return;
 
             HideEntities[hash] = ent;
@@ -3896,8 +3902,9 @@ namespace CodeWalker.Rendering
 
 
 
-        public void RenderCollisionMesh(Bounds bounds, YmapEntityDef entity)
+        public void RenderCollisionMesh(Bounds? bounds, YmapEntityDef? entity)
         {
+            if (bounds == null) return;
             //enqueue a single collision mesh for rendering.
 
             Vector3 position;
@@ -3964,7 +3971,7 @@ namespace CodeWalker.Rendering
 
 
 
-        private Renderable TryGetRenderable(Archetype arche, DrawableBase? drawable, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null)
+        private Renderable? TryGetRenderable(Archetype? arche, DrawableBase? drawable, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null)
         {
             if (drawable == null) return null;
             //BUG: only last texdict used!! needs to cache textures per archetype........
@@ -3991,11 +3998,11 @@ namespace CodeWalker.Rendering
 
             if ((clipDict != 0) && (rndbl.ClipDict == null))
             {
-                YcdFile ycd = gameFileCache.GetYcd(clipDict);
+                var ycd = gameFileCache.GetYcd(clipDict);
                 if ((ycd != null) && (ycd.Loaded))
                 {
                     rndbl.ClipDict = ycd;
-                    MetaHash ahash = arche.Hash;
+                    MetaHash ahash = arche?.Hash ?? 0;
                     if (ycd.ClipMap.TryGetValue(ahash, out rndbl.ClipMapEntry)) rndbl.HasAnims = true;
 
                     foreach (var model in rndbl.HDModels)
@@ -4004,7 +4011,7 @@ namespace CodeWalker.Rendering
                         foreach (var geom in model.Geometries)
                         {
                             if (geom == null) continue;
-                            if (geom.globalAnimUVEnable)
+                            if (geom.globalAnimUVEnable && geom.DrawableGeom != null)
                             {
                                 uint cmeindex = geom.DrawableGeom.ShaderID + 1u;
                                 MetaHash cmehash = ahash + cmeindex; //this goes to at least uv5! (from uv0) - see hw1_09.ycd
@@ -4223,7 +4230,7 @@ namespace CodeWalker.Rendering
 
 
                             RenderableTexture? rhdtex = null;
-                            if (renderhdtextures)
+                            if (renderhdtextures && tex != null)
                             {
                                 Texture? hdtex = geom.TexturesHD[i];
                                 if (hdtex == null)
@@ -4279,19 +4286,19 @@ namespace CodeWalker.Rendering
     public struct RenderedDrawable
     {
         public DrawableBase Drawable;
-        public Archetype Archetype;
-        public YmapEntityDef Entity;
+        public Archetype? Archetype;
+        public YmapEntityDef? Entity;
     }
     public struct RenderedBoundComposite
     {
         public RenderableBoundComposite BoundComp;
-        public YmapEntityDef Entity;
+        public YmapEntityDef? Entity;
     }
 
     public struct RenderSkeletonItem
     {
         public Renderable Renderable;
-        public YmapEntityDef Entity;
+        public YmapEntityDef? Entity;
     }
 
 
@@ -4340,7 +4347,7 @@ namespace CodeWalker.Rendering
         public bool HDLightsEnabled = true;
         public bool LODLightsEnabled = true;
 
-        public Camera Camera = null;
+        public Camera? Camera;
         public Vector3 Position = Vector3.Zero;
 
         public Dictionary<MetaHash, YmapFile> CurrentYmaps = new Dictionary<MetaHash, YmapFile>();
@@ -4492,7 +4499,7 @@ namespace CodeWalker.Rendering
                     if (LodLightsDict.TryGetValue(light.Hash, out var lodlight))
                     {
                         lodlight.Enabled = false;
-                        UpdateLodLights.Add(lodlight.LodLights);
+                        if (lodlight.LodLights is { } lights) UpdateLodLights.Add(lights);
                     }
                 }
             }
@@ -4503,7 +4510,7 @@ namespace CodeWalker.Rendering
                     if (LodLightsDict.TryGetValue(light.Hash, out var lodlight))
                     {
                         lodlight.Enabled = true;
-                        UpdateLodLights.Add(lodlight.LodLights);
+                        if (lodlight.LodLights is { } lights) UpdateLodLights.Add(lights);
                     }
                 }
             }
@@ -4550,7 +4557,7 @@ namespace CodeWalker.Rendering
         private readonly Dictionary<YmapEntityDef, int> lodChildPending = [];
         private const int lodChildStuckFrames = 300;
 
-        private LinkedList<YmapEntityDef> GetEntityChildren(YmapEntityDef ent)
+        private LinkedList<YmapEntityDef>? GetEntityChildren(YmapEntityDef ent)
         {
             //get the children list for this entity, if all the hcildren are available, and they are within range
             if (!EntityChildrenVisibleAtMaxLodLevel(ent)) return null;
@@ -4577,7 +4584,7 @@ namespace CodeWalker.Rendering
                     var kids = new List<string>();
                     foreach (var kvp in CurrentYmaps)
                     {
-                        if (kvp.Value?.Parent != ymap) continue;
+                        if (kvp.Value == null || kvp.Value.Parent != ymap) continue;
                         if (kids.Count < 10) kids.Add(kvp.Value.Name);
                         else { kids.Add("..."); break; }
                     }
@@ -4619,6 +4626,7 @@ namespace CodeWalker.Rendering
 
         private bool EntityVisible(YmapEntityDef ent)
         {
+            if (Camera == null) return false;
             if (MapViewEnabled)
             {
                 return Camera.ViewFrustum.ContainsAABBNoFrontClipNoOpt(ref ent.BBMin, ref ent.BBMax);

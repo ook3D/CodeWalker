@@ -77,8 +77,7 @@ namespace CodeWalker.Rendering
             Cascades = new List<ShadowmapCascade>(CascadeCount);
             for (int i = 0; i < CascadeCount; i++)
             {
-                ShadowmapCascade c = new ShadowmapCascade();
-                c.Owner = this;
+                ShadowmapCascade c = new() { Owner = this };
                 c.Index = i;
                 c.ZNear = 0.0f;
                 c.ZFar = 1.0f;
@@ -109,48 +108,44 @@ namespace CodeWalker.Rendering
 
             graphicsMemoryUsage = (long)(TextureSize * TextureSize * CascadeCount * 4);
         }
+        private bool disposed;
+
         public void Dispose()
         {
+            if (disposed) return;
+            disposed = true;
             graphicsMemoryUsage = 0;
             if (DepthTexture != null)
             {
                 DepthTexture.Dispose();
-                DepthTexture = null;
             }
             if (DepthTextureSS != null)
             {
                 DepthTextureSS.Dispose();
-                DepthTextureSS = null;
             }
             if (DepthTextureSRV != null)
             {
                 DepthTextureSRV.Dispose();
-                DepthTextureSRV = null;
             }
             if (DepthTextureDSV != null)
             {
                 DepthTextureDSV.Dispose();
-                DepthTextureDSV = null;
             }
             if (DepthRenderRS != null)
             {
                 DepthRenderRS.Dispose();
-                DepthRenderRS = null;
             }
             if (DepthRenderDS != null)
             {
                 DepthRenderDS.Dispose();
-                DepthRenderDS = null;
             }
             if (ShadowVars != null)
             {
                 ShadowVars.Dispose();
-                ShadowVars = null;
             }
             if (Cascades != null)
             {
                 Cascades.Clear();
-                Cascades = null;
             }
         }
 
@@ -908,7 +903,7 @@ namespace CodeWalker.Rendering
 
     public class ShadowmapCascade
     {
-        public Shadowmap Owner { get; set; }
+        public required Shadowmap Owner { get; set; }
         public int Index { get; set; }
         public float IntervalNear { get; set; }
         public float IntervalFar { get; set; }

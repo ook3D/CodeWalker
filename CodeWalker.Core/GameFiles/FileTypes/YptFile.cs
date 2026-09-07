@@ -12,17 +12,17 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YptFile : GameFile, PackedFile
     {
-        public ParticleEffectsList PtfxList { get; set; }
+        public ParticleEffectsList? PtfxList { get; set; }
 
-        public Dictionary<uint, DrawableBase> DrawableDict { get; set; }
+        public Dictionary<uint, DrawableBase> DrawableDict { get; set; } = new();
 
-        public Dictionary<MetaHash, ParticleEffectRule> EffectDict { get; set; }
-        public ParticleEffectRule[] AllEffects { get; set; }
+        public Dictionary<MetaHash, ParticleEffectRule> EffectDict { get; set; } = new();
+        public ParticleEffectRule[] AllEffects { get; set; } = [];
 
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
 
 #if DEBUG
-        public ResourceAnalyzer Analyzer { get; set; }
+        public ResourceAnalyzer? Analyzer { get; set; }
 #endif
 
         public YptFile() : base(null, GameFileType.Ypt)
@@ -71,6 +71,8 @@ namespace CodeWalker.GameFiles
 
             //MemoryUsage = 0;
 
+            PtfxList = null;
+            ErrorMessage = null;
             try
             {
                 PtfxList = rd.ReadBlock<ParticleEffectsList>();
@@ -97,11 +99,12 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
-            var drawables = PtfxList?.DrawableDictionary?.Drawables?.data_items;
+            var ptfxList = PtfxList ?? throw new InvalidOperationException("Cannot save a particle file without a particle effects list.");
+            var drawables = ptfxList.DrawableDictionary?.Drawables?.data_items;
             var gen9 = RpfManager.IsGen9;
             if (gen9)
             {
-                PtfxList?.TextureDictionary?.EnsureGen9();
+                ptfxList.TextureDictionary?.EnsureGen9();
                 if (drawables != null)
                 {
                     foreach (var drawable in drawables)
@@ -111,7 +114,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            byte[] data = ResourceBuilder.Build(PtfxList, GetVersion(gen9), true, gen9);
+            byte[] data = ResourceBuilder.Build(ptfxList, GetVersion(gen9), true, gen9);
 
             return data;
         }
@@ -133,11 +136,11 @@ namespace CodeWalker.GameFiles
 
         private void BuildDrawableDict()
         {
+            DrawableDict = new Dictionary<uint, DrawableBase>();
             var dDict = PtfxList?.DrawableDictionary;
 
             if ((dDict?.Drawables?.data_items != null) && (dDict?.Hashes != null))
             {
-                DrawableDict = new Dictionary<uint, DrawableBase>();
                 var drawables = dDict.Drawables.data_items;
                 var hashes = dDict.Hashes;
                 for (int i = 0; (i < drawables.Length) && (i < hashes.Length); i++)
@@ -171,12 +174,13 @@ namespace CodeWalker.GameFiles
 
         private void BuildParticleDict()
         {
+            EffectDict = new Dictionary<MetaHash, ParticleEffectRule>();
+            AllEffects = [];
             var pdict = PtfxList?.EffectRuleDictionary;
 
             if (pdict?.EffectRules?.data_items != null)
             {
 
-                EffectDict = new Dictionary<MetaHash, ParticleEffectRule>();
                 var elist = new List<ParticleEffectRule>();
 
                 foreach (var e in pdict.EffectRules.data_items)

@@ -16,7 +16,7 @@ namespace CodeWalker.Rendering
     public class GpuVarsBuffer<T> where T:struct //shader vars buffer helper!
     {
         public int Size;
-        public Buffer Buffer;
+        public Buffer? Buffer;
         public T Vars;
         public bool Flag;//for external use
         public GpuVarsBuffer(Device device)
@@ -64,7 +64,7 @@ namespace CodeWalker.Rendering
         public int StructSize;
         public int StructCount;
         public int BufferSize;
-        public Buffer Buffer;
+        public Buffer? Buffer;
 
         public GpuABuffer(Device device, int count)
         {
@@ -111,8 +111,8 @@ namespace CodeWalker.Rendering
         public int StructSize;
         public int StructCount;
         public int BufferSize;
-        public Buffer Buffer;
-        public ShaderResourceView SRV;
+        public Buffer? Buffer;
+        public ShaderResourceView? SRV;
         public GpuSBuffer(Device device, T[] data)
         {
             StructCount = data.Length;
@@ -145,8 +145,8 @@ namespace CodeWalker.Rendering
         public int StructCount;
         public int BufferSize;
         public int CurrentCount;
-        public Buffer Buffer;
-        public ShaderResourceView SRV;
+        public Buffer? Buffer;
+        public ShaderResourceView? SRV;
         public List<T> Data;
         public T[] DataArray;
 
@@ -239,9 +239,9 @@ namespace CodeWalker.Rendering
         public int ItemTotalSize;
         public int ItemCount;
         public int Size;
-        public Buffer Buffer;
-        public ShaderResourceView SRV;
-        public UnorderedAccessView UAV;
+        public Buffer? Buffer;
+        public ShaderResourceView? SRV;
+        public UnorderedAccessView? UAV;
 
         public GpuBuffer(Device device, int itemSize, int itemCount)
         {
@@ -277,16 +277,16 @@ namespace CodeWalker.Rendering
 
     public class GpuTexture //texture and render targets (depth, MS).
     {
-        public Texture2D Texture;
-        public Texture2D TextureMS;
-        public Texture2D Depth;
-        public Texture2D DepthMS;
-        public RenderTargetView RTV;
-        public DepthStencilView DSV;
-        public RenderTargetView MSRTV;
-        public DepthStencilView MSDSV;
-        public ShaderResourceView SRV;
-        public ShaderResourceView DepthSRV;
+        public Texture2D? Texture;
+        public Texture2D? TextureMS;
+        public Texture2D? Depth;
+        public Texture2D? DepthMS;
+        public RenderTargetView? RTV;
+        public DepthStencilView? DSV;
+        public RenderTargetView? MSRTV;
+        public DepthStencilView? MSDSV;
+        public ShaderResourceView? SRV;
+        public ShaderResourceView? DepthSRV;
         public int VramUsage;
         public bool Multisampled;
         public bool UseDepth;
@@ -518,12 +518,12 @@ namespace CodeWalker.Rendering
 
     public class GpuMultiTexture //multiple texture and render targets (depth).
     {
-        public Texture2D[] Textures;
-        public Texture2D Depth;
-        public RenderTargetView[] RTVs;
-        public DepthStencilView DSV;
-        public ShaderResourceView[] SRVs;
-        public ShaderResourceView DepthSRV;
+        public Texture2D[]? Textures;
+        public Texture2D? Depth;
+        public RenderTargetView[]? RTVs;
+        public DepthStencilView? DSV;
+        public ShaderResourceView[]? SRVs;
+        public ShaderResourceView? DepthSRV;
         public int VramUsage;
         public bool UseDepth;
         public int Count;
@@ -578,9 +578,9 @@ namespace CodeWalker.Rendering
         {
             for (int i = 0; i < Count; i++)
             {
-                SRVs[i].Dispose();
-                RTVs[i].Dispose();
-                Textures[i].Dispose();
+                SRVs?[i]?.Dispose();
+                RTVs?[i]?.Dispose();
+                Textures?[i]?.Dispose();
             }
             SRVs = null;
             RTVs = null;

@@ -11,14 +11,14 @@ namespace CodeWalker.GameFiles
 {
     [TypeConverter(typeof(ExpandableObjectConverter))] public class Gxt2File : PackedFile
     {
-        public string Name { get; set; }
-        public RpfFileEntry FileEntry { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public RpfFileEntry? FileEntry { get; set; }
         public uint EntryCount { get; set; }
-        public Gxt2Entry[] TextEntries { get; set; }
+        public Gxt2Entry[] TextEntries { get; set; } = [];
         //public Dictionary<uint, string> Dict { get; set; }
 
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             Name = entry?.Name ?? "";
             FileEntry = entry;
@@ -120,7 +120,7 @@ namespace CodeWalker.GameFiles
             }
             return sb.ToString();
         }
-        public static Gxt2File FromText(string text)
+        public static Gxt2File FromText(string? text)
         {
             var gxt = new Gxt2File();
             var lines = text?.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries) ?? new string[0];
@@ -154,7 +154,7 @@ namespace CodeWalker.GameFiles
     {
         public uint Hash { get; set; }
         public uint Offset { get; set; }
-        public string Text { get; set; }
+        public string Text { get; set; } = string.Empty;
 
         public override string ToString()
         {

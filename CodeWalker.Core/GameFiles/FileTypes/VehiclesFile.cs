@@ -12,9 +12,9 @@ namespace CodeWalker.GameFiles
     {
 
 
-        public string ResidentTxd { get; set; }
-        public List<VehicleInitData> InitDatas { get; set; }
-        public Dictionary<string, string> TxdRelationships { get; set; }
+        public string ResidentTxd { get; set; } = string.Empty;
+        public List<VehicleInitData> InitDatas { get; set; } = new();
+        public Dictionary<string, string> TxdRelationships { get; set; } = new();
 
 
 
@@ -43,7 +43,7 @@ namespace CodeWalker.GameFiles
                 xmldoc.LoadXml(xml);
 
 
-                ResidentTxd = Xml.GetChildInnerText(xmldoc.SelectSingleNode("CVehicleModelInfo__InitDataList"), "residentTxd");
+                ResidentTxd = Xml.GetChildInnerText(xmldoc.SelectSingleNode("CVehicleModelInfo__InitDataList"), "residentTxd") ?? string.Empty;
 
                 LoadInitDatas(xmldoc);
 
@@ -56,10 +56,10 @@ namespace CodeWalker.GameFiles
 
         private void LoadInitDatas(XmlDocument xmldoc)
         {
-            XmlNodeList? items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/InitDatas/Item | CVehicleModelInfo__InitDataList/InitDatas/item");
+            var items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/InitDatas/Item | CVehicleModelInfo__InitDataList/InitDatas/item")?.Cast<XmlNode>().ToArray() ?? [];
 
             InitDatas = new List<VehicleInitData>();
-            for (int i = 0; i < items.Count; i++)
+            for (int i = 0; i < items.Length; i++)
             {
                 var node = items[i];
                 VehicleInitData d = new();
@@ -70,13 +70,13 @@ namespace CodeWalker.GameFiles
 
         private void LoadTxdRelationships(XmlDocument xmldoc)
         {
-            XmlNodeList? items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/txdRelationships/Item | CVehicleModelInfo__InitDataList/txdRelationships/item");
+            var items = xmldoc.SelectNodes("CVehicleModelInfo__InitDataList/txdRelationships/Item | CVehicleModelInfo__InitDataList/txdRelationships/item")?.Cast<XmlNode>().ToArray() ?? [];
 
             TxdRelationships = new Dictionary<string, string>();
-            for (int i = 0; i < items.Count; i++)
+            for (int i = 0; i < items.Length; i++)
             {
-                string parentstr = Xml.GetChildInnerText(items[i], "parent");
-                string childstr = Xml.GetChildInnerText(items[i], "child");
+                var parentstr = Xml.GetChildInnerText(items[i], "parent");
+                var childstr = Xml.GetChildInnerText(items[i], "child");
 
                 if ((!string.IsNullOrEmpty(parentstr)) && (!string.IsNullOrEmpty(childstr)))
                 {
@@ -97,26 +97,26 @@ namespace CodeWalker.GameFiles
     public class VehicleInitData
     {
         
-        public string modelName { get; set; }                   //<modelName>impaler3</modelName>
-        public string txdName { get; set; }                     //<txdName>impaler3</txdName>
-        public string handlingId { get; set; }                  //<handlingId>IMPALER3</handlingId>
-        public string gameName { get; set; }                    //<gameName>IMPALER3</gameName>
-        public string vehicleMakeName { get; set; }             //<vehicleMakeName>DECLASSE</vehicleMakeName>
-        public string expressionDictName { get; set; }          //<expressionDictName>null</expressionDictName>
-        public string expressionName { get; set; }              //<expressionName>null</expressionName>
-        public string animConvRoofDictName { get; set; }        //<animConvRoofDictName>null</animConvRoofDictName>
-        public string animConvRoofName { get; set; }            //<animConvRoofName>null</animConvRoofName>
-        public string animConvRoofWindowsAffected { get; set; } //<animConvRoofWindowsAffected />
-        public string ptfxAssetName { get; set; }               //<ptfxAssetName>weap_xs_vehicle_weapons</ptfxAssetName>
-        public string audioNameHash { get; set; }               //<audioNameHash />
-        public string layout { get; set; }                      //<layout>LAYOUT_STD_ARENA_1HONLY</layout>
-        public string coverBoundOffsets { get; set; }           //<coverBoundOffsets>IMPALER_COVER_OFFSET_INFO</coverBoundOffsets>
-        public string explosionInfo { get; set; }               //<explosionInfo>EXPLOSION_INFO_DEFAULT</explosionInfo>
-        public string scenarioLayout { get; set; }              //<scenarioLayout />
-        public string cameraName { get; set; }                  //<cameraName>FOLLOW_CHEETAH_CAMERA</cameraName>
-        public string aimCameraName { get; set; }               //<aimCameraName>DEFAULT_THIRD_PERSON_VEHICLE_AIM_CAMERA</aimCameraName>
-        public string bonnetCameraName { get; set; }            //<bonnetCameraName>VEHICLE_BONNET_CAMERA_STANDARD_LONG_DEVIANT</bonnetCameraName>
-        public string povCameraName { get; set; }               //<povCameraName>REDUCED_NEAR_CLIP_POV_CAMERA</povCameraName>
+        public string modelName { get; set; } = string.Empty;                   //<modelName>impaler3</modelName>
+        public string txdName { get; set; } = string.Empty;                     //<txdName>impaler3</txdName>
+        public string handlingId { get; set; } = string.Empty;                  //<handlingId>IMPALER3</handlingId>
+        public string gameName { get; set; } = string.Empty;                    //<gameName>IMPALER3</gameName>
+        public string vehicleMakeName { get; set; } = string.Empty;             //<vehicleMakeName>DECLASSE</vehicleMakeName>
+        public string expressionDictName { get; set; } = string.Empty;          //<expressionDictName>null</expressionDictName>
+        public string expressionName { get; set; } = string.Empty;              //<expressionName>null</expressionName>
+        public string animConvRoofDictName { get; set; } = string.Empty;        //<animConvRoofDictName>null</animConvRoofDictName>
+        public string animConvRoofName { get; set; } = string.Empty;            //<animConvRoofName>null</animConvRoofName>
+        public string animConvRoofWindowsAffected { get; set; } = string.Empty; //<animConvRoofWindowsAffected />
+        public string ptfxAssetName { get; set; } = string.Empty;               //<ptfxAssetName>weap_xs_vehicle_weapons</ptfxAssetName>
+        public string audioNameHash { get; set; } = string.Empty;               //<audioNameHash />
+        public string layout { get; set; } = string.Empty;                      //<layout>LAYOUT_STD_ARENA_1HONLY</layout>
+        public string coverBoundOffsets { get; set; } = string.Empty;           //<coverBoundOffsets>IMPALER_COVER_OFFSET_INFO</coverBoundOffsets>
+        public string explosionInfo { get; set; } = string.Empty;               //<explosionInfo>EXPLOSION_INFO_DEFAULT</explosionInfo>
+        public string scenarioLayout { get; set; } = string.Empty;              //<scenarioLayout />
+        public string cameraName { get; set; } = string.Empty;                  //<cameraName>FOLLOW_CHEETAH_CAMERA</cameraName>
+        public string aimCameraName { get; set; } = string.Empty;               //<aimCameraName>DEFAULT_THIRD_PERSON_VEHICLE_AIM_CAMERA</aimCameraName>
+        public string bonnetCameraName { get; set; } = string.Empty;            //<bonnetCameraName>VEHICLE_BONNET_CAMERA_STANDARD_LONG_DEVIANT</bonnetCameraName>
+        public string povCameraName { get; set; } = string.Empty;               //<povCameraName>REDUCED_NEAR_CLIP_POV_CAMERA</povCameraName>
         public Vector3 FirstPersonDriveByIKOffset { get; set; }                     //<FirstPersonDriveByIKOffset x="0.020000" y="-0.065000" z="-0.050000" />
         public Vector3 FirstPersonDriveByUnarmedIKOffset { get; set; }              //<FirstPersonDriveByUnarmedIKOffset x="0.000000" y="-0.100000" z="0.000000" />
         public Vector3 FirstPersonProjectileDriveByIKOffset { get; set; }           //<FirstPersonProjectileDriveByIKOffset x="0.000000" y="-0.130000" z="-0.050000" />
@@ -129,7 +129,7 @@ namespace CodeWalker.GameFiles
         public Vector3 PovCameraVerticalAdjustmentForRollCage { get; set; }         //<PovCameraVerticalAdjustmentForRollCage value="0.000000" />
         public Vector3 PovPassengerCameraOffset { get; set; }                       //<PovPassengerCameraOffset x="0.000000" y="0.000000" z="0.000000" />
         public Vector3 PovRearPassengerCameraOffset { get; set; }                   //<PovRearPassengerCameraOffset x="0.000000" y="0.000000" z="0.000000" />
-        public string vfxInfoName { get; set; }                         //<vfxInfoName>VFXVEHICLEINFO_CAR_GENERIC</vfxInfoName>
+        public string vfxInfoName { get; set; } = string.Empty;                         //<vfxInfoName>VFXVEHICLEINFO_CAR_GENERIC</vfxInfoName>
         public bool shouldUseCinematicViewMode { get; set; }            //<shouldUseCinematicViewMode value="true" />
         public bool shouldCameraTransitionOnClimbUpDown { get; set; }   //<shouldCameraTransitionOnClimbUpDown value="false" />
         public bool shouldCameraIgnoreExiting { get; set; }             //<shouldCameraIgnoreExiting value="false" />
@@ -150,7 +150,7 @@ namespace CodeWalker.GameFiles
         public Color4 diffuseTint { get; set; }                         //<diffuseTint value="0x00FFFFFF" />
         public float steerWheelMult { get; set; }                       //<steerWheelMult value="0.700000" />
         public float HDTextureDist { get; set; }                        //<HDTextureDist value="5.000000" />
-        public float[] lodDistances { get; set; }                       //<lodDistances content="float_array">//  10.000000//  25.000000//  60.000000//  120.000000//  500.000000//  500.000000//</lodDistances>
+        public float[] lodDistances { get; set; } = [];                       //<lodDistances content="float_array">//  10.000000//  25.000000//  60.000000//  120.000000//  500.000000//  500.000000//</lodDistances>
         public float minSeatHeight { get; set; }                        //<minSeatHeight value="0.844" />
         public float identicalModelSpawnDistance { get; set; }          //<identicalModelSpawnDistance value="20" />
         public int maxNumOfSameColor { get; set; }                      //<maxNumOfSameColor value="1" />
@@ -160,54 +160,54 @@ namespace CodeWalker.GameFiles
         public float trackerPathWidth { get; set; }                     //<trackerPathWidth value="2.000000" />
         public float weaponForceMult { get; set; }                      //<weaponForceMult value="1.000000" />
         public float frequency { get; set; }                            //<frequency value="30" />
-        public string swankness { get; set; }                           //<swankness>SWANKNESS_4</swankness>
+        public string swankness { get; set; } = string.Empty;                           //<swankness>SWANKNESS_4</swankness>
         public int maxNum { get; set; }                                 //<maxNum value="10" />
-        public string[] flags { get; set; }                             //<flags>FLAG_RECESSED_HEADLIGHT_CORONAS FLAG_EXTRAS_STRONG FLAG_AVERAGE_CAR FLAG_HAS_INTERIOR_EXTRAS FLAG_CAN_HAVE_NEONS FLAG_HAS_JUMP_MOD FLAG_HAS_NITROUS_MOD FLAG_HAS_RAMMING_SCOOP_MOD FLAG_USE_AIRCRAFT_STYLE_WEAPON_TARGETING FLAG_HAS_SIDE_SHUNT FLAG_HAS_WEAPON_SPIKE_MODS FLAG_HAS_SUPERCHARGER FLAG_INCREASE_CAMBER_WITH_SUSPENSION_MOD FLAG_DISABLE_DEFORMATION</flags>
-        public string type { get; set; }                                //<type>VEHICLE_TYPE_CAR</type>
-        public string plateType { get; set; }                           //<plateType>VPT_FRONT_AND_BACK_PLATES</plateType>
-        public string dashboardType { get; set; }                       //<dashboardType>VDT_DUKES</dashboardType>
-        public string vehicleClass { get; set; }                        //<vehicleClass>VC_MUSCLE</vehicleClass>
-        public string wheelType { get; set; }                           //<wheelType>VWT_MUSCLE</wheelType>
-        public string[] trailers { get; set; }                          //<trailers />
-        public string[] additionalTrailers { get; set; }                //<additionalTrailers />
-        public VehicleDriver[] drivers { get; set; }                    //<drivers />
-        public string[] extraIncludes { get; set; }                     //<extraIncludes />
-        public string[] doorsWithCollisionWhenClosed { get; set; }      //<doorsWithCollisionWhenClosed />
-        public string[] driveableDoors { get; set; }                    //<driveableDoors />
+        public string[] flags { get; set; } = [];                             //<flags>FLAG_RECESSED_HEADLIGHT_CORONAS FLAG_EXTRAS_STRONG FLAG_AVERAGE_CAR FLAG_HAS_INTERIOR_EXTRAS FLAG_CAN_HAVE_NEONS FLAG_HAS_JUMP_MOD FLAG_HAS_NITROUS_MOD FLAG_HAS_RAMMING_SCOOP_MOD FLAG_USE_AIRCRAFT_STYLE_WEAPON_TARGETING FLAG_HAS_SIDE_SHUNT FLAG_HAS_WEAPON_SPIKE_MODS FLAG_HAS_SUPERCHARGER FLAG_INCREASE_CAMBER_WITH_SUSPENSION_MOD FLAG_DISABLE_DEFORMATION</flags>
+        public string type { get; set; } = string.Empty;                                //<type>VEHICLE_TYPE_CAR</type>
+        public string plateType { get; set; } = string.Empty;                           //<plateType>VPT_FRONT_AND_BACK_PLATES</plateType>
+        public string dashboardType { get; set; } = string.Empty;                       //<dashboardType>VDT_DUKES</dashboardType>
+        public string vehicleClass { get; set; } = string.Empty;                        //<vehicleClass>VC_MUSCLE</vehicleClass>
+        public string wheelType { get; set; } = string.Empty;                           //<wheelType>VWT_MUSCLE</wheelType>
+        public string[] trailers { get; set; } = [];                          //<trailers />
+        public string[] additionalTrailers { get; set; } = [];                //<additionalTrailers />
+        public VehicleDriver[] drivers { get; set; } = [];                    //<drivers />
+        public string[] extraIncludes { get; set; } = [];                     //<extraIncludes />
+        public string[] doorsWithCollisionWhenClosed { get; set; } = [];      //<doorsWithCollisionWhenClosed />
+        public string[] driveableDoors { get; set; } = [];                    //<driveableDoors />
         public bool bumpersNeedToCollideWithMap { get; set; }           //<bumpersNeedToCollideWithMap value="false" />
         public bool needsRopeTexture { get; set; }                      //<needsRopeTexture value="false" />
-        public string[] requiredExtras { get; set; }                    //<requiredExtras>EXTRA_1 EXTRA_2 EXTRA_3</requiredExtras>
-        public string[] rewards { get; set; }                           //<rewards />
-        public string[] cinematicPartCamera { get; set; }               //<cinematicPartCamera>//  <Item>WHEEL_FRONT_RIGHT_CAMERA</Item>//  <Item>WHEEL_FRONT_LEFT_CAMERA</Item>//  <Item>WHEEL_REAR_RIGHT_CAMERA</Item>//  <Item>WHEEL_REAR_LEFT_CAMERA</Item>//</cinematicPartCamera>
-        public string NmBraceOverrideSet { get; set; }                  //<NmBraceOverrideSet />
+        public string[] requiredExtras { get; set; } = [];                    //<requiredExtras>EXTRA_1 EXTRA_2 EXTRA_3</requiredExtras>
+        public string[] rewards { get; set; } = [];                           //<rewards />
+        public string[] cinematicPartCamera { get; set; } = [];               //<cinematicPartCamera>//  <Item>WHEEL_FRONT_RIGHT_CAMERA</Item>//  <Item>WHEEL_FRONT_LEFT_CAMERA</Item>//  <Item>WHEEL_REAR_RIGHT_CAMERA</Item>//  <Item>WHEEL_REAR_LEFT_CAMERA</Item>//</cinematicPartCamera>
+        public string NmBraceOverrideSet { get; set; } = string.Empty;                  //<NmBraceOverrideSet />
         public Vector3 buoyancySphereOffset { get; set; }               //<buoyancySphereOffset x="0.000000" y="0.000000" z="0.000000" />
         public float buoyancySphereSizeScale { get; set; }              //<buoyancySphereSizeScale value="1.000000" />
-        public VehicleOverrideRagdollThreshold pOverrideRagdollThreshold { get; set; }  //<pOverrideRagdollThreshold type="NULL" />
-        public string[] firstPersonDrivebyData { get; set; }            //<firstPersonDrivebyData>//  <Item>STD_IMPALER2_FRONT_LEFT</Item>//  <Item>STD_IMPALER2_FRONT_RIGHT</Item>//</firstPersonDrivebyData>
+        public VehicleOverrideRagdollThreshold? pOverrideRagdollThreshold { get; set; }  //<pOverrideRagdollThreshold type="NULL" />
+        public string[] firstPersonDrivebyData { get; set; } = [];            //<firstPersonDrivebyData>//  <Item>STD_IMPALER2_FRONT_LEFT</Item>//  <Item>STD_IMPALER2_FRONT_RIGHT</Item>//</firstPersonDrivebyData>
 
 
         public void Load(XmlNode node)
         {
-            modelName = Xml.GetChildInnerText(node, "modelName");
-            txdName = Xml.GetChildInnerText(node, "txdName");
-            handlingId = Xml.GetChildInnerText(node, "handlingId");
-            gameName = Xml.GetChildInnerText(node, "gameName");
-            vehicleMakeName = Xml.GetChildInnerText(node, "vehicleMakeName");
-            expressionDictName = Xml.GetChildInnerText(node, "expressionDictName");
-            expressionName = Xml.GetChildInnerText(node, "expressionName");
-            animConvRoofDictName = Xml.GetChildInnerText(node, "animConvRoofDictName");
-            animConvRoofName = Xml.GetChildInnerText(node, "animConvRoofName");
-            animConvRoofWindowsAffected = Xml.GetChildInnerText(node, "animConvRoofWindowsAffected");//?
-            ptfxAssetName = Xml.GetChildInnerText(node, "ptfxAssetName");
-            audioNameHash = Xml.GetChildInnerText(node, "audioNameHash");
-            layout = Xml.GetChildInnerText(node, "layout");
-            coverBoundOffsets = Xml.GetChildInnerText(node, "coverBoundOffsets");
-            explosionInfo = Xml.GetChildInnerText(node, "explosionInfo");
-            scenarioLayout = Xml.GetChildInnerText(node, "scenarioLayout");
-            cameraName = Xml.GetChildInnerText(node, "cameraName");
-            aimCameraName = Xml.GetChildInnerText(node, "aimCameraName");
-            bonnetCameraName = Xml.GetChildInnerText(node, "bonnetCameraName");
-            povCameraName = Xml.GetChildInnerText(node, "povCameraName");
+            modelName = Xml.GetChildInnerText(node, "modelName") ?? string.Empty;
+            txdName = Xml.GetChildInnerText(node, "txdName") ?? string.Empty;
+            handlingId = Xml.GetChildInnerText(node, "handlingId") ?? string.Empty;
+            gameName = Xml.GetChildInnerText(node, "gameName") ?? string.Empty;
+            vehicleMakeName = Xml.GetChildInnerText(node, "vehicleMakeName") ?? string.Empty;
+            expressionDictName = Xml.GetChildInnerText(node, "expressionDictName") ?? string.Empty;
+            expressionName = Xml.GetChildInnerText(node, "expressionName") ?? string.Empty;
+            animConvRoofDictName = Xml.GetChildInnerText(node, "animConvRoofDictName") ?? string.Empty;
+            animConvRoofName = Xml.GetChildInnerText(node, "animConvRoofName") ?? string.Empty;
+            animConvRoofWindowsAffected = Xml.GetChildInnerText(node, "animConvRoofWindowsAffected") ?? string.Empty;//?
+            ptfxAssetName = Xml.GetChildInnerText(node, "ptfxAssetName") ?? string.Empty;
+            audioNameHash = Xml.GetChildInnerText(node, "audioNameHash") ?? string.Empty;
+            layout = Xml.GetChildInnerText(node, "layout") ?? string.Empty;
+            coverBoundOffsets = Xml.GetChildInnerText(node, "coverBoundOffsets") ?? string.Empty;
+            explosionInfo = Xml.GetChildInnerText(node, "explosionInfo") ?? string.Empty;
+            scenarioLayout = Xml.GetChildInnerText(node, "scenarioLayout") ?? string.Empty;
+            cameraName = Xml.GetChildInnerText(node, "cameraName") ?? string.Empty;
+            aimCameraName = Xml.GetChildInnerText(node, "aimCameraName") ?? string.Empty;
+            bonnetCameraName = Xml.GetChildInnerText(node, "bonnetCameraName") ?? string.Empty;
+            povCameraName = Xml.GetChildInnerText(node, "povCameraName") ?? string.Empty;
             FirstPersonDriveByIKOffset = Xml.GetChildVector3Attributes(node, "FirstPersonDriveByIKOffset");
             FirstPersonDriveByUnarmedIKOffset = Xml.GetChildVector3Attributes(node, "FirstPersonDriveByUnarmedIKOffset");
             FirstPersonProjectileDriveByIKOffset = Xml.GetChildVector3Attributes(node, "FirstPersonProjectileDriveByIKOffset");
@@ -220,7 +220,7 @@ namespace CodeWalker.GameFiles
             PovCameraVerticalAdjustmentForRollCage = Xml.GetChildVector3Attributes(node, "PovCameraVerticalAdjustmentForRollCage");
             PovPassengerCameraOffset = Xml.GetChildVector3Attributes(node, "PovPassengerCameraOffset");
             PovRearPassengerCameraOffset = Xml.GetChildVector3Attributes(node, "PovRearPassengerCameraOffset");
-            vfxInfoName = Xml.GetChildInnerText(node, "vfxInfoName");
+            vfxInfoName = Xml.GetChildInnerText(node, "vfxInfoName") ?? string.Empty;
             shouldUseCinematicViewMode = Xml.GetChildBoolAttribute(node, "shouldUseCinematicViewMode", "value");
             shouldCameraTransitionOnClimbUpDown = Xml.GetChildBoolAttribute(node, "shouldCameraTransitionOnClimbUpDown", "value");
             shouldCameraIgnoreExiting = Xml.GetChildBoolAttribute(node, "shouldCameraIgnoreExiting", "value");
@@ -238,7 +238,7 @@ namespace CodeWalker.GameFiles
             envEffScaleMax2 = Xml.GetChildFloatAttribute(node, "envEffScaleMax2", "value");
             damageMapScale = Xml.GetChildFloatAttribute(node, "damageMapScale", "value");
             damageOffsetScale = Xml.GetChildFloatAttribute(node, "damageOffsetScale", "value");
-            diffuseTint = new Color4(Convert.ToUInt32(Xml.GetChildStringAttribute(node, "diffuseTint", "value").Replace("0x", ""), 16));
+            diffuseTint = new Color4(Convert.ToUInt32((Xml.GetChildStringAttribute(node, "diffuseTint", "value") ?? "0").Replace("0x", ""), 16));
             steerWheelMult = Xml.GetChildFloatAttribute(node, "steerWheelMult", "value");
             HDTextureDist = Xml.GetChildFloatAttribute(node, "HDTextureDist", "value");
             lodDistances = GetFloatArray(node, "lodDistances", '\n');
@@ -251,29 +251,29 @@ namespace CodeWalker.GameFiles
             trackerPathWidth = Xml.GetChildFloatAttribute(node, "trackerPathWidth", "value");
             weaponForceMult = Xml.GetChildFloatAttribute(node, "weaponForceMult", "value");
             frequency = Xml.GetChildFloatAttribute(node, "frequency", "value");
-            swankness = Xml.GetChildInnerText(node, "swankness");
+            swankness = Xml.GetChildInnerText(node, "swankness") ?? string.Empty;
             maxNum = Xml.GetChildIntAttribute(node, "maxNum", "value");
             flags = GetStringArray(node, "flags", ' ');
-            type = Xml.GetChildInnerText(node, "type");
-            plateType = Xml.GetChildInnerText(node, "plateType");
-            dashboardType = Xml.GetChildInnerText(node, "dashboardType");
-            vehicleClass = Xml.GetChildInnerText(node, "vehicleClass");
-            wheelType = Xml.GetChildInnerText(node, "wheelType");
+            type = Xml.GetChildInnerText(node, "type") ?? string.Empty;
+            plateType = Xml.GetChildInnerText(node, "plateType") ?? string.Empty;
+            dashboardType = Xml.GetChildInnerText(node, "dashboardType") ?? string.Empty;
+            vehicleClass = Xml.GetChildInnerText(node, "vehicleClass") ?? string.Empty;
+            wheelType = Xml.GetChildInnerText(node, "wheelType") ?? string.Empty;
             trailers = GetStringItemArray(node, "trailers");
             additionalTrailers = GetStringItemArray(node, "additionalTrailers");
             var dnode = node.SelectSingleNode("drivers");
             if (dnode != null)
             {
-                var items = dnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = dnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    drivers = new VehicleDriver[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    drivers = new VehicleDriver[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         var item = items[i];
                         var driver = new VehicleDriver();
-                        driver.driverName = Xml.GetChildInnerText(item, "driverName");
-                        driver.npcName = Xml.GetChildInnerText(item, "npcName");
+                        driver.driverName = Xml.GetChildInnerText(item, "driverName") ?? string.Empty;
+                        driver.npcName = Xml.GetChildInnerText(item, "npcName") ?? string.Empty;
                         drivers[i] = driver;
                     }
                 }
@@ -286,13 +286,13 @@ namespace CodeWalker.GameFiles
             requiredExtras = GetStringArray(node, "requiredExtras", ' ');
             rewards = GetStringItemArray(node, "rewards");
             cinematicPartCamera = GetStringItemArray(node, "cinematicPartCamera");
-            NmBraceOverrideSet = Xml.GetChildInnerText(node, "NmBraceOverrideSet");
+            NmBraceOverrideSet = Xml.GetChildInnerText(node, "NmBraceOverrideSet") ?? string.Empty;
             buoyancySphereOffset = Xml.GetChildVector3Attributes(node, "buoyancySphereOffset");
             buoyancySphereSizeScale = Xml.GetChildFloatAttribute(node, "buoyancySphereSizeScale", "value");
             var tnode = node.SelectSingleNode("pOverrideRagdollThreshold");
             if (tnode != null)
             {
-                var ttype = tnode.Attributes["type"]?.Value;
+                var ttype = tnode.Attributes?["type"]?.Value;
                 switch (ttype)
                 {
                     case "NULL": break;
@@ -312,9 +312,9 @@ namespace CodeWalker.GameFiles
         private string[] GetStringItemArray(XmlNode node, string childName)
         {
             var cnode = node.SelectSingleNode(childName);
-            if (cnode == null) return null;
-            var items = cnode.SelectNodes("Item");
-            if (items == null) return null;
+            if (cnode == null) return [];
+            var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            if (items == null) return [];
             getStringArrayList.Clear();
             foreach (XmlNode inode in items)
             {
@@ -324,14 +324,14 @@ namespace CodeWalker.GameFiles
                     getStringArrayList.Add(istr);
                 }
             }
-            if (getStringArrayList.Count == 0) return null;
+            if (getStringArrayList.Count == 0) return [];
             return getStringArrayList.ToArray();
         }
         private string[] GetStringArray(XmlNode node, string childName, char delimiter)
         {
             var ldastr = Xml.GetChildInnerText(node, childName);
             var ldarr = ldastr?.Split(delimiter);
-            if (ldarr == null) return null;
+            if (ldarr == null) return [];
             getStringArrayList.Clear();
             foreach (var ldstr in ldarr)
             {
@@ -341,14 +341,14 @@ namespace CodeWalker.GameFiles
                     getStringArrayList.Add(ldt);
                 }
             }
-            if (getStringArrayList.Count == 0) return null;
+            if (getStringArrayList.Count == 0) return [];
             return getStringArrayList.ToArray();
         }
         private float[] GetFloatArray(XmlNode node, string childName, char delimiter)
         {
             var ldastr = Xml.GetChildInnerText(node, childName);
             var ldarr = ldastr?.Split(delimiter);
-            if (ldarr == null) return null;
+            if (ldarr == null) return [];
             getFloatArrayList.Clear();
             foreach (var ldstr in ldarr)
             {
@@ -362,7 +362,7 @@ namespace CodeWalker.GameFiles
                     }
                 }
             }
-            if (getFloatArrayList.Count == 0) return null;
+            if (getFloatArrayList.Count == 0) return [];
             return getFloatArrayList.ToArray();
         }
 
@@ -389,8 +389,8 @@ namespace CodeWalker.GameFiles
     }
     public class VehicleDriver
     {
-        public string driverName { get; set; }
-        public string npcName { get; set; }
+        public string driverName { get; set; } = string.Empty;
+        public string npcName { get; set; } = string.Empty;
 
         public override string ToString()
         {

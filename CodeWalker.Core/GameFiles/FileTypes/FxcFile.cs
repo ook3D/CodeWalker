@@ -16,30 +16,30 @@ namespace CodeWalker.GameFiles
 {
     [TC(typeof(EXP))] public class FxcFile : PackedFile
     {
-        public string Name { get; set; }
-        public RpfFileEntry FileEntry { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public RpfFileEntry? FileEntry { get; set; }
         public uint Hash { get; set; }
 
         public VertexType VertexType { get; set; }
-        public FxcPresetParam[] PresetParams { get; set; }
-        public FxcShaderGroup[] ShaderGroups { get; set; }
-        public FxcCBuffer[] CBuffers1 { get; set; }
-        public FxcVariable[] Variables1 { get; set; }
-        public FxcCBuffer[] CBuffers2 { get; set; }
-        public FxcVariable[] Variables2 { get; set; }
-        public FxcTechnique[] Techniques { get; set; }
+        public FxcPresetParam[] PresetParams { get; set; } = [];
+        public FxcShaderGroup[] ShaderGroups { get; set; } = [];
+        public FxcCBuffer[] CBuffers1 { get; set; } = [];
+        public FxcVariable[] Variables1 { get; set; } = [];
+        public FxcCBuffer[] CBuffers2 { get; set; } = [];
+        public FxcVariable[] Variables2 { get; set; } = [];
+        public FxcTechnique[] Techniques { get; set; } = [];
 
 
-        public FxcShader[] Shaders { get; set; }
-        public FxcShader[] VertexShaders { get; set; }
-        public FxcShader[] PixelShaders { get; set; }
-        public FxcShader[] ComputeShaders { get; set; }
-        public FxcShader[] DomainShaders { get; set; }
-        public FxcShader[] GeometryShaders { get; set; }
-        public FxcShader[] HullShaders { get; set; }
+        public FxcShader[] Shaders { get; set; } = [];
+        public FxcShader[] VertexShaders { get; set; } = [];
+        public FxcShader[] PixelShaders { get; set; } = [];
+        public FxcShader[] ComputeShaders { get; set; } = [];
+        public FxcShader[] DomainShaders { get; set; } = [];
+        public FxcShader[] GeometryShaders { get; set; } = [];
+        public FxcShader[] HullShaders { get; set; } = [];
 
-        public Dictionary<uint, FxcCBuffer> CBufferDict { get; set; }
-        public FxcVariable[] GlobalVariables { get; set; }
+        public Dictionary<uint, FxcCBuffer> CBufferDict { get; set; } = new();
+        public FxcVariable[] GlobalVariables { get; set; } = [];
 
 
 
@@ -213,7 +213,7 @@ namespace CodeWalker.GameFiles
             w.Write((uint)1702389618); //"rgxe"
             w.Write((uint)VertexType);
 
-            var ppCount = (byte)(PresetParams?.Length ?? 0);
+            var ppCount = (byte)(PresetParams.Length);
             w.Write(ppCount);
             for (int i = 0; i < ppCount; i++)
             {
@@ -235,35 +235,35 @@ namespace CodeWalker.GameFiles
             }
 
 
-            var cbCount1 = (byte)(CBuffers1?.Length ?? 0);
+            var cbCount1 = (byte)(CBuffers1.Length);
             w.Write(cbCount1);
             for (int i = 0; i < cbCount1; i++)
             {
                 CBuffers1[i].Write(w);
             }
 
-            var varCount1 = (byte)(Variables1?.Length ?? 0);
+            var varCount1 = (byte)(Variables1.Length);
             w.Write(varCount1);
             for (int i = 0; i < varCount1; i++)
             {
                 Variables1[i].Write(w);
             }
 
-            var cbCount2 = (byte)(CBuffers2?.Length ?? 0);
+            var cbCount2 = (byte)(CBuffers2.Length);
             w.Write(cbCount2);
             for (int i = 0; i < cbCount2; i++)
             {
                 CBuffers2[i].Write(w);
             }
 
-            var varCount2 = (byte)(Variables2?.Length ?? 0);
+            var varCount2 = (byte)(Variables2.Length);
             w.Write(varCount2);
             for (int i = 0; i < varCount2; i++)
             {
                 Variables2[i].Write(w);
             }
 
-            var techCount = (byte)(Techniques?.Length ?? 0);
+            var techCount = (byte)(Techniques.Length);
             w.Write(techCount);
             for (int i = 0; i < techCount; i++)
             {
@@ -301,7 +301,7 @@ namespace CodeWalker.GameFiles
                 {
                     tagn += " OffsetBy1=\"" + group.OffsetBy1.ToString() + "\"";
                 }
-                if ((group.Shaders?.Length ?? 0) > 0)
+                if ((group.Shaders.Length) > 0)
                 {
                     FxcXml.OpenTag(sb, ci, tagn);
                     group.WriteXml(sb, gi, csofolder);
@@ -348,7 +348,7 @@ namespace CodeWalker.GameFiles
                 {
                     var gname = type.ToString() + "s";
                     var gnode = snode.SelectSingleNode(gname);
-                    if (gnode == null) return null;
+                    if (gnode == null) return new FxcShaderGroup { Type = type, Name = "NULL" };
                     var group = new FxcShaderGroup();
                     group.Type = type;
                     group.OffsetBy1 = Xml.GetBoolAttribute(gnode, "OffsetBy1");
@@ -550,7 +550,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public FxcShader GetVS(int id)
+        public FxcShader? GetVS(int id)
         {
             int i = id - 1;
             if ((i < 0) || (VertexShaders == null) || (i >= VertexShaders.Length))
@@ -559,7 +559,7 @@ namespace CodeWalker.GameFiles
             }
             return VertexShaders[i];
         }
-        public FxcShader GetPS(int id)
+        public FxcShader? GetPS(int id)
         {
             int i = id - 1;
             if ((i < 0) || (PixelShaders == null) || (i >= PixelShaders.Length))
@@ -568,7 +568,7 @@ namespace CodeWalker.GameFiles
             }
             return PixelShaders[i];
         }
-        public FxcShader GetCS(int id)
+        public FxcShader? GetCS(int id)
         {
             int i = id - 1;
             if ((i < 0) || (ComputeShaders == null) || (i >= ComputeShaders.Length))
@@ -577,7 +577,7 @@ namespace CodeWalker.GameFiles
             }
             return ComputeShaders[i];
         }
-        public FxcShader GetDS(int id)
+        public FxcShader? GetDS(int id)
         {
             int i = id - 1;
             if ((i < 0) || (DomainShaders == null) || (i >= DomainShaders.Length))
@@ -586,7 +586,7 @@ namespace CodeWalker.GameFiles
             }
             return DomainShaders[i];
         }
-        public FxcShader GetGS(int id)
+        public FxcShader? GetGS(int id)
         {
             int i = id - 1;
             if ((i < 0) || (GeometryShaders == null) || (i >= GeometryShaders.Length))
@@ -595,7 +595,7 @@ namespace CodeWalker.GameFiles
             }
             return GeometryShaders[i];
         }
-        public FxcShader GetHS(int id)
+        public FxcShader? GetHS(int id)
         {
             int i = id - 1;
             if ((i < 0) || (HullShaders == null) || (i >= HullShaders.Length))
@@ -689,7 +689,7 @@ namespace CodeWalker.GameFiles
         }
         public static string[] ReadStringArray(BinaryReader br)
         {
-            string[]? r = null;
+            string[] r = [];
 
             byte sc = br.ReadByte();
             if (sc > 0)
@@ -726,7 +726,7 @@ namespace CodeWalker.GameFiles
         }
         public static void WriteStringArray(BinaryWriter bw, string[] a)
         {
-            byte sc = (byte)(a?.Length ?? 0);
+            byte sc = (byte)(a.Length);
             bw.Write(sc);
             for (int i = 0; i < sc; i++)
             {
@@ -745,7 +745,7 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class FxcPresetParam : IMetaXmlItem
     {
-        public string Name { get; set; } //eg. __rage_drawbucket, ExposeAlphaMap
+        public string Name { get; set; } = string.Empty; //eg. __rage_drawbucket, ExposeAlphaMap
         public byte Unused0 { get; set; } //always 0  - possibly type identifier?
         public uint Value { get; set; }
 
@@ -769,7 +769,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             Value = Xml.GetChildUIntAttribute(node, "Value");
         }
 
@@ -794,11 +794,11 @@ namespace CodeWalker.GameFiles
         public FxcShaderType Type { get; set; } //index in the fxc file
         public byte ShaderCount { get; set; } //number of shaders in the section +1 (why +1 though? no idea)
         public bool OffsetBy1 { get; set; }//don't know why, sometimes hull shaders get offset by 1 byte at the start
-        public string Name { get; set; } //"NULL"
+        public string Name { get; set; } = string.Empty; //"NULL"
         public byte Unk1Byte { get; set; } //0
         public byte Unk2Byte { get; set; } //0
         public uint Unk3Uint { get; set; } //0
-        public FxcShader[] Shaders { get; set; }
+        public FxcShader[] Shaders { get; set; } = [];
 
         public void Read(BinaryReader br, int gindex)
         {
@@ -828,7 +828,7 @@ namespace CodeWalker.GameFiles
         }
         public void Write(BinaryWriter bw, int gindex)
         {
-            ShaderCount = (byte)((Shaders?.Length ?? 0) + 1);
+            ShaderCount = (byte)((Shaders.Length) + 1);
 
             if (OffsetBy1)
             {
@@ -847,7 +847,7 @@ namespace CodeWalker.GameFiles
 
         public void WriteXml(StringBuilder sb, int indent, string csofolder)
         {
-            var sc = Shaders?.Length ?? 0;
+            var sc = Shaders.Length;
             var ci = indent + 1;
             var si = ci + 1;
             for (int i = 0; i < sc; i++)
@@ -887,17 +887,17 @@ namespace CodeWalker.GameFiles
         public FxcShaderType Type { get; set; }
         public long Offset { get; set; } //just for informational purposes
         public bool OffsetBy1 { get; set; }//don't know why, sometimes geometry shaders get offset by 1 byte here
-        public string Name { get; set; }
-        public string[] Variables { get; set; }
-        public FxcShaderBufferRef[] Buffers { get; set; }//CBuffers
+        public string Name { get; set; } = string.Empty;
+        public string[] Variables { get; set; } = [];
+        public FxcShaderBufferRef[] Buffers { get; set; } = [];//CBuffers
         public byte VersionMajor { get; set; }
         public byte VersionMinor { get; set; }
-        public string VersionString { get; set; }
-        public byte[] ByteCode { get; set; }
+        public string VersionString { get; set; } = string.Empty;
+        public byte[] ByteCode { get; set; } = [];
         //public ShaderBytecode ByteCodeObj { get; set; }
         //public ShaderProfile ShaderProfile { get; set; }
-        public string Disassembly { get; set; }//see FxcParser
-        public string LastError { get; set; } //see FxcParser
+        public string Disassembly { get; set; } = string.Empty;//see FxcParser
+        public string LastError { get; set; } = string.Empty; //see FxcParser
 
         public void Read(BinaryReader br, int gindex)
         {
@@ -997,7 +997,7 @@ namespace CodeWalker.GameFiles
             FxcFile.WriteString(bw, Name);
             FxcFile.WriteStringArray(bw, Variables);
 
-            var bufferCount = (byte)(Buffers?.Length ?? 0);
+            var bufferCount = (byte)(Buffers.Length);
             bw.Write(bufferCount);
             for (int i = 0; i < bufferCount; i++)
             {
@@ -1009,7 +1009,7 @@ namespace CodeWalker.GameFiles
                 bw.Write((byte)0); //why is this here..? crazy GS
             }
 
-            var dataLength = (uint)(ByteCode?.Length ?? 0);
+            var dataLength = (uint)(ByteCode.Length);
             bw.Write(dataLength);
             if (dataLength > 0)
             {
@@ -1081,7 +1081,7 @@ namespace CodeWalker.GameFiles
         public void ReadXml(XmlNode node, string csofolder)
         {
             //Type should be set before calling this!
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             OffsetBy1 = Xml.GetChildBoolAttribute(node, "OffsetBy1");
             VersionMajor = (byte)Xml.GetChildUIntAttribute(node, "VersionMajor");
             VersionMinor = (byte)Xml.GetChildUIntAttribute(node, "VersionMinor");
@@ -1130,7 +1130,7 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class FxcShaderBufferRef : IMetaXmlItem
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public ushort Slot { get; set; }
 
         public void Read(BinaryReader br)
@@ -1151,7 +1151,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             Slot = (ushort)Xml.GetChildUIntAttribute(node, "Slot");
         }
 
@@ -1170,11 +1170,11 @@ namespace CodeWalker.GameFiles
         public ushort SlotDS { get; set; }
         public ushort SlotGS { get; set; }
         public ushort SlotHS { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
-        public uint NameHash { get { return JenkHash.GenHash(Name?.ToLowerInvariant()); } }
-        public List<FxcVariable> VariablesList;
-        public FxcVariable[] Variables { get; set; }
+        public uint NameHash { get { return JenkHash.GenHash(Name.ToLowerInvariant()); } }
+        public List<FxcVariable>? VariablesList;
+        public FxcVariable[] Variables { get; set; } = [];
 
         public void Read(BinaryReader br)
         {
@@ -1186,7 +1186,7 @@ namespace CodeWalker.GameFiles
             SlotGS = br.ReadUInt16(); //6, 5
             SlotHS = br.ReadUInt16(); //6, 5
             Name = FxcFile.ReadString(br); // <fxc name> _locals   //"rage_matrices", "misc_globals", "lighting_globals", "more_stuff"
-            JenkIndex.Ensure(Name?.ToLowerInvariant()); //why not :P
+            JenkIndex.Ensure(Name.ToLowerInvariant()); //why not :P
         }
         public void Write(BinaryWriter bw)
         {
@@ -1213,7 +1213,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             Size = Xml.GetChildUIntAttribute(node, "Size");
             SlotVS = (ushort)Xml.GetChildUIntAttribute(node, "SlotVS");
             SlotPS = (ushort)Xml.GetChildUIntAttribute(node, "SlotPS");
@@ -1271,18 +1271,18 @@ namespace CodeWalker.GameFiles
         public byte Count { get; set; } //array size
         public byte Slot { get; set; } //possibly GPU variable slot index for other platforms? or for CPU side
         public byte Group { get; set; } //maybe - variables in same buffer usually have same value
-        public string Name1 { get; set; }
-        public string Name2 { get; set; }
+        public string Name1 { get; set; } = string.Empty;
+        public string Name2 { get; set; } = string.Empty;
         public byte Offset { get; set; } //base offset (aligned to 16?)
         public byte Variant { get; set; } //255,0,1,2,3,4,5,7,9  seems to be used when multiple variables at same offset in the buffer
         public byte Unused0 { get; set; }//0
         public byte Unused1 { get; set; }//0
         public MetaHash CBufferName { get; set; }
         public byte ParamCount { get; set; }
-        public FxcVariableParam[] Params { get; set; }
+        public FxcVariableParam[] Params { get; set; } = [];
         public byte ValueCount { get; set; }
-        public float[] ValuesF { get; set; }//optional default value for the variable, should match up with Type?
-        public uint[] ValuesU { get; set; }
+        public float[] ValuesF { get; set; } = [];//optional default value for the variable, should match up with Type?
+        public uint[] ValuesU { get; set; } = [];
 
         private bool UseUIntValues
         {
@@ -1396,7 +1396,7 @@ namespace CodeWalker.GameFiles
             bw.Write(Unused1);
             bw.Write(CBufferName);
 
-            ParamCount = (byte)(Params?.Length ?? 0);
+            ParamCount = (byte)(Params.Length);
             bw.Write(ParamCount);
             for (int i = 0; i < ParamCount; i++)
             {
@@ -1405,7 +1405,7 @@ namespace CodeWalker.GameFiles
 
             if (UseUIntValues)
             {
-                ValueCount = (byte)(ValuesU?.Length ?? 0);
+                ValueCount = (byte)(ValuesU.Length);
                 bw.Write(ValueCount);
                 for (int i = 0; i < ValueCount; i++)
                 {
@@ -1414,7 +1414,7 @@ namespace CodeWalker.GameFiles
             }
             else
             {
-                ValueCount = (byte)(ValuesF?.Length ?? 0);
+                ValueCount = (byte)(ValuesF.Length);
                 bw.Write(ValueCount);
                 for (int i = 0; i < ValueCount; i++)
                 {
@@ -1451,8 +1451,8 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name1 = Xml.GetChildInnerText(node, "Name1");
-            Name2 = Xml.GetChildInnerText(node, "Name2");
+            Name1 = Xml.GetChildInnerText(node, "Name1") ?? string.Empty;
+            Name2 = Xml.GetChildInnerText(node, "Name2") ?? string.Empty;
             CBufferName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "Buffer"));
             Type = Xml.GetChildEnumInnerText<FxcVariableType>(node, "Type");
             Count = (byte)Xml.GetChildUIntAttribute(node, "Count");
@@ -1463,11 +1463,11 @@ namespace CodeWalker.GameFiles
             Params = XmlMeta.ReadItemArray<FxcVariableParam>(node, "Params");
             if (UseUIntValues)
             {
-                ValuesU = Xml.GetChildRawUintArrayNullable(node, "Values");
+                ValuesU = Xml.GetChildRawUintArrayNullable(node, "Values") ?? [];
             }
             else
             {
-                ValuesF = Xml.GetChildRawFloatArrayNullable(node, "Values");
+                ValuesF = Xml.GetChildRawFloatArrayNullable(node, "Values") ?? [];
             }
         }
 
@@ -1489,9 +1489,9 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class FxcVariableParam : IMetaXmlItem
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public FxcVariableParamType Type { get; set; }
-        public object Value { get; set; }
+        public object Value { get; set; } = 0;
 
         public void Read(BinaryReader br)
         {
@@ -1551,7 +1551,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             Type = Xml.GetChildEnumInnerText<FxcVariableParamType>(node, "Type");
             switch (Type)
             {
@@ -1562,7 +1562,7 @@ namespace CodeWalker.GameFiles
                     Value = Xml.GetChildFloatAttribute(node, "Value");
                     break;
                 case FxcVariableParamType.String:
-                    Value = Xml.GetChildInnerText(node, "Value");
+                    Value = Xml.GetChildInnerText(node, "Value") ?? string.Empty;
                     break;
             }
         }
@@ -1575,9 +1575,9 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class FxcTechnique : IMetaXmlItem
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public byte PassCount { get; set; }
-        public FxcPass[] Passes { get; set; }
+        public FxcPass[] Passes { get; set; } = [];
 
         public void Read(BinaryReader br)
         {
@@ -1600,7 +1600,7 @@ namespace CodeWalker.GameFiles
         {
             FxcFile.WriteString(bw, Name);
             
-            PassCount = (byte)(Passes?.Length ?? 0);
+            PassCount = (byte)(Passes.Length);
             bw.Write(PassCount);
             for (int i = 0; i < PassCount; i++)
             {
@@ -1616,7 +1616,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             Passes = XmlMeta.ReadItemArray<FxcPass>(node, "Passes");
         }
 
@@ -1652,14 +1652,14 @@ namespace CodeWalker.GameFiles
         public byte GS { get; set; }
         public byte HS { get; set; }
         public byte ParamCount { get; set; }
-        public FxcPassParam[] Params { get; set; } //probably referring to eg SetBlendState, SetRasterizerState etc
+        public FxcPassParam[] Params { get; set; } = []; //probably referring to eg SetBlendState, SetRasterizerState etc
 
-        public string VSName { get; set; }
-        public string PSName { get; set; }
-        public string CSName { get; set; }
-        public string DSName { get; set; }
-        public string GSName { get; set; }
-        public string HSName { get; set; }
+        public string VSName { get; set; } = string.Empty;
+        public string PSName { get; set; } = string.Empty;
+        public string CSName { get; set; } = string.Empty;
+        public string DSName { get; set; } = string.Empty;
+        public string GSName { get; set; } = string.Empty;
+        public string HSName { get; set; } = string.Empty;
 
         public void Read(BinaryReader br)
         {
@@ -1691,7 +1691,7 @@ namespace CodeWalker.GameFiles
             bw.Write(GS);
             bw.Write(HS);
 
-            ParamCount = (byte)(Params?.Length ?? 0);
+            ParamCount = (byte)(Params.Length);
             bw.Write(ParamCount);
             for (int i = 0; i < ParamCount; i++)
             {
@@ -1715,24 +1715,24 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            VSName = Xml.GetChildInnerText(node, "VertexShader");
-            PSName = Xml.GetChildInnerText(node, "PixelShader");
-            CSName = Xml.GetChildInnerText(node, "ComputeShader");
-            DSName = Xml.GetChildInnerText(node, "DomainShader");
-            GSName = Xml.GetChildInnerText(node, "GeometryShader");
-            HSName = Xml.GetChildInnerText(node, "HullShader");
+            VSName = Xml.GetChildInnerText(node, "VertexShader") ?? string.Empty;
+            PSName = Xml.GetChildInnerText(node, "PixelShader") ?? string.Empty;
+            CSName = Xml.GetChildInnerText(node, "ComputeShader") ?? string.Empty;
+            DSName = Xml.GetChildInnerText(node, "DomainShader") ?? string.Empty;
+            GSName = Xml.GetChildInnerText(node, "GeometryShader") ?? string.Empty;
+            HSName = Xml.GetChildInnerText(node, "HullShader") ?? string.Empty;
             Params = XmlMeta.ReadItemArray<FxcPassParam>(node, "Params");
         }
 
 
         public void GetNamesFromIndices(FxcFile fxc)
         {
-            VSName = fxc.GetVS(VS)?.Name;
-            PSName = fxc.GetPS(PS)?.Name;
-            CSName = fxc.GetCS(CS)?.Name;
-            DSName = fxc.GetDS(DS)?.Name;
-            GSName = fxc.GetGS(GS)?.Name;
-            HSName = fxc.GetHS(HS)?.Name;
+            VSName = fxc.GetVS(VS)?.Name ?? string.Empty;
+            PSName = fxc.GetPS(PS)?.Name ?? string.Empty;
+            CSName = fxc.GetCS(CS)?.Name ?? string.Empty;
+            DSName = fxc.GetDS(DS)?.Name ?? string.Empty;
+            GSName = fxc.GetGS(GS)?.Name ?? string.Empty;
+            HSName = fxc.GetHS(HS)?.Name ?? string.Empty;
         }
         public void GetIndicesFromNames(FxcFile fxc)
         {
@@ -1885,7 +1885,7 @@ namespace CodeWalker.GameFiles
         public static FxcFile GetFxc(XmlDocument doc, string inputFolder = "")
         {
             FxcFile fxc = new();
-            fxc.ReadXml(doc.DocumentElement, inputFolder);
+            fxc.ReadXml(doc.DocumentElement ?? throw new InvalidDataException("The shader XML has no root element."), inputFolder);
             return fxc;
         }
 

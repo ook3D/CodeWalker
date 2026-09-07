@@ -28,8 +28,8 @@ namespace CodeWalker.Utils
         private Color OldColour = Color.Black;
         private Color Colour = Color.Black;
         private ColourComponent ColourMode = ColourComponent.H;
-        private Bitmap MainGradient;
-        private Bitmap SideGradient;
+        private Bitmap? MainGradient;
+        private Bitmap? SideGradient;
         private int HVal = 0;
         private int SVal = 0;
         private int VVal = 0;
@@ -48,16 +48,16 @@ namespace CodeWalker.Utils
         private int CircleOffset = 6;
         private const float CircleH = 255.0f / 360.0f;
         private const float CircleSV = 255.0f / 100.0f;
-        private Bitmap CircleBlack;
-        private Bitmap CircleWhite;
+        private Bitmap? CircleBlack;
+        private Bitmap? CircleWhite;
         private int SliderBox = 13;
         private int SliderOffset = 6;
-        private Bitmap SliderL;
-        private Bitmap SliderR;
+        private Bitmap? SliderL;
+        private Bitmap? SliderR;
         private bool MainDrag;
         private bool SideDrag;
-        private Color[] CustomColours;
-        private Color[] RecentColours;
+        private readonly Color[] CustomColours = new Color[12];
+        private readonly Color[] RecentColours = new Color[12];
         private static Color[] DefaultColours =
         {
             NewColour(255,0,0,255),NewColour(255,255,0,255),NewColour(0,255,0,255),
@@ -247,7 +247,7 @@ namespace CodeWalker.Utils
             }
             return b;
         }
-        private Color[] GetColoursSetting(string? str)
+        private Color[]? GetColoursSetting(string? str)
         {
             if (string.IsNullOrEmpty(str)) return null;
             var strs = str.Split(' ');
@@ -285,8 +285,6 @@ namespace CodeWalker.Utils
             var s = Settings.Default;
             var c = GetColoursSetting(s.ColourPickerCustomColours);
             var r = GetColoursSetting(s.ColourPickerRecentColours);
-            CustomColours = new Color[12];
-            RecentColours = new Color[12];
             for (int i = 0; i < 12; i++)
             {
                 CustomColours[i] = ((c != null) && (i < c.Length)) ? c[i] : DefaultColours[i];
@@ -495,6 +493,7 @@ namespace CodeWalker.Utils
         }
         private void UpdateGradientsProc()
         {
+            if (MainGradient == null || SideGradient == null) return;
 
             var mg = new byte[256 * 256 * 4];
             var sg = new byte[256 * 20 * 4];
@@ -659,7 +658,8 @@ namespace CodeWalker.Utils
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            if (MainGradient == null) return;
+            if (MainGradient == null || SideGradient == null || CircleBlack == null ||
+                CircleWhite == null || SliderL == null || SliderR == null) return;
 
             var g = e.Graphics;
 

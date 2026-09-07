@@ -18,12 +18,13 @@ namespace CodeWalker.Utils
         public const int BufferSize = 0x100;
         public const int SampleRate = 48000;
 
-        public Dat10Synth Synth { get; private set; }
-        public float[] Registers { get; private set; }
-        public float[][] Buffers { get; private set; }
-        public StateBlock[] StateBlocks { get; private set; }
+        private Dat10Synth? synth;
+        public Dat10Synth Synth { get => synth ?? throw new InvalidOperationException("No synth loaded."); private set => synth = value; }
+        public float[] Registers { get; private set; } = [];
+        public float[][] Buffers { get; private set; } = [];
+        public StateBlock[] StateBlocks { get; private set; } = [];
         
-        private Dat10Synth.Instruction[] instructions;
+        private Dat10Synth.Instruction[] instructions = [];
         private bool stop;
         private Random rnd = new();
 
@@ -33,8 +34,8 @@ namespace CodeWalker.Utils
         private SourceVoice sourceVoice;
         private bool disposed;
 
-        public event EventHandler Stopped;
-        public event EventHandler FrameSynthesized;
+        public event EventHandler? Stopped;
+        public event EventHandler? FrameSynthesized;
 
         public Synthesizer()
         {

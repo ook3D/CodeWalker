@@ -10,7 +10,7 @@ namespace CodeWalker.GameFiles
 {
     public class YwrFile : GameFile, PackedFile
     {
-        public WaypointRecordList Waypoints { get; set; }
+        public WaypointRecordList? Waypoints { get; set; }
 
         public YwrFile() : base(null, GameFileType.Ywr)
         {
@@ -53,7 +53,8 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
-            byte[] data = ResourceBuilder.Build(Waypoints, 1); //ywr is type/version 1...
+            byte[] data = ResourceBuilder.Build(Waypoints
+                ?? throw new InvalidOperationException("Waypoint records must be loaded before saving."), 1); //ywr is type/version 1...
 
             return data;
         }

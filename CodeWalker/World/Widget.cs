@@ -113,9 +113,9 @@ namespace CodeWalker.World
         public WidgetMode Mode { get; set; } = WidgetMode.Default;
 
 
-        public event WidgetPositionChangeHandler OnPositionChange;
-        public event WidgetRotationChangeHandler OnRotationChange;
-        public event WidgetScaleChangeHandler OnScaleChange;
+        public event WidgetPositionChangeHandler? OnPositionChange;
+        public event WidgetRotationChangeHandler? OnRotationChange;
+        public event WidgetScaleChangeHandler? OnScaleChange;
 
         public bool IsUnderMouse
         {
@@ -260,7 +260,7 @@ namespace CodeWalker.World
     {
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; } = Quaternion.Identity;
-        public event WidgetPositionChangeHandler OnPositionChange;
+        public event WidgetPositionChangeHandler? OnPositionChange;
 
         public WidgetAxis MousedAxis { get; set; } = WidgetAxis.None;
         public WidgetAxis DraggedAxis { get; set; } = WidgetAxis.None;
@@ -489,7 +489,7 @@ namespace CodeWalker.World
     {
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; } = Quaternion.Identity;
-        public event WidgetRotationChangeHandler OnRotationChange;
+        public event WidgetRotationChangeHandler? OnRotationChange;
 
         public WidgetAxis MousedAxis { get; set; } = WidgetAxis.None;
         public WidgetAxis DraggedAxis { get; set; } = WidgetAxis.None;
@@ -685,7 +685,7 @@ namespace CodeWalker.World
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; } = Quaternion.Identity;
         public Vector3 Scale { get; set; } = Vector3.One;
-        public event WidgetScaleChangeHandler OnScaleChange;
+        public event WidgetScaleChangeHandler? OnScaleChange;
 
         public WidgetAxis MousedAxis { get; set; } = WidgetAxis.None;
         public WidgetAxis DraggedAxis { get; set; } = WidgetAxis.None;

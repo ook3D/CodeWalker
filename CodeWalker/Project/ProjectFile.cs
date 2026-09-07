@@ -13,7 +13,7 @@ namespace CodeWalker.Project
     public class ProjectFile
     {
         //fields stored in file
-        public string Name { get; set; } //friendly name for this project
+        public string Name { get; set; } = string.Empty; //friendly name for this project
         public int Version { get; set; }
         public List<string> YmapFilenames { get; set; } = new List<string>();
         public List<string> YtypFilenames { get; set; } = new List<string>();
@@ -29,8 +29,8 @@ namespace CodeWalker.Project
         public List<string> YtdFilenames { get; set; } = new List<string>();
 
         //fields not stored
-        public string Filename { get; set; } //filename without path
-        public string Filepath { get; set; } //full path of the current file
+        public string Filename { get; set; } = string.Empty; //filename without path
+        public string Filepath { get; set; } = string.Empty; //full path of the current file
         public bool HasChanged { get; set; } //flag for use by the UI
 
         public List<YmapFile> YmapFiles { get; set; } = new List<YmapFile>();
@@ -141,9 +141,9 @@ namespace CodeWalker.Project
             XmlDocument doc = new();
             doc.Load(filepath);
 
-            var projelem = doc.DocumentElement;
+            var projelem = doc.DocumentElement ?? throw new XmlException("The project XML is missing its root element.");
 
-            Name = Xml.GetChildInnerText(projelem, "Name");
+            Name = Xml.GetChildInnerText(projelem, "Name") ?? string.Empty;
             Version = Xml.GetChildIntAttribute(projelem, "Version", "value");
 
             YmapFilenames.Clear();
@@ -151,7 +151,7 @@ namespace CodeWalker.Project
             var ymapselem = Xml.GetChild(projelem, "YmapFilenames");
             if (ymapselem != null)
             {
-                foreach (var node in ymapselem.SelectNodes("Item"))
+                foreach (var node in ymapselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? ymapel = node as XmlElement;
                     if (ymapel != null)
@@ -167,7 +167,7 @@ namespace CodeWalker.Project
             var ytypselem = Xml.GetChild(projelem, "YtypFilenames");
             if (ytypselem != null)
             {
-                foreach (var node in ytypselem.SelectNodes("Item"))
+                foreach (var node in ytypselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? ytypel = node as XmlElement;
                     if (ytypel != null)
@@ -183,7 +183,7 @@ namespace CodeWalker.Project
             var ybnselem = Xml.GetChild(projelem, "YbnFilenames");
             if (ybnselem != null)
             {
-                foreach (var node in ybnselem.SelectNodes("Item"))
+                foreach (var node in ybnselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? ybnel = node as XmlElement;
                     if (ybnel != null)
@@ -199,7 +199,7 @@ namespace CodeWalker.Project
             var yndselem = Xml.GetChild(projelem, "YndFilenames");
             if (yndselem != null)
             {
-                foreach (var node in yndselem.SelectNodes("Item"))
+                foreach (var node in yndselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? yndel = node as XmlElement;
                     if (yndel != null)
@@ -216,7 +216,7 @@ namespace CodeWalker.Project
             var ynvselem = Xml.GetChild(projelem, "YnvFilenames");
             if (ynvselem != null)
             {
-                foreach (var node in ynvselem.SelectNodes("Item"))
+                foreach (var node in ynvselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? ynvel = node as XmlElement;
                     if (ynvel != null)
@@ -232,7 +232,7 @@ namespace CodeWalker.Project
             var trainsselem = Xml.GetChild(projelem, "TrainsFilenames");
             if (trainsselem != null)
             {
-                foreach (var node in trainsselem.SelectNodes("Item"))
+                foreach (var node in trainsselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? trainel = node as XmlElement;
                     if (trainel != null)
@@ -249,7 +249,7 @@ namespace CodeWalker.Project
             var scenarioselem = Xml.GetChild(projelem, "ScenarioFilenames");
             if (scenarioselem != null)
             {
-                foreach (var node in scenarioselem.SelectNodes("Item"))
+                foreach (var node in scenarioselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? scenarioel = node as XmlElement;
                     if (scenarioel != null)
@@ -266,7 +266,7 @@ namespace CodeWalker.Project
             var audiorelselem = Xml.GetChild(projelem, "AudioRelFilenames");
             if (audiorelselem != null)
             {
-                foreach (var node in audiorelselem.SelectNodes("Item"))
+                foreach (var node in audiorelselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? audiorelel = node as XmlElement;
                     if (audiorelel != null)
@@ -282,7 +282,7 @@ namespace CodeWalker.Project
             var ydrselem = Xml.GetChild(projelem, "YdrFilenames");
             if (ydrselem != null)
             {
-                foreach (var node in ydrselem.SelectNodes("Item"))
+                foreach (var node in ydrselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? ydrel = node as XmlElement;
                     if (ydrel != null)
@@ -298,7 +298,7 @@ namespace CodeWalker.Project
             var yddselem = Xml.GetChild(projelem, "YddFilenames");
             if (yddselem != null)
             {
-                foreach (var node in yddselem.SelectNodes("Item"))
+                foreach (var node in yddselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? yddel = node as XmlElement;
                     if (yddel != null)
@@ -314,7 +314,7 @@ namespace CodeWalker.Project
             var yftselem = Xml.GetChild(projelem, "YftFilenames");
             if (yftselem != null)
             {
-                foreach (var node in yftselem.SelectNodes("Item"))
+                foreach (var node in yftselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? yftel = node as XmlElement;
                     if (yftel != null)
@@ -330,7 +330,7 @@ namespace CodeWalker.Project
             var ytdselem = Xml.GetChild(projelem, "YtdFilenames");
             if (ytdselem != null)
             {
-                foreach (var node in ytdselem.SelectNodes("Item"))
+                foreach (var node in ytdselem.SelectNodes("Item")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>())
                 {
                     XmlElement? ytdel = node as XmlElement;
                     if (ytdel != null)
@@ -455,7 +455,7 @@ namespace CodeWalker.Project
 
 
 
-        public YmapFile AddYmapFile(string filename)
+        public YmapFile? AddYmapFile(string filename)
         {
             YmapFile ymap = new();
             ymap.RpfFileEntry = new RpfResourceFileEntry();
@@ -525,7 +525,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YtypFile AddYtypFile(string filename)
+        public YtypFile? AddYtypFile(string filename)
         {
             YtypFile ytyp = new();
             ytyp.RpfFileEntry = new RpfResourceFileEntry();
@@ -595,7 +595,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YbnFile AddYbnFile(string filename)
+        public YbnFile? AddYbnFile(string filename)
         {
             YbnFile ybn = new();
             ybn.RpfFileEntry = new RpfResourceFileEntry();
@@ -662,7 +662,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YndFile AddYndFile(string filename)
+        public YndFile? AddYndFile(string filename)
         {
             YndFile ynd = new();
             ynd.RpfFileEntry = new RpfResourceFileEntry();
@@ -729,7 +729,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YnvFile AddYnvFile(string filename)
+        public YnvFile? AddYnvFile(string filename)
         {
             YnvFile ynv = new();
             ynv.RpfFileEntry = new RpfResourceFileEntry();
@@ -796,7 +796,7 @@ namespace CodeWalker.Project
         }
 
 
-        public TrainTrack AddTrainsFile(string filename)
+        public TrainTrack? AddTrainsFile(string filename)
         {
             TrainTrack track = new();
             track.RpfFileEntry = new RpfResourceFileEntry();
@@ -863,7 +863,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YmtFile AddScenarioFile(string filename)
+        public YmtFile? AddScenarioFile(string filename)
         {
             YmtFile scenario = new();
             scenario.RpfFileEntry = new RpfResourceFileEntry();
@@ -932,7 +932,7 @@ namespace CodeWalker.Project
         }
 
 
-        public RelFile AddAudioRelFile(string filename)
+        public RelFile? AddAudioRelFile(string filename)
         {
             RelFile relfile = new();
             relfile.RpfFileEntry = new RpfResourceFileEntry();
@@ -1000,7 +1000,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YdrFile AddYdrFile(string filename)
+        public YdrFile? AddYdrFile(string filename)
         {
             YdrFile ydr = new();
             ydr.RpfFileEntry = new RpfResourceFileEntry();
@@ -1067,7 +1067,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YddFile AddYddFile(string filename)
+        public YddFile? AddYddFile(string filename)
         {
             YddFile ydd = new();
             ydd.RpfFileEntry = new RpfResourceFileEntry();
@@ -1134,7 +1134,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YftFile AddYftFile(string filename)
+        public YftFile? AddYftFile(string filename)
         {
             YftFile yft = new();
             yft.RpfFileEntry = new RpfResourceFileEntry();
@@ -1201,7 +1201,7 @@ namespace CodeWalker.Project
         }
 
 
-        public YtdFile AddYtdFile(string filename)
+        public YtdFile? AddYtdFile(string filename)
         {
             YtdFile ytd = new();
             ytd.RpfFileEntry = new RpfResourceFileEntry();

@@ -29,7 +29,7 @@ namespace CodeWalker.GameFiles
         public class ResourceBuilderBlockSet
         {
             public bool IsSystemSet = false;
-            public ResourceBuilderBlock RootBlock = null;
+            public ResourceBuilderBlock? RootBlock = null;
             public LinkedList<ResourceBuilderBlock> BlockList = new();
             public Dictionary<ResourceBuilderBlock, LinkedListNode<ResourceBuilderBlock>> BlockDict = new Dictionary<ResourceBuilderBlock, LinkedListNode<ResourceBuilderBlock>>();
 
@@ -57,7 +57,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            public ResourceBuilderBlock FindBestBlock(long maxSize)
+            public ResourceBuilderBlock? FindBestBlock(long maxSize)
             {
                 var n = BlockList.First;
                 while ((n != null) && (n.Value.Length > maxSize))
@@ -67,7 +67,7 @@ namespace CodeWalker.GameFiles
                 return n?.Value;
             }
 
-            public ResourceBuilderBlock TakeBestBlock(long maxSize)
+            public ResourceBuilderBlock? TakeBestBlock(long maxSize)
             {
                 var r = FindBestBlock(maxSize);
                 if (r != null)
@@ -397,7 +397,7 @@ namespace CodeWalker.GameFiles
 
 
             var pageCounts = new uint[5];
-            var pageSizes = new List<long>[5];
+            var pageSizes = new List<long>?[5];
             var blockPages = new Dictionary<IResourceBlock, (int, int, long)>();//(pageSizeIndex, pageIndex, offset)
             while (true)
             {
@@ -835,7 +835,8 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static byte[] AddResourceHeader(RpfResourceFileEntry entry, byte[]? data)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(data))]
+        public static byte[]? AddResourceHeader(RpfResourceFileEntry entry, byte[]? data)
         {
             if (data == null) return null;
             byte[] newdata = new byte[data.Length + 16];

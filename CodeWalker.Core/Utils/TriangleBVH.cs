@@ -8,7 +8,7 @@ namespace CodeWalker
     public class TriangleBVH : TriangleBVHNode
     {
 
-        public TriangleBVH(TriangleBVHItem[] tris, int depth = 8)
+        public TriangleBVH(TriangleBVHItem[]? tris, int depth = 8)
         {
             if (tris == null) return;
             var min = new Vector3(float.MaxValue);
@@ -29,9 +29,9 @@ namespace CodeWalker
 
     public class TriangleBVHNode
     {
-        public TriangleBVHItem[] Triangles { get; set; }
-        public TriangleBVHNode Node1 { get; set; }
-        public TriangleBVHNode Node2 { get; set; }
+        public TriangleBVHItem[]? Triangles { get; set; }
+        public TriangleBVHNode? Node1 { get; set; }
+        public TriangleBVHNode? Node2 { get; set; }
         public BoundingBox Box { get; set; }
 
         public void Build(TriangleBVHItem[] tris, int depth)
@@ -95,7 +95,7 @@ namespace CodeWalker
         }
 
 
-        public TriangleBVHItem RayIntersect(ref Ray ray, ref float hitdist)
+        public TriangleBVHItem? RayIntersect(ref Ray ray, ref float hitdist)
         {
             if (ray.Intersects(Box) == false) return null;
 

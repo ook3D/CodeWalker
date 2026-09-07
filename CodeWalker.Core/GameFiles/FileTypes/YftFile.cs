@@ -12,7 +12,7 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YftFile : GameFile, PackedFile
     {
-        public FragType Fragment { get; set; }
+        public FragType? Fragment { get; set; }
 
         public YftFile() : base(null, GameFileType.Yft)
         {
@@ -57,7 +57,7 @@ namespace CodeWalker.GameFiles
             }
 
 
-            Fragment = rd.ReadBlock<FragType>();
+            Fragment = rd.ReadRequiredBlock<FragType>();
 
             if (Fragment != null)
             {
@@ -84,7 +84,7 @@ namespace CodeWalker.GameFiles
                 Fragment?.EnsureGen9();
             }
 
-            byte[] data = ResourceBuilder.Build(Fragment, GetVersion(gen9), true, gen9);
+            byte[] data = ResourceBuilder.Build(Fragment ?? throw new InvalidOperationException("No resource loaded."), GetVersion(gen9), true, gen9);
 
             return data;
         }

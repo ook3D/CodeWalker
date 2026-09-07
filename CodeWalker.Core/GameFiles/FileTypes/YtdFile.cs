@@ -13,7 +13,7 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YtdFile : GameFile, PackedFile
     {
-        public TextureDictionary TextureDict { get; set; }
+        public TextureDictionary? TextureDict { get; set; }
 
 
         public YtdFile() : base(null, GameFileType.Ytd)
@@ -75,7 +75,7 @@ namespace CodeWalker.GameFiles
             }
 
 
-            TextureDict = rd.ReadBlock<TextureDictionary>();
+            TextureDict = rd.ReadRequiredBlock<TextureDictionary>();
 
             //MemoryUsage = 0; //uses decompressed file size now..
             //if (TextureDict != null)
@@ -119,7 +119,7 @@ namespace CodeWalker.GameFiles
                 }
 
                 progress?.Report(0.7f);
-                TextureDict = rd.ReadBlock<TextureDictionary>();
+                TextureDict = rd.ReadRequiredBlock<TextureDictionary>();
                 progress?.Report(1.0f);
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -133,7 +133,7 @@ namespace CodeWalker.GameFiles
                 TextureDict?.EnsureGen9();
             }
 
-            byte[] data = ResourceBuilder.Build(TextureDict, GetVersion(gen9), true, gen9);
+            byte[] data = ResourceBuilder.Build(TextureDict ?? throw new InvalidOperationException("No resource loaded."), GetVersion(gen9), true, gen9);
 
             return data;
         }

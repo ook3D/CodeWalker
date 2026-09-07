@@ -12,7 +12,7 @@ namespace CodeWalker.Forms
 {
     public partial class TextureImportForm : Form
     {
-        private string _imagePath;
+        private string _imagePath = string.Empty;
         private int _imageWidth;
         private int _imageHeight;
         private bool _hasAlpha;
@@ -117,6 +117,7 @@ namespace CodeWalker.Forms
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(PreviewPictureBox), nameof(FileNameLabel), nameof(DimensionsLabel), nameof(HasAlphaLabel), nameof(FormatComboBox), nameof(QualityComboBox), nameof(GenerateMipmapsCheckBox), nameof(MinMipmapSizeCheckBox), nameof(UseCudaCheckBox), nameof(ImportButton), nameof(CancelImportButton), nameof(label1), nameof(label2), nameof(label3), nameof(label4), nameof(label5), nameof(label6))]
         private void InitializeComponent()
         {
             this.PreviewPictureBox = new PictureBox();

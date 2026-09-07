@@ -16,7 +16,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditAudioStaticEmitterPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public AudioPlacement CurrentEmitter { get; set; }
+        public AudioPlacement? CurrentEmitter { get; set; }
 
         private bool populatingui = false;
 
@@ -80,7 +80,7 @@ namespace CodeWalker.Project.Panels
             }
             else
             {
-                AddToProjectButton.Enabled = CurrentEmitter?.RelFile != null ? !ProjectForm.AudioFileExistsInProject(CurrentEmitter.RelFile) : false;
+                AddToProjectButton.Enabled = CurrentEmitter.RelFile != null ? !ProjectForm.AudioFileExistsInProject(CurrentEmitter.RelFile) : false;
                 DeleteButton.Enabled = !AddToProjectButton.Enabled;
 
                 populatingui = true;
@@ -601,7 +601,7 @@ namespace CodeWalker.Project.Panels
         private void AddToProjectButton_Click(object sender, EventArgs e)
         {
             ProjectForm.SetProjectItem(CurrentEmitter);
-            ProjectForm.AddAudioFileToProject(CurrentEmitter.RelFile);
+            if (CurrentEmitter?.RelFile is { } rel) ProjectForm.AddAudioFileToProject(rel);
         }
 
         private void DeleteButton_Click(object sender, EventArgs e)

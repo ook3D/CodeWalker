@@ -13,19 +13,19 @@ namespace CodeWalker.GameFiles
 {
     public class CacheDatFile : PackedFile
     {
-        public RpfFileEntry FileEntry { get; set; }
+        public RpfFileEntry? FileEntry { get; set; }
 
-        public string Version { get; set; }
-        public CacheFileDate[] FileDates { get; set; }
+        public string Version { get; set; } = string.Empty;
+        public CacheFileDate[] FileDates { get; set; } = [];
 
-        public Dictionary<uint, MapDataStoreNode> MapNodeDict { get; set; }
-        public MapDataStoreNode[] RootMapNodes { get; set; }
-        //public Dictionary<MetaHash, CInteriorProxy> InteriorProxyDict { get; set; }
-        public Dictionary<MetaHash, BoundsStoreItem> BoundsStoreDict { get; set; }
+        public Dictionary<uint, MapDataStoreNode> MapNodeDict { get; set; } = new();
+        public MapDataStoreNode[] RootMapNodes { get; set; } = [];
+        //public Dictionary<MetaHash, CInteriorProxy> InteriorProxyDict { get; set; } = new();
+        public Dictionary<MetaHash, BoundsStoreItem> BoundsStoreDict { get; set; } = new();
 
-        public MapDataStoreNode[] AllMapNodes { get; set; }
-        public CInteriorProxy[] AllCInteriorProxies { get; set; }
-        public BoundsStoreItem[] AllBoundsStoreItems { get; set; }
+        public MapDataStoreNode[] AllMapNodes { get; set; } = [];
+        public CInteriorProxy[] AllCInteriorProxies { get; set; } = [];
+        public BoundsStoreItem[] AllBoundsStoreItems { get; set; } = [];
 
         public void Load(byte[] data, RpfFileEntry entry)
         {
@@ -290,7 +290,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Version = Xml.GetChildStringAttribute(node, "Version");
+            Version = Xml.GetChildStringAttribute(node, "Version") ?? string.Empty;
             FileDates = XmlMeta.ReadItemArray<CacheFileDate>(node, "FileDates");
             AllMapNodes = XmlMeta.ReadItemArray<MapDataStoreNode>(node, "MapDataStore");
             AllCInteriorProxies = XmlMeta.ReadItemArray<CInteriorProxy>(node, "InteriorProxies");
@@ -374,7 +374,7 @@ namespace CodeWalker.GameFiles
             {
                 return FileEntry.ToString();
             }
-            return base.ToString();
+            return base.ToString() ?? string.Empty;
         }
     }
 
@@ -797,13 +797,13 @@ namespace CodeWalker.GameFiles
         public byte Unk3 { get; set; }
         public byte Unk4 { get; set; }
 
-        public MapDataStoreNodeExtra UnkExtra { get; set; }
+        public MapDataStoreNodeExtra? UnkExtra { get; set; }
 
-        public MapDataStoreNode[] Children { get; set; }
-        private List<MapDataStoreNode> ChildrenList; //used when building the array
+        public MapDataStoreNode[] Children { get; set; } = [];
+        private List<MapDataStoreNode>? ChildrenList; //used when building the array
 
-        public CInteriorProxy[] InteriorProxies { get; set; }
-        private List<CInteriorProxy> InteriorProxyList;
+        public CInteriorProxy[] InteriorProxies { get; set; } = [];
+        private List<CInteriorProxy>? InteriorProxyList;
 
         public MapDataStoreNode()
         { }
@@ -950,7 +950,7 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))] public class MapDataStoreNodeExtra
     {
         public uint Unk01; //0
-        public byte[] Unk02; //1 - 16  (60 bytes)
+        public byte[] Unk02 = []; //1 - 16  (60 bytes)
         public uint Unk03;//16
         public uint Unk04;
         public uint Unk05;
@@ -1002,7 +1002,7 @@ namespace CodeWalker.GameFiles
         public void Write(DataWriter w)
         {
             w.Write(Unk01);
-            var alen = Unk02?.Length ?? 0;
+            var alen = Unk02.Length;
             for (int i = 0; i < 60; i++)
             {
                 w.Write((i < alen) ? Unk02[i] : (byte)0);
@@ -1064,7 +1064,7 @@ namespace CodeWalker.GameFiles
         public static CacheDatFile GetCacheDat(XmlDocument doc)
         {
             CacheDatFile cdf = new();
-            cdf.ReadXml(doc.DocumentElement);
+            cdf.ReadXml(doc.DocumentElement ?? throw new XmlException("The cache document must have a root element."));
             return cdf;
         }
 

@@ -7,7 +7,7 @@ namespace CodeWalker.GameFiles
     //on hot paths (per-frame ymap linking) without spamming the log.
     public static class LodDiag
     {
-        public static Action<string> Log; //set by GameFileCache.Init, so messages land in the normal error log
+        public static Action<string>? Log; //set by GameFileCache.Init, so messages land in the normal error log
 
         private static readonly HashSet<string> seen = new();
 

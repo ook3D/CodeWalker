@@ -187,7 +187,7 @@ namespace CodeWalker.Rendering
             return true;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Vars.WindVector = WindVector;
@@ -264,7 +264,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.bumpiness = geom.bumpiness;
             PSGeomVars.Vars.AlphaScale = 1.0f;
             PSGeomVars.Vars.HardAlphaBlend = 0.0f;
-            PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode(geom.DrawableGeom.Shader.FileName.Hash, geom.DrawableGeom.Shader.RenderBucket);
+            PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode((geom.DrawableGeom?.Shader?.FileName.Hash ?? 0), (geom.DrawableGeom?.Shader?.RenderBucket ?? 0));
             PSGeomVars.Vars.specMapIntMask = geom.specMapIntMask;
             PSGeomVars.Vars.specularIntensityMult = geom.specularIntensityMult;
             PSGeomVars.Vars.specularFalloffMult = geom.specularFalloffMult;
@@ -290,8 +290,7 @@ namespace CodeWalker.Rendering
                 }
             }
 
-            bool usediff = ((diffuse != null) && (diffuse.Texture2D != null) && (diffuse.ShaderResourceView != null));
-            if (usediff)
+            if (diffuse is { Texture2D: not null, ShaderResourceView: not null })
             {
                 PSGeomVars.Vars.EnableTexture = 1;
                 context.PixelShader.SetSampler(0, texsampler);

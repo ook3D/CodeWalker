@@ -12,7 +12,7 @@ namespace CodeWalker.World
     public class Water
     {
         public volatile bool Inited = false;
-        public GameFileCache GameFileCache;
+        public GameFileCache? GameFileCache;
         public List<WaterQuad> WaterQuads = new();
         public List<WaterCalmingQuad> CalmingQuads = new();
         public List<WaterWaveQuad> WaveQuads = new();
@@ -40,37 +40,28 @@ namespace CodeWalker.World
 
         private void LoadWaterXml(string filename)
         {
-            var rpfman = GameFileCache.RpfMan;
-            XmlDocument waterxml = rpfman.GetFileXml(filename);
+            var rpfman = GameFileCache?.RpfMan ?? throw new InvalidOperationException("Water loading requires an initialized archive manager.");
+            var waterdata = rpfman.GetFileXml(filename).DocumentElement;
+            if (waterdata == null) return;
 
-            XmlElement? waterdata = waterxml.DocumentElement;
-
-            XmlNodeList? waterquads = waterdata.SelectNodes("WaterQuads/Item");
-            for (int i = 0; i < waterquads.Count; i++)
-            {
-                var waterquad = new WaterQuad();
-                waterquad.Init(waterquads[i], i);
-                WaterQuads.Add(waterquad);
-            }
-
-            XmlNodeList? calmingquads = waterdata.SelectNodes("CalmingQuads/Item");
-            for (int i = 0; i < calmingquads.Count; i++)
-            {
-                var calmingquad = new WaterCalmingQuad();
-                calmingquad.Init(calmingquads[i], i);
-                CalmingQuads.Add(calmingquad);
-            }
-
-            XmlNodeList? wavequads = waterdata.SelectNodes("WaveQuads/Item");
-            for (int i = 0; i < wavequads.Count; i++)
-            {
-                var wavequad = new WaterWaveQuad();
-                wavequad.Init(wavequads[i], i);
-                WaveQuads.Add(wavequad);
-            }
-
+            LoadQuads(waterdata, "WaterQuads/Item", WaterQuads);
+            LoadQuads(waterdata, "CalmingQuads/Item", CalmingQuads);
+            LoadQuads(waterdata, "WaveQuads/Item", WaveQuads);
         }
 
+        private static void LoadQuads<T>(XmlElement waterdata, string path, List<T> quads) where T : BaseWaterQuad, new()
+        {
+            var nodes = waterdata.SelectNodes(path);
+            if (nodes == null) return;
+
+            int index = 0;
+            foreach (XmlNode node in nodes)
+            {
+                var quad = new T();
+                quad.Init(node, index++);
+                quads.Add(quad);
+            }
+        }
 
 
         public List<T> GetVisibleQuads<T>(Camera camera, IEnumerable<T> allQuads) where T : BaseWaterQuad

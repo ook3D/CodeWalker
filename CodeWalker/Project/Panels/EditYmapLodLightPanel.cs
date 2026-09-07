@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYmapLodLightPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YmapLODLight CurrentLodLight { get; set; }
+        public YmapLODLight? CurrentLodLight { get; set; }
 
         private bool populatingui = false;
 
@@ -87,6 +87,7 @@ namespace CodeWalker.Project.Panels
             {
                 populatingui = true;
                 var l = CurrentLodLight;
+            if (l == null) return;
                 ////Panel.Enabled = true;
                 AddToProjectButton.Enabled = !ProjectForm.YmapExistsInProject(CurrentLodLight.Ymap);
                 DeleteButton.Enabled = !AddToProjectButton.Enabled;
@@ -119,6 +120,7 @@ namespace CodeWalker.Project.Panels
         private void UpdateFlagsCheckBoxes()
         {
             var l = CurrentLodLight;
+            if (l == null) return;
             var tfam = (l.TimeFlags >> 0) & 0xFFF;
             var tfpm = (l.TimeFlags >> 12) & 0xFFF;
             var sf1 = l.StateFlags1;
@@ -141,7 +143,7 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private uint GetFlagsFromItemCheck(CheckedListBox clb, ItemCheckEventArgs e)
+        private uint GetFlagsFromItemCheck(CheckedListBox clb, ItemCheckEventArgs? e)
         {
             uint flags = 0;
             for (int i = 0; i < clb.Items.Count; i++)

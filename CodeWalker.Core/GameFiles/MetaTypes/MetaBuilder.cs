@@ -326,7 +326,7 @@ namespace CodeWalker.GameFiles
         {
             if (!StructureInfos.ContainsKey(name))
             {
-                MetaStructureInfo si = MetaTypes.GetStructureInfo(name);
+                var si = MetaTypes.GetStructureInfo(name);
                 if (si != null)
                 {
                     StructureInfos[name] = si;
@@ -337,7 +337,7 @@ namespace CodeWalker.GameFiles
         {
             if (!EnumInfos.ContainsKey(name))
             {
-                MetaEnumInfo ei = MetaTypes.GetEnumInfo(name);
+                var ei = MetaTypes.GetEnumInfo(name);
                 if (ei != null)
                 {
                     EnumInfos[name] = ei;
@@ -388,11 +388,13 @@ namespace CodeWalker.GameFiles
                 m.EnumInfosCount = 0;
             }
 
-            m.DataBlocks = new ResourceSimpleArray<MetaDataBlock>();
-            foreach (var bb in Blocks)
+            var dataBlocks = new MetaDataBlock[Blocks.Count];
+            for (int i = 0; i < Blocks.Count; i++)
             {
-                m.DataBlocks.Add(bb.GetMetaDataBlock());
+                if (Blocks[i].GetMetaDataBlock() is { } block) dataBlocks[i] = block;
             }
+            m.DataBlocks = new ResourceSimpleArray<MetaDataBlock>();
+            m.DataBlocks.Data = dataBlocks.ToList();
             m.DataBlocksCount = (short)m.DataBlocks.Count;
 
             m.Name = metaName;
@@ -428,7 +430,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public MetaDataBlock GetMetaDataBlock()
+        public MetaDataBlock? GetMetaDataBlock()
         {
             if (TotalSize <= 0) return null;
 

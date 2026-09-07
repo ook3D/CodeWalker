@@ -248,7 +248,7 @@ namespace CodeWalker.GameFiles
         {
             if (!StructureInfos.ContainsKey(name))
             {
-                PsoStructureInfo si = PsoTypes.GetStructureInfo(name);
+                var si = PsoTypes.GetStructureInfo(name);
                 if (si != null)
                 {
                     StructureInfos[name] = si;
@@ -259,7 +259,7 @@ namespace CodeWalker.GameFiles
         {
             if (!EnumInfos.ContainsKey(name))
             {
-                PsoEnumInfo ei = PsoTypes.GetEnumInfo(name);
+                var ei = PsoTypes.GetEnumInfo(name);
                 if (ei != null)
                 {
                     EnumInfos[name] = ei;
@@ -274,7 +274,7 @@ namespace CodeWalker.GameFiles
 
             if (valType == 0)
             {
-                inf = PsoTypes.GetStructureInfo((MetaName)MetaTypeName.ARRAYINFO); //default ARRAYINFO with pointer
+                inf = PsoTypes.GetStructureInfo((MetaName)MetaTypeName.ARRAYINFO) ?? throw new InvalidOperationException("The PSO array structure definition is missing."); //default ARRAYINFO with pointer
                 if (!StructureInfos.ContainsKey(inf.IndexInfo.NameHash))
                 {
                     StructureInfos[inf.IndexInfo.NameHash] = inf;
@@ -284,7 +284,7 @@ namespace CodeWalker.GameFiles
 
             var structInfo = PsoTypes.GetStructureInfo(valType);
             if (structInfo == null)
-            { }//error?
+                throw new InvalidOperationException($"No PSO structure definition exists for {valType}.");
 
             MetaName xName = (MetaName)MetaTypeName.ARRAYINFO + 1; //257
             bool nameOk = !StructureInfos.ContainsKey(xName);

@@ -11,16 +11,16 @@ namespace CodeWalker.Project.Panels
     {
         private class GraphNode
         {
-            public YmapEntityDef Entity;
-            public GraphNode Parent;
+            public required YmapEntityDef Entity;
+            public GraphNode? Parent;
             public List<GraphNode> Children = new List<GraphNode>();
             public float X; //layout space, centre of node
             public float Y; //layout space, top of node
             public float SubtreeWidth;
-            public string Line1;
-            public string Line2;
-            public string Line3;
-            public string WarningText;
+            public string Line1 = string.Empty;
+            public string Line2 = string.Empty;
+            public string Line3 = string.Empty;
+            public string? WarningText;
             public Color FillColor;
 
             public RectangleF Bounds
@@ -44,21 +44,21 @@ namespace CodeWalker.Project.Panels
         private float Zoom = 1.0f;
         private PointF Pan = new PointF(0, 0);
         private bool Panning = false;
-        private GraphNode DragNode = null;
+        private GraphNode? DragNode = null;
         private Point LastMousePos;
         private PointF DragNodeOffset;
         private bool MouseMoved = false;
 
-        private GraphNode SelectedNode = null; //primary selection (last clicked)
+        private GraphNode? SelectedNode = null; //primary selection (last clicked)
         private HashSet<GraphNode> SelectedNodes = new HashSet<GraphNode>();
-        private GraphNode MarkedNode = null;
+        private GraphNode? MarkedNode = null;
         private bool BoxSelecting = false;
         private PointF BoxStart; //graph space
         private PointF BoxEnd;
-        private GraphNode LinkDragNode = null; //node a link is being dragged from
+        private GraphNode? LinkDragNode = null; //node a link is being dragged from
         private bool LinkDragFromTop = false;  //true = dragging the node's parent end, false = dragging its children end
         private PointF LinkDragPos;            //graph space position of the dangling link end
-        private GraphNode LinkDropTarget = null;
+        private GraphNode? LinkDropTarget = null;
 
         private const float SocketRadius = 6.0f;
 
@@ -68,13 +68,13 @@ namespace CodeWalker.Project.Panels
 
         public bool UserNavigated { get; private set; } = false; //true once the user has panned/zoomed manually
 
-        public delegate void LinkEventHandler(YmapEntityDef child, YmapEntityDef parent);
+        public delegate void LinkEventHandler(YmapEntityDef child, YmapEntityDef? parent);
 
-        public event EventHandler SelectionChanged;
-        public event EventHandler EntityActivated;
-        public event LinkEventHandler LinkRequested; //parent == null means an unlink (orphan) request
+        public event EventHandler? SelectionChanged;
+        public event EventHandler? EntityActivated;
+        public event LinkEventHandler? LinkRequested; //parent == null means an unlink (orphan) request
 
-        public YmapEntityDef SelectedEntity
+        public YmapEntityDef? SelectedEntity
         {
             get { return SelectedNode?.Entity; }
         }
@@ -92,13 +92,13 @@ namespace CodeWalker.Project.Panels
             }
         }
 
-        private GraphNode FirstSelected()
+        private GraphNode? FirstSelected()
         {
             foreach (var node in SelectedNodes) return node;
             return null;
         }
 
-        public YmapEntityDef MarkedEntity
+        public YmapEntityDef? MarkedEntity
         {
             get { return MarkedNode?.Entity; }
             set
@@ -440,7 +440,7 @@ namespace CodeWalker.Project.Panels
             return new PointF((p.X - Pan.X) / Zoom, (p.Y - Pan.Y) / Zoom);
         }
 
-        private GraphNode HitTest(Point p)
+        private GraphNode? HitTest(Point p)
         {
             var gp = ScreenToGraph(p);
             for (int i = Nodes.Count - 1; i >= 0; i--)
@@ -459,7 +459,7 @@ namespace CodeWalker.Project.Panels
             return new PointF(n.X, n.Y + NodeHeight);
         }
 
-        private GraphNode HitTestSocket(Point p, out bool top)
+        private GraphNode? HitTestSocket(Point p, out bool top)
         {
             var gp = ScreenToGraph(p);
             float r = Math.Max(SocketRadius * 1.5f, 8.0f / Zoom); //keep sockets grabbable when zoomed out

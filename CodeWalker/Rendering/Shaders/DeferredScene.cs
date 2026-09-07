@@ -74,8 +74,8 @@ namespace CodeWalker.Rendering
     public class DeferredScene
     {
 
-        public GpuMultiTexture GBuffers; // diffuse, normals, specular, irradiance
-        public GpuTexture SceneColour; //final scene colour buffer
+        public GpuMultiTexture? GBuffers; // diffuse, normals, specular, irradiance
+        public GpuTexture? SceneColour; //final scene colour buffer
 
         SamplerState SampleStatePoint;
         SamplerState SampleStateLinear;
@@ -87,13 +87,13 @@ namespace CodeWalker.Rendering
 
         VertexShader DirLightVS;
         PixelShader DirLightPS;
-        PixelShader DirLightMSPS;
+        PixelShader? DirLightMSPS;
         VertexShader LodLightVS;
         PixelShader LodLightPS;
-        PixelShader LodLightMSPS;
+        PixelShader? LodLightMSPS;
         VertexShader LightVS;
         PixelShader LightPS;
-        PixelShader LightMSPS;
+        PixelShader? LightMSPS;
         LightCone LightCone;
         UnitSphere LightSphere;
         UnitCapsule LightCapsule;
@@ -130,7 +130,7 @@ namespace CodeWalker.Rendering
 
         public DeferredScene(DXManager dxman)
         {
-            var device = dxman.device;
+            var device = dxman.device ?? throw new InvalidOperationException("Graphics device is not initialized.");
 
             byte[] bDirLightVS = PathUtil.ReadAllBytes("Shaders\\DirLightVS.cso");
             byte[] bDirLightPS = PathUtil.ReadAllBytes("Shaders\\DirLightPS.cso");
@@ -193,124 +193,104 @@ namespace CodeWalker.Rendering
             BlendState = DXUtility.CreateBlendState(device, false, BlendOperation.Add, BlendOption.One, BlendOption.Zero, BlendOperation.Add, BlendOption.One, BlendOption.Zero, ColorWriteMaskFlags.All);
 
         }
+        private bool disposed;
         public void Dispose()
         {
+            if (disposed) return;
+            disposed = true;
             DisposeBuffers();
 
             if (BlendState != null)
             {
                 BlendState.Dispose();
-                BlendState = null;
             }
             if (SampleStateLinear != null)
             {
                 SampleStateLinear.Dispose();
-                SampleStateLinear = null;
             }
             if (SampleStatePoint != null)
             {
                 SampleStatePoint.Dispose();
-                SampleStatePoint = null;
             }
             if (LightVSVars != null)
             {
                 LightVSVars.Dispose();
-                LightVSVars = null;
             }
             if (LightPSVars != null)
             {
                 LightPSVars.Dispose();
-                LightPSVars = null;
             }
             if (LightInstVars != null)
             {
                 LightInstVars.Dispose();
-                LightInstVars = null;
             }
             if (LightQuadLayout != null)
             {
                 LightQuadLayout.Dispose();
-                LightQuadLayout = null;
             }
             if (LightQuad != null)
             {
                 LightQuad.Dispose();
-                LightQuad = null;
             }
             if (LightCone != null)
             {
                 LightCone.Dispose();
-                LightCone = null;
             }
             if (LightSphere != null)
             {
                 LightSphere.Dispose();
-                LightSphere = null;
             }
             if (LightCapsule != null)
             {
                 LightCapsule.Dispose();
-                LightCapsule = null;
             }
             if (DirLightPS != null)
             {
                 DirLightPS.Dispose();
-                DirLightPS = null;
             }
             if (DirLightMSPS != null)
             {
                 DirLightMSPS.Dispose();
-                DirLightMSPS = null;
             }
             if (DirLightVS != null)
             {
                 DirLightVS.Dispose();
-                DirLightVS = null;
             }
             if (LodLightPS != null)
             {
                 LodLightPS.Dispose();
-                LodLightPS = null;
             }
             if (LodLightMSPS != null)
             {
                 LodLightMSPS.Dispose();
-                LodLightMSPS = null;
             }
             if (LodLightVS != null)
             {
                 LodLightVS.Dispose();
-                LodLightVS = null;
             }
             if (LightPS != null)
             {
                 LightPS.Dispose();
-                LightPS = null;
             }
             if (LightMSPS != null)
             {
                 LightMSPS.Dispose();
-                LightMSPS = null;
             }
             if (LightVS != null)
             {
                 LightVS.Dispose();
-                LightVS = null;
             }
             if (SSAAPSVars != null)
             {
                 SSAAPSVars.Dispose();
-                SSAAPSVars = null;
             }
             if (SSAAPS != null)
             {
                 SSAAPS.Dispose();
-                SSAAPS = null;
             }
             if (FinalVS != null)
             {
                 FinalVS.Dispose();
-                FinalVS = null;
             }
         }
 
@@ -318,12 +298,13 @@ namespace CodeWalker.Rendering
         {
             DisposeBuffers();
 
-            var device = dxman.device;
+            var device = dxman.device ?? throw new InvalidOperationException("Graphics device is not initialized.");
 
 
 
-            int uw = Width = dxman.backbuffer.Description.Width * SSAASampleCount;
-            int uh = Height = dxman.backbuffer.Description.Height * SSAASampleCount;
+            var backbuffer = dxman.backbuffer ?? throw new InvalidOperationException("Back buffer is not initialized.");
+            int uw = Width = backbuffer.Description.Width * SSAASampleCount;
+            int uh = Height = backbuffer.Description.Height * SSAASampleCount;
             Viewport = new ViewportF();
             Viewport.Width = (float)uw;
             Viewport.Height = (float)uh;
@@ -379,7 +360,7 @@ namespace CodeWalker.Rendering
             context.Rasterizer.SetViewport(Viewport);
         }
 
-        public void RenderLights(DeviceContext context, Camera camera, Shadowmap globalShadows, ShaderGlobalLights globalLights)
+        public void RenderLights(DeviceContext context, Camera camera, Shadowmap? globalShadows, ShaderGlobalLights globalLights)
         {
             if (GBuffers == null) return;
 

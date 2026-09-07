@@ -3,6 +3,7 @@ using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -14,18 +15,17 @@ namespace CodeWalker.World
     {
         public volatile bool Inited = false;
 
-        public Weather Weather;
-        public Timecycle Timecycle;
-        public Dictionary<string, CloudAnimSetting> AnimSettings { get; set; }
+        public Weather? Weather;
+        public Timecycle? Timecycle;
+        public Dictionary<string, CloudAnimSetting> AnimSettings { get; set; } = new();
         public CloudAnimOverrides AnimOverrides = new();
 
-        public CloudHatManager HatManager;
-        public CloudSettingsMap SettingsMap;
+        public CloudHatManager? HatManager;
+        public CloudSettingsMap? SettingsMap;
 
 
         public Clouds()
         {
-            AnimSettings = new Dictionary<string, CloudAnimSetting>();
             AddAnimSetting(new CloudAnimSetting("UVOffset1.X", "UV Offset 1 X", -1.0f, 1.0f, 0.0f));
             AddAnimSetting(new CloudAnimSetting("UVOffset1.Y", "UV Offset 1 Y", -1.0f, 1.0f, 0.0f));
             AddAnimSetting(new CloudAnimSetting("UVOffset2.X", "UV Offset 2 X", -1.0f, 1.0f, 0.0f));
@@ -73,9 +73,10 @@ namespace CodeWalker.World
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus, Weather weather)
         {
+            Inited = false;
             Weather = weather;
             Timecycle = weather.Timecycle;
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.");
 
             string filename = "common.rpf\\data\\clouds.xml";
 
@@ -90,10 +91,10 @@ namespace CodeWalker.World
             XmlDocument cloudskfxml = rpfman.GetFileXml(kffilename);
 
             HatManager = new CloudHatManager();
-            HatManager.Init(cloudsxml.DocumentElement); //CloudHatManager
+            HatManager.Init(cloudsxml.DocumentElement ?? throw new InvalidDataException($"Missing cloud XML root in {filename}.")); //CloudHatManager
 
             SettingsMap = new CloudSettingsMap();
-            SettingsMap.Init(cloudskfxml.DocumentElement); //CloudSettingsMap
+            SettingsMap.Init(cloudskfxml.DocumentElement ?? throw new InvalidDataException($"Missing cloud keyframes XML root in {kffilename}.")); //CloudSettingsMap
 
             Inited = true;
         }
@@ -110,7 +111,7 @@ namespace CodeWalker.World
 
     public class CloudHatManager
     {
-        public CloudHatFrag[] CloudHatFrags { get; set; }
+        public CloudHatFrag[] CloudHatFrags { get; set; } = [];
         public float DesiredTransitionTimeSec { get; set; }
         public Vector3 CamPositionScaler { get; set; }
         public float AltitudeScrollScaler { get; set; }
@@ -119,7 +120,7 @@ namespace CodeWalker.World
         {
             List<CloudHatFrag> fraglist = new();
             XmlNodeList? frags = xml.SelectNodes("mCloudHatFrags/Item");
-            foreach (XmlNode node in frags)
+            foreach (XmlNode node in frags?.Cast<XmlNode>() ?? [])
             {
                 XmlElement? fragel = node as XmlElement;
                 if (fragel != null)
@@ -136,7 +137,7 @@ namespace CodeWalker.World
             AltitudeScrollScaler = Xml.GetChildFloatAttribute(xml, "mAltitudeScrollScaler", "value");
         }
 
-        public CloudHatFrag FindFrag(string name)
+        public CloudHatFrag? FindFrag(string name)
         {
             if (CloudHatFrags == null) return null;
             
@@ -158,16 +159,16 @@ namespace CodeWalker.World
         public Vector3 Position { get; set; }
         public Vector3 Rotation { get; set; }
         public Vector3 Scale { get; set; }
-        public string Name { get; set; }
-        public CloudHatFragLayer[] Layers { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public CloudHatFragLayer[] Layers { get; set; } = [];
         public float TransitionAlphaRange { get; set; }
         public float TransitionMidPoint { get; set; }
         public bool Enabled { get; set; }
         public Vector3 AngularVelocity { get; set; }
         public Vector3 AnimBlendWeights { get; set; }
-        public Vector2[] UVVelocity { get; set; }
-        public byte[] AnimMode { get; set; }
-        public bool[] ShowLayer { get; set; }
+        public Vector2[] UVVelocity { get; set; } = [];
+        public byte[] AnimMode { get; set; } = [];
+        public bool[] ShowLayer { get; set; } = [];
         public bool EnableAnimations { get; set; }
 
         public void Init(XmlElement xml)
@@ -175,11 +176,11 @@ namespace CodeWalker.World
             Position = Xml.GetChildVector3Attributes(xml, "mPosition");
             Rotation = Xml.GetChildVector3Attributes(xml, "mRotation");
             Scale = Xml.GetChildVector3Attributes(xml, "mScale");
-            Name = Xml.GetChildInnerText(xml, "mName");
+            Name = Xml.GetChildInnerText(xml, "mName") ?? string.Empty;
 
             List<CloudHatFragLayer> layerlist = new();
             XmlNodeList? layersxml = xml.SelectNodes("mLayers/Item");
-            foreach (XmlNode node in layersxml)
+            foreach (XmlNode node in layersxml?.Cast<XmlNode>() ?? [])
             {
                 XmlElement? layerel = node as XmlElement;
                 if (layerel != null)
@@ -197,7 +198,7 @@ namespace CodeWalker.World
             AngularVelocity = Xml.GetChildVector3Attributes(xml, "mAngularVelocity");
             AnimBlendWeights = Xml.GetChildVector3Attributes(xml, "mAnimBlendWeights");
 
-            string uvvelocitystr = Xml.GetChildInnerText(xml, "mUVVelocity").Trim();
+            string uvvelocitystr = (Xml.GetChildInnerText(xml, "mUVVelocity") ?? string.Empty).Trim();
             string[] uvvelocities = uvvelocitystr.Split('\n');
             UVVelocity = new Vector2[uvvelocities.Length];
             for (int i = 0; i < uvvelocities.Length; i++)
@@ -213,7 +214,7 @@ namespace CodeWalker.World
                 UVVelocity[i] = vel;
             }
 
-            string animmodestr = Xml.GetChildInnerText(xml, "mAnimMode").Trim();
+            string animmodestr = (Xml.GetChildInnerText(xml, "mAnimMode") ?? string.Empty).Trim();
             string[] animmodes = animmodestr.Split('\n');
             AnimMode = new byte[animmodes.Length];
             for (int i = 0; i < animmodes.Length; i++)
@@ -222,12 +223,12 @@ namespace CodeWalker.World
             }
 
 
-            //string showlayerstr = Xml.GetChildInnerText(xml, "mShowLayer").Trim();
+            //string showlayerstr = (Xml.GetChildInnerText(xml, "mShowLayer") ?? string.Empty).Trim();
             XmlNodeList? showlayersxml = xml.SelectNodes("mShowLayer/Item");
-            ShowLayer = new bool[showlayersxml.Count];
-            for (int i = 0; i < showlayersxml.Count; i++)
+            ShowLayer = new bool[showlayersxml?.Count ?? 0];
+            for (int i = 0; i < ShowLayer.Length; i++)
             {
-                XmlNode? slnode = showlayersxml[i];
+                XmlNode? slnode = showlayersxml?[i];
                 if (slnode is XmlElement)
                 {
                     ShowLayer[i] = Xml.GetBoolAttribute(slnode, "value");
@@ -247,7 +248,7 @@ namespace CodeWalker.World
 
     public class CloudHatFragLayer
     {
-        public string Filename { get; set; }
+        public string Filename { get; set; } = string.Empty;
         public float CostFactor { get; set; }
         public float RotationScale { get; set; }
         public float CamPositionScalerAdjust { get; set; }
@@ -260,7 +261,7 @@ namespace CodeWalker.World
 
         public void Init(XmlElement xml)
         {
-            Filename = Xml.GetChildInnerText(xml, "mFilename");
+            Filename = Xml.GetChildInnerText(xml, "mFilename") ?? string.Empty;
             CostFactor = Xml.GetChildFloatAttribute(xml, "mCostFactor", "value");
             RotationScale = Xml.GetChildFloatAttribute(xml, "mRotationScale", "value");
             CamPositionScalerAdjust = Xml.GetChildFloatAttribute(xml, "mCamPositionScalerAdjust", "value");
@@ -281,13 +282,13 @@ namespace CodeWalker.World
 
     public class CloudSettingsMap
     {
-        public float[] KeyframeTimes { get; set; }
-        public Dictionary<string, CloudSettingsMapItem> SettingsMap { get; set; }
+        public float[] KeyframeTimes { get; set; } = [];
+        public Dictionary<string, CloudSettingsMapItem> SettingsMap { get; set; } = new();
 
         public void Init(XmlElement xml)
         {
 
-            string kftstr = Xml.GetChildInnerText(xml, "KeyframeTimes").Trim();
+            string kftstr = (Xml.GetChildInnerText(xml, "KeyframeTimes") ?? string.Empty).Trim();
             string[] kftarr = kftstr.Split('\n');
             KeyframeTimes = new float[kftarr.Length];
             for (int i = 0; i < kftarr.Length; i++)
@@ -298,7 +299,7 @@ namespace CodeWalker.World
 
             SettingsMap = new Dictionary<string, CloudSettingsMapItem>();
             XmlNodeList? mapxml = xml.SelectNodes("SettingsMap/Item");
-            foreach (XmlNode node in mapxml)
+            foreach (XmlNode node in mapxml?.Cast<XmlNode>() ?? [])
             {
                 XmlElement? itemel = node as XmlElement;
                 if (itemel != null)
@@ -314,7 +315,7 @@ namespace CodeWalker.World
 
     public class CloudSettingsMapItem
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public CloudSettingsMapCloudList CloudList { get; set; } = new CloudSettingsMapCloudList();
         public CloudSettingsMapKeyData CloudColor { get; set; } = new CloudSettingsMapKeyData();
         public CloudSettingsMapKeyData CloudLightColor { get; set; } = new CloudSettingsMapKeyData();
@@ -330,20 +331,20 @@ namespace CodeWalker.World
 
         public void Init(XmlNode xml)
         {
-            Name = Xml.GetChildInnerText(xml, "Name");
+            Name = Xml.GetChildInnerText(xml, "Name") ?? string.Empty;
             var snode = xml.SelectSingleNode("Settings");
-            CloudList.Init(snode.SelectSingleNode("CloudList"));
-            CloudColor.Init(snode.SelectSingleNode("CloudColor"));
-            CloudLightColor.Init(snode.SelectSingleNode("CloudLightColor"));
-            CloudAmbientColor.Init(snode.SelectSingleNode("CloudAmbientColor"));
-            CloudSkyColor.Init(snode.SelectSingleNode("CloudSkyColor"));
-            CloudBounceColor.Init(snode.SelectSingleNode("CloudBounceColor"));
-            CloudEastColor.Init(snode.SelectSingleNode("CloudEastColor"));
-            CloudWestColor.Init(snode.SelectSingleNode("CloudWestColor"));
-            CloudScaleFillColors.Init(snode.SelectSingleNode("CloudScaleFillColors"));
-            CloudDensityShift_Scale_ScatteringConst_Scale.Init(snode.SelectSingleNode("CloudDensityShift_Scale_ScatteringConst_Scale"));
-            CloudPiercingLightPower_Strength_NormalStrength_Thickness.Init(snode.SelectSingleNode("CloudPiercingLightPower_Strength_NormalStrength_Thickness"));
-            CloudScaleDiffuseFillAmbient_WrapAmount.Init(snode.SelectSingleNode("CloudScaleDiffuseFillAmbient_WrapAmount"));
+            CloudList.Init(snode?.SelectSingleNode("CloudList"));
+            CloudColor.Init(snode?.SelectSingleNode("CloudColor"));
+            CloudLightColor.Init(snode?.SelectSingleNode("CloudLightColor"));
+            CloudAmbientColor.Init(snode?.SelectSingleNode("CloudAmbientColor"));
+            CloudSkyColor.Init(snode?.SelectSingleNode("CloudSkyColor"));
+            CloudBounceColor.Init(snode?.SelectSingleNode("CloudBounceColor"));
+            CloudEastColor.Init(snode?.SelectSingleNode("CloudEastColor"));
+            CloudWestColor.Init(snode?.SelectSingleNode("CloudWestColor"));
+            CloudScaleFillColors.Init(snode?.SelectSingleNode("CloudScaleFillColors"));
+            CloudDensityShift_Scale_ScatteringConst_Scale.Init(snode?.SelectSingleNode("CloudDensityShift_Scale_ScatteringConst_Scale"));
+            CloudPiercingLightPower_Strength_NormalStrength_Thickness.Init(snode?.SelectSingleNode("CloudPiercingLightPower_Strength_NormalStrength_Thickness"));
+            CloudScaleDiffuseFillAmbient_WrapAmount.Init(snode?.SelectSingleNode("CloudScaleDiffuseFillAmbient_WrapAmount"));
         }
 
 
@@ -355,16 +356,20 @@ namespace CodeWalker.World
 
     public class CloudSettingsMapCloudList
     {
-        public int[] Probability { get; set; }
-        public int[] Bits { get; set; } //one bit for each cloud hat frag
+        public int[] Probability { get; set; } = [];
+        public int[] Bits { get; set; } = []; //one bit for each cloud hat frag
 
-        public void Init(XmlNode xml)
+        public void Init(XmlNode? xml)
         {
-            string pstr = Xml.GetChildInnerText(xml, "mProbability").Trim();
-            string bstr = Xml.GetChildInnerText(xml, "mBits").Trim();
+            Probability = [];
+            Bits = [];
+            if (xml == null) return;
 
-            string[] parr = pstr.Split('\n');
-            string[] barr = bstr.Split('\n');
+            string pstr = (Xml.GetChildInnerText(xml, "mProbability") ?? string.Empty).Trim();
+            string bstr = (Xml.GetChildInnerText(xml, "mBits") ?? string.Empty).Trim();
+
+            string[] parr = pstr.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            string[] barr = bstr.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             Probability = new int[parr.Length];
             Bits = new int[barr.Length];
@@ -384,17 +389,19 @@ namespace CodeWalker.World
     public class CloudSettingsMapKeyData
     {
         public int numKeyEntries { get; set; }
-        public Dictionary<float, Vector4> keyEntryData { get; set; }
+        public Dictionary<float, Vector4> keyEntryData { get; set; } = new();
 
-        public void Init(XmlNode xml)
+        public void Init(XmlNode? xml)
         {
-            var kdxml = xml.SelectSingleNode("keyData");
+            keyEntryData.Clear();
+            numKeyEntries = 0;
+            var kdxml = xml?.SelectSingleNode("keyData");
+            if (kdxml == null) return;
 
             numKeyEntries = Xml.GetChildIntAttribute(kdxml, "numKeyEntries", "value");
 
-            string kestr = Xml.GetChildInnerText(kdxml, "keyEntryData").Trim();
-            string[] kearr = kestr.Split('\n');
-            keyEntryData = new Dictionary<float, Vector4>();
+            string kestr = (Xml.GetChildInnerText(kdxml, "keyEntryData") ?? string.Empty).Trim();
+            string[] kearr = kestr.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             for (int i = 0; i < kearr.Length; i++)
             {
                 string kvstr = kearr[i].Trim();
@@ -421,8 +428,8 @@ namespace CodeWalker.World
 
     public class CloudAnimSetting
     {
-        public string Name { get; set; }
-        public string DisplayName { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
         public float MinValue { get; set; }
         public float MaxValue { get; set; }
         public float DefaultValue { get; set; }

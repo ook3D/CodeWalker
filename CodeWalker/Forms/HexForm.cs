@@ -13,7 +13,7 @@ namespace CodeWalker.Forms
     public partial class HexForm : Form
     {
 
-        private byte[] data;
+        private byte[] data = [];
         public byte[] Data
         {
             get { return data; }
@@ -24,7 +24,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -34,7 +34,7 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
 
         public HexForm()

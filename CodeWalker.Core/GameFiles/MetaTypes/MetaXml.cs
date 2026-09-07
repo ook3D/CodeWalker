@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CodeWalker.GameFiles
 {
@@ -167,7 +168,8 @@ namespace CodeWalker.GameFiles
         }
         public static string GetXml(YmtFile ymt, out string filename)
         {
-            var fn = (ymt?.RpfFileEntry?.Name) ?? "";
+            if (ymt == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ymt.RpfFileEntry?.Name) ?? "";
             if (ymt.Meta != null) { filename = fn + ".xml"; return GetXml(ymt.Meta); }
             else if (ymt.Pso != null) { filename = fn + ".pso.xml"; return PsoXml.GetXml(ymt.Pso); }
             else if (ymt.Rbf != null) { filename = fn + ".rbf.xml"; return RbfXml.GetXml(ymt.Rbf); }
@@ -176,7 +178,8 @@ namespace CodeWalker.GameFiles
         }
         public static string GetXml(YmfFile ymf, out string filename)
         {
-            var fn = (ymf?.FileEntry?.Name) ?? "";
+            if (ymf == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ymf.FileEntry?.Name) ?? "";
             if (ymf.Meta != null) { filename = fn + ".xml"; return GetXml(ymf.Meta); }
             else if (ymf.Pso != null) { filename = fn + ".pso.xml"; return PsoXml.GetXml(ymf.Pso); }
             else if (ymf.Rbf != null) { filename = fn + ".rbf.xml"; return RbfXml.GetXml(ymf.Rbf); }
@@ -185,7 +188,8 @@ namespace CodeWalker.GameFiles
         }
         public static string GetXml(YmapFile ymap, out string filename)
         {
-            var fn = (ymap?.RpfFileEntry?.Name) ?? "";
+            if (ymap == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ymap.RpfFileEntry?.Name) ?? "";
             if (ymap.Meta != null) { filename = fn + ".xml"; return GetXml(ymap.Meta); }
             else if (ymap.Pso != null) { filename = fn + ".pso.xml"; return PsoXml.GetXml(ymap.Pso); }
             else if (ymap.Rbf != null) { filename = fn + ".rbf.xml"; return RbfXml.GetXml(ymap.Rbf); }
@@ -194,7 +198,8 @@ namespace CodeWalker.GameFiles
         }
         public static string GetXml(YtypFile ytyp, out string filename)
         {
-            var fn = (ytyp?.RpfFileEntry?.Name) ?? "";
+            if (ytyp == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ytyp.RpfFileEntry?.Name) ?? "";
             if (ytyp.Meta != null) { filename = fn + ".xml"; return GetXml(ytyp.Meta); }
             else if (ytyp.Pso != null) { filename = fn + ".pso.xml"; return PsoXml.GetXml(ytyp.Pso); }
             else if (ytyp.Rbf != null) { filename = fn + ".rbf.xml"; return RbfXml.GetXml(ytyp.Rbf); }
@@ -203,148 +208,172 @@ namespace CodeWalker.GameFiles
         }
         public static string GetXml(JPsoFile pso, out string filename)
         {
-            var fn = (pso?.FileEntry?.Name) ?? "";
+            if (pso == null) { filename = string.Empty; return string.Empty; }
+            var fn = (pso.FileEntry?.Name) ?? "";
             if (pso.Pso != null) { filename = fn + ".pso.xml"; return PsoXml.GetXml(pso.Pso); }
             filename = string.Empty;
             return string.Empty;
         }
         public static string GetXml(CutFile cut, out string filename)
         {
-            var fn = (cut?.FileEntry?.Name) ?? "";
+            if (cut == null) { filename = string.Empty; return string.Empty; }
+            var fn = (cut.FileEntry?.Name) ?? "";
             if (cut.Pso != null) { filename = fn + ".pso.xml"; return PsoXml.GetXml(cut.Pso); }
             filename = string.Empty;
             return string.Empty;
         }
         public static string GetXml(RelFile rel, out string filename)
         {
-            var fn = (rel?.RpfFileEntry?.Name) ?? "";
+            if (rel == null) { filename = string.Empty; return string.Empty; }
+            var fn = (rel.RpfFileEntry?.Name) ?? "";
             filename = fn + ".xml";
             return RelXml.GetXml(rel);
         }
         public static string GetXml(YndFile ynd, out string filename)
         {
-            var fn = (ynd?.RpfFileEntry?.Name) ?? "";
+            if (ynd == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ynd.RpfFileEntry?.Name) ?? "";
             filename = fn + ".xml";
             return YndXml.GetXml(ynd);
         }
         public static string GetXml(YnvFile ynv, out string filename)
         {
-            var fn = (ynv?.RpfFileEntry?.Name) ?? "";
+            if (ynv == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ynv.RpfFileEntry?.Name) ?? "";
             filename = fn + ".xml";
             return YnvXml.GetXml(ynv);
         }
         public static string GetXml(YcdFile ycd, out string filename)
         {
-            var fn = (ycd?.RpfFileEntry?.Name) ?? "";
+            if (ycd == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ycd.RpfFileEntry?.Name) ?? "";
             filename = fn + ".xml";
             return YcdXml.GetXml(ycd);
         }
         public static string GetXml(YbnFile ybn, out string filename)
         {
-            var fn = (ybn?.RpfFileEntry?.Name) ?? "";
+            if (ybn == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ybn.RpfFileEntry?.Name) ?? "";
             filename = fn + ".xml";
             return YbnXml.GetXml(ybn);
         }
         public static string GetXml(YtdFile ytd, out string filename, string outputfolder)
         {
-            var fn = (ytd?.Name) ?? "";
+            if (ytd == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ytd.Name) ?? "";
             filename = fn + ".xml";
             return YtdXml.GetXml(ytd, outputfolder);
         }
         public static string GetXml(YdrFile ydr, out string filename, string outputfolder)
         {
-            var fn = (ydr?.Name) ?? "";
+            if (ydr == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ydr.Name) ?? "";
             filename = fn + ".xml";
             return YdrXml.GetXml(ydr, outputfolder);
         }
         public static string GetXml(YddFile ydd, out string filename, string outputfolder)
         {
-            var fn = (ydd?.Name) ?? "";
+            if (ydd == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ydd.Name) ?? "";
             filename = fn + ".xml";
             return YddXml.GetXml(ydd, outputfolder);
         }
         public static string GetXml(YftFile yft, out string filename, string outputfolder)
         {
-            var fn = (yft?.Name) ?? "";
+            if (yft == null) { filename = string.Empty; return string.Empty; }
+            var fn = (yft.Name) ?? "";
             filename = fn + ".xml";
             return YftXml.GetXml(yft, outputfolder);
         }
         public static string GetXml(YptFile ypt, out string filename, string outputfolder)
         {
-            var fn = (ypt?.Name) ?? "";
+            if (ypt == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ypt.Name) ?? "";
             filename = fn + ".xml";
             return YptXml.GetXml(ypt, outputfolder);
         }
         public static string GetXml(YldFile yld, out string filename)
         {
-            var fn = (yld?.Name) ?? "";
+            if (yld == null) { filename = string.Empty; return string.Empty; }
+            var fn = (yld.Name) ?? "";
             filename = fn + ".xml";
             return YldXml.GetXml(yld);
         }
         public static string GetXml(YedFile yed, out string filename)
         {
-            var fn = (yed?.Name) ?? "";
+            if (yed == null) { filename = string.Empty; return string.Empty; }
+            var fn = (yed.Name) ?? "";
             filename = fn + ".xml";
             return YedXml.GetXml(yed);
         }
         public static string GetXml(YwrFile ywr, out string filename)
         {
-            var fn = (ywr?.Name) ?? "";
+            if (ywr == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ywr.Name) ?? "";
             filename = fn + ".xml";
             return YwrXml.GetXml(ywr);
         }
         public static string GetXml(YvrFile yvr, out string filename)
         {
-            var fn = (yvr?.Name) ?? "";
+            if (yvr == null) { filename = string.Empty; return string.Empty; }
+            var fn = (yvr.Name) ?? "";
             filename = fn + ".xml";
             return YvrXml.GetXml(yvr);
         }
         public static string GetXml(YpdbFile ypdb, out string filename)
         {
-            var fn = (ypdb?.Name) ?? "";
+            if (ypdb == null) { filename = string.Empty; return string.Empty; }
+            var fn = (ypdb.Name) ?? "";
             filename = fn + ".xml";
             return YpdbXml.GetXml(ypdb);
         }
         public static string GetXml(YfdFile yfd, out string filename)
         {
-            var fn = (yfd?.Name) ?? "";
+            if (yfd == null) { filename = string.Empty; return string.Empty; }
+            var fn = (yfd.Name) ?? "";
             filename = fn + ".xml";
             return YfdXml.GetXml(yfd);
         }
         public static string GetXml(AwcFile awc, out string filename, string outputfolder)
         {
-            var fn = (awc?.Name) ?? "";
+            if (awc == null) { filename = string.Empty; return string.Empty; }
+            var fn = (awc.Name) ?? "";
             filename = fn + ".xml";
             return AwcXml.GetXml(awc, outputfolder);
         }
         public static string GetXml(FxcFile fxc, out string filename, string outputfolder)
         {
-            var fn = (fxc?.Name) ?? "";
+            if (fxc == null) { filename = string.Empty; return string.Empty; }
+            var fn = (fxc.Name) ?? "";
             filename = fn + ".xml";
             return FxcXml.GetXml(fxc, outputfolder);
         }
         public static string GetXml(CacheDatFile cdf, out string filename, string outputfolder)
         {
-            var fn = (cdf?.FileEntry?.Name) ?? "";
+            if (cdf == null) { filename = string.Empty; return string.Empty; }
+            var fn = (cdf.FileEntry?.Name) ?? "";
             filename = fn + ".xml";
             return CacheDatXml.GetXml(cdf);
         }
         public static string GetXml(HeightmapFile hmf, out string filename, string outputfolder)
         {
-            var fn = (hmf?.Name) ?? "";
+            if (hmf == null) { filename = string.Empty; return string.Empty; }
+            var fn = (hmf.Name) ?? "";
             filename = fn + ".xml";
             return HmapXml.GetXml(hmf);
         }
         public static string GetXml(MrfFile mrf, out string filename, string outputfolder)
         {
-            var fn = (mrf?.Name) ?? "";
+            if (mrf == null) { filename = string.Empty; return string.Empty; }
+            var fn = (mrf.Name) ?? "";
             filename = fn + ".xml";
             return MrfXml.GetXml(mrf);
         }
 
         public static string GetXml(AudioWorldSectorsFile aws, out string filename, string outputfolder)
         {
-            var fn = (aws?.Name) ?? "";
+            if (aws == null) { filename = string.Empty; return string.Empty; }
+            var fn = (aws.Name) ?? "";
             filename = fn + ".xml";
             return AudXml.GetXml(aws);
         }
@@ -475,7 +504,7 @@ namespace CodeWalker.GameFiles
                         var dataPtr = MetaTypes.ConvertData<DataBlockPointer>(data, eoffset);
                         //need to just get all the data from that block, since this pointer is referring to the whole block! it should be of type BYTE!
                         var dblock = cont.Meta.GetBlock((int)dataPtr.PointerDataId);
-                        WriteRawArray(sb, dblock.Data, cind, ename, "ByteArray", FormatHexByte, 32);
+                        WriteRawArray(sb, dblock?.Data ?? [], cind, ename, "ByteArray", FormatHexByte, 32);
                         break;
                     case MetaStructureEntryDataType.Float:
                         var floatVal = BitConverter.ToSingle(data, eoffset);
@@ -593,7 +622,7 @@ namespace CodeWalker.GameFiles
                     if (aCount > 0)
                     {
                         OpenTag(sb, indent, arrTag);
-                        var atyp = cont.GetStructureInfo(arrEntry.ReferenceKey);
+                        var atyp = cont.GetStructureInfo(arrEntry.ReferenceKey) ?? throw new System.IO.InvalidDataException("Missing array structure definition.");
                         var aBlock = cont.Meta.GetBlock(aBlockId);
                         for (int n = 0; n < aCount; n++)
                         {
@@ -616,8 +645,8 @@ namespace CodeWalker.GameFiles
                     break;
                 case MetaStructureEntryDataType.StructurePointer:
                     var arrStrucP = MetaTypes.ConvertData<Array_StructurePointer>(data, eoffset);
-                    var ptrArr = MetaTypes.GetPointerArray(cont.Meta, arrStrucP);
-                    aCount = ptrArr?.Length ?? 0;
+                    var ptrArr = MetaTypes.GetPointerArray(cont.Meta, arrStrucP) ?? [];
+                    aCount = ptrArr.Length;
                     if (aCount > 0)
                     {
                         OpenTag(sb, indent, arrTag);
@@ -831,13 +860,13 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            public MetaStructureInfo GetStructureInfo(MetaName name)
+            public MetaStructureInfo? GetStructureInfo(MetaName name)
             {
                 MetaStructureInfo? i = null;
                 structInfos.TryGetValue(name, out i);
                 return i;
             }
-            public MetaEnumInfo GetEnumInfo(MetaName name)
+            public MetaEnumInfo? GetEnumInfo(MetaName name)
             {
                 MetaEnumInfo? i = null;
                 enumInfos.TryGetValue(name, out i);
@@ -860,7 +889,7 @@ namespace CodeWalker.GameFiles
             {
                 var cont = new PsoCont(pso);
 
-                WriteNode(sb, 0, cont, pso.DataMapSection.RootId, 0, XmlTagMode.Structure);
+                WriteNode(sb, 0, cont, pso.RequiredDataMapSection.RootId, 0, XmlTagMode.Structure);
             }
 
             return sb.ToString();
@@ -870,7 +899,7 @@ namespace CodeWalker.GameFiles
         private static void WriteNode(StringBuilder sb, int indent, PsoCont cont, int blockId, int offset, XmlTagMode tagMode = XmlTagMode.None, MetaName structName = 0)
         {
 
-            var block = cont.Pso.GetBlock(blockId);
+            var block = cont.Pso.GetBlock(blockId) ?? throw new System.IO.InvalidDataException($"Missing PSO block {blockId}.");
             if (block == null)
             {
                 ErrorXml(sb, indent, "Couldn't find block " + blockId + "!");
@@ -890,7 +919,7 @@ namespace CodeWalker.GameFiles
             }
 
             var name = HashString(structName);
-            var data = cont.Pso.DataSection.Data;
+            var data = cont.Pso.RequiredDataSection.Data;
 
             var structInfo = cont.GetStructureInfo(structName);
             if (structInfo == null)
@@ -965,7 +994,7 @@ namespace CodeWalker.GameFiles
                                 break;
                             case 0: //int enum
                                 var intEVal = MetaTypes.SwapBytes(BitConverter.ToInt32(data, eoffset));
-                                var intE = enumInfo.FindEntry(intEVal);
+                                var intE = enumInfo?.FindEntry(intEVal);
                                 var intH = HashString(intE?.EntryNameHash ?? 0);
                                 if (string.IsNullOrEmpty(intH))
                                 { }
@@ -973,7 +1002,7 @@ namespace CodeWalker.GameFiles
                                 break;
                             case 2: //byte enum
                                 var byteEVal = data[eoffset];
-                                var byteE = enumInfo.FindEntry(byteEVal);
+                                var byteE = enumInfo?.FindEntry(byteEVal);
                                 StringTag(sb, cind, ename, HashString(byteE?.EntryNameHash ?? 0));
                                 break;
                         }
@@ -1132,13 +1161,13 @@ namespace CodeWalker.GameFiles
                                 {
                                     pbok = false; //no block specified?
                                 }
-                                if (pbid > cont.Pso.DataMapSection.EntriesCount)
+                                if (pbid > cont.Pso.RequiredDataMapSection.EntriesCount)
                                 {
                                     pbok = false; //bad pointer? different type..? should output an error message here?
                                 }
                                 if (pbok)
                                 {
-                                    var typename = HashString(cont.Pso.GetBlock(pbid).NameHash);
+                                    var typename = HashString(cont.Pso.GetBlock(pbid)?.NameHash ?? 0);
                                     OpenTag(sb, cind, ename + " type=\"" + typename + "\"");
                                     WriteNode(sb, cind, cont, ptrVal.BlockID, (int)ptrVal.ItemOffset, XmlTagMode.None, (MetaName)entry.ReferenceKey);
                                     CloseTag(sb, cind, ename);
@@ -1172,7 +1201,7 @@ namespace CodeWalker.GameFiles
         {
 
 
-            var block = cont.Pso.GetBlock(blockId);
+            var block = cont.Pso.GetBlock(blockId) ?? throw new System.IO.InvalidDataException($"Missing PSO block {blockId}.");
             var boffset = offset + block.Offset;
             var eoffset = boffset + entry.DataOffset;
             var aOffset = offset + entry.DataOffset;
@@ -1190,14 +1219,14 @@ namespace CodeWalker.GameFiles
             {
                 arrEntInd = (entry.ReferenceKey & 0xFFF);
             }
-            PsoStructureEntryInfo arrEntry = estruct.GetEntry((int)arrEntInd);
+            PsoStructureEntryInfo? arrEntry = estruct.GetEntry((int)arrEntInd);
             if (arrEntry == null)
             {
                 ErrorXml(sb, indent, "ARRAYINFO not found for " + ename + "!");
                 return;
             }
 
-            var data = cont.Pso.DataSection.Data;
+            var data = cont.Pso.RequiredDataSection.Data;
 
             bool embedded = true;
             switch (entry.Unk_5h)
@@ -1286,7 +1315,7 @@ namespace CodeWalker.GameFiles
                             aCount = arrStrucPtr.Count1;
                             if (aCount > 0)
                             {
-                                var ptrArr = PsoTypes.GetPointerArray(cont.Pso, arrStrucPtr);
+                                var ptrArr = PsoTypes.GetPointerArray(cont.Pso, arrStrucPtr) ?? throw new System.IO.InvalidDataException("Missing structure pointer array.");
                                 OpenTag(sb, indent, arrTag);
                                 for (int n = 0; n < aCount; n++)
                                 {
@@ -1362,9 +1391,9 @@ namespace CodeWalker.GameFiles
                         case 2: //string array  (array of pointers)
                             var arrStrs = MetaTypes.ConvertData<Array_Structure>(data, eoffset);
                             arrStrs.SwapEnd();
-                            var strPtrArr = PsoTypes.GetItemArrayRaw<DataBlockPointer>(cont.Pso, arrStrs);
-                            var strs = (strPtrArr != null) ? new string[strPtrArr.Length] : null;
-                            var cnt = strPtrArr?.Length ?? 0;
+                            var strPtrArr = PsoTypes.GetItemArrayRaw<DataBlockPointer>(cont.Pso, arrStrs) ?? [];
+                            var strs = new string?[strPtrArr.Length];
+                            var cnt = strPtrArr.Length;
                             for (int i = 0; i < cnt; i++)
                             {
                                 strPtrArr[i].SwapEnd();
@@ -1375,9 +1404,9 @@ namespace CodeWalker.GameFiles
                         case 3: //char array array  (array of CharPointer)
                             var arrChars = MetaTypes.ConvertData<Array_Structure>(data, eoffset);
                             arrChars.SwapEnd();
-                            var charPtrArr = PsoTypes.GetItemArrayRaw<CharPointer>(cont.Pso, arrChars);//namehash 200
-                            var strs2 = (charPtrArr != null) ? new string[charPtrArr.Length] : null;
-                            var cnt2 = charPtrArr?.Length ?? 0;
+                            var charPtrArr = PsoTypes.GetItemArrayRaw<CharPointer>(cont.Pso, arrChars) ?? [];//namehash 200
+                            var strs2 = new string?[charPtrArr.Length];
+                            var cnt2 = charPtrArr.Length;
                             for (int i = 0; i < cnt2; i++)
                             {
                                 charPtrArr[i].SwapEnd();
@@ -1474,7 +1503,7 @@ namespace CodeWalker.GameFiles
         private static void WriteMapNode(StringBuilder sb, int indent, PsoCont cont, int eoffset, PsoStructureEntryInfo entry, PsoStructureInfo structInfo, string ename)
         {
             var cind = indent + 1;
-            var data = cont.Pso.DataSection.Data;
+            var data = cont.Pso.RequiredDataSection.Data;
             switch (entry.Unk_5h)
             {
                 default:
@@ -1525,7 +1554,7 @@ namespace CodeWalker.GameFiles
                     {
                         if (xCount1 != xCount2)
                         { }
-                        if (xCount1 > 0)
+                        if (xCount1 > 0 && xBlock != null)
                         {
                             var xStruct = cont.GetStructureInfo(xBlock.NameHash);
                             var xind = indent + 1;
@@ -1643,7 +1672,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        private static string GetStringValue(PsoFile pso, PsoStructureEntryInfo entry, byte[] data, int eoffset)
+        private static string? GetStringValue(PsoFile pso, PsoStructureEntryInfo entry, byte[] data, int eoffset)
         {
             switch (entry.Unk_5h)
             {
@@ -1728,13 +1757,13 @@ namespace CodeWalker.GameFiles
             }
 
 
-            public PsoStructureInfo GetStructureInfo(MetaName name)
+            public PsoStructureInfo? GetStructureInfo(MetaName name)
             {
                 PsoStructureInfo? i = null;
                 StructDict.TryGetValue(name, out i);
                 return i;
             }
-            public PsoEnumInfo GetEnumInfo(MetaName name)
+            public PsoEnumInfo? GetEnumInfo(MetaName name)
             {
                 PsoEnumInfo? i = null;
                 EnumDict.TryGetValue(name, out i);
@@ -1753,7 +1782,7 @@ namespace CodeWalker.GameFiles
             StringBuilder sb = new();
             sb.AppendLine(XmlHeader);
 
-            WriteNode(sb, 0, rbf.current);
+            if (rbf.current != null) WriteNode(sb, 0, rbf.current);
 
             return sb.ToString();
         }
@@ -1936,7 +1965,7 @@ namespace CodeWalker.GameFiles
             sb.Append("\" />");
             sb.AppendLine();
         }
-        public static void OneLineTag(StringBuilder sb, int indent, string name, string text)
+        public static void OneLineTag(StringBuilder sb, int indent, string name, string? text)
         {
             Indent(sb, indent);
             sb.Append("<");
@@ -1956,15 +1985,16 @@ namespace CodeWalker.GameFiles
             sb.Append(" />");
             sb.AppendLine();
         }
-        public static void StringTag(StringBuilder sb, int indent, string name, string text)
+        public static void StringTag(StringBuilder sb, int indent, string name, string? text)
         {
             if (!string.IsNullOrEmpty(text)) OneLineTag(sb, indent, name, text);
             else SelfClosingTag(sb, indent, name);
         }
 
-        public static void WriteRawArrayContent<T>(StringBuilder sb, T[] arr, int ind, Func<T, string>? formatter = null, int arrRowSize = 10) where T : struct
+        public static void WriteRawArrayContent<T>(StringBuilder sb, T[]? arr, int ind, Func<T, string>? formatter = null, int arrRowSize = 10) where T : struct
         {
-            var aCount = arr?.Length ?? 0;
+            arr ??= [];
+            var aCount = arr.Length;
             for (int n = 0; n < aCount; n++)
             {
                 var col = n % arrRowSize;
@@ -1977,9 +2007,10 @@ namespace CodeWalker.GameFiles
                 if (lastcol || lastn) sb.AppendLine();
             }
         }
-        public static void WriteRawArray<T>(StringBuilder sb, T[] arr, int ind, string name, string typeName, Func<T, string>? formatter = null, int arrRowSize = 10) where T : struct
+        public static void WriteRawArray<T>(StringBuilder sb, T[]? arr, int ind, string name, string typeName, Func<T, string>? formatter = null, int arrRowSize = 10) where T : struct
         {
-            var aCount = arr?.Length ?? 0;
+            arr ??= [];
+            var aCount = arr.Length;
             //var arrRowSize = 10;
             var aind = ind + 1;
             var arrTag = name;// + " itemType=\"" + typeName + "\"";
@@ -2018,9 +2049,10 @@ namespace CodeWalker.GameFiles
                 SelfClosingTag(sb, ind, arrTag);
             }
         }
-        public static void WriteItemArray<T>(StringBuilder sb, T[] arr, int ind, string name, string typeName, Func<T, string> formatter) where T : struct
+        public static void WriteItemArray<T>(StringBuilder sb, T[]? arr, int ind, string name, string typeName, Func<T, string> formatter) where T : struct
         {
-            var aCount = arr?.Length ?? 0;
+            arr ??= [];
+            var aCount = arr.Length;
             var arrTag = name;// + " itemType=\"Hash\"";
             var aind = ind + 1;
             if (aCount > 0)
@@ -2040,9 +2072,10 @@ namespace CodeWalker.GameFiles
                 SelfClosingTag(sb, ind, arrTag);
             }
         }
-        public static void WriteItemArray<T>(StringBuilder sb, T[] arr, int ind, string name) where T : IMetaXmlItem
+        public static void WriteItemArray<T>(StringBuilder sb, T[]? arr, int ind, string name) where T : IMetaXmlItem
         {
-            var itemCount = arr?.Length ?? 0;
+            arr ??= [];
+            var itemCount = arr.Length;
             if (itemCount > 0)
             {
                 OpenTag(sb, ind, name);
@@ -2068,9 +2101,10 @@ namespace CodeWalker.GameFiles
                 SelfClosingTag(sb, ind, name);
             }
         }
-        public static void WriteCustomItemArray<T>(StringBuilder sb, T[] arr, int ind, string name) where T : IMetaXmlItem
+        public static void WriteCustomItemArray<T>(StringBuilder sb, T[]? arr, int ind, string name) where T : IMetaXmlItem
         {
-            var itemCount = arr?.Length ?? 0;
+            arr ??= [];
+            var itemCount = arr.Length;
             if (itemCount > 0)
             {
                 OpenTag(sb, ind, name);
@@ -2089,7 +2123,7 @@ namespace CodeWalker.GameFiles
                 SelfClosingTag(sb, ind, name);
             }
         }
-        public static void WriteHashItemArray(StringBuilder sb, MetaHash[] arr, int ind, string name)
+        public static void WriteHashItemArray(StringBuilder sb, MetaHash[]? arr, int ind, string name)
         {
             // Filter out empty hashes (0 values)
             var nonEmptyHashes = arr?.Where(h => h != 0).ToArray() ?? Array.Empty<MetaHash>();
@@ -2111,9 +2145,10 @@ namespace CodeWalker.GameFiles
                 SelfClosingTag(sb, ind, name);
             }
         }
-        public static void WriteStringItemArray(StringBuilder sb, string[] arr, int ind, string name)
+        public static void WriteStringItemArray(StringBuilder sb, string?[]? arr, int ind, string name)
         {
-            var aCount = arr?.Length ?? 0;
+            arr ??= [];
+            var aCount = arr.Length;
             var arrTag = name;// + " itemType=\"Hash\"";
             var aind = ind + 1;
             if (aCount > 0)
@@ -2188,7 +2223,7 @@ namespace CodeWalker.GameFiles
             uint uh = (uint)h;
             if (uh == 0) return "";
 
-            string str;
+            string? str;
             if (MetaNames.TryGetString(uh, out str)) return str;
 
             str = JenkIndex.TryGetString(uh);
@@ -2253,7 +2288,8 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static string XmlEscape(string? unescaped)
+        [return: NotNullIfNotNull(nameof(unescaped))]
+        public static string? XmlEscape(string? unescaped)
         {
             if (unescaped == null) return null;
             XmlDocument doc = new();

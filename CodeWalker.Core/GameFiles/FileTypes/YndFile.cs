@@ -6,21 +6,22 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CodeWalker.GameFiles
 {
     [TypeConverter(typeof(ExpandableObjectConverter))] public class YndFile : GameFile, PackedFile, BasePathData
     {
 
-        public NodeDictionary NodeDictionary { get; set; }
+        public NodeDictionary NodeDictionary { get; set; } = new();
 
-        public YndNode[] Nodes { get; set; }
-        public YndLink[] Links { get; set; }
-        public YndJunction[] Junctions { get; set; }
+        public YndNode[] Nodes { get; set; } = [];
+        public YndLink[] Links { get; set; } = [];
+        public YndJunction[] Junctions { get; set; } = [];
 
-        public EditorVertex[] LinkedVerts { get; set; }//populated by the space (needs to use grid of all ynd's!)
-        public EditorVertex[] TriangleVerts { get; set; } //used for junctions display
-        public Vector4[] NodePositions { get; set; }
+        public EditorVertex[] LinkedVerts { get; set; } = [];//populated by the space (needs to use grid of all ynd's!)
+        public EditorVertex[] TriangleVerts { get; set; } = []; //used for junctions display
+        public Vector4[] NodePositions { get; set; } = [];
 
         public Vector3 BBMin { get; set; }
         public Vector3 BBMax { get; set; }
@@ -43,13 +44,13 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public PathBVH BVH { get; set; }
+        public PathBVH? BVH { get; set; }
 
 
 
         //fields used by the editor:
         public bool HasChanged { get; set; } = false;
-        public List<string> SaveWarnings = null;
+        public List<string>? SaveWarnings;
 
         public bool BuildStructsOnSave { get; set; } = true;
 
@@ -87,7 +88,7 @@ namespace CodeWalker.GameFiles
             ResourceDataReader rd = new(resentry, data);
 
 
-            NodeDictionary = rd.ReadBlock<NodeDictionary>();
+            NodeDictionary = rd.ReadRequiredBlock<NodeDictionary>();
 
             InitNodesFromDictionary();
 
@@ -173,7 +174,7 @@ namespace CodeWalker.GameFiles
                     {
                         var nj = node.Junction;
                         var heightmapoff = newjuncheightmaps.Count;
-                        var heightmap = nj.Heightmap.GetBytes();
+                        var heightmap = nj.Heightmap?.GetBytes() ?? [];
                         nj._RawData.HeightmapPtr = (ushort)heightmapoff;
                         var jref = nj.RefData;
                         jref.AreaID = node.AreaID;
@@ -200,16 +201,16 @@ namespace CodeWalker.GameFiles
             }
             else
             {
-                NodeDictionary.Nodes = null;
+                NodeDictionary.Nodes = [];
                 NodeDictionary.NodesCount = 0;
-                NodeDictionary.Links = null;
+                NodeDictionary.Links = [];
                 NodeDictionary.LinksCount = 0;
-                NodeDictionary.Junctions = null;
+                NodeDictionary.Junctions = [];
                 NodeDictionary.JunctionsCount = 0;
-                NodeDictionary.JunctionRefs = null;
+                NodeDictionary.JunctionRefs = [];
                 NodeDictionary.JunctionRefsCount0 = 0;
                 NodeDictionary.JunctionRefsCount1 = 0;
-                NodeDictionary.JunctionHeightmapBytes = null;
+                NodeDictionary.JunctionHeightmapBytes = [];
                 NodeDictionary.JunctionHeightmapBytesCount = 0;
             }
         }
@@ -256,11 +257,11 @@ namespace CodeWalker.GameFiles
 
         public YndNode AddNode()
         {
-            int cnt = Nodes?.Length ?? 0;
+            int cnt = Nodes.Length;
             YndNode yn = new();
             Node n = new();
             n.AreaID = (ushort)AreaID;
-            n.NodeID = (ushort)(Nodes?.Length ?? 0);
+            n.NodeID = (ushort)(Nodes.Length);
             yn.Init(this, n);
 
             int ncnt = cnt + 1;
@@ -280,10 +281,10 @@ namespace CodeWalker.GameFiles
 
         public void MigrateNode(YndNode node)
         {
-            int cnt = Nodes?.Length ?? 0;
+            int cnt = Nodes.Length;
             node.Ynd = this;
             node.AreaID = (ushort)AreaID;
-            node.NodeID = (ushort)(Nodes?.Length ?? 0);
+            node.NodeID = (ushort)(Nodes.Length);
 
             int ncnt = cnt + 1;
             YndNode[] nnodes = new YndNode[ncnt];
@@ -442,10 +443,10 @@ namespace CodeWalker.GameFiles
 
         public void UpdateAllNodePositions()
         {
-            int cnt = Nodes?.Length ?? 0;
+            int cnt = Nodes.Length;
             if (cnt <= 0)
             {
-                NodePositions = null;
+                NodePositions = [];
                 return;
             }
             var np = new Vector4[cnt];
@@ -456,7 +457,7 @@ namespace CodeWalker.GameFiles
             NodePositions = np;
         }
 
-        public void UpdateTriangleVertices(YndNode[] selectedNodes)
+        public void UpdateTriangleVertices(YndNode[]? selectedNodes)
         {
             //note: called from space.BuildYndVerts()
 
@@ -545,7 +546,7 @@ namespace CodeWalker.GameFiles
             }
             else
             {
-                TriangleVerts = null;
+                TriangleVerts = [];
             }
         }
 
@@ -762,12 +763,12 @@ namespace CodeWalker.GameFiles
     {
         public Node _RawData;
 
-        public YndFile Ynd { get; set; }
+        public YndFile? Ynd { get; set; }
         public Node RawData { get { return _RawData; } set { _RawData = value; } }
         public Vector3 Position { get; set; }
         public int LinkCount { get; set; }
         public int LinkCountUnk { get; set; }
-        public YndLink[] Links { get; set; }
+        public YndLink[] Links { get; set; } = [];
 
         public ushort AreaID { get { return _RawData.AreaID; } set { _RawData.AreaID = value; } }
         public ushort NodeID { get { return _RawData.NodeID; } set { _RawData.NodeID = value; } }
@@ -779,7 +780,7 @@ namespace CodeWalker.GameFiles
 
         public Color4 Colour { get; set; }
 
-        public YndJunction Junction { get; set; }
+        public YndJunction? Junction { get; set; }
         public bool HasJunction;
 
 
@@ -1007,7 +1008,7 @@ namespace CodeWalker.GameFiles
 
             var length = link.Distance;
 
-            HeuristicValue = partner.HeuristicValue + length;
+            HeuristicValue = (partner?.HeuristicValue ?? 0) + length;
         }
 
         public void CheckIfJunction()
@@ -1030,7 +1031,7 @@ namespace CodeWalker.GameFiles
 
             if (IsJunction && Special == YndNodeSpecialType.None || Special == YndNodeSpecialType.FalseJunction)
             {
-                var hasOffroadLink = Links.Any(l => l.Node2.OffRoad);
+                var hasOffroadLink = Links.Any(l => l.Node2?.OffRoad == true);
                 Special = hasOffroadLink ? YndNodeSpecialType.FalseJunction : YndNodeSpecialType.None;
             }
         }
@@ -1058,7 +1059,7 @@ namespace CodeWalker.GameFiles
                 l._RawData.AreaID = tonode.AreaID;
                 l._RawData.NodeID = tonode.NodeID;
             }
-            else if ((Ynd.Nodes != null) && (Ynd.Nodes.Length > 0))
+            else if ((Ynd?.Nodes != null) && (Ynd.Nodes.Length > 0))
             {
                 l.Node2 = Ynd.Nodes[0];
             }
@@ -1069,7 +1070,7 @@ namespace CodeWalker.GameFiles
             }
             l.UpdateLength();
 
-            int cnt = Links?.Length ?? 0;
+            int cnt = Links.Length;
             int ncnt = cnt + 1;
             YndLink[] nlinks = new YndLink[ncnt];
             for (int i = 0; i < cnt; i++)
@@ -1091,7 +1092,7 @@ namespace CodeWalker.GameFiles
             return l;
         }
 
-        public bool TryGetLinkForNode(YndNode node, out YndLink link)
+        public bool TryGetLinkForNode(YndNode node, [NotNullWhen(true)] out YndLink? link)
         {
             for (int i = 0; i < Links.Length; i++)
             {
@@ -1109,7 +1110,7 @@ namespace CodeWalker.GameFiles
         public bool RemoveLink(YndLink l)
         {
             List<YndLink> newlinks = new();
-            int cnt = Links?.Length ?? 0;
+            int cnt = Links.Length;
             bool r = false;
             for (int i = 0; i < cnt; i++)
             {
@@ -1159,7 +1160,7 @@ namespace CodeWalker.GameFiles
                 Flags1 = basis.Flags1;
                 LinkCountUnk = (LinkCountUnk &~ 7) | (basis.LinkCountUnk & 7);
 
-                affectedFilesList.Add(Ynd);
+                if (Ynd != null) affectedFilesList.Add(Ynd);
                 RecalculateHeuristic();
             }
 
@@ -1174,11 +1175,18 @@ namespace CodeWalker.GameFiles
                         continue;
                     }
 
-                    yndLink.Node1.FloodCopyFlags(basis, seenNodes, out var node1Files);
-                    yndLink.Node2.FloodCopyFlags(basis, seenNodes, out var node2Files);
+                    if (yndLink.Node1 != null)
+                    {
+                        yndLink.Node1.FloodCopyFlags(basis, seenNodes, out var node1Files);
+                        affectedFilesList.AddRange(node1Files);
+                    }
+                    if (yndLink.Node2 != null)
+                    {
+                        yndLink.Node2.FloodCopyFlags(basis, seenNodes, out var node2Files);
+                        affectedFilesList.AddRange(node2Files);
+                    }
 
-                    affectedFilesList.AddRange(node1Files);
-                    affectedFilesList.AddRange(node2Files);
+
                 }
             }
 
@@ -1195,16 +1203,21 @@ namespace CodeWalker.GameFiles
 
             if (Links != null)
             {
-                totalAffectedFiles.AddRange(Links.SelectMany(l => new[] { l.Node1.Ynd, l.Node2.Ynd }).Distinct());
+                totalAffectedFiles.AddRange(Links.SelectMany(l => new[] { l.Node1?.Ynd, l.Node2?.Ynd }).OfType<YndFile>().Distinct());
             }
 
             var oldPosition = Position;
+            var expectedArea = space.NodeGrid?.GetCellForPosition(newPosition);
+            if (expectedArea == null)
+            {
+                affectedFiles = [];
+                return;
+            }
             SetPosition(newPosition);
-            var expectedArea = space.NodeGrid.GetCellForPosition(newPosition);
 
             if (AreaID != expectedArea.ID)
             {
-                var nodeYnd = space.NodeGrid.GetCell(AreaID).Ynd;
+                var nodeYnd = space.NodeGrid?.GetCell(AreaID)?.Ynd;
                 var newYnd = expectedArea.Ynd;
                 if (newYnd == null)
                 {
@@ -1216,7 +1229,7 @@ namespace CodeWalker.GameFiles
                 if ((nodeYnd == null) ||
                     nodeYnd.RemoveYndNode(space, this, false, out var affectedFilesFromDelete))
                 {
-                    totalAffectedFiles.Add(nodeYnd);
+                    if (nodeYnd != null) totalAffectedFiles.Add(nodeYnd);
                     newYnd.MigrateNode(this);
                     totalAffectedFiles.AddRange(space.GetYndFilesThatDependOnYndFile(nodeYnd));
                     totalAffectedFiles.AddRange(space.GetYndFilesThatDependOnYndFile(Ynd));
@@ -1320,11 +1333,11 @@ namespace CodeWalker.GameFiles
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class YndLink
     {
-        public YndFile Ynd { get; set; }
-        public YndNode Node1 { get; set; }
+        public YndFile? Ynd { get; set; }
+        public YndNode? Node1 { get; set; }
 
-        private YndNode _node2;
-        public YndNode Node2
+        private YndNode? _node2;
+        public YndNode? Node2
         {
             get => _node2;
             set
@@ -1412,7 +1425,7 @@ namespace CodeWalker.GameFiles
         {
             LaneCountForward = value;
 
-            if (Node2.TryGetLinkForNode(Node1, out var node2Link))
+            if (Node1 != null && Node2 != null && Node2.TryGetLinkForNode(Node1, out var node2Link))
             {
                 node2Link.LaneCountBackward = value;
             }
@@ -1424,7 +1437,7 @@ namespace CodeWalker.GameFiles
         {
             LaneCountBackward = value;
 
-            if (Node2.TryGetLinkForNode(Node1, out var node2Link))
+            if (Node1 != null && Node2 != null && Node2.TryGetLinkForNode(Node1, out var node2Link))
             {
                 node2Link.LaneCountForward = value;
             }
@@ -1453,6 +1466,8 @@ namespace CodeWalker.GameFiles
                 c.Green = 0.2f;
                 return c;
             }
+
+            if (Node1 == null || Node2 == null) return c;
 
             if (Node1.IsDisabledUnk0 
                 || Node1.IsDisabledUnk1 
@@ -1505,7 +1520,7 @@ namespace CodeWalker.GameFiles
 
         public float GetLaneWidth()
         {
-            if (Shortcut || Node1.IsPedNode || Node2.IsPedNode)
+            if (Shortcut || Node1?.IsPedNode == true || Node2?.IsPedNode == true)
             {
                 return 0.5f;
             }
@@ -1533,23 +1548,24 @@ namespace CodeWalker.GameFiles
 
         public void UpdateTargetIndex()
         {
+            if (Node2 == null) return;
             _RawData.AreaID = Node2.AreaID;
             _RawData.NodeID = Node2.NodeID;
         }
 
         public override string ToString()
         {
-            return Node2._RawData.ToString();
+            return Node2?._RawData.ToString() ?? _RawData.ToString();
         }
     }
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class YndJunction
     {
-        public YndFile Ynd { get; set; }
+        public YndFile? Ynd { get; set; }
         public NodeJunction _RawData;
         public NodeJunction RawData { get { return _RawData; } set { _RawData = value; } }
         public NodeJunctionRef RefData { get; set; }
-        public YndJunctionHeightmap Heightmap { get; set; }
+        public YndJunctionHeightmap? Heightmap { get; set; }
         public short MaxZ { get; set; }
         public short MinZ { get; set; }
         public short PositionX { get; set; }
@@ -1569,11 +1585,13 @@ namespace CodeWalker.GameFiles
 
         public void ResizeHeightmap()
         {
+            Heightmap ??= new YndJunctionHeightmap([], this);
             Heightmap.Resize(_RawData.HeightmapDimX, _RawData.HeightmapDimY);
         }
 
         public void SetHeightmap(string text)
         {
+            Heightmap ??= new YndJunctionHeightmap([], this);
             Heightmap.SetData(text);
         }
 
@@ -1588,7 +1606,7 @@ namespace CodeWalker.GameFiles
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class YndJunctionHeightmap
     {
-        public YndJunctionHeightmapRow[] Rows { get; set; }
+        public YndJunctionHeightmapRow[] Rows { get; set; } = [];
         public int CountX { get; set; }
         public int CountY { get; set; }
 
@@ -1695,7 +1713,7 @@ namespace CodeWalker.GameFiles
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class YndJunctionHeightmapRow
     {
-        public byte[] Values { get; set; }
+        public byte[] Values { get; set; } = [];
 
         public YndJunctionHeightmapRow(byte[] vals)
         {
@@ -1723,11 +1741,11 @@ namespace CodeWalker.GameFiles
         public int Depth;
         public int MaxDepth;
         public int Threshold;
-        public List<BasePathNode> Nodes;
+        public List<BasePathNode> Nodes = [];
         public BoundingBox Box;
         public BoundingSphere Sphere;
-        public PathBVHNode Node1;
-        public PathBVHNode Node2;
+        public PathBVHNode? Node1;
+        public PathBVHNode? Node2;
 
 
         public void CalcBounds()
@@ -1903,7 +1921,7 @@ namespace CodeWalker.GameFiles
         {
             YndFile ynd = new();
             ynd.NodeDictionary = new NodeDictionary();
-            ynd.NodeDictionary.ReadXml(doc.DocumentElement);
+            ynd.NodeDictionary.ReadXml(doc.DocumentElement ?? throw new XmlException("The path node document must have a root element."));
             ynd.InitNodesFromDictionary();
             ynd.BuildStructsOnSave = false; //structs don't need to be rebuilt here!
             return ynd;

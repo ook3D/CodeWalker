@@ -18,7 +18,7 @@ namespace CodeWalker.Forms
 {
     public partial class XmlForm : Form
     {
-        private string xml;
+        private string xml = string.Empty;
         public string Xml
         {
             get { return xml; }
@@ -29,7 +29,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -39,17 +39,17 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
         private bool modified = false;
         private bool LoadingXml = false;
         private bool DelayHighlight = false;
 
-        private ExploreForm exploreForm = null;
-        public RpfFileEntry rpfFileEntry { get; private set; } = null;
+        private readonly ExploreForm? exploreForm;
+        public RpfFileEntry? rpfFileEntry { get; private set; }
 
 
-        public XmlForm(ExploreForm owner)
+        public XmlForm(ExploreForm? owner)
         {
             exploreForm = owner;
 
@@ -58,7 +58,7 @@ namespace CodeWalker.Forms
 
 
 
-        public void LoadXml(string filename, string filepath, string xml, RpfFileEntry e)
+        public void LoadXml(string filename, string filepath, string xml, RpfFileEntry? e)
         {
             FileName = filename;
             FilePath = filepath;

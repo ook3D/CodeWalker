@@ -14,11 +14,11 @@ namespace CodeWalker.GameFiles
 {
     [TC(typeof(EXP))] public class CutFile : PackedFile
     {
-        public RpfFileEntry FileEntry { get; set; }
-        public PsoFile Pso { get; set; }
+        public RpfFileEntry? FileEntry { get; set; }
+        public PsoFile? Pso { get; set; }
 
 
-        public CutsceneFile2 CutsceneFile2 { get; set; }
+        public CutsceneFile2? CutsceneFile2 { get; set; }
 
 
         public CutFile()
@@ -46,7 +46,7 @@ namespace CodeWalker.GameFiles
                 var node = doc.DocumentElement;
 
                 CutsceneFile2 = new CutsceneFile2();
-                CutsceneFile2.ReadXml(node);
+                CutsceneFile2.ReadXml(node ?? throw new XmlException("The cutscene document must have a root element."));
 
             }
             else
@@ -70,19 +70,19 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public class CutsceneFile2 : CutBase  // rage__cutfCutsceneFile2
     {
         public float fTotalDuration { get; set; } //fTotalDuration, PsoDataType.Float, 268, 0, 0),
-        public string cFaceDir { get; set; } //cFaceDir, PsoDataType.String, 272, 0, (MetaName)16777216),
-        public uint[] iCutsceneFlags { get; set; } //iCutsceneFlags, PsoDataType.Array, 528, 4, (MetaName)262146),
+        public string cFaceDir { get; set; } = string.Empty; //cFaceDir, PsoDataType.String, 272, 0, (MetaName)16777216),
+        public uint[] iCutsceneFlags { get; set; } = []; //iCutsceneFlags, PsoDataType.Array, 528, 4, (MetaName)262146),
         public Vector3 vOffset { get; set; } //vOffset, PsoDataType.Float3, 544, 0, 0),
         public float fRotation { get; set; } //fRotation, PsoDataType.Float, 560, 0, 0),
         public float fPitch { get; set; } //fPitch, PsoDataType.Float, 564, 0, 0),
         public float fRoll { get; set; } //fRoll, PsoDataType.Float, 568, 0, 0),
         public Vector3 vTriggerOffset { get; set; } //vTriggerOffset, PsoDataType.Float3, 576, 0, 0),
-        public object[] pCutsceneObjects { get; set; } //pCutsceneObjects, PsoDataType.Array, 592, 0, (MetaName)7),
-        public object[] pCutsceneLoadEventList { get; set; } //pCutsceneLoadEventList, PsoDataType.Array, 608, 0, (MetaName)9),
-        public object[] pCutsceneEventList { get; set; } //pCutsceneEventList, PsoDataType.Array, 624, 0, (MetaName)11),
-        public object[] pCutsceneEventArgsList { get; set; } //pCutsceneEventArgsList, PsoDataType.Array, 640, 0, (MetaName)13),
-        public CutParAttributeList attributes { get; set; } //attributes, PsoDataType.Structure, 656, 0, MetaName.rage__parAttributeList),
-        public CutFAttributeList cutfAttributes { get; set; } //cutfAttributes, PsoDataType.Structure, 672, 4, 0),
+        public object[] pCutsceneObjects { get; set; } = []; //pCutsceneObjects, PsoDataType.Array, 592, 0, (MetaName)7),
+        public object[] pCutsceneLoadEventList { get; set; } = []; //pCutsceneLoadEventList, PsoDataType.Array, 608, 0, (MetaName)9),
+        public object[] pCutsceneEventList { get; set; } = []; //pCutsceneEventList, PsoDataType.Array, 624, 0, (MetaName)11),
+        public object[] pCutsceneEventArgsList { get; set; } = []; //pCutsceneEventArgsList, PsoDataType.Array, 640, 0, (MetaName)13),
+        public CutParAttributeList? attributes { get; set; } //attributes, PsoDataType.Structure, 656, 0, MetaName.rage__parAttributeList),
+        public CutFAttributeList? cutfAttributes { get; set; } //cutfAttributes, PsoDataType.Structure, 672, 4, 0),
         public int iRangeStart { get; set; } //iRangeStart, PsoDataType.SInt, 680, 0, 0),
         public int iRangeEnd { get; set; } //iRangeEnd, PsoDataType.SInt, 684, 0, 0),
         public int iAltRangeEnd { get; set; } //iAltRangeEnd, PsoDataType.SInt, 688, 0, 0),
@@ -96,10 +96,10 @@ namespace CodeWalker.GameFiles
         public float fFadeInCutsceneDuration { get; set; } //fFadeInCutsceneDuration, PsoDataType.Float, 720, 0, 0),
         public uint fadeOutColor { get; set; } //fadeOutColor, PsoDataType.UInt, 724, 1, 0),
         public uint DayCoCHours { get; set; } //DayCoCHours, PsoDataType.UInt, 728, 0, 0),
-        public float[] cameraCutList { get; set; } //cameraCutList, PsoDataType.Array, 736, 0, (MetaName)30),
-        public float[] sectionSplitList { get; set; } //sectionSplitList, PsoDataType.Array, 752, 0, (MetaName)32),
-        public CutConcatData[] concatDataList { get; set; } //concatDataList, PsoDataType.Array, 768, 1, (MetaName)2621474),
-        public CutHaltFrequency[] discardFrameList { get; set; } //discardFrameList, PsoDataType.Array, 3344, 0, (MetaName)36)
+        public float[] cameraCutList { get; set; } = []; //cameraCutList, PsoDataType.Array, 736, 0, (MetaName)30),
+        public float[] sectionSplitList { get; set; } = []; //sectionSplitList, PsoDataType.Array, 752, 0, (MetaName)32),
+        public CutConcatData[] concatDataList { get; set; } = []; //concatDataList, PsoDataType.Array, 768, 1, (MetaName)2621474),
+        public CutHaltFrequency[] discardFrameList { get; set; } = []; //discardFrameList, PsoDataType.Array, 3344, 0, (MetaName)36)
 
 
 
@@ -110,7 +110,7 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             fTotalDuration = Xml.GetChildFloatAttribute(node, "fTotalDuration", "value");
-            cFaceDir = Xml.GetChildInnerText(node, "cFaceDir");
+            cFaceDir = Xml.GetChildInnerText(node, "cFaceDir") ?? string.Empty;
             iCutsceneFlags = Xml.GetChildRawUintArray(node, "iCutsceneFlags");
             vOffset = Xml.GetChildVector3Attributes(node, "vOffset");
             fRotation = Xml.GetChildFloatAttribute(node, "fRotation", "value");
@@ -138,8 +138,8 @@ namespace CodeWalker.GameFiles
             DayCoCHours = Xml.GetChildUIntAttribute(node, "DayCoCHours", "value");
             cameraCutList = Xml.GetChildRawFloatArray(node, "cameraCutList");
             sectionSplitList = Xml.GetChildRawFloatArray(node, "sectionSplitList");
-            concatDataList = XmlMeta.ReadItemArrayNullable<CutConcatData>(node, "concatDataList");
-            discardFrameList = XmlMeta.ReadItemArrayNullable<CutHaltFrequency>(node, "discardFrameList");
+            concatDataList = XmlMeta.ReadItemArrayNullable<CutConcatData>(node, "concatDataList") ?? [];
+            discardFrameList = XmlMeta.ReadItemArrayNullable<CutHaltFrequency>(node, "discardFrameList") ?? [];
 
             AssociateObjects();
         }
@@ -160,16 +160,16 @@ namespace CodeWalker.GameFiles
             }
 
 
-            CutEventArgs getEventArgs(int i)
+            CutEventArgs? getEventArgs(int i)
             {
                 if (i < 0) return null;
-                if (i >= pCutsceneEventArgsList?.Length) return null;
+                if (pCutsceneEventArgsList == null || i >= pCutsceneEventArgsList.Length) return null;
                 var args = pCutsceneEventArgsList[i];
                 if (!(args is CutEventArgs))
                 { }
                 return args as CutEventArgs;
             }
-            CutObject getObject(int i)
+            CutObject? getObject(int i)
             {
                 CutObject? o = null;
                 ObjectsDict.TryGetValue(i, out o);
@@ -186,7 +186,7 @@ namespace CodeWalker.GameFiles
                     }
                     if (arg is CutObjectIdListEventArgs larg)
                     {
-                        var objs = new CutObject[larg.iObjectIdList?.Length ?? 0];
+                        var objs = new CutObject?[larg.iObjectIdList.Length];
                         for (int i = 0; i < objs.Length; i++)
                         {
                             objs[i] = getObject(larg.iObjectIdList[i]);
@@ -232,7 +232,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static CutBase ConstructObject(string type)
+        public static CutBase? ConstructObject(string? type)
         {
             switch (type)
             {
@@ -288,7 +288,7 @@ namespace CodeWalker.GameFiles
                 default: return null;
             }
         }
-        public static T ReadObject<T>(XmlNode node, string name) where T : IMetaXmlItem, new()
+        public static T? ReadObject<T>(XmlNode node, string name) where T : IMetaXmlItem, new()
         {
             var onode = node.SelectSingleNode(name);
             if (onode != null)
@@ -319,7 +319,7 @@ namespace CodeWalker.GameFiles
                     return oList.ToArray();
                 }
             }
-            return null;
+            return [];
         }
 
     }
@@ -347,7 +347,7 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class CutFAttributeList : CutBase  // rage__cutfAttributeList
     {
-        public object[] Items { get; set; } // PsoDataType.Array, 0, 0, 0)//ARRAYINFO, PsoDataType.Structure, 0, 3, 0),
+        public object[] Items { get; set; } = []; // PsoDataType.Array, 0, 0, 0)//ARRAYINFO, PsoDataType.Structure, 0, 3, 0),
 
         public override void ReadXml(XmlNode node)
         {
@@ -397,12 +397,12 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public class CutString : CutBase
     {
         public MetaHash Name { get; set; } // PsoDataType.String, 8, 8, 0),
-        public string Value { get; set; } // PsoDataType.String, 16, 3, 0)
+        public string Value { get; set; } = string.Empty; // PsoDataType.String, 16, 3, 0)
 
         public override void ReadXml(XmlNode node)
         {
             Name = XmlMeta.GetHash(Xml.GetChildInnerText(node, "Name"));
-            Value = Xml.GetChildInnerText(node, "Value");
+            Value = Xml.GetChildInnerText(node, "Value") ?? string.Empty;
         }
 
         public override string ToString()
@@ -440,7 +440,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public class CutHaltFrequency : CutBase  // vHaltFrequency
     {
         public MetaHash cSceneName { get; set; } // PsoDataType.String, 0, 7, 0),
-        public int[] frames { get; set; } // PsoDataType.Array, 8, 0, (MetaName)1)//ARRAYINFO, PsoDataType.SInt, 0, 0, 0),
+        public int[] frames { get; set; } = []; // PsoDataType.Array, 8, 0, (MetaName)1)//ARRAYINFO, PsoDataType.SInt, 0, 0, 0),
 
         public override void ReadXml(XmlNode node)
         {
@@ -453,8 +453,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public abstract class CutObject : CutBase
     {
         public int iObjectId { get; set; } // PsoDataType.SInt, 8, 0, 0),
-        public CutParAttributeList attributeList { get; set; } // PsoDataType.Structure, 20, 0, MetaName.rage__parAttributeList),
-        public CutFAttributeList cutfAttributes { get; set; } // PsoDataType.Structure, 32, 4, 0)
+        public CutParAttributeList? attributeList { get; set; } // PsoDataType.Structure, 20, 0, MetaName.rage__parAttributeList),
+        public CutFAttributeList? cutfAttributes { get; set; } // PsoDataType.Structure, 32, 4, 0)
 
         public override void ReadXml(XmlNode node)
         {
@@ -465,7 +465,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return iObjectId.ToString() + ": " + base.ToString().Replace("CodeWalker.GameFiles.Cut", "");
+            return iObjectId.ToString() + ": " + (base.ToString() ?? string.Empty).Replace("CodeWalker.GameFiles.Cut", "");
         }
     }
     [TC(typeof(EXP))] public class CutAssetManagerObject : CutObject  // rage__cutfAssetManagerObject
@@ -564,7 +564,7 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CutBlockingBoundsObject : CutNamedObject  // rage__cutfBlockingBoundsObject
     {
-        public Vector3[] vCorners { get; set; } // PsoDataType.Array, 48, 4, (MetaName)262148),//ARRAYINFO, PsoDataType.Float3, 0, 0, 0),
+        public Vector3[] vCorners { get; set; } = []; // PsoDataType.Array, 48, 4, (MetaName)262148),//ARRAYINFO, PsoDataType.Float3, 0, 0, 0),
         public float fHeight { get; set; } // PsoDataType.Float, 112, 0, 0)
 
         public override void ReadXml(XmlNode node)
@@ -598,14 +598,14 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CutOverlayObject : CutNamedObject  // rage__cutfOverlayObject
     {
-        public string cRenderTargetName { get; set; } // PsoDataType.String, 56, 3, 0),
+        public string cRenderTargetName { get; set; } = string.Empty; // PsoDataType.String, 56, 3, 0),
         public uint iOverlayType { get; set; } // PsoDataType.UInt, 72, 0, 0),
         public MetaHash modelHashName { get; set; } // PsoDataType.String, 76, 7, 0)
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            cRenderTargetName = Xml.GetChildInnerText(node, "cRenderTargetName");
+            cRenderTargetName = Xml.GetChildInnerText(node, "cRenderTargetName") ?? string.Empty;
             iOverlayType = Xml.GetChildUIntAttribute(node, "iOverlayType", "value");
             modelHashName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "modelHashName"));
         }
@@ -740,7 +740,7 @@ namespace CodeWalker.GameFiles
         public MetaHash cAnimCompressionFile { get; set; } // PsoDataType.String, 72, 7, 0),
         public MetaHash cHandle { get; set; } // PsoDataType.String, 84, 7, 0),
         public MetaHash typeFile { get; set; } // PsoDataType.String, 88, 7, 0),
-        public string[] cRemoveBoneNameList { get; set; } // PsoDataType.Array, 96, 0, (MetaName)11),//ARRAYINFO, PsoDataType.String, 0, 3, 0),
+        public string[] cRemoveBoneNameList { get; set; } = []; // PsoDataType.Array, 96, 0, (MetaName)11),//ARRAYINFO, PsoDataType.String, 0, 3, 0),
         public bool bCanApplyRealDamage { get; set; } // PsoDataType.Bool, 112, 0, 0)
 
         public override void ReadXml(XmlNode node)
@@ -753,7 +753,7 @@ namespace CodeWalker.GameFiles
             cAnimCompressionFile = XmlMeta.GetHash(Xml.GetChildInnerText(node, "cAnimCompressionFile"));
             cHandle = XmlMeta.GetHash(Xml.GetChildInnerText(node, "cHandle"));
             typeFile = XmlMeta.GetHash(Xml.GetChildInnerText(node, "typeFile"));
-            cRemoveBoneNameList = XmlMeta.ReadStringItemArray(node, "cRemoveBoneNameList");
+            cRemoveBoneNameList = XmlMeta.ReadStringItemArray(node, "cRemoveBoneNameList") ?? [];
             bCanApplyRealDamage = Xml.GetChildBoolAttribute(node, "bCanApplyRealDamage", "value");
         }
     }
@@ -908,7 +908,7 @@ namespace CodeWalker.GameFiles
         public uint StickyId { get; set; } // PsoDataType.UInt, 40, 0, 0),
         public bool IsChild { get; set; } // PsoDataType.Bool, 44, 0, 0)
 
-        public CutEventArgs EventArgs { get; set; }
+        public CutEventArgs? EventArgs { get; set; }
 
 
 
@@ -935,7 +935,7 @@ namespace CodeWalker.GameFiles
     {
         public int iObjectId { get; set; } // PsoDataType.SInt, 48, 0, 0)
 
-        public CutObject Object { get; set; }
+        public CutObject? Object { get; set; }
 
         public override void ReadXml(XmlNode node)
         {
@@ -946,8 +946,8 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class CutEventArgs : CutBase  // rage__cutfEventArgs
     {
-        public CutParAttributeList attributeList { get; set; } // PsoDataType.Structure, 12, 0, MetaName.rage__parAttributeList),
-        public CutFAttributeList cutfAttributes { get; set; } // PsoDataType.Structure, 24, 4, 0)
+        public CutParAttributeList? attributeList { get; set; } // PsoDataType.Structure, 12, 0, MetaName.rage__parAttributeList),
+        public CutFAttributeList? cutfAttributes { get; set; } // PsoDataType.Structure, 24, 4, 0)
 
         public override void ReadXml(XmlNode node)
         {
@@ -967,19 +967,19 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CutFinalNameEventArgs : CutEventArgs  // rage__cutfFinalNameEventArgs
     {
-        public string cName { get; set; } // PsoDataType.String, 32, 3, 0)
+        public string cName { get; set; } = string.Empty; // PsoDataType.String, 32, 3, 0)
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            cName = Xml.GetChildInnerText(node, "cName");
+            cName = Xml.GetChildInnerText(node, "cName") ?? string.Empty;
         }
     }
     [TC(typeof(EXP))] public class CutObjectIdEventArgs : CutEventArgs  // rage__cutfObjectIdEventArgs
     {
         public int iObjectId { get; set; } // PsoDataType.SInt, 32, 0, 0)
 
-        public CutObject Object { get; set; }
+        public CutObject? Object { get; set; }
 
         public override void ReadXml(XmlNode node)
         {
@@ -989,9 +989,9 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CutObjectIdListEventArgs : CutEventArgs  // rage__cutfObjectIdListEventArgs
     {
-        public int[] iObjectIdList { get; set; } // PsoDataType.Array, 32, 0, (MetaName)2)//ARRAYINFO, PsoDataType.SInt, 0, 0, 0),
+        public int[] iObjectIdList { get; set; } = []; // PsoDataType.Array, 32, 0, (MetaName)2)//ARRAYINFO, PsoDataType.SInt, 0, 0, 0),
 
-        public CutObject[] ObjectList { get; set; }
+        public CutObject?[] ObjectList { get; set; } = [];
 
         public override void ReadXml(XmlNode node)
         {
@@ -1088,8 +1088,8 @@ namespace CodeWalker.GameFiles
         public bool FreezeReflectionMap { get; set; } // PsoDataType.Bool, 177, 0, 0),
         public bool DisableDirectionalLighting { get; set; } // PsoDataType.Bool, 178, 0, 0),
         public bool AbsoluteIntensityEnabled { get; set; } // PsoDataType.Bool, 179, 0, 0),
-        public CutCameraCutCharacterLightParams CharacterLight { get; set; } // PsoDataType.Structure, 192, 0, MetaName.rage__cutfCameraCutCharacterLightParams),
-        public CutCameraCutTimeOfDayDofModifier[] TimeOfDayDofModifers { get; set; } // PsoDataType.Array, 256, 0, (MetaName)34)//ARRAYINFO, PsoDataType.Structure, 0, 0, MetaName.rage__cutfCameraCutTimeOfDayDofModifier),
+        public CutCameraCutCharacterLightParams? CharacterLight { get; set; } // PsoDataType.Structure, 192, 0, MetaName.rage__cutfCameraCutCharacterLightParams),
+        public CutCameraCutTimeOfDayDofModifier[] TimeOfDayDofModifers { get; set; } = []; // PsoDataType.Array, 256, 0, (MetaName)34)//ARRAYINFO, PsoDataType.Structure, 0, 0, MetaName.rage__cutfCameraCutTimeOfDayDofModifier),
 
         public override void ReadXml(XmlNode node)
         {
@@ -1125,7 +1125,7 @@ namespace CodeWalker.GameFiles
             DisableDirectionalLighting = Xml.GetChildBoolAttribute(node, "DisableDirectionalLighting", "value");
             AbsoluteIntensityEnabled = Xml.GetChildBoolAttribute(node, "AbsoluteIntensityEnabled", "value");
             CharacterLight = CutsceneFile2.ReadObject<CutCameraCutCharacterLightParams>(node, "CharacterLight");
-            TimeOfDayDofModifers = XmlMeta.ReadItemArrayNullable<CutCameraCutTimeOfDayDofModifier>(node, "TimeOfDayDofModifers");
+            TimeOfDayDofModifers = XmlMeta.ReadItemArrayNullable<CutCameraCutTimeOfDayDofModifier>(node, "TimeOfDayDofModifers") ?? [];
         }
     }
     [TC(typeof(EXP))] public class CutCameraCutCharacterLightParams : CutBase  // rage__cutfCameraCutCharacterLightParams
@@ -1212,7 +1212,7 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CutVehicleExtraEventArgs : CutObjectIdEventArgs  // rage__cutfVehicleExtraEventArgs
     {
-        public int[] pExtraBoneIds { get; set; } // PsoDataType.Array, 40, 0, (MetaName)3)//ARRAYINFO, PsoDataType.SInt, 0, 0, 0),
+        public int[] pExtraBoneIds { get; set; } = []; // PsoDataType.Array, 40, 0, (MetaName)3)//ARRAYINFO, PsoDataType.SInt, 0, 0, 0),
 
         public override void ReadXml(XmlNode node)
         {
@@ -1329,8 +1329,8 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CutObjectIdListEvent : CutEvent  // rage__cutfObjectIdListEvent
     {
-        public int[] iObjectIdList { get; set; } // PsoDataType.Array
-        public int[] iEventArgsIndexList { get; set; } // PsoDataType.Array
+        public int[] iObjectIdList { get; set; } = []; // PsoDataType.Array
+        public int[] iEventArgsIndexList { get; set; } = []; // PsoDataType.Array
 
         public override void ReadXml(XmlNode node)
         {

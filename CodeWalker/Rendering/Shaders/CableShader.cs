@@ -74,7 +74,7 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<CableShaderVSGeomVars> VSGeomVars;
         GpuVarsBuffer<CableShaderPSSceneVars> PSSceneVars;
         GpuVarsBuffer<CableShaderPSGeomVars> PSGeomVars;
-        SamplerState texsampler;
+        SamplerState? texsampler;
 
         public WorldRenderMode RenderMode = WorldRenderMode.Default;
         public int RenderVertexColourIndex = 1;
@@ -156,7 +156,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             uint rendermode = 0;
             uint rendermodeind = 1;
@@ -291,7 +291,7 @@ namespace CodeWalker.Rendering
             //context.VertexShader.SetSampler(0, texsampler);
             context.PixelShader.SetSampler(0, texsampler);
             //context.PixelShader.SetSampler(1, texsamplerc);
-            if (usediff)
+            if (usediff && texture != null)
             {
                 texture.SetPSResource(context, 0);
                 //context.PixelShader.SetShaderResource(0, difftex.ShaderResourceView);

@@ -48,18 +48,18 @@ namespace CodeWalker.GameFiles
         public uint Unknown_6Ch { get; set; } = 0x00000000;
 
         // reference data
-        public ResourceSimpleArray<MetaStructureInfo> StructureInfos { get; set; }
-        public ResourceSimpleArray<MetaEnumInfo> EnumInfos { get; set; }
-        public ResourceSimpleArray<MetaDataBlock> DataBlocks { get; set; }
-        public string Name { get; set; }
+        public ResourceSimpleArray<MetaStructureInfo>? StructureInfos { get; set; }
+        public ResourceSimpleArray<MetaEnumInfo>? EnumInfos { get; set; }
+        public ResourceSimpleArray<MetaDataBlock>? DataBlocks { get; set; }
+        public string Name { get; set; } = string.Empty;
         //public string[] Strings { get; set; }
-        public MetaEncryptedStringsBlock EncryptedStrings { get; set; }
+        public MetaEncryptedStringsBlock? EncryptedStrings { get; set; }
 
-        private string_r NameBlock = null;
+        private string_r? NameBlock = null;
 
 
 #if DEBUG
-        public ResourceAnalyzer Analyzer { get; set; }
+        public ResourceAnalyzer? Analyzer { get; set; }
 #endif
 
 
@@ -113,7 +113,7 @@ namespace CodeWalker.GameFiles
 
             this.Name = reader.ReadStringAt(//BlockAt<string_r>(
                 (ulong)this.NamePointer // offset
-            );
+            ) ?? string.Empty;
 
             if (!string.IsNullOrEmpty(Name))
             { }
@@ -191,7 +191,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public MetaDataBlock FindBlock(MetaName name)
+        public MetaDataBlock? FindBlock(MetaName name)
         {
             if (DataBlocks == null) return null;
             foreach (var block in DataBlocks)
@@ -205,21 +205,21 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public MetaDataBlock GetRootBlock()
+        public MetaDataBlock? GetRootBlock()
         {
             MetaDataBlock? block = null;
             var rootind = RootBlockIndex - 1;
-            if ((rootind >= 0) && (rootind < DataBlocks.Count) && (DataBlocks.Data != null))
+            if (DataBlocks != null && (rootind >= 0) && (rootind < DataBlocks.Count) && (DataBlocks.Data != null))
             {
                 block = DataBlocks[rootind];
             }
             return block;
         }
-        public MetaDataBlock GetBlock(int id)
+        public MetaDataBlock? GetBlock(int id)
         {
             MetaDataBlock? block = null;
             var ind = id - 1;
-            if ((ind >= 0) && (ind < DataBlocks.Count) && (DataBlocks.Data != null))
+            if (DataBlocks != null && (ind >= 0) && (ind < DataBlocks.Count) && (DataBlocks.Data != null))
             {
                 block = DataBlocks[ind];
             }
@@ -246,9 +246,9 @@ namespace CodeWalker.GameFiles
         public short EntriesCount { get; private set; }
 
         // reference data
-        public MetaStructureEntryInfo_s[] Entries { get; private set; }
+        public MetaStructureEntryInfo_s[] Entries { get; private set; } = [];
 
-        private ResourceSystemStructBlock<MetaStructureEntryInfo_s> EntriesBlock = null;
+        private ResourceSystemStructBlock<MetaStructureEntryInfo_s>? EntriesBlock = null;
 
 
         public MetaStructureInfo()
@@ -280,7 +280,7 @@ namespace CodeWalker.GameFiles
             this.EntriesCount = reader.ReadInt16();
 
             // read reference data
-            this.Entries = reader.ReadStructsAt<MetaStructureEntryInfo_s>((ulong)this.EntriesPointer, (uint)this.EntriesCount);
+            this.Entries = reader.ReadStructsAt<MetaStructureEntryInfo_s>((ulong)this.EntriesPointer, (uint)this.EntriesCount) ?? [];
 
         }
 
@@ -433,9 +433,9 @@ namespace CodeWalker.GameFiles
 
         // reference data
         //public ResourceSimpleArray<MetaEnumEntryInfo> Entries;
-        public MetaEnumEntryInfo_s[] Entries { get; private set; }
+        public MetaEnumEntryInfo_s[] Entries { get; private set; } = [];
 
-        private ResourceSystemStructBlock<MetaEnumEntryInfo_s> EntriesBlock = null;
+        private ResourceSystemStructBlock<MetaEnumEntryInfo_s>? EntriesBlock = null;
 
 
         public MetaEnumInfo()
@@ -465,7 +465,7 @@ namespace CodeWalker.GameFiles
             //    (ulong)this.EntriesPointer, // offset
             //    this.EntriesCount
             //);
-            this.Entries = reader.ReadStructsAt<MetaEnumEntryInfo_s>((ulong)this.EntriesPointer, (uint)this.EntriesCount);
+            this.Entries = reader.ReadStructsAt<MetaEnumEntryInfo_s>((ulong)this.EntriesPointer, (uint)this.EntriesCount) ?? [];
 
         }
 
@@ -541,8 +541,8 @@ namespace CodeWalker.GameFiles
         public long DataPointer { get; private set; }
 
         // reference data
-        public byte[] Data { get; set; }
-        private ResourceSystemDataBlock DataBlock = null;
+        public byte[] Data { get; set; } = [];
+        private ResourceSystemDataBlock? DataBlock = null;
 
         /// <summary>
         /// Reads the data-block from a stream.
@@ -555,7 +555,7 @@ namespace CodeWalker.GameFiles
             this.DataPointer = reader.ReadInt64();
 
 
-            this.Data = reader.ReadBytesAt((ulong)this.DataPointer, (uint)DataLength);
+            this.Data = reader.ReadBytesAt((ulong)this.DataPointer, (uint)DataLength) ?? [];
 
         }
 
@@ -608,7 +608,7 @@ namespace CodeWalker.GameFiles
         }
 
         public uint Count { get; set; }
-        public byte[] EncryptedData { get; set; }
+        public byte[] EncryptedData { get; set; } = [];
         //public uint PadCount { get; set; }
         //public byte[] PadData { get; set; }
         //public string[] TestStrings { get; set; }

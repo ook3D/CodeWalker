@@ -14,8 +14,8 @@ namespace CodeWalker.Project.Panels
     public partial class EditYmapOccludeModelPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YmapOccludeModel CurrentOccludeModel { get; set; }
-        public YmapOccludeModelTriangle CurrentTriangle { get; set; }
+        public YmapOccludeModel? CurrentOccludeModel { get; set; }
+        public YmapOccludeModelTriangle? CurrentTriangle { get; set; }
 
         private bool populatingui = false;
 
@@ -27,7 +27,7 @@ namespace CodeWalker.Project.Panels
         }
 
 
-        public void SetOccludeModel(YmapOccludeModel model)
+        public void SetOccludeModel(YmapOccludeModel? model)
         {
             CurrentOccludeModel = model;
             CurrentTriangle = null;
@@ -37,7 +37,7 @@ namespace CodeWalker.Project.Panels
             UpdateFormTitle();
             OccludeModelTabControl.SelectedTab = ModelTabPage;
         }
-        public void SetOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        public void SetOccludeModelTriangle(YmapOccludeModelTriangle? tri)
         {
             CurrentTriangle = tri;
             CurrentOccludeModel = tri?.Model;

@@ -33,8 +33,8 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_38h; // 0x0000000000000000
 
         // reference data
-        public TextureDictionary TextureDictionary { get; set; }
-        public ResourcePointerArray64<ShaderFX> Shaders { get; set; }
+        public TextureDictionary? TextureDictionary { get; set; }
+        public ResourcePointerArray64<ShaderFX>? Shaders { get; set; }
 
 
         public int TotalParameters
@@ -125,7 +125,7 @@ namespace CodeWalker.GameFiles
             {
                 TextureDictionary.WriteXmlNode(TextureDictionary, sb, indent, ddsfolder, "TextureDictionary");
             }
-            YdrXml.WriteItemArray(sb, Shaders?.data_items, indent, "Shaders");
+            YdrXml.WriteItemArray(sb, Shaders?.data_items ?? [], indent, "Shaders");
         }
         public void ReadXml(XmlNode node, string ddsfolder)
         {
@@ -198,7 +198,7 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_28h; // 0x0000000000000000
 
         // reference data
-        public ShaderParametersBlock ParametersList { get; set; }
+        public ShaderParametersBlock? ParametersList { get; set; }
 
         // gen9 structure data
         public MetaHash G9_Preset { get; set; } = 0x6D657461;
@@ -208,7 +208,7 @@ namespace CodeWalker.GameFiles
         public ulong G9_Unknown_28h;
         public ulong G9_Unknown_30h;
         public byte G9_Unknown_38h;
-        public ShaderParamInfosG9 G9_ParamInfos { get; set; }
+        public ShaderParamInfosG9? G9_ParamInfos { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -317,11 +317,11 @@ namespace CodeWalker.GameFiles
             if (writer.IsGen9)
             {
                 ParameterCount = (byte)(ParametersList?.Count ?? 0);
-                ParameterDataSize = (ushort)ParametersList.G9_DataSize;
+                ParameterDataSize = (ushort)(ParametersList?.G9_DataSize ?? 0);
                 ParametersPointer = (ulong)(ParametersList?.FilePosition ?? 0);
                 G9_ParamInfosPointer = (ulong)(G9_ParamInfos?.FilePosition ?? 0);
-                G9_TextureRefsPointer = (ParametersPointer != 0) ? (ParametersPointer + ParametersList.G9_TexturesOffset) : 0;
-                G9_UnknownParamsPointer = (ParametersPointer != 0) ? (ParametersPointer + ParametersList.G9_UnknownsOffset) : 0;
+                G9_TextureRefsPointer = (ParametersList != null && ParametersPointer != 0) ? (ParametersPointer + ParametersList.G9_TexturesOffset) : 0;
+                G9_UnknownParamsPointer = (ParametersList != null && ParametersPointer != 0) ? (ParametersPointer + ParametersList.G9_UnknownsOffset) : 0;
 
                 writer.Write((uint)Name);
                 writer.Write((uint)G9_Preset);
@@ -440,7 +440,7 @@ namespace CodeWalker.GameFiles
                 }
             }
             var pinfos = new ShaderParamInfosG9();
-            pinfos.Params = pinfs;
+            pinfos.Params = pinfs ?? [];
             pinfos.NumBuffers = (byte)(bsizs?.Length ?? 0);
             pinfos.NumParams = (byte)(pinfs?.Length ?? 0);
             pinfos.NumTextures = (byte)tc;
@@ -472,7 +472,7 @@ namespace CodeWalker.GameFiles
 
             if (ParametersList.G9_Samplers != null)
             { }
-            ParametersList.G9_Samplers = dc?.SamplerValues;
+            ParametersList.G9_Samplers = dc?.SamplerValues ?? [];
 
             if (ParametersList.G9_BufferSizes != null)
             { }
@@ -542,7 +542,7 @@ namespace CodeWalker.GameFiles
         public uint Unknown_4h; // 0x00000000
         public ulong DataPointer { get; set; }
 
-        public object Data { get; set; }
+        public object? Data { get; set; }
 
         public void Read(ResourceDataReader reader)
         {
@@ -563,7 +563,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return (Data != null) ? Data.ToString() : (DataType.ToString() + ": " + DataPointer.ToString());
+            return (Data != null) ? (Data.ToString() ?? string.Empty) : (DataType.ToString() + ": " + DataPointer.ToString());
         }
     }
 
@@ -602,7 +602,7 @@ namespace CodeWalker.GameFiles
         {
             get
             {
-                ushort size = (ushort)((Parameters?.Length??0) * 16);
+                ushort size = (ushort)(Parameters.Length * 16);
                 foreach (var x in Parameters)
                 {
                     size += (ushort)(16 * x.DataType);
@@ -633,40 +633,40 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public ShaderParameter[] Parameters { get; set; }
-        public MetaName[] Hashes { get; set; }
+        public ShaderParameter[] Parameters { get; set; } = [];
+        public MetaName[] Hashes { get; set; } = [];
         public int Count { get; set; }
 
-        public ShaderFX Owner { get; set; }
+        public ShaderFX? Owner { get; set; }
 
-        private ResourceSystemStructBlock<Vector4>[] ParameterDataBlocks = null;
+        private ResourceSystemStructBlock<Vector4>?[] ParameterDataBlocks = [];
 
 
         // gen9 data
         public long G9_DataSize { get; set; }
-        public ShaderParamInfosG9 G9_ParamInfos { get; set; }
-        public ulong[] G9_BufferPtrs { get; set; }//4x copies of buffers.. buffer data immediately follows pointers array
-        public uint[] G9_BufferSizes { get; set; }//sizes of all buffers
+        public ShaderParamInfosG9? G9_ParamInfos { get; set; }
+        public ulong[] G9_BufferPtrs { get; set; } = [];//4x copies of buffers.. buffer data immediately follows pointers array
+        public uint[] G9_BufferSizes { get; set; } = [];//sizes of all buffers
         public uint G9_BuffersDataSize { get; set; }
         public uint G9_TexturesOffset { get; set; }
         public uint G9_UnknownsOffset { get; set; }
-        public ulong[] G9_TexturePtrs { get; set; }
-        public ulong[] G9_UnknownData { get; set; }
-        public byte[] G9_Samplers { get; set; }
+        public ulong[] G9_TexturePtrs { get; set; } = [];
+        public ulong[] G9_UnknownData { get; set; } = [];
+        public byte[] G9_Samplers { get; set; } = [];
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             Count = Convert.ToInt32(parameters[0]);
-            Owner = parameters[1] as ShaderFX;
+            Owner = (ShaderFX)parameters[1];
 
             if (reader.IsGen9)
             {
                 GameFileCache.EnsureShadersGen9ConversionData();
-                GameFileCache.ShadersGen9ConversionData.TryGetValue(Owner.Name, out var dc);
+                GameFileCache.ShadersGen9ConversionData.TryGetValue((Owner ?? throw new InvalidOperationException("Shader parameters have no owner.")).Name, out var dc);
                 var paramap = dc?.ParamsMapGen9ToLegacy;
 
-                G9_ParamInfos = Owner.G9_ParamInfos;
+                G9_ParamInfos = Owner?.G9_ParamInfos ?? throw new InvalidOperationException("Gen9 shader parameter information is missing.");
                 var multi = (int)G9_ParamInfos.BufferCopyMultiplier;//12
                 var mult = (uint)multi;
 
@@ -698,15 +698,15 @@ namespace CodeWalker.GameFiles
 
                 if (Owner.G9_TextureRefsPointer != 0)
                 {
-                    G9_TexturePtrs = reader.ReadUlongsAt(Owner.G9_TextureRefsPointer, G9_ParamInfos.NumTextures * mult, false);
+                    G9_TexturePtrs = reader.ReadUlongsAt(Owner.G9_TextureRefsPointer, G9_ParamInfos.NumTextures * mult, false) ?? [];
                 }
                 if (Owner.G9_UnknownParamsPointer != 0)
                 {
-                    G9_UnknownData = reader.ReadUlongsAt(Owner.G9_UnknownParamsPointer, G9_ParamInfos.NumUnknowns * mult, false);
+                    G9_UnknownData = reader.ReadUlongsAt(Owner.G9_UnknownParamsPointer, G9_ParamInfos.NumUnknowns * mult, false) ?? [];
                 }
                 if (G9_ParamInfos.NumSamplers > 0)
                 {
-                    G9_Samplers = reader.ReadBytesAt((ulong)(spos + (ptrslen + bufslen + texslen + unkslen)), G9_ParamInfos.NumSamplers, false);
+                    G9_Samplers = reader.ReadBytesAt((ulong)(spos + (ptrslen + bufslen + texslen + unkslen)), G9_ParamInfos.NumSamplers, false) ?? [];
                 }
 
                 var paras = new List<ShaderParameter>();
@@ -892,10 +892,10 @@ namespace CodeWalker.GameFiles
             if (writer.IsGen9)
             {
                 GameFileCache.EnsureShadersGen9ConversionData();
-                GameFileCache.ShadersGen9ConversionData.TryGetValue(Owner.Name, out var dc);
+                GameFileCache.ShadersGen9ConversionData.TryGetValue((Owner ?? throw new InvalidOperationException("Shader parameters have no owner.")).Name, out var dc);
                 var paramap = dc?.ParamsMapLegacyToGen9;
 
-                if (G9_ParamInfos == null) G9_ParamInfos = Owner.G9_ParamInfos;
+                if (G9_ParamInfos == null) G9_ParamInfos = Owner?.G9_ParamInfos ?? throw new InvalidOperationException("Gen9 shader parameter information is missing.");
                 var multi = (int)G9_ParamInfos.BufferCopyMultiplier;
                 var mult = (uint)multi;
                 var bcnt = G9_ParamInfos.NumBuffers;
@@ -903,7 +903,7 @@ namespace CodeWalker.GameFiles
                 var ucnt = G9_ParamInfos.NumUnknowns;
                 var spos = FilePosition;//this position should definitely be assigned by this point
                 var bsizes = G9_BufferSizes;
-                var boffs = new uint[bsizes?.Length ?? 0];
+                var boffs = new uint[bsizes.Length];
                 var ptrslen = bcnt * 8 * multi;
                 var bptrs = new ulong[bcnt * mult];
                 var bptr = (ulong)(spos + ptrslen);
@@ -934,7 +934,7 @@ namespace CodeWalker.GameFiles
                 if ((Parameters != null) && (paramap != null))
                 {
                     var exmap = new Dictionary<uint, ShaderParameter>();
-                    var excnt = Math.Min(Parameters.Length, Hashes?.Length ?? 0);
+                    var excnt = Math.Min(Parameters.Length, Hashes.Length);
                     for (int i = 0; i < excnt; i++)
                     {
                         var exhash = (uint)Hashes[i];
@@ -995,7 +995,7 @@ namespace CodeWalker.GameFiles
                                 default:
                                     if (arrsiz == 0)
                                     { }
-                                    writeStructs(off, data as Vector4[]);
+                                    writeStructs(off, data as Vector4[] ?? []);
                                     break;
                             }
                         }
@@ -1009,7 +1009,7 @@ namespace CodeWalker.GameFiles
 
                 if (G9_TexturePtrs != null)
                 { }
-                G9_TexturePtrs = (texptrs.Length > 0) ? texptrs : null;
+                G9_TexturePtrs = texptrs;
                 if (G9_TexturePtrs != null)
                 {
                     writer.WriteUlongs(G9_TexturePtrs);
@@ -1017,7 +1017,7 @@ namespace CodeWalker.GameFiles
 
                 if (G9_UnknownData != null)
                 { }
-                G9_UnknownData = (ucnt > 0) ? new ulong[ucnt * mult] : null;
+                G9_UnknownData = new ulong[ucnt * mult];
                 if (G9_UnknownData != null)
                 {
                     writer.WriteUlongs(G9_UnknownData);
@@ -1163,7 +1163,7 @@ namespace CodeWalker.GameFiles
         {
             var plist = new List<ShaderParameter>();
             var hlist = new List<MetaName>();
-            var pnodes = node.SelectNodes("Item");
+            var pnodes = node.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
             foreach (XmlNode pnode in pnodes)
             {
                 var p = new ShaderParameter();
@@ -1175,7 +1175,7 @@ namespace CodeWalker.GameFiles
                     if (pnode.SelectSingleNode("Name") != null)
                     {
                         var tex = new TextureBase();
-                        tex.ReadXml(pnode, null);//embedded textures will get replaced in ShaderFX ReadXML
+                        tex.ReadXml(pnode, string.Empty);//embedded textures will get replaced in ShaderFX ReadXML
                         tex.Unknown_32h = 2;
                         p.Data = tex;
                     }
@@ -1192,7 +1192,7 @@ namespace CodeWalker.GameFiles
                 else if (type == "Array")
                 {
                     var vecs = new List<Vector4>();
-                    var inodes = pnode.SelectNodes("Value");
+                    var inodes = pnode.SelectNodes("Value")?.Cast<XmlNode>().ToArray() ?? [];
                     foreach (XmlNode inode in inodes)
                     {
                         float fx = Xml.GetFloatAttribute(inode, "x");
@@ -1245,7 +1245,7 @@ namespace CodeWalker.GameFiles
             {
                 if (x.DataType == 0)
                 {
-                    list.Add(x.Data as TextureBase);
+                    if (x.Data is TextureBase texture) list.Add(texture);
                 }
             }
 
@@ -1259,7 +1259,7 @@ namespace CodeWalker.GameFiles
 
             long offset = Parameters.Length * 16;
 
-            var blist = new List<ResourceSystemStructBlock<Vector4>>();
+            var blist = new List<ResourceSystemStructBlock<Vector4>?>();
             foreach (var x in Parameters)
             {
                 if (x.DataType != 0)
@@ -1267,10 +1267,8 @@ namespace CodeWalker.GameFiles
                     var vecs = x.Data as Vector4[];
                     if (vecs == null)
                     {
-                        vecs = new[] { (Vector4)x.Data };
+                        vecs = x.Data is Vector4 vector ? [vector] : throw new InvalidOperationException("Shader vector parameter has no vector data.");
                     }
-                    if (vecs == null)
-                    { }
                     var block = new ResourceSystemStructBlock<Vector4>(vecs);
                     list.Add(new Tuple<long, IResourceBlock>(offset, block));
                     blist.Add(block);
@@ -1299,7 +1297,7 @@ namespace CodeWalker.GameFiles
         public byte Unknown0 { get; set; }
         public byte Unknown1 { get; set; }
         public byte BufferCopyMultiplier { get; set; } = 0xc;//12  Gen9 constant-buffer copy count
-        public ShaderParamInfoG9[] Params { get; set; }
+        public ShaderParamInfoG9[] Params { get; set; } = [];
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1394,25 +1392,25 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_68h; // 0x0000000000000000
 
         // reference data
-        public ResourcePointerArray64<SkeletonBoneTag> BoneTags { get; set; }
-        public SkeletonBonesBlock Bones { get; set; }
+        public ResourcePointerArray64<SkeletonBoneTag>? BoneTags { get; set; }
+        public SkeletonBonesBlock? Bones { get; set; }
 
-        public Matrix[] TransformationsInverted { get; set; }
-        public Matrix[] Transformations { get; set; }
-        public short[] ParentIndices { get; set; }
-        public short[] ChildIndices { get; set; }//mapping child->parent indices, first child index, then parent
+        public Matrix[] TransformationsInverted { get; set; } = [];
+        public Matrix[] Transformations { get; set; } = [];
+        public short[] ParentIndices { get; set; } = [];
+        public short[] ChildIndices { get; set; } = [];//mapping child->parent indices, first child index, then parent
 
-        private ResourceSystemStructBlock<Matrix> TransformationsInvertedBlock = null;//for saving only
-        private ResourceSystemStructBlock<Matrix> TransformationsBlock = null;
-        private ResourceSystemStructBlock<short> ParentIndicesBlock = null;
-        private ResourceSystemStructBlock<short> ChildIndicesBlock = null;
-
-
-        public Dictionary<ushort, Bone> BonesMap { get; set; }//for convienience finding bones by tag
-        public Bone[] BonesSorted { get; set; } //sometimes bones aren't in parent>child order in the files! (eg player chars)
+        private ResourceSystemStructBlock<Matrix>? TransformationsInvertedBlock = null;//for saving only
+        private ResourceSystemStructBlock<Matrix>? TransformationsBlock = null;
+        private ResourceSystemStructBlock<short>? ParentIndicesBlock = null;
+        private ResourceSystemStructBlock<short>? ChildIndicesBlock = null;
 
 
-        public Matrix3_s[] BoneTransforms; //for rendering
+        public Dictionary<ushort, Bone> BonesMap { get; set; } = new();//for convienience finding bones by tag
+        public Bone[] BonesSorted { get; set; } = []; //sometimes bones aren't in parent>child order in the files! (eg player chars)
+
+
+        public Matrix3_s[] BoneTransforms = []; //for rendering
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -1444,10 +1442,10 @@ namespace CodeWalker.GameFiles
             // read reference data
             this.BoneTags = reader.ReadBlockAt<ResourcePointerArray64<SkeletonBoneTag>>(this.BoneTagsPointer, this.BoneTagsCapacity);
             this.Bones = reader.ReadBlockAt<SkeletonBonesBlock>((this.BonesPointer != 0) ? (BonesPointer - 16) : 0, (uint)this.BonesCount);
-            this.TransformationsInverted = reader.ReadStructsAt<Matrix>(this.TransformationsInvertedPointer, this.BonesCount);
-            this.Transformations = reader.ReadStructsAt<Matrix>(this.TransformationsPointer, this.BonesCount);
-            this.ParentIndices = reader.ReadShortsAt(this.ParentIndicesPointer, this.BonesCount);
-            this.ChildIndices = reader.ReadShortsAt(this.ChildIndicesPointer, this.ChildIndicesCount);
+            this.TransformationsInverted = reader.ReadStructsAt<Matrix>(this.TransformationsInvertedPointer, this.BonesCount) ?? [];
+            this.Transformations = reader.ReadStructsAt<Matrix>(this.TransformationsPointer, this.BonesCount) ?? [];
+            this.ParentIndices = reader.ReadShortsAt(this.ParentIndicesPointer, this.BonesCount) ?? [];
+            this.ChildIndices = reader.ReadShortsAt(this.ChildIndicesPointer, this.ChildIndicesCount) ?? [];
 
 
             AssignBoneParents();
@@ -1619,10 +1617,10 @@ namespace CodeWalker.GameFiles
 
                     bone.UpdateAnimTransform();
                     bone.AbsTransform = bone.AnimTransform;
-                    bone.BindTransformInv = (i < (TransformationsInverted?.Length ?? 0)) ? TransformationsInverted[i] : Matrix.Invert(bone.AnimTransform);
+                    bone.BindTransformInv = (i < TransformationsInverted.Length) ? TransformationsInverted[i] : Matrix.Invert(bone.AnimTransform);
                     bone.BindTransformInv.M44 = 1.0f;
                     bone.UpdateSkinTransform();
-                    bone.TransformUnk = (i < (Transformations?.Length ?? 0)) ? Transformations[i].Column4 : Vector4.Zero;//still dont know what this is
+                    bone.TransformUnk = (i < Transformations.Length) ? Transformations[i].Column4 : Vector4.Zero;//still dont know what this is
                 }
                 bonesSorted.Sort((a, b) => a.Index.CompareTo(b.Index));
                 BonesSorted = bonesSorted.ToArray();
@@ -1760,8 +1758,8 @@ namespace CodeWalker.GameFiles
 
             }
 
-            ParentIndices = (parents.Count > 0) ? parents.ToArray() : null;
-            ChildIndices = (childs.Count > 0) ? childs.ToArray() : null;
+            ParentIndices = parents.ToArray();
+            ChildIndices = childs.ToArray();
 
         }
 
@@ -1803,14 +1801,14 @@ namespace CodeWalker.GameFiles
                 bucket.Add(tag);
             }
 
-            var newtags = new List<SkeletonBoneTag>();
-            foreach (var b in buckets)
+            var newtags = new SkeletonBoneTag[buckets.Length];
+            for (int bucketIndex = 0; bucketIndex < buckets.Length; bucketIndex++)
             {
-                if ((b?.Count ?? 0) == 0) newtags.Add(null);
-                else
+                var b = buckets[bucketIndex];
+                if (b is { Count: > 0 })
                 {
                     b.Reverse();
-                    newtags.Add(b[0]);
+                    newtags[bucketIndex] = b[0];
                     var p = b[0];
                     for (int i = 1; i < b.Count; i++)
                     {
@@ -1915,8 +1913,8 @@ namespace CodeWalker.GameFiles
             //    }
             //}
 
-            Transformations = (transforms.Count > 0) ? transforms.ToArray() : null;
-            TransformationsInverted = (transformsinv.Count > 0) ? transformsinv.ToArray() : null;
+            Transformations = transforms.ToArray();
+            TransformationsInverted = transformsinv.ToArray();
 
         }
 
@@ -2049,10 +2047,10 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            skel.TransformationsInverted = (Matrix[]?)TransformationsInverted?.Clone();
-            skel.Transformations = (Matrix[]?)Transformations?.Clone();
-            skel.ParentIndices = (short[]?)ParentIndices?.Clone();
-            skel.ChildIndices = (short[]?)ChildIndices?.Clone();
+            skel.TransformationsInverted = (Matrix[])TransformationsInverted.Clone();
+            skel.Transformations = (Matrix[])Transformations.Clone();
+            skel.ParentIndices = (short[])ParentIndices.Clone();
+            skel.ChildIndices = (short[])ChildIndices.Clone();
 
             skel.AssignBoneParents();
             skel.BuildBonesMap();
@@ -2086,7 +2084,7 @@ namespace CodeWalker.GameFiles
         public uint Unk0; // 0
         public uint Unk1; // 0
         public uint Unk2; // 0
-        public Bone[] Items { get; set; }
+        public Bone[] Items { get; set; } = [];
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -2100,7 +2098,7 @@ namespace CodeWalker.GameFiles
             var items = new Bone[count];
             for (uint i = 0; i < count; i++)
             {
-                items[i] = reader.ReadBlock<Bone>();
+                items[i] = reader.ReadRequiredBlock<Bone>();
             }
             Items = items;
 
@@ -2118,7 +2116,7 @@ namespace CodeWalker.GameFiles
 
         public override void Write(ResourceDataWriter writer, params object[] parameters)
         {
-            Count = (uint)(Items?.Length ?? 0);
+            Count = (uint)Items.Length;
 
             writer.Write(Count);
             writer.Write(Unk0);
@@ -2160,7 +2158,7 @@ namespace CodeWalker.GameFiles
         public ulong NextPointer { get; set; }
 
         // reference data
-        public SkeletonBoneTag Next { get; set; } //don't know why it's linked here
+        public SkeletonBoneTag? Next { get; set; } //don't know why it's linked here
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -2607,11 +2605,11 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_48h; // 0x0000000000000000
 
         // reference data
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
-        public Bone Parent { get; set; }
+        public Bone? Parent { get; set; }
 
-        private string_r NameBlock = null;
+        private string_r? NameBlock = null;
 
 
         //used by CW for animating skeletons.
@@ -2645,7 +2643,7 @@ namespace CodeWalker.GameFiles
             // read reference data
             this.Name = reader.ReadStringAt(//BlockAt<string_r>(
                 this.NamePointer // offset
-            );
+            ) ?? string.Empty;
 
             //if (Index2 != Index)
             //{ }//no hits
@@ -2699,7 +2697,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             Tag = (ushort)Xml.GetChildUIntAttribute(node, "Tag", "value");
             Index = (short)Xml.GetChildIntAttribute(node, "Index", "value");
             Index2 = Index;
@@ -2821,11 +2819,11 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_38h; // 0x0000000000000000
 
         // reference data
-        public JointRotationLimit_s[] RotationLimits { get; set; }
-        public JointTranslationLimit_s[] TranslationLimits { get; set; }
+        public JointRotationLimit_s[] RotationLimits { get; set; } = [];
+        public JointTranslationLimit_s[] TranslationLimits { get; set; } = [];
 
-        private ResourceSystemStructBlock<JointRotationLimit_s> RotationLimitsBlock = null; //for saving only
-        private ResourceSystemStructBlock<JointTranslationLimit_s> TranslationLimitsBlock = null;
+        private ResourceSystemStructBlock<JointRotationLimit_s>? RotationLimitsBlock = null; //for saving only
+        private ResourceSystemStructBlock<JointTranslationLimit_s>? TranslationLimitsBlock = null;
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -2845,8 +2843,8 @@ namespace CodeWalker.GameFiles
             this.Unknown_38h = reader.ReadUInt64();
 
             // read reference data
-            this.RotationLimits = reader.ReadStructsAt<JointRotationLimit_s>(this.RotationLimitsPointer, this.RotationLimitsCount);
-            this.TranslationLimits = reader.ReadStructsAt<JointTranslationLimit_s>(this.TranslationLimitsPointer, this.TranslationLimitsCount);
+            this.RotationLimits = reader.ReadStructsAt<JointRotationLimit_s>(this.RotationLimitsPointer, this.RotationLimitsCount) ?? [];
+            this.TranslationLimits = reader.ReadStructsAt<JointTranslationLimit_s>(this.TranslationLimitsPointer, this.TranslationLimitsCount) ?? [];
 
             //if (Unknown_4h != 1)
             //{ }
@@ -3087,13 +3085,13 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public DrawableBase Owner;
+        public DrawableBase? Owner;
 
-        public DrawableModel[] High { get; set; }
-        public DrawableModel[] Med { get; set; }
-        public DrawableModel[] Low { get; set; }
-        public DrawableModel[] VLow { get; set; }
-        public DrawableModel[] Extra { get; set; } //shouldn't be used
+        public DrawableModel[] High { get; set; } = [];
+        public DrawableModel[] Med { get; set; } = [];
+        public DrawableModel[] Low { get; set; } = [];
+        public DrawableModel[] VLow { get; set; } = [];
+        public DrawableModel[] Extra { get; set; } = []; //shouldn't be used
 
         public ResourcePointerListHeader HighHeader { get; set; }
         public ResourcePointerListHeader MedHeader { get; set; }
@@ -3101,11 +3099,11 @@ namespace CodeWalker.GameFiles
         public ResourcePointerListHeader VLowHeader { get; set; }
         public ResourcePointerListHeader ExtraHeader { get; set; }
 
-        public ulong[] HighPointers { get; set; }
-        public ulong[] MedPointers { get; set; }
-        public ulong[] LowPointers { get; set; }
-        public ulong[] VLowPointers { get; set; }
-        public ulong[] ExtraPointers { get; set; }
+        public ulong[] HighPointers { get; set; } = [];
+        public ulong[] MedPointers { get; set; } = [];
+        public ulong[] LowPointers { get; set; } = [];
+        public ulong[] VLowPointers { get; set; } = [];
+        public ulong[] ExtraPointers { get; set; } = [];
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -3121,32 +3119,32 @@ namespace CodeWalker.GameFiles
             if (highPointer != 0)
             {
                 HighHeader = reader.ReadStructAt<ResourcePointerListHeader>((long)highPointer);
-                HighPointers = reader.ReadUlongsAt(HighHeader.Pointer, HighHeader.Capacity, false);
-                High = reader.ReadBlocks<DrawableModel>(HighPointers);
+                HighPointers = reader.ReadUlongsAt(HighHeader.Pointer, HighHeader.Capacity, false) ?? [];
+                High = reader.ReadBlocks<DrawableModel>(HighPointers) ?? [];
             }
             if (medPointer != 0)
             {
                 MedHeader = reader.ReadStructAt<ResourcePointerListHeader>((long)medPointer);
-                MedPointers = reader.ReadUlongsAt(MedHeader.Pointer, MedHeader.Capacity, false);
-                Med = reader.ReadBlocks<DrawableModel>(MedPointers);
+                MedPointers = reader.ReadUlongsAt(MedHeader.Pointer, MedHeader.Capacity, false) ?? [];
+                Med = reader.ReadBlocks<DrawableModel>(MedPointers) ?? [];
             }
             if (lowPointer != 0)
             {
                 LowHeader = reader.ReadStructAt<ResourcePointerListHeader>((long)lowPointer);
-                LowPointers = reader.ReadUlongsAt(LowHeader.Pointer, LowHeader.Capacity, false);
-                Low = reader.ReadBlocks<DrawableModel>(LowPointers);
+                LowPointers = reader.ReadUlongsAt(LowHeader.Pointer, LowHeader.Capacity, false) ?? [];
+                Low = reader.ReadBlocks<DrawableModel>(LowPointers) ?? [];
             }
             if (vlowPointer != 0)
             {
                 VLowHeader = reader.ReadStructAt<ResourcePointerListHeader>((long)vlowPointer);
-                VLowPointers = reader.ReadUlongsAt(VLowHeader.Pointer, VLowHeader.Capacity, false);
-                VLow = reader.ReadBlocks<DrawableModel>(VLowPointers);
+                VLowPointers = reader.ReadUlongsAt(VLowHeader.Pointer, VLowHeader.Capacity, false) ?? [];
+                VLow = reader.ReadBlocks<DrawableModel>(VLowPointers) ?? [];
             }
             if (extraPointer != 0)
             {
                 ExtraHeader = reader.ReadStructAt<ResourcePointerListHeader>((long)extraPointer);
-                ExtraPointers = reader.ReadUlongsAt(ExtraHeader.Pointer, ExtraHeader.Capacity, false);
-                Extra = reader.ReadBlocks<DrawableModel>(ExtraPointers);
+                ExtraPointers = reader.ReadUlongsAt(ExtraHeader.Pointer, ExtraHeader.Capacity, false) ?? [];
+                Extra = reader.ReadBlocks<DrawableModel>(ExtraPointers) ?? [];
             }
         }
 
@@ -3337,10 +3335,10 @@ namespace CodeWalker.GameFiles
         public uint SkeletonBinding { get; set; }//4th byte is bone index, 2nd byte for skin meshes
         public ushort RenderMaskFlags { get; set; } //First byte is called "Mask" in GIMS EVO
         public ushort GeometriesCount3 { get; set; } //always equal to GeometriesCount1, is it ShaderMappingCount?
-        public ushort[] ShaderMapping { get; set; }
-        public ulong[] GeometryPointers { get; set; }
-        public AABB_s[] BoundsData { get; set; }
-        public DrawableGeometry[] Geometries { get; set; }
+        public ushort[] ShaderMapping { get; set; } = [];
+        public ulong[] GeometryPointers { get; set; } = [];
+        public AABB_s[] BoundsData { get; set; } = [];
+        public DrawableGeometry[] Geometries { get; set; } = [];
 
         public byte BoneIndex
         {
@@ -3433,10 +3431,10 @@ namespace CodeWalker.GameFiles
             this.RenderMaskFlags = reader.ReadUInt16();
             this.GeometriesCount3 = reader.ReadUInt16();
 
-            this.ShaderMapping = reader.ReadUshortsAt(this.ShaderMappingPointer, this.GeometriesCount1, false);
-            this.GeometryPointers = reader.ReadUlongsAt(this.GeometriesPointer, this.GeometriesCount1, false);
-            this.BoundsData = reader.ReadStructsAt<AABB_s>(this.BoundsPointer, (uint)(this.GeometriesCount1 > 1 ? this.GeometriesCount1 + 1 : this.GeometriesCount1), false);
-            this.Geometries = reader.ReadBlocks<DrawableGeometry>(this.GeometryPointers);
+            this.ShaderMapping = reader.ReadUshortsAt(this.ShaderMappingPointer, this.GeometriesCount1, false) ?? [];
+            this.GeometryPointers = reader.ReadUlongsAt(this.GeometriesPointer, this.GeometriesCount1, false) ?? [];
+            this.BoundsData = reader.ReadStructsAt<AABB_s>(this.BoundsPointer, (uint)(this.GeometriesCount1 > 1 ? this.GeometriesCount1 + 1 : this.GeometriesCount1), false) ?? [];
+            this.Geometries = reader.ReadBlocks<DrawableGeometry>(this.GeometryPointers) ?? [];
 
             if (Geometries != null)
             {
@@ -3636,8 +3634,8 @@ namespace CodeWalker.GameFiles
                 aabbs.Insert(0, outeraabb);
             }
 
-            BoundsData = (aabbs.Count > 0) ? aabbs.ToArray() : null;
-            ShaderMapping = (shids.Count > 0) ? shids.ToArray() : null;
+            BoundsData = aabbs.ToArray();
+            ShaderMapping = shids.ToArray();
         }
 
 
@@ -3729,11 +3727,11 @@ namespace CodeWalker.GameFiles
         public ulong IndexOffset; // grmGeometryQB::m_IndexOffset
 
         // reference data
-        public VertexBuffer VertexBuffer { get; set; }
-        public IndexBuffer IndexBuffer { get; set; }
-        public VertexData VertexData { get; set; }
-        public ushort[] BoneIds { get; set; }//embedded at the end of this struct
-        public ShaderFX Shader { get; set; }//written by parent DrawableBase, using ShaderID
+        public VertexBuffer? VertexBuffer { get; set; }
+        public IndexBuffer? IndexBuffer { get; set; }
+        public VertexData? VertexData { get; set; }
+        public ushort[] BoneIds { get; set; } = [];//embedded at the end of this struct
+        public ShaderFX? Shader { get; set; }//written by parent DrawableBase, using ShaderID
         public ushort ShaderID { get; set; }//read/written by parent model
         public AABB_s AABB { get; set; }//read/written by parent model
 
@@ -3777,7 +3775,7 @@ namespace CodeWalker.GameFiles
             this.IndexBuffer = reader.ReadBlockAt<IndexBuffer>(
                 this.IndexBufferPointer // offset
             );
-            this.BoneIds = reader.ReadUshortsAt(this.BoneIdsPointer, this.BoneIdsCount, false);
+            this.BoneIds = reader.ReadUshortsAt(this.BoneIdsPointer, this.BoneIdsCount, false) ?? [];
             if (this.BoneIds != null) //skinned mesh bones to use? peds, also yft props...
             {
             }
@@ -3959,7 +3957,7 @@ namespace CodeWalker.GameFiles
                         blist.Add(u);
                     }
                 }
-                BoneIds = (blist.Count > 0) ? blist.ToArray() : null;
+                BoneIds = blist.ToArray();
             }
             var vnode = node.SelectSingleNode("VertexBuffer");
             if (vnode != null)
@@ -3987,7 +3985,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return TrianglesCount.ToString() + " polys, " + VerticesCount.ToString() + " verts, " + Shader.ToString();
+            return TrianglesCount.ToString() + " polys, " + VerticesCount.ToString() + " verts, " + Shader?.ToString();
         }
     }
 
@@ -4024,14 +4022,14 @@ namespace CodeWalker.GameFiles
         public uint G9_Unknown_14h;
         public ulong G9_Unknown_20h;
         public ulong G9_SRVPointer { get; set; }
-        public ShaderResourceViewG9 G9_SRV { get; set; }
-        public VertexDeclarationG9 G9_Info { get; set; }
+        public ShaderResourceViewG9? G9_SRV { get; set; }
+        public VertexDeclarationG9? G9_Info { get; set; }
 
 
         // reference data
-        public VertexData Data1 { get; set; }
-        public VertexData Data2 { get; set; }
-        public VertexDeclaration Info { get; set; }
+        public VertexData? Data1 { get; set; }
+        public VertexData? Data2 { get; set; }
+        public VertexDeclaration? Info { get; set; }
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -4107,13 +4105,13 @@ namespace CodeWalker.GameFiles
                     this.DataPointer1, // offset
                     this.VertexStride,
                     this.VertexCount,
-                    this.Info
+                    this.Info ?? throw new System.IO.InvalidDataException("The vertex declaration is missing.")
                 );
                 this.Data2 = reader.ReadBlockAt<VertexData>(
                     this.DataPointer2, // offset
                     this.VertexStride,
                     this.VertexCount,
-                    this.Info
+                    this.Info ?? throw new System.IO.InvalidDataException("The vertex declaration is missing.")
                 );
 
 
@@ -4311,7 +4309,7 @@ namespace CodeWalker.GameFiles
             Info = vd;
 
         }
-        public byte[] InitGen9DataFromVertexData()
+        public byte[]? InitGen9DataFromVertexData()
         {
             if (Info == null) return null;
             if (Data1?.VertexBytes == null) return null;
@@ -4381,7 +4379,7 @@ namespace CodeWalker.GameFiles
             }
             if (Data1 != null)
             {
-                Data1.G9_VertexBytes = InitGen9DataFromVertexData();
+                Data1.G9_VertexBytes = InitGen9DataFromVertexData() ?? [];
             }
             Data2 = Data1;
 
@@ -4428,11 +4426,11 @@ namespace CodeWalker.GameFiles
 
         public int VertexStride { get; set; }
         public int VertexCount { get; set; }
-        public VertexDeclaration Info { get; set; }
+        public VertexDeclaration? Info { get; set; }
         public VertexType VertexType { get; set; }
 
-        public byte[] VertexBytes { get; set; }
-        public byte[] G9_VertexBytes { get; set; }//only use when saving
+        public byte[] VertexBytes { get; set; } = [];
+        public byte[] G9_VertexBytes { get; set; } = [];//only use when saving
 
 
         public long MemoryUsage
@@ -4514,7 +4512,7 @@ namespace CodeWalker.GameFiles
                 sb.AppendLine(row.ToString());
             }
         }
-        public void ReadXml(XmlNode node, VertexDeclaration info)
+        public void ReadXml(XmlNode node, VertexDeclaration? info)
         {
             Info = info;
             VertexType = (VertexType)(info?.Flags ?? 0);
@@ -5092,9 +5090,9 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))] public class VertexDeclarationG9 : ResourceSystemBlock
     {
         public override long BlockLength => 320;//316;
-        public uint[] Offsets { get; set; }//[52]
-        public byte[] Sizes { get; set; }//[52]
-        public byte[] Types { get; set; }//[52] //(VertexDeclarationG9ElementFormat)
+        public uint[] Offsets { get; set; } = [];//[52]
+        public byte[] Sizes { get; set; } = [];//[52]
+        public byte[] Types { get; set; } = [];//[52] //(VertexDeclarationG9ElementFormat)
         public ulong Data { get; set; }
 
         public bool HasSOA //seems to always be false for GTAV gen9  (but true for RDR2)
@@ -5133,7 +5131,7 @@ namespace CodeWalker.GameFiles
         {
             get
             {
-                if (Types == null) return null;
+                if (Types == null) return [];
                 var n = ElementCount;
                 var a = new VertexDeclarationG9ElementFormat[n];
                 var c = 0;
@@ -5493,16 +5491,16 @@ namespace CodeWalker.GameFiles
         public uint G9_BindFlags { get; set; }   // m_bindFlags
         public uint G9_Unknown_14h;
         public ulong G9_SRVPointer { get; set; }
-        public ShaderResourceViewG9 G9_SRV { get; set; }
+        public ShaderResourceViewG9? G9_SRV { get; set; }
 
 
 
         // reference data
         //public ResourceSimpleArray<ushort_r> Indices;
-        public ushort[] Indices { get; set; }
+        public ushort[] Indices { get; set; } = [];
 
 
-        private ResourceSystemStructBlock<ushort> IndicesBlock = null; //only used when saving
+        private ResourceSystemStructBlock<ushort>? IndicesBlock = null; //only used when saving
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -5524,7 +5522,7 @@ namespace CodeWalker.GameFiles
                 G9_SRVPointer = reader.ReadUInt64();
                 Unknown_38h = reader.ReadUInt64();
 
-                Indices = reader.ReadUshortsAt(IndicesPointer, IndicesCount);
+                Indices = reader.ReadUshortsAt(IndicesPointer, IndicesCount) ?? [];
                 G9_SRV = reader.ReadBlockAt<ShaderResourceViewG9>(G9_SRVPointer);
 
                 if (G9_IndexSize != 2)
@@ -5568,7 +5566,7 @@ namespace CodeWalker.GameFiles
                 //    this.IndicesPointer, // offset
                 //    this.IndicesCount
                 //);
-                this.Indices = reader.ReadUshortsAt(this.IndicesPointer, this.IndicesCount);
+                this.Indices = reader.ReadUshortsAt(this.IndicesPointer, this.IndicesCount) ?? [];
 
 
                 //if (Unknown_4h != 1)
@@ -6050,16 +6048,16 @@ namespace CodeWalker.GameFiles
 
 
         // reference data
-        public ShaderGroup ShaderGroup { get; set; }
-        public Skeleton Skeleton { get; set; }
-        public Joints Joints { get; set; }
-        public DrawableModelsBlock DrawableModels { get; set; }
+        public ShaderGroup? ShaderGroup { get; set; }
+        public Skeleton? Skeleton { get; set; }
+        public Joints? Joints { get; set; }
+        public DrawableModelsBlock? DrawableModels { get; set; }
 
 
-        public DrawableModel[] AllModels { get; set; }
-        public Dictionary<ulong, VertexDeclaration> VertexDecls { get; set; }
+        public DrawableModel[] AllModels { get; set; } = [];
+        public Dictionary<ulong, VertexDeclaration> VertexDecls { get; set; } = new();
 
-        public object Owner { get; set; }
+        public object? Owner { get; set; }
 
         public long MemoryUsage
         {
@@ -6458,7 +6456,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void AssignGeometryShaders(ShaderGroup shaderGrp)
+        public void AssignGeometryShaders(ShaderGroup? shaderGrp)
         {
             //if (shaderGrp != null)
             //{
@@ -6509,7 +6507,7 @@ namespace CodeWalker.GameFiles
                 if (model.Geometries == null) continue;
                 foreach (var geom in model.Geometries)
                 {
-                    var info = geom.VertexBuffer.Info;
+                    var info = geom.VertexBuffer?.Info;
                     if (info == null) continue;
                     var declid = info.GetDeclarationId();
 
@@ -6552,7 +6550,7 @@ namespace CodeWalker.GameFiles
             RenderMaskVlow = vmask;
 
         }
-        private byte BuildRenderMask(DrawableModel[] models)
+        private byte BuildRenderMask(DrawableModel[]? models)
         {
             byte mask = 0;
             if (models != null)
@@ -6566,7 +6564,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public DrawableBase ShallowCopy()
+        public DrawableBase? ShallowCopy()
         {
             DrawableBase? r = null;
             if (this is FragDrawable fd)
@@ -6611,11 +6609,11 @@ namespace CodeWalker.GameFiles
                 r.ShaderGroup = ShaderGroup;
                 r.Skeleton = Skeleton?.Clone();
                 r.DrawableModels = new DrawableModelsBlock();
-                r.DrawableModels.High = DrawableModels?.High;
-                r.DrawableModels.Med = DrawableModels?.Med;
-                r.DrawableModels.Low = DrawableModels?.Low;
-                r.DrawableModels.VLow = DrawableModels?.VLow;
-                r.DrawableModels.Extra = DrawableModels?.Extra;
+                r.DrawableModels.High = DrawableModels?.High ?? [];
+                r.DrawableModels.Med = DrawableModels?.Med ?? [];
+                r.DrawableModels.Low = DrawableModels?.Low ?? [];
+                r.DrawableModels.VLow = DrawableModels?.VLow ?? [];
+                r.DrawableModels.Extra = DrawableModels?.Extra ?? [];
                 r.Joints = Joints;
                 r.AllModels = AllModels;
                 r.VertexDecls = VertexDecls;
@@ -6709,22 +6707,22 @@ namespace CodeWalker.GameFiles
 
         // structure data
         public ulong NamePointer { get; set; }
-        public ResourceSimpleList64<LightAttributes> LightAttributes { get; set; }
+        public ResourceSimpleList64<LightAttributes> LightAttributes { get; set; } = new();
         public ulong UnkPointer { get; set; } 
         public ulong BoundPointer { get; set; }
 
         // reference data
-        public string Name { get; set; }
-        public Bounds Bound { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Bounds? Bound { get; set; }
 
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
 
 
-        private string_r NameBlock = null;//only used when saving..
+        private string_r? NameBlock = null;//only used when saving..
 
 
 #if DEBUG
-        public ResourceAnalyzer Analyzer { get; set; }
+        public ResourceAnalyzer? Analyzer { get; set; }
 #endif
 
 
@@ -6734,7 +6732,7 @@ namespace CodeWalker.GameFiles
 
             // read structure data
             this.NamePointer = reader.ReadUInt64();
-            this.LightAttributes = reader.ReadBlock<ResourceSimpleList64<LightAttributes>>();
+            this.LightAttributes = reader.ReadRequiredBlock<ResourceSimpleList64<LightAttributes>>();
             this.UnkPointer = reader.ReadUInt64();
             this.BoundPointer = reader.ReadUInt64();
 
@@ -6742,7 +6740,7 @@ namespace CodeWalker.GameFiles
             {
 
                 // read reference data
-                this.Name = reader.ReadStringAt(this.NamePointer);
+                this.Name = reader.ReadStringAt(this.NamePointer) ?? string.Empty;
                 this.Bound = reader.ReadBlockAt<Bounds>(this.BoundPointer);
                 if (Bound != null)
                 {
@@ -6793,7 +6791,7 @@ namespace CodeWalker.GameFiles
         }
         public override void ReadXml(XmlNode node, string ddsfolder)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             base.ReadXml(node, ddsfolder);
             var bnode = node.SelectSingleNode("Bounds");
             if (bnode != null)
@@ -6812,7 +6810,8 @@ namespace CodeWalker.GameFiles
             d.WriteXml(sb, indent + 1, ddsfolder);
             YdrXml.CloseTag(sb, indent, name);
         }
-        public static Drawable ReadXmlNode(XmlNode? node, string ddsfolder)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(node))]
+        public static Drawable? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new Drawable();
@@ -6889,7 +6888,8 @@ namespace CodeWalker.GameFiles
             d.WriteXml(sb, indent + 1, ddsfolder);
             YdrXml.CloseTag(sb, indent, name);
         }
-        public static DrawablePtfx ReadXmlNode(XmlNode? node, string ddsfolder)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(node))]
+        public static DrawablePtfx? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new DrawablePtfx();
@@ -6920,11 +6920,11 @@ namespace CodeWalker.GameFiles
 
         // reference data
         //public ResourceSimpleArray<uint_r> Hashes { get; set; }
-        public uint[] Hashes { get; set; }
-        public ResourcePointerArray64<DrawablePtfx> Drawables { get; set; }
+        public uint[] Hashes { get; set; } = [];
+        public ResourcePointerArray64<DrawablePtfx>? Drawables { get; set; }
 
 
-        private ResourceSystemStructBlock<uint> HashesBlock = null;//only used for saving
+        private ResourceSystemStructBlock<uint>? HashesBlock = null;//only used for saving
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -6944,7 +6944,7 @@ namespace CodeWalker.GameFiles
             this.Unknown_3Ch = reader.ReadUInt32();
 
             // read reference data
-            this.Hashes = reader.ReadUintsAt(this.HashesPointer, this.HashesCount1);
+            this.Hashes = reader.ReadUintsAt(this.HashesPointer, this.HashesCount1) ?? [];
             this.Drawables = reader.ReadBlockAt<ResourcePointerArray64<DrawablePtfx>>(this.DrawablesPointer, this.DrawablesCount1);
 
             //if (Unknown_10h != 0)
@@ -6987,7 +6987,7 @@ namespace CodeWalker.GameFiles
                 for (int i=0; i< Drawables.data_items.Length; i++)
                 {
                     var d = Drawables.data_items[i];
-                    var h = (MetaHash)((i < (Hashes?.Length ?? 0)) ? Hashes[i] : 0);
+                    var h = (MetaHash)((i < (Hashes.Length)) ? Hashes[i] : 0);
                     YddXml.OpenTag(sb, indent, "Item");
                     YddXml.StringTag(sb, indent + 1, "Name", YddXml.XmlEscape(h.ToCleanString()));
                     d.WriteXml(sb, indent + 1, ddsfolder);
@@ -7000,7 +7000,7 @@ namespace CodeWalker.GameFiles
             var drawables = new List<DrawablePtfx>();
             var drawablehashes = new List<uint>();
 
-            var inodes = node.SelectNodes("Item");
+            var inodes = node.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
             if (inodes != null)
             {
                 foreach (XmlNode inode in inodes)
@@ -7026,7 +7026,8 @@ namespace CodeWalker.GameFiles
             d.WriteXml(sb, indent + 1, ddsfolder);
             YddXml.CloseTag(sb, indent, name);
         }
-        public static DrawablePtfxDictionary ReadXmlNode(XmlNode? node, string ddsfolder)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(node))]
+        public static DrawablePtfxDictionary? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new DrawablePtfxDictionary();
@@ -7068,11 +7069,11 @@ namespace CodeWalker.GameFiles
 
         // reference data
         //public ResourceSimpleArray<uint_r> Hashes { get; set; }
-        public uint[] Hashes { get; set; }
-        public ResourcePointerArray64<Drawable> Drawables { get; set; }
+        public uint[] Hashes { get; set; } = [];
+        public ResourcePointerArray64<Drawable>? Drawables { get; set; }
 
 
-        private ResourceSystemStructBlock<uint> HashesBlock = null;//only used for saving
+        private ResourceSystemStructBlock<uint>? HashesBlock = null;//only used for saving
 
 
         public long MemoryUsage
@@ -7108,7 +7109,7 @@ namespace CodeWalker.GameFiles
             this.Unknown_3Ch = reader.ReadUInt32();
 
             // read reference data
-            this.Hashes = reader.ReadUintsAt(this.HashesPointer, this.HashesCount1);
+            this.Hashes = reader.ReadUintsAt(this.HashesPointer, this.HashesCount1) ?? [];
 
             this.Drawables = reader.ReadBlockAt<ResourcePointerArray64<Drawable>>(
                 this.DrawablesPointer, // offset
@@ -7165,7 +7166,7 @@ namespace CodeWalker.GameFiles
             var drawables = new List<Drawable>();
             var drawablehashes = new List<uint>();
 
-            var inodes = node.SelectNodes("Item");
+            var inodes = node.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
             if (inodes != null)
             {
                 foreach (XmlNode inode in inodes)
@@ -7188,7 +7189,8 @@ namespace CodeWalker.GameFiles
             d.WriteXml(sb, indent + 1, ddsfolder);
             YddXml.CloseTag(sb, indent, name);
         }
-        public static DrawableDictionary ReadXmlNode(XmlNode? node, string ddsfolder)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(node))]
+        public static DrawableDictionary? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new DrawableDictionary();

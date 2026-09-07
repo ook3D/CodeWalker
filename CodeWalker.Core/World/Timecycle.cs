@@ -32,13 +32,15 @@ namespace CodeWalker.World
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus)
         {
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan
+                ?? throw new InvalidOperationException("The game file cache must have an RPF manager before loading timecycle data.");
 
             string filename = "common.rpf\\data\\levels\\gta5\\time.xml";
 
             XmlDocument timexml = rpfman.GetFileXml(filename, UseModdedData);
 
-            XmlElement? time = timexml.DocumentElement;
+            var time = timexml?.DocumentElement
+                ?? throw new XmlException("The timecycle document must have a root element.");
             XmlNode? suninfo = time.SelectSingleNode("suninfo");
             XmlNode? mooninfo = time.SelectSingleNode("mooninfo");
             XmlNodeList? samples = time.SelectNodes("sample");
@@ -52,17 +54,23 @@ namespace CodeWalker.World
             moon_wobble_offset = Xml.GetFloatAttribute(mooninfo, "moon_wobble_offset");
 
             Samples.Clear();
-            for (int i = 0; i < samples.Count; i++)
+            if (samples != null)
             {
-                TimecycleSample tcs = new();
-                tcs.Init(samples[i]);
-                Samples.Add(tcs);
+                foreach (XmlNode sample in samples)
+                {
+                    TimecycleSample tcs = new();
+                    tcs.Init(sample);
+                    Samples.Add(tcs);
+                }
             }
 
             Regions.Clear();
-            for (int i = 0; i < regions.Count; i++)
+            if (regions != null)
             {
-                Regions.Add(Xml.GetStringAttribute(regions[i], "name"));
+                foreach (XmlNode region in regions)
+                {
+                    Regions.Add(Xml.GetStringAttribute(region, "name") ?? string.Empty);
+                }
             }
 
             Inited = true;
@@ -107,17 +115,17 @@ namespace CodeWalker.World
 
     public class TimecycleSample
     {
-        public string name { get; set; }
+        public string name { get; set; } = string.Empty;
         public float hour { get; set; }
         public float duration { get; set; }
-        public string uw_tc_mod { get; set; }
+        public string uw_tc_mod { get; set; } = string.Empty;
 
         public void Init(XmlNode node)
         {
-            name = Xml.GetStringAttribute(node, "name");
+            name = Xml.GetStringAttribute(node, "name") ?? string.Empty;
             hour = Xml.GetFloatAttribute(node, "hour");
             duration = Xml.GetFloatAttribute(node, "duration");
-            uw_tc_mod = Xml.GetStringAttribute(node, "uw_tc_mod");
+            uw_tc_mod = Xml.GetStringAttribute(node, "uw_tc_mod") ?? string.Empty;
         }
     }
 

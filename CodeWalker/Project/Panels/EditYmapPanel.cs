@@ -17,7 +17,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYmapPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
         private bool populatingui = false;
         private bool waschanged = false;
@@ -39,7 +39,7 @@ namespace CodeWalker.Project.Panels
 
         public void UpdateFormTitleYmapChanged()
         {
-            bool changed = Ymap.HasChanged;
+            bool changed = Ymap?.HasChanged ?? false;
             if (!waschanged && changed)
             {
                 UpdateFormTitle();
@@ -53,9 +53,9 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = Ymap.RpfFileEntry?.Name ?? Ymap.Name;
+            string fn = Ymap?.RpfFileEntry?.Name ?? Ymap?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fn)) fn = "untitled.ymap";
-            Text = fn + (Ymap.HasChanged ? "*" : "");
+            Text = fn + (Ymap?.HasChanged == true ? "*" : "");
         }
 
         public void UpdateYmapUI()
@@ -228,7 +228,7 @@ namespace CodeWalker.Project.Panels
 
             lock (ProjectForm.ProjectSyncRoot)
             {
-                Ymap.physicsDictionaries = (hashes.Count > 0) ? hashes.ToArray() : null;
+                Ymap.physicsDictionaries = hashes.ToArray();
                 SetYmapHasChanged(true);
             }
         }

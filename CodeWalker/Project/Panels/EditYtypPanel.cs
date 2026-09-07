@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYtypPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YtypFile Ytyp { get; set; }
+        public YtypFile? Ytyp { get; set; }
 
         //private bool populatingui = false;
         private bool waschanged = false;
@@ -36,7 +36,7 @@ namespace CodeWalker.Project.Panels
 
         public void UpdateFormTitleYtypChanged()
         {
-            bool changed = Ytyp.HasChanged;
+            bool changed = Ytyp?.HasChanged ?? false;
             if (!waschanged && changed)
             {
                 UpdateFormTitle();
@@ -50,9 +50,9 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = Ytyp.RpfFileEntry?.Name ?? Ytyp.Name;
+            string fn = Ytyp?.RpfFileEntry?.Name ?? Ytyp?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fn)) fn = "untitled.ytyp";
-            Text = fn + (Ytyp.HasChanged ? "*" : "");
+            Text = fn + (Ytyp?.HasChanged == true ? "*" : "");
         }
 
 

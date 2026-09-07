@@ -3,6 +3,7 @@ using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -18,22 +19,23 @@ namespace CodeWalker.World
         public WeatherValues CurrentValues;
 
         public volatile bool Inited = false;
-        public WeatherType CurrentWeatherType;
-        public WeatherType NextWeatherType;
+        public WeatherType? CurrentWeatherType;
+        public WeatherType? NextWeatherType;
         public float WeatherChangeTime = 0.33f;
         public float CurrentWeatherChangeTime = 0.0f;
         public float CurrentWeatherChangeBlend = 0.0f;
         public string Region = "GLOBAL"; //URBAN or GLOBAL..
-        public WeatherCycleKeyframeRegion CurrentWeatherRegion;
-        public WeatherCycleKeyframeRegion NextWeatherRegion;
+        public WeatherCycleKeyframeRegion? CurrentWeatherRegion;
+        public WeatherCycleKeyframeRegion? NextWeatherRegion;
 
-        public Timecycle Timecycle;
-        public TimecycleMods TimecycleMods;
+        public Timecycle? Timecycle;
+        public TimecycleMods? TimecycleMods;
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus, Timecycle timecycle)
         {
+            Inited = false;
             Timecycle = timecycle;
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.");
 
             //TODO: RpfMan should be able to get the right version? or maybe let gameFileCache do it!
             string filename = "common.rpf\\data\\levels\\gta5\\weather.xml";
@@ -44,45 +46,43 @@ namespace CodeWalker.World
 
             XmlDocument weatherxml = rpfman.GetFileXml(filename, timecycle.UseModdedData);
 
-            XmlElement? weather = weatherxml.DocumentElement;
+            XmlElement weather = weatherxml.DocumentElement ?? throw new InvalidDataException($"Missing weather XML root in {filename}.");
 
-            XmlNodeList? weathergpufx = weather.SelectNodes("WeatherGpuFx/Item");
+            var weathergpufx = weather.SelectNodes("WeatherGpuFx/Item")?.Cast<XmlNode>() ?? [];
             WeatherGpuFx.Clear();
-            for (int i = 0; i < weathergpufx.Count; i++)
+            foreach (XmlNode node in weathergpufx)
             {
                 var weathergpufxi = new WeatherGpuFx();
-                weathergpufxi.Init(weathergpufx[i]);
+                weathergpufxi.Init(node);
                 WeatherGpuFx[weathergpufxi.Name] = weathergpufxi;
             }
 
-            XmlNodeList? weathertypes = weather.SelectNodes("WeatherTypes/Item");
+            var weathertypes = weather.SelectNodes("WeatherTypes/Item")?.Cast<XmlNode>() ?? [];
             WeatherTypes.Clear();
-            for (int i = 0; i < weathertypes.Count; i++)
+            foreach (XmlNode node in weathertypes)
             {
                 var weathertype = new WeatherType();
-                weathertype.Init(gameFileCache, weathertypes[i], timecycle.UseModdedData);
+                weathertype.Init(gameFileCache, node, timecycle.UseModdedData);
                 WeatherTypes[weathertype.Name] = weathertype;
             }
 
-            XmlNodeList? weathercycles = weather.SelectNodes("WeatherCycles/Item");
+            var weathercycles = weather.SelectNodes("WeatherCycles/Item")?.Cast<XmlNode>() ?? [];
             WeatherCycles.Clear();
-            for (int i = 0; i < weathercycles.Count; i++)
+            foreach (XmlNode node in weathercycles)
             {
                 var weathercycle = new WeatherCycle();
-                weathercycle.Init(weathercycles[i]);
+                weathercycle.Init(node);
                 WeatherCycles.Add(weathercycle);
             }
 
 
 
-            if (WeatherTypes.Count > 0)
-            {
-                CurrentWeatherType = WeatherTypes.Values.First();
-                CurrentWeatherRegion = CurrentWeatherType.GetRegion(Region);
-                NextWeatherType = CurrentWeatherType;
-                NextWeatherRegion = NextWeatherType.GetRegion(Region);
-            }
-
+            CurrentWeatherType = WeatherTypes.Values.FirstOrDefault();
+            CurrentWeatherRegion = CurrentWeatherType?.GetRegion(Region);
+            NextWeatherType = CurrentWeatherType;
+            NextWeatherRegion = CurrentWeatherRegion;
+            CurrentWeatherChangeTime = 0.0f;
+            CurrentWeatherChangeBlend = 0.0f;
 
             TimecycleMods = new TimecycleMods();
             TimecycleMods.Init(gameFileCache, updateStatus);
@@ -132,6 +132,7 @@ namespace CodeWalker.World
 
         public float GetDynamicValue(string name)
         {
+            if (Timecycle == null) return 0.0f;
             int csi = Timecycle.CurrentSampleIndex;
             float csb = Timecycle.CurrentSampleBlend;
             if ((CurrentWeatherRegion != null) && (NextWeatherRegion != null))
@@ -149,6 +150,7 @@ namespace CodeWalker.World
         }
         public Vector3 GetDynamicRGB(string rname, string gname, string bname)
         {
+            if (Timecycle == null) return Vector3.Zero;
             int csi = Timecycle.CurrentSampleIndex;
             float csb = Timecycle.CurrentSampleBlend;
             if ((CurrentWeatherRegion != null) && (NextWeatherRegion != null))
@@ -175,6 +177,7 @@ namespace CodeWalker.World
         }
         public Vector4 GetDynamicRGBA(string rname, string gname, string bname, string aname)
         {
+            if (Timecycle == null) return Vector4.Zero;
             int csi = Timecycle.CurrentSampleIndex;
             float csb = Timecycle.CurrentSampleBlend;
             if ((CurrentWeatherRegion != null) && (NextWeatherRegion != null))
@@ -207,29 +210,29 @@ namespace CodeWalker.World
 
     public class WeatherGpuFx
     {
-        public string Name { get; set; }
-        public string SystemType { get; set; }
-        public string diffuseName { get; set; }
-        public string distortionTexture { get; set; }
-        public string diffuseSplashName { get; set; }
-        public string driveType { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string SystemType { get; set; } = string.Empty;
+        public string diffuseName { get; set; } = string.Empty;
+        public string distortionTexture { get; set; } = string.Empty;
+        public string diffuseSplashName { get; set; } = string.Empty;
+        public string driveType { get; set; } = string.Empty;
         public float windInfluence { get; set; }
         public float gravity { get; set; }
-        public string emitterSettingsName { get; set; }
-        public string renderSettingsName { get; set; }
+        public string emitterSettingsName { get; set; } = string.Empty;
+        public string renderSettingsName { get; set; } = string.Empty;
 
         public void Init(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
-            SystemType = Xml.GetChildInnerText(node, "SystemType");
-            diffuseName = Xml.GetChildInnerText(node, "diffuseName");
-            distortionTexture = Xml.GetChildInnerText(node, "distortionTexture");
-            diffuseSplashName = Xml.GetChildInnerText(node, "diffuseSplashName");
-            driveType = Xml.GetChildInnerText(node, "driveType");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
+            SystemType = Xml.GetChildInnerText(node, "SystemType") ?? string.Empty;
+            diffuseName = Xml.GetChildInnerText(node, "diffuseName") ?? string.Empty;
+            distortionTexture = Xml.GetChildInnerText(node, "distortionTexture") ?? string.Empty;
+            diffuseSplashName = Xml.GetChildInnerText(node, "diffuseSplashName") ?? string.Empty;
+            driveType = Xml.GetChildInnerText(node, "driveType") ?? string.Empty;
             windInfluence = Xml.GetChildFloatAttribute(node, "windInfluence", "value");
             gravity = Xml.GetChildFloatAttribute(node, "gravity", "value");
-            emitterSettingsName = Xml.GetChildInnerText(node, "emitterSettingsName");
-            renderSettingsName = Xml.GetChildInnerText(node, "renderSettingsName");
+            emitterSettingsName = Xml.GetChildInnerText(node, "emitterSettingsName") ?? string.Empty;
+            renderSettingsName = Xml.GetChildInnerText(node, "renderSettingsName") ?? string.Empty;
         }
 
         public override string ToString()
@@ -241,7 +244,7 @@ namespace CodeWalker.World
     public class WeatherType
     {
         public MetaHash NameHash { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public float Sun { get; set; }
         public float Cloud { get; set; }
         public float WindMin { get; set; }
@@ -273,18 +276,18 @@ namespace CodeWalker.World
         public float RippleDisturb { get; set; }
         public float Lightning { get; set; }
         public float Sandstorm { get; set; }
-        public string OldSettingName { get; set; }
-        public string DropSettingName { get; set; }
-        public string MistSettingName { get; set; }
-        public string GroundSettingName { get; set; }
-        public string TimeCycleFilename { get; set; }
-        public string CloudSettingsName { get; set; }
+        public string OldSettingName { get; set; } = string.Empty;
+        public string DropSettingName { get; set; } = string.Empty;
+        public string MistSettingName { get; set; } = string.Empty;
+        public string GroundSettingName { get; set; } = string.Empty;
+        public string TimeCycleFilename { get; set; } = string.Empty;
+        public string CloudSettingsName { get; set; } = string.Empty;
 
-        public WeatherCycleKeyframeData TimeCycleData;
+        public WeatherCycleKeyframeData? TimeCycleData;
 
         public void Init(GameFileCache gameFileCache, XmlNode node, bool includeMods = true)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameHash = new MetaHash(JenkHash.GenHash(Name.ToLowerInvariant()));
             Sun = Xml.GetChildFloatAttribute(node, "Sun", "value");
             Cloud = Xml.GetChildFloatAttribute(node, "Cloud", "value");
@@ -317,14 +320,15 @@ namespace CodeWalker.World
             RippleDisturb = Xml.GetChildFloatAttribute(node, "RippleDisturb", "value");
             Lightning = Xml.GetChildFloatAttribute(node, "Lightning", "value");
             Sandstorm = Xml.GetChildFloatAttribute(node, "Sandstorm", "value");
-            OldSettingName = Xml.GetChildInnerText(node, "OldSettingName");
-            DropSettingName = Xml.GetChildInnerText(node, "DropSettingName");
-            MistSettingName = Xml.GetChildInnerText(node, "MistSettingName");
-            GroundSettingName = Xml.GetChildInnerText(node, "GroundSettingName");
-            TimeCycleFilename = Xml.GetChildInnerText(node, "TimeCycleFilename");
-            CloudSettingsName = Xml.GetChildInnerText(node, "CloudSettingsName");
+            OldSettingName = Xml.GetChildInnerText(node, "OldSettingName") ?? string.Empty;
+            DropSettingName = Xml.GetChildInnerText(node, "DropSettingName") ?? string.Empty;
+            MistSettingName = Xml.GetChildInnerText(node, "MistSettingName") ?? string.Empty;
+            GroundSettingName = Xml.GetChildInnerText(node, "GroundSettingName") ?? string.Empty;
+            TimeCycleFilename = Xml.GetChildInnerText(node, "TimeCycleFilename") ?? string.Empty;
+            CloudSettingsName = Xml.GetChildInnerText(node, "CloudSettingsName") ?? string.Empty;
 
 
+            TimeCycleData = null;
             if (!string.IsNullOrEmpty(TimeCycleFilename))
             {
 
@@ -335,14 +339,15 @@ namespace CodeWalker.World
                 {
                     fname = fname.Replace("common:", "update/update.rpf/common");
                 }
-                XmlDocument tcxml = gameFileCache.RpfMan.GetFileXml(fname, includeMods);
+                var rpfman = gameFileCache.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.");
+                XmlDocument tcxml = rpfman.GetFileXml(fname, includeMods);
                 if (useupd && !tcxml.HasChildNodes)
                 {
                     fname = TimeCycleFilename.ToLowerInvariant();
-                    tcxml = gameFileCache.RpfMan.GetFileXml(fname, includeMods);
+                    tcxml = rpfman.GetFileXml(fname, includeMods);
                 }
 
-                foreach (XmlNode cycle in tcxml.DocumentElement.ChildNodes)
+                foreach (XmlNode cycle in tcxml.DocumentElement?.ChildNodes.Cast<XmlNode>() ?? [])
                 {
                     if (cycle.NodeType != XmlNodeType.Element) continue;
                     TimeCycleData = new WeatherCycleKeyframeData();
@@ -352,7 +357,7 @@ namespace CodeWalker.World
 
         }
 
-        public WeatherCycleKeyframeRegion GetRegion(string name)
+        public WeatherCycleKeyframeRegion? GetRegion(string name)
         {
             if ((TimeCycleData != null) && (TimeCycleData.Regions != null))
             {
@@ -374,12 +379,12 @@ namespace CodeWalker.World
 
     public class WeatherCycle
     {
-        public string CycleName { get; set; }
+        public string CycleName { get; set; } = string.Empty;
         public float TimeMult { get; set; }
 
         public void Init(XmlNode node)
         {
-            CycleName = Xml.GetChildInnerText(node, "CycleName");
+            CycleName = Xml.GetChildInnerText(node, "CycleName") ?? string.Empty;
             TimeMult = Xml.GetChildFloatAttribute(node, "TimeMult", "value");
         }
 
@@ -391,14 +396,14 @@ namespace CodeWalker.World
 
     public class WeatherCycleKeyframeData
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public int RegionCount { get; set; }
-        public Dictionary<string, WeatherCycleKeyframeRegion> Regions { get; set; }
+        public Dictionary<string, WeatherCycleKeyframeRegion> Regions { get; set; } = new();
 
         public void Init(XmlNode node)
         {
             //read cycle node
-            Name = Xml.GetStringAttribute(node, "name");
+            Name = Xml.GetStringAttribute(node, "name") ?? string.Empty;
             RegionCount = Xml.GetIntAttribute(node, "regions");
             Regions = new Dictionary<string, WeatherCycleKeyframeRegion>();
             foreach (XmlNode child in node.ChildNodes)
@@ -417,13 +422,13 @@ namespace CodeWalker.World
     }
     public class WeatherCycleKeyframeRegion
     {
-        public string Name { get; set; }
-        public Dictionary<string, WeatherCycleKeyframeDataEntry> Data { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Dictionary<string, WeatherCycleKeyframeDataEntry> Data { get; set; } = new();
 
         public void Init(XmlNode node)
         {
             //read region node
-            Name = Xml.GetStringAttribute(node, "name");
+            Name = Xml.GetStringAttribute(node, "name") ?? string.Empty;
             Data = new Dictionary<string, WeatherCycleKeyframeDataEntry>();
             foreach (XmlNode child in node.ChildNodes)
             {
@@ -440,13 +445,14 @@ namespace CodeWalker.World
         public float GetCurrentValue(string name, int sample, float curblend)
         {
             WeatherCycleKeyframeDataEntry? e;
-            if (Data.TryGetValue(name, out e))
+            if (Data.TryGetValue(name, out e) && e.Values.Length > 0)
             {
                 if (sample >= e.Values.Length)
                 {
                     //System.Windows.Forms.MessageBox.Show("Sample index was out of range: " + sample.ToString());
                     sample = e.Values.Length - 1;
                 }
+                sample = Math.Max(sample, 0);
                 int nxtsample = (sample < e.Values.Length - 1) ? sample + 1 : 0;
                 float cv = e.Values[sample];
                 float nv = e.Values[nxtsample];
@@ -463,8 +469,8 @@ namespace CodeWalker.World
     }
     public class WeatherCycleKeyframeDataEntry
     {
-        public string Name { get; set; }
-        public float[] Values { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public float[] Values { get; set; } = [];
 
         public void Init(XmlNode node)
         {

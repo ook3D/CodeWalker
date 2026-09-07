@@ -73,6 +73,7 @@ namespace CodeWalker.Rendering
             // Unbind depth before reading it, while blending into the HDR colour target.
             context.OutputMerger.SetRenderTargets(target.RTV);
             context.OutputMerger.SetBlendState(blend);
+            if (target.Texture == null) return;
             var size = target.Texture.Description;
             context.Rasterizer.SetViewport(0, 0, size.Width, size.Height);
             context.VertexShader.Set(vertexShader);

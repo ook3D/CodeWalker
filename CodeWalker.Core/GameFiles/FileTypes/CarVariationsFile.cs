@@ -15,10 +15,10 @@ namespace CodeWalker.GameFiles
 {
     [TC(typeof(EXP))] public class CarVariationsFile : GameFile, PackedFile
     {
-        public PsoFile Pso { get; set; }
-        public string Xml { get; set; }
+        public PsoFile? Pso { get; set; }
+        public string Xml { get; set; } = string.Empty;
 
-        public CVehicleModelInfoVariation VehicleModelInfo { get; set; }
+        public CVehicleModelInfoVariation? VehicleModelInfo { get; set; }
 
         public CarVariationsFile() : base(null, GameFileType.CarVariations)
         { }
@@ -34,7 +34,7 @@ namespace CodeWalker.GameFiles
 
 
             //can be PSO .ymt or XML .meta
-            MemoryStream ms = new(data);
+            using MemoryStream ms = new(data);
             if (PsoFile.IsPSO(ms))
             {
                 Pso = new PsoFile();
@@ -74,7 +74,7 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class CVehicleModelInfoVariation
     {
-        public CVehicleModelInfoVariation_418053801[] variationData { get; set; }
+        public CVehicleModelInfoVariation_418053801[] variationData { get; set; } = [];
 
         public CVehicleModelInfoVariation(XmlNode node)
         {
@@ -82,11 +82,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("variationData");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    variationData = new CVehicleModelInfoVariation_418053801[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    variationData = new CVehicleModelInfoVariation_418053801[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         variationData[i] = new CVehicleModelInfoVariation_418053801(items[i]);
                     }
@@ -97,25 +97,25 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public class CVehicleModelInfoVariation_418053801
     {
         public string modelName { get; set; }
-        public CVehicleModelInfoVariation_2575850962[] colors { get; set; }
-        public MetaHash[] kits { get; set; }
-        public MetaHash[] windowsWithExposedEdges { get; set; }
-        public PlateProbabilities plateProbabilities { get; set; }
+        public CVehicleModelInfoVariation_2575850962[] colors { get; set; } = [];
+        public MetaHash[] kits { get; set; } = [];
+        public MetaHash[] windowsWithExposedEdges { get; set; } = [];
+        public PlateProbabilities? plateProbabilities { get; set; }
         public byte lightSettings { get; set; }
         public byte sirenSettings { get; set; }
 
         public CVehicleModelInfoVariation_418053801(XmlNode node)
         {
-            modelName = Xml.GetChildInnerText(node, "modelName");
+            modelName = Xml.GetChildInnerText(node, "modelName") ?? string.Empty;
             XmlNode? cnode;
             cnode = node.SelectSingleNode("colors");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    colors = new CVehicleModelInfoVariation_2575850962[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    colors = new CVehicleModelInfoVariation_2575850962[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         colors[i] = new CVehicleModelInfoVariation_2575850962(items[i]);
                     }
@@ -124,11 +124,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("kits");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    kits = new MetaHash[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    kits = new MetaHash[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         kits[i] = XmlMeta.GetHash(items[i].InnerText);
                     }
@@ -137,11 +137,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("windowsWithExposedEdges");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    windowsWithExposedEdges = new MetaHash[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    windowsWithExposedEdges = new MetaHash[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         windowsWithExposedEdges[i] = XmlMeta.GetHash(items[i].InnerText);
                     }
@@ -163,8 +163,8 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class CVehicleModelInfoVariation_2575850962
     {
-        public byte[] indices { get; set; }
-        public bool[] liveries { get; set; }
+        public byte[] indices { get; set; } = [];
+        public bool[] liveries { get; set; } = [];
 
         public CVehicleModelInfoVariation_2575850962(XmlNode node)
         {
@@ -189,11 +189,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("liveries");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    liveries = new bool[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    liveries = new bool[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         liveries[i] = Xml.GetBoolAttribute(items[i], "value");
                     }
@@ -221,7 +221,7 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class PlateProbabilities
     {
-        public PlateProbabilities_938618322[] Probabilities { get; set; }
+        public PlateProbabilities_938618322[] Probabilities { get; set; } = [];
 
         public PlateProbabilities(XmlNode node)
         {
@@ -229,11 +229,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("Probabilities");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item");
-                if (items.Count > 0)
+                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (items.Length > 0)
                 {
-                    Probabilities = new PlateProbabilities_938618322[items.Count];
-                    for (int i = 0; i < items.Count; i++)
+                    Probabilities = new PlateProbabilities_938618322[items.Length];
+                    for (int i = 0; i < items.Length; i++)
                     {
                         Probabilities[i] = new PlateProbabilities_938618322(items[i]);
                     }

@@ -13,9 +13,9 @@ namespace CodeWalker.Forms
 {
     public partial class FxcForm : Form
     {
-        private FxcFile Fxc;
+        private FxcFile? Fxc;
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -25,7 +25,7 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
 
 
@@ -44,14 +44,14 @@ namespace CodeWalker.Forms
         }
 
 
-        public void LoadFxc(FxcFile fxc)
+        public void LoadFxc(FxcFile? fxc)
         {
             Fxc = fxc;
 
-            fileName = fxc?.Name;
+            fileName = fxc?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fileName))
             {
-                fileName = fxc?.FileEntry?.Name;
+                fileName = fxc?.FileEntry?.Name ?? string.Empty;
             }
 
             UpdateFormTitle();
@@ -83,7 +83,7 @@ namespace CodeWalker.Forms
         }
 
 
-        private void LoadShader(FxcShader s)
+        private void LoadShader(FxcShader? s)
         {
             if (s == null)
             {
@@ -110,7 +110,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private void LoadTechnique(FxcTechnique t)
+        private void LoadTechnique(FxcTechnique? t)
         {
             if (t == null)
             {

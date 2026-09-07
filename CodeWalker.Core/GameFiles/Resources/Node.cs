@@ -64,18 +64,18 @@ namespace CodeWalker.GameFiles
         public uint Padding68 { get; set; }                 // 0x00000000
         public uint Padding6C { get; set; }                 // 0x00000000
 
-        public Node[] Nodes { get; set; }
-        public NodeLink[] Links { get; set; }
-        public NodeJunction[] Junctions { get; set; }
-        public byte[] JunctionHeightmapBytes { get; set; }
-        public NodeJunctionRef[] JunctionRefs { get; set; }
+        public Node[] Nodes { get; set; } = [];
+        public NodeLink[] Links { get; set; } = [];
+        public NodeJunction[] Junctions { get; set; } = [];
+        public byte[] JunctionHeightmapBytes { get; set; } = [];
+        public NodeJunctionRef[] JunctionRefs { get; set; } = [];
 
 
-        private ResourceSystemStructBlock<Node> NodesBlock = null;
-        private ResourceSystemStructBlock<NodeLink> LinksBlock = null;
-        private ResourceSystemStructBlock<NodeJunction> JunctionsBlock = null;
-        private ResourceSystemStructBlock<byte> JunctionHeightmapBytesBlock = null;
-        private ResourceSystemStructBlock<NodeJunctionRef> JunctionRefsBlock = null;
+        private ResourceSystemStructBlock<Node>? NodesBlock;
+        private ResourceSystemStructBlock<NodeLink>? LinksBlock;
+        private ResourceSystemStructBlock<NodeJunction>? JunctionsBlock;
+        private ResourceSystemStructBlock<byte>? JunctionHeightmapBytesBlock;
+        private ResourceSystemStructBlock<NodeJunctionRef>? JunctionRefsBlock;
 
 
 
@@ -104,11 +104,11 @@ namespace CodeWalker.GameFiles
             this.Padding68 = reader.ReadUInt32();
             this.Padding6C = reader.ReadUInt32();
 
-            this.Nodes = reader.ReadStructsAt<Node>(this.NodesPointer, this.NodesCount);
-            this.Links = reader.ReadStructsAt<NodeLink>(this.LinksPtr, this.LinksCount);
-            this.Junctions = reader.ReadStructsAt<NodeJunction>(this.JunctionsPtr, this.JunctionsCount);
-            this.JunctionHeightmapBytes = reader.ReadBytesAt(this.JunctionHeightmapBytesPtr, this.JunctionHeightmapBytesCount);
-            this.JunctionRefs = reader.ReadStructsAt<NodeJunctionRef>(this.JunctionRefsPtr, this.JunctionRefsCount1);
+            this.Nodes = reader.ReadStructsAt<Node>(this.NodesPointer, this.NodesCount) ?? [];
+            this.Links = reader.ReadStructsAt<NodeLink>(this.LinksPtr, this.LinksCount) ?? [];
+            this.Junctions = reader.ReadStructsAt<NodeJunction>(this.JunctionsPtr, this.JunctionsCount) ?? [];
+            this.JunctionHeightmapBytes = reader.ReadBytesAt(this.JunctionHeightmapBytesPtr, this.JunctionHeightmapBytesCount) ?? [];
+            this.JunctionRefs = reader.ReadStructsAt<NodeJunctionRef>(this.JunctionRefsPtr, this.JunctionRefsCount1) ?? [];
 
 
 
@@ -120,7 +120,7 @@ namespace CodeWalker.GameFiles
 
             // update structure data
             NodesPointer = (ulong)(NodesBlock?.FilePosition ?? 0);
-            NodesCount = (uint)(Nodes?.Length ?? 0); //assume NodesCountVehicle and Ped already updated..
+            NodesCount = (uint)(Nodes.Length); //assume NodesCountVehicle and Ped already updated..
             LinksPtr = (ulong)(LinksBlock?.FilePosition ?? 0);
             LinksCount = (uint)(Links?.Length ?? 0);
             JunctionsPtr = (ulong)(JunctionsBlock?.FilePosition ?? 0);
@@ -128,7 +128,7 @@ namespace CodeWalker.GameFiles
             JunctionRefsPtr = (ulong)(JunctionRefsBlock?.FilePosition ?? 0);
             JunctionRefsCount0 = (ushort)(JunctionRefs?.Length ?? 0);
             JunctionRefsCount1 = JunctionRefsCount0;
-            JunctionsCount = (uint)(Junctions?.Length ?? 0);
+            JunctionsCount = (uint)(Junctions.Length);
             JunctionHeightmapBytesCount = (uint)(JunctionHeightmapBytes?.Length ?? 0);
 
 
@@ -198,7 +198,7 @@ namespace CodeWalker.GameFiles
             YndXml.ValueTag(sb, indent, "PedNodeCount", NodesCountPed.ToString());
 
             XmlNodeWrapper[]? nodes = null;
-            int nodecount = Nodes?.Length ?? 0;
+            int nodecount = Nodes.Length;
             if (nodecount > 0)
             {
                 nodes = new XmlNodeWrapper[nodecount];
@@ -211,7 +211,7 @@ namespace CodeWalker.GameFiles
 
 
             XmlJunctionWrapper[]? juncs = null;
-            int junccount = Junctions?.Length ?? 0;
+            int junccount = Junctions.Length;
             if (junccount > 0)
             {
                 juncs = new XmlJunctionWrapper[junccount];
@@ -240,7 +240,7 @@ namespace CodeWalker.GameFiles
             if (nodesnode != null)
             {
                 var nodeitems = nodesnode.SelectNodes("Item");
-                foreach (XmlNode nodeitem in nodeitems)
+                foreach (XmlNode nodeitem in nodeitems?.Cast<XmlNode>() ?? [])
                 {
                     XmlNodeWrapper n = new(linklist);
                     n.ReadXml(nodeitem);
@@ -252,7 +252,7 @@ namespace CodeWalker.GameFiles
             if (juncsnode != null)
             {
                 var juncitems = juncsnode.SelectNodes("Item");
-                foreach (XmlNode juncitem in juncitems)
+                foreach (XmlNode juncitem in juncitems?.Cast<XmlNode>() ?? [])
                 {
                     XmlJunctionWrapper j = new(jhmblist);
                     j.ReadXml(juncitem);
@@ -264,7 +264,7 @@ namespace CodeWalker.GameFiles
             if (jrefsnode != null)
             {
                 var jrefitems = jrefsnode.SelectNodes("Item");
-                foreach (XmlNode jrefitem in jrefitems)
+                foreach (XmlNode jrefitem in jrefitems?.Cast<XmlNode>() ?? [])
                 {
                     NodeJunctionRef jref = new();
                     jref.ReadXml(jrefitem);
@@ -290,8 +290,8 @@ namespace CodeWalker.GameFiles
         class XmlNodeWrapper : IMetaXmlItem
         {
             public Node Node;
-            private NodeLink[] AllLinks;
-            private List<NodeLink> AllLinksList;
+            private NodeLink[]? AllLinks;
+            private List<NodeLink>? AllLinksList;
 
             public XmlNodeWrapper(Node node, NodeLink[] allLinks)
             {
@@ -304,19 +304,19 @@ namespace CodeWalker.GameFiles
             }
             public void WriteXml(StringBuilder sb, int indent)
             {
-                Node.WriteXml(sb, indent, AllLinks);
+                Node.WriteXml(sb, indent, AllLinks ?? throw new InvalidOperationException("This node wrapper was created for reading."));
             }
             public void ReadXml(XmlNode node)
             {
                 Node = new Node();
-                Node.ReadXml(node, AllLinksList);
+                Node.ReadXml(node, AllLinksList ?? throw new InvalidOperationException("This node wrapper was created for writing."));
             }
         }
         class XmlJunctionWrapper : IMetaXmlItem
         {
             public NodeJunction Junction;
-            private byte[] AllHeightmapData;
-            private List<byte> AllHeightmapDataList;
+            private byte[]? AllHeightmapData;
+            private List<byte>? AllHeightmapDataList;
 
             public XmlJunctionWrapper(NodeJunction junc, byte[] allHeightmapData)
             {
@@ -329,12 +329,12 @@ namespace CodeWalker.GameFiles
             }
             public void WriteXml(StringBuilder sb, int indent)
             {
-                Junction.WriteXml(sb, indent, AllHeightmapData);
+                Junction.WriteXml(sb, indent, AllHeightmapData ?? throw new InvalidOperationException("This junction wrapper was created for reading."));
             }
             public void ReadXml(XmlNode node)
             {
                 Junction = new NodeJunction();
-                Junction.ReadXml(node, AllHeightmapDataList);
+                Junction.ReadXml(node, AllHeightmapDataList ?? throw new InvalidOperationException("This junction wrapper was created for writing."));
             }
         }
     }
@@ -449,7 +449,7 @@ namespace CodeWalker.GameFiles
             if (linksnode != null)
             {
                 var linkitems = linksnode.SelectNodes("Item");
-                foreach (XmlNode linkitem in linkitems)
+                foreach (XmlNode linkitem in linkitems?.Cast<XmlNode>() ?? [])
                 {
                     NodeLink link = new();
                     link.ReadXml(linkitem);

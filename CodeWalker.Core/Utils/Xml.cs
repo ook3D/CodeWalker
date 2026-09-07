@@ -12,7 +12,7 @@ namespace CodeWalker
     public static class Xml
     {
 
-        public static string GetStringAttribute(XmlNode? node, string attribute)
+        public static string? GetStringAttribute(XmlNode? node, string attribute)
         {
             if (node == null) return null;
             return node.Attributes?[attribute]?.InnerText;
@@ -58,7 +58,7 @@ namespace CodeWalker
             return f;
         }
 
-        public static string GetChildInnerText(XmlNode? node, string name)
+        public static string? GetChildInnerText(XmlNode? node, string name)
         {
             if (node == null) return null;
             return node.SelectSingleNode(name)?.InnerText;
@@ -168,7 +168,7 @@ namespace CodeWalker
             FloatUtil.TryParse(val, out f);
             return f;
         }
-        public static string GetChildStringAttribute(XmlNode? node, string name, string attribute = "value")
+        public static string? GetChildStringAttribute(XmlNode? node, string name, string attribute = "value")
         {
             if (node == null) return string.Empty;
             string? val = node.SelectSingleNode(name)?.Attributes?[attribute]?.InnerText;
@@ -196,7 +196,7 @@ namespace CodeWalker
             return new Vector4(fx, fy, fz, fw);
         }
 
-        public static XmlElement GetChild(XmlElement element, string name)
+        public static XmlElement? GetChild(XmlElement element, string name)
         {
             return element.SelectSingleNode(name) as XmlElement;
         }
@@ -245,7 +245,7 @@ namespace CodeWalker
             var cnode = node?.SelectSingleNode(name);
             return GetRawByteArray(cnode, fromBase);
         }
-        public static byte[] GetChildRawByteArrayNullable(XmlNode? node, string name, int fromBase = 16)
+        public static byte[]? GetChildRawByteArrayNullable(XmlNode? node, string name, int fromBase = 16)
         {
             var cnode = node?.SelectSingleNode(name);
             var arr = GetRawByteArray(cnode, fromBase);
@@ -272,7 +272,7 @@ namespace CodeWalker
             var cnode = node?.SelectSingleNode(name);
             return GetRawUshortArray(cnode);
         }
-        public static ushort[] GetChildRawUshortArrayNullable(XmlNode? node, string name)
+        public static ushort[]? GetChildRawUshortArrayNullable(XmlNode? node, string name)
         {
             var cnode = node?.SelectSingleNode(name);
             var arr = GetRawUshortArray(cnode);
@@ -299,7 +299,7 @@ namespace CodeWalker
             var cnode = node?.SelectSingleNode(name);
             return GetRawUintArray(cnode);
         }
-        public static uint[] GetChildRawUintArrayNullable(XmlNode? node, string name)
+        public static uint[]? GetChildRawUintArrayNullable(XmlNode? node, string name)
         {
             var cnode = node?.SelectSingleNode(name);
             var arr = GetRawUintArray(cnode);
@@ -326,7 +326,7 @@ namespace CodeWalker
             var cnode = node?.SelectSingleNode(name);
             return GetRawIntArray(cnode);
         }
-        public static int[] GetChildRawIntArrayNullable(XmlNode? node, string name)
+        public static int[]? GetChildRawIntArrayNullable(XmlNode? node, string name)
         {
             var cnode = node?.SelectSingleNode(name);
             var arr = GetRawIntArray(cnode);
@@ -351,7 +351,7 @@ namespace CodeWalker
             var cnode = node?.SelectSingleNode(name);
             return GetRawFloatArray(cnode);
         }
-        public static float[] GetChildRawFloatArrayNullable(XmlNode? node, string name)
+        public static float[]? GetChildRawFloatArrayNullable(XmlNode? node, string name)
         {
             var cnode = node?.SelectSingleNode(name);
             var arr = GetRawFloatArray(cnode);
@@ -440,7 +440,7 @@ namespace CodeWalker
             var cnode = node?.SelectSingleNode(name);
             return GetRawVector3Array(cnode);
         }
-        public static Vector3[] GetChildRawVector3ArrayNullable(XmlNode? node, string name)
+        public static Vector3[]? GetChildRawVector3ArrayNullable(XmlNode? node, string name)
         {
             var cnode = node?.SelectSingleNode(name);
             var arr = GetRawVector3Array(cnode);
@@ -490,7 +490,7 @@ namespace CodeWalker
             var cnode = node?.SelectSingleNode(name);
             return GetRawVector4Array(cnode);
         }
-        public static Vector4[] GetChildRawVector4ArrayNullable(XmlNode? node, string name)
+        public static Vector4[]? GetChildRawVector4ArrayNullable(XmlNode? node, string name)
         {
             var cnode = node?.SelectSingleNode(name);
             var arr = GetRawVector4Array(cnode);

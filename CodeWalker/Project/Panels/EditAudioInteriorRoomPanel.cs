@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditAudioInteriorRoomPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public Dat151InteriorRoom CurrentRoom { get; set; }
+        public Dat151InteriorRoom? CurrentRoom { get; set; }
 
         private bool populatingui = false;
 
@@ -69,7 +69,7 @@ namespace CodeWalker.Project.Panels
             else
             {
                 //AddToProjectButton.Enabled = CurrentZoneList?.Rel != null ? !ProjectForm.AudioFileExistsInProject(CurrentZoneList.Rel) : false;
-                DeleteButton.Enabled = !(CurrentRoom?.Rel != null ? !ProjectForm.AudioFileExistsInProject(CurrentRoom.Rel) : false);// AddToProjectButton.Enabled;
+                DeleteButton.Enabled = !(CurrentRoom.Rel != null ? !ProjectForm.AudioFileExistsInProject(CurrentRoom.Rel) : false);// AddToProjectButton.Enabled;
 
                 populatingui = true;
                 var cr = CurrentRoom;

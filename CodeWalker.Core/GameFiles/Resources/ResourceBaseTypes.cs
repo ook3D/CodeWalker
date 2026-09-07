@@ -52,7 +52,7 @@ namespace CodeWalker.GameFiles
         /// <summary>
         /// Gets or sets the string value.
         /// </summary>
-        public string Value { get; set; }
+        public string Value { get; set; } = string.Empty;
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -377,7 +377,7 @@ namespace CodeWalker.GameFiles
     {
 
         // this is the data...
-        public List<T> Data { get; set; }
+        public List<T> Data { get; set; } = [];
 
 
 
@@ -690,7 +690,7 @@ namespace CodeWalker.GameFiles
             Data = new List<T>(numElements);
             for (int i = 0; i < numElements; i++)
             {
-                T item = reader.ReadBlock<T>();
+                T item = reader.ReadRequiredBlock<T>();
                 Data.Add(item);
             }
         }
@@ -749,10 +749,10 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        //public ResourceSimpleArray<T> Entries;
-        public T[] data_items { get; set; }
+        //public ResourceSimpleArray<T>? Entries;
+        public T[] data_items { get; set; } = [];
 
-        private ResourceSimpleArray<T> data_block;//used for saving.
+        private ResourceSimpleArray<T>? data_block;//used for saving.
 
 
         /// <summary>
@@ -778,7 +778,7 @@ namespace CodeWalker.GameFiles
             reader.Position = (long)EntriesPointer;
             for (int i = 0; i < EntriesCount; i++)
             {
-                data_items[i] = reader.ReadBlock<T>();
+                data_items[i] = reader.ReadRequiredBlock<T>();
             }
             reader.Position = posbckp;
 
@@ -841,9 +841,9 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        public T[] data_items { get; set; }
+        public T[] data_items { get; set; } = [];
 
-        private ResourceSystemStructBlock<T> data_block;//used for saving.
+        private ResourceSystemStructBlock<T>? data_block;//used for saving.
 
 
         /// <summary>
@@ -860,7 +860,7 @@ namespace CodeWalker.GameFiles
             // read reference data
 
             //TODO: NEEDS TO BE TESTED!!!
-            data_items = reader.ReadStructsAt<T>(EntriesPointer, EntriesCount);
+            data_items = reader.ReadStructsAt<T>(EntriesPointer, EntriesCount) ?? [];
 
             if (EntriesCount != EntriesCapacity)
             { }
@@ -924,9 +924,9 @@ namespace CodeWalker.GameFiles
         public uint EntriesCapacity { get; private set; }
 
         // reference data
-        public T[] data_items { get; set; }
+        public T[] data_items { get; set; } = [];
 
-        private ResourceSystemStructBlock<T> data_block;//used for saving.
+        private ResourceSystemStructBlock<T>? data_block;//used for saving.
 
 
         /// <summary>
@@ -943,7 +943,7 @@ namespace CodeWalker.GameFiles
             // read reference data
 
             //TODO: NEEDS TO BE TESTED!!!
-            data_items = reader.ReadStructsAt<T>(EntriesPointer, EntriesCapacity);
+            data_items = reader.ReadStructsAt<T>(EntriesPointer, EntriesCapacity) ?? [];
         }
 
         /// <summary>
@@ -1002,9 +1002,9 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        public byte[] data_items { get; private set; }
+        public byte[] data_items { get; private set; } = [];
 
-        private ResourceSystemStructBlock<byte> data_block;//used for saving.
+        private ResourceSystemStructBlock<byte>? data_block;//used for saving.
 
 
         /// <summary>
@@ -1021,7 +1021,7 @@ namespace CodeWalker.GameFiles
             // read reference data
 
             //TODO: NEEDS TO BE TESTED!!!
-            data_items = reader.ReadBytesAt(EntriesPointer, EntriesCount);
+            data_items = reader.ReadBytesAt(EntriesPointer, EntriesCount) ?? [];
         }
 
         /// <summary>
@@ -1080,9 +1080,9 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        public ushort[] data_items { get; set; }
+        public ushort[] data_items { get; set; } = [];
 
-        private ResourceSystemStructBlock<ushort> data_block;//used for saving.
+        private ResourceSystemStructBlock<ushort>? data_block;//used for saving.
 
 
         /// <summary>
@@ -1099,7 +1099,7 @@ namespace CodeWalker.GameFiles
             // read reference data
 
             //TODO: NEEDS TO BE TESTED!!!
-            data_items = reader.ReadUshortsAt(EntriesPointer, EntriesCount);
+            data_items = reader.ReadUshortsAt(EntriesPointer, EntriesCount) ?? [];
         }
 
         /// <summary>
@@ -1158,9 +1158,9 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        public uint[] data_items { get; set; }
+        public uint[] data_items { get; set; } = [];
 
-        private ResourceSystemStructBlock<uint> data_block;//used for saving.
+        private ResourceSystemStructBlock<uint>? data_block;//used for saving.
 
 
         /// <summary>
@@ -1177,7 +1177,7 @@ namespace CodeWalker.GameFiles
             // read reference data
 
             //TODO: NEEDS TO BE TESTED!!!
-            data_items = reader.ReadUintsAt(EntriesPointer, EntriesCount);
+            data_items = reader.ReadUintsAt(EntriesPointer, EntriesCount) ?? [];
         }
 
         /// <summary>
@@ -1236,9 +1236,9 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        public ulong[] data_items { get; private set; }
+        public ulong[] data_items { get; private set; } = [];
 
-        private ResourceSystemStructBlock<ulong> data_block;//used for saving.
+        private ResourceSystemStructBlock<ulong>? data_block;//used for saving.
 
 
         /// <summary>
@@ -1255,7 +1255,7 @@ namespace CodeWalker.GameFiles
             // read reference data
 
             //TODO: NEEDS TO BE TESTED!!!
-            data_items = reader.ReadUlongsAt(EntriesPointer, EntriesCount);
+            data_items = reader.ReadUlongsAt(EntriesPointer, EntriesCount) ?? [];
         }
 
         /// <summary>
@@ -1314,9 +1314,9 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        public float[] data_items { get; set; }
+        public float[] data_items { get; set; } = [];
 
-        private ResourceSystemStructBlock<float> data_block;//used for saving.
+        private ResourceSystemStructBlock<float>? data_block;//used for saving.
 
 
         /// <summary>
@@ -1333,7 +1333,7 @@ namespace CodeWalker.GameFiles
             // read reference data
 
             //TODO: NEEDS TO BE TESTED!!!
-            data_items = reader.ReadFloatsAt(EntriesPointer, EntriesCount);
+            data_items = reader.ReadFloatsAt(EntriesPointer, EntriesCount) ?? [];
         }
 
         /// <summary>
@@ -1402,8 +1402,8 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public ulong[] data_pointers { get; set; }
-        public T[] data_items { get; set; }
+        public ulong[] data_pointers { get; set; } = [];
+        public T[] data_items { get; set; } = [];
 
         public bool ManualReferenceOverride = false;//use this if the items are embedded in something else
 
@@ -1417,13 +1417,13 @@ namespace CodeWalker.GameFiles
             int numElements = Convert.ToInt32(parameters[0]);
 
 
-            data_pointers = reader.ReadUlongsAt((ulong)reader.Position, (uint)numElements, false);
+            data_pointers = reader.ReadUlongsAt((ulong)reader.Position, (uint)numElements, false) ?? [];
 
 
             data_items = new T[numElements];
             for (int i = 0; i < numElements; i++)
             {
-                data_items[i] = reader.ReadBlockAt<T>(data_pointers[i]);
+                if (reader.ReadBlockAt<T>(data_pointers[i]) is { } item) data_items[i] = item;
             }
 
 
@@ -1572,15 +1572,15 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; set; }
 
         // reference data
-        //public ResourcePointerArray64<T> Entries;
+        //public ResourcePointerArray64<T>? Entries;
 
-        public ulong[] data_pointers { get; private set; }
-        public T[] data_items { get; set; }
+        public ulong[] data_pointers { get; private set; } = [];
+        public T[] data_items { get; set; } = [];
 
         public bool ManualCountOverride = false; //use this to manually specify the count
         public bool ManualReferenceOverride = false; //use this if the items are embedded in something else
 
-        private ResourcePointerArray64<T> data_block;//used for saving.
+        private ResourcePointerArray64<T>? data_block;//used for saving.
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -1595,11 +1595,11 @@ namespace CodeWalker.GameFiles
             //    this.EntriesCount
             //);
 
-            data_pointers = reader.ReadUlongsAt(EntriesPointer, EntriesCapacity);
+            data_pointers = reader.ReadUlongsAt(EntriesPointer, EntriesCapacity) ?? [];
             data_items = new T[EntriesCount];
             for (int i = 0; i < EntriesCount; i++)
             {
-                data_items[i] = reader.ReadBlockAt<T>(data_pointers[i]);
+                if (reader.ReadBlockAt<T>(data_pointers[i]) is { } item) data_items[i] = item;
             }
 
 
@@ -1750,7 +1750,7 @@ namespace CodeWalker.GameFiles
 
     public class ResourceSystemDataBlock : ResourceSystemBlock //used for writing resources.
     {
-        public byte[] Data { get; set; }
+        public byte[] Data { get; set; } = [];
         public int DataLength { get; set; }
 
         public override long BlockLength
@@ -1765,7 +1765,7 @@ namespace CodeWalker.GameFiles
         public ResourceSystemDataBlock(byte[] data)
         {
             Data = data;
-            DataLength = (Data != null) ? Data.Length : 0;
+            DataLength = Data.Length;
         }
 
 
@@ -1782,7 +1782,7 @@ namespace CodeWalker.GameFiles
 
     public class ResourceSystemStructBlock<T> : ResourceSystemBlock where T : struct //used for writing resources.
     {
-        public T[] Items { get; set; }
+        public T[] Items { get; set; } = [];
         public int ItemCount { get; set; }
         public int StructureSize { get; set; }
 
@@ -1797,7 +1797,7 @@ namespace CodeWalker.GameFiles
         public ResourceSystemStructBlock(T[] items)
         {
             Items = items;
-            ItemCount = (Items != null) ? Items.Length : 0;
+            ItemCount = Items.Length;
             StructureSize = Marshal.SizeOf(typeof(T));
         }
 

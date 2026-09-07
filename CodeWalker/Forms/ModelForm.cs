@@ -24,7 +24,7 @@ namespace CodeWalker.Forms
     {
         public Form Form { get { return this; } } //for DXForm/DXManager use
 
-        private Renderer Renderer = null;
+        private readonly Renderer Renderer;
 
 
         volatile bool formopen = false;
@@ -58,7 +58,7 @@ namespace CodeWalker.Forms
         bool initedOk = false;
 
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -68,14 +68,14 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
-        YdrFile Ydr = null;
-        YddFile Ydd = null;
-        YftFile Yft = null;
-        YbnFile Ybn = null;
-        YptFile Ypt = null;
-        YnvFile Ynv = null;
+        YdrFile? Ydr = null;
+        YddFile? Ydd = null;
+        YftFile? Yft = null;
+        YbnFile? Ybn = null;
+        YptFile? Ypt = null;
+        YnvFile? Ynv = null;
 
 
 
@@ -97,46 +97,46 @@ namespace CodeWalker.Forms
         object gridSyncRoot = new object();
 
         //particle effect preview (.ypt)
-        ParticleEffectInst particleEffect = null;
+        ParticleEffectInst? particleEffect = null;
         volatile bool particleEffectDirty = false;
         int particleEffectIndex = -1;
         volatile bool particlePlaying = true;
         float particleTimeScale = 1.0f;
         volatile bool particleRestart = false;
         bool particleUIInited = false;
-        TabPage ParticlesTabPage;
-        ComboBox ParticleEffectComboBox;
-        Button ParticlePlayButton;
-        Button ParticleRestartButton;
-        TrackBar ParticleSpeedTrackBar;
-        Label ParticleStatsLabel;
+        TabPage? ParticlesTabPage;
+        ComboBox? ParticleEffectComboBox;
+        Button? ParticlePlayButton;
+        Button? ParticleRestartButton;
+        TrackBar? ParticleSpeedTrackBar;
+        Label? ParticleStatsLabel;
 
-        GameFileCache gameFileCache = null;
-        Archetype currentArchetype = null;
+        readonly GameFileCache gameFileCache;
+        Archetype? currentArchetype = null;
         bool updateArchetypeStatus = true;
 
 
-        ModelMatForm materialForm = null;
+        ModelMatForm? materialForm = null;
         bool modelModified = false;
 
         TransformWidget Widget = new();
-        TransformWidget GrabbedWidget = null;
-        ModelLightForm lightForm = null;
+        TransformWidget? GrabbedWidget = null;
+        ModelLightForm? lightForm = null;
         bool editingLights = false;
-        public LightAttributes selectedLight = null;
+        public LightAttributes? selectedLight = null;
         public bool showLightGizmos = true;
-        public Skeleton Skeleton = null;
+        public Skeleton? Skeleton = null;
 
-        ExploreForm exploreForm = null;
-        RpfFileEntry rpfFileEntry = null;
+        ExploreForm? exploreForm = null;
+        RpfFileEntry? rpfFileEntry;
 
 
         bool animsInited = false;
-        YcdFile Ycd = null;
-        ClipMapEntry AnimClip = null;
+        YcdFile? Ycd;
+        ClipMapEntry? AnimClip = null;
 
         MetaHash ModelHash;
-        Archetype ModelArchetype = null;
+        Archetype? ModelArchetype = null;
         bool EnableRootMotion = false;
 
 
@@ -147,7 +147,7 @@ namespace CodeWalker.Forms
 
             exploreForm = ExpForm;
 
-            gameFileCache = ExpForm?.GetFileCache();
+            gameFileCache = ExpForm?.GetFileCache() ?? GameFileCacheFactory.Create();
 
             Renderer = new Renderer(this, gameFileCache);
             camera = Renderer.camera;
@@ -239,7 +239,7 @@ namespace CodeWalker.Forms
 
 
             camera.FollowEntity = camEntity;
-            camera.FollowEntity.Position = prevworldpos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = prevworldpos;
             camera.FollowEntity.Orientation = Quaternion.LookAtLH(Vector3.Zero, Vector3.Up, Vector3.ForwardLH);
             camera.TargetDistance = 2.0f;
             camera.CurrentDistance = 2.0f;
@@ -504,7 +504,7 @@ namespace CodeWalker.Forms
 
             rad = Math.Max(0.01f, rad);
 
-            camera.FollowEntity.Position = pos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = pos;
             camera.TargetDistance = rad * 1.6f;
             camera.CurrentDistance = rad * 1.6f;
 
@@ -513,7 +513,7 @@ namespace CodeWalker.Forms
 
 
 
-        private Archetype TryGetArchetype(uint hash)
+        private Archetype? TryGetArchetype(uint hash)
         {
             if ((gameFileCache == null) || (!gameFileCache.IsInited)) return null;
 
@@ -591,7 +591,7 @@ namespace CodeWalker.Forms
 
         public void SetCameraPosition(Vector3 p, float distance = 2.0f)
         {
-            Renderer.camera.FollowEntity.Position = p;
+            if (Renderer.camera.FollowEntity is { } followedEntity) followedEntity.Position = p;
             camera.TargetDistance = distance;
         }
 
@@ -728,7 +728,7 @@ namespace CodeWalker.Forms
                         {
                             var arch = TryGetArchetype(kvp.Key);
 
-                            Renderer.RenderDrawable(kvp.Value, arch, null, Ydd.RpfFileEntry.ShortNameHash, null, null, AnimClip);
+                            Renderer.RenderDrawable(kvp.Value, arch, null, (Ydd.RpfFileEntry?.ShortNameHash ?? 0), null, null, AnimClip);
                         }
                     }
                 }
@@ -1081,7 +1081,7 @@ namespace CodeWalker.Forms
 
         private void ParticleEffectComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
-            particleEffectIndex = ParticleEffectComboBox.SelectedIndex - 1; //index 0 is "(none)" -> -1
+            particleEffectIndex = (ParticleEffectComboBox?.SelectedIndex ?? 0) - 1; //index 0 is "(none)" -> -1
             particleRestart = true;
             particleEffectDirty = true;
         }
@@ -1089,19 +1089,19 @@ namespace CodeWalker.Forms
         private void ParticlePlayButton_Click(object? sender, EventArgs e)
         {
             particlePlaying = !particlePlaying;
-            ParticlePlayButton.Text = particlePlaying ? "Pause" : "Play";
+            if (ParticlePlayButton != null) ParticlePlayButton.Text = particlePlaying ? "Pause" : "Play";
         }
 
         private void ParticleRestartButton_Click(object? sender, EventArgs e)
         {
             particleRestart = true;
             particlePlaying = true;
-            ParticlePlayButton.Text = "Pause";
+            if (ParticlePlayButton != null) ParticlePlayButton.Text = "Pause";
         }
 
         private void ParticleSpeedTrackBar_Scroll(object? sender, EventArgs e)
         {
-            particleTimeScale = ParticleSpeedTrackBar.Value / 100.0f;
+            particleTimeScale = (ParticleSpeedTrackBar?.Value ?? 100) / 100.0f;
         }
         public void LoadNavmesh(YnvFile? ynv)
         {
@@ -1339,7 +1339,7 @@ namespace CodeWalker.Forms
 
 
 
-        private void UpdateModelsUI(DrawableBase drawable, object? detailsObject = null)
+        private void UpdateModelsUI(DrawableBase? drawable, object? detailsObject = null)
         {
             DetailsPropertyGrid.SelectedObject = detailsObject ?? drawable;
 
@@ -1430,7 +1430,7 @@ namespace CodeWalker.Forms
 
             ToolsPanel.Visible = true; //show the panel by default for dictionaries...
         }
-        private void UpdateModelsUI(Dictionary<uint, DrawableBase> dict)
+        private void UpdateModelsUI(Dictionary<uint, DrawableBase>? dict)
         {
             //DetailsPropertyGrid.SelectedObject = dict; //this won't look good...
 
@@ -1964,7 +1964,7 @@ namespace CodeWalker.Forms
 
             var rpfSave = editMode && (rpfFileEntry?.Parent != null) && !saveAs;
 
-            if (rpfSave)
+            if (rpfSave && rpfFileEntry?.Parent != null)
             {
                 if (!rpfFileEntry.Path.StartsWith(RpfManager.ModsFolder, StringComparison.OrdinalIgnoreCase))
                 {
@@ -2004,6 +2004,7 @@ namespace CodeWalker.Forms
 
                 try
                 {
+                    if (string.IsNullOrEmpty(fn)) throw new IOException("No output filename has been selected.");
                     File.WriteAllBytes(fn, fileBytes);
 
                     fileName = Path.GetFileName(fn);
@@ -2042,7 +2043,7 @@ namespace CodeWalker.Forms
             if (!folderpath.EndsWith("\\")) folderpath += "\\";
 
 
-            var tryGetTextureFromYtd = new Func<uint, YtdFile, Texture>((texHash, ytd) => 
+            var tryGetTextureFromYtd = new Func<uint, YtdFile?, Texture?>((texHash, ytd) =>
             {
                 if (ytd == null) return null;
                 int tries = 0;
@@ -2057,7 +2058,7 @@ namespace CodeWalker.Forms
                 }
                 return null;
             });
-            var tryGetTexture = new Func<uint, uint, Texture>((texHash, txdHash) =>
+            var tryGetTexture = new Func<uint, uint, Texture?>((texHash, txdHash) =>
             {
                 if (txdHash != 0)
                 {
@@ -2070,7 +2071,7 @@ namespace CodeWalker.Forms
 
             var textures = new HashSet<Texture>();
             var texturesMissing = new HashSet<string>();
-            var collectTextures = new Action<DrawableBase>((d) => 
+            var collectTextures = new Action<DrawableBase?>((d) =>
             {
                 if (includeEmbedded)
                 {
@@ -2324,7 +2325,7 @@ namespace CodeWalker.Forms
                     GrabbedWidget.IsDragging = false;
                     //GrabbedWidget.Position = SelectedItem.WidgetPosition;//in case of any snapping, make sure widget is in correct position at the end
                     GrabbedWidget = null;
-                    lightForm.UpdateUI(); //do this so position and direction textboxes are updated after a drag
+                    lightForm?.UpdateUI(); //do this so position and direction textboxes are updated after a drag
                 }
             }
             //lock (MouseControlSyncRoot)
@@ -2403,12 +2404,12 @@ namespace CodeWalker.Forms
         {
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //nontypable combobox
             }
 
@@ -2523,12 +2524,12 @@ namespace CodeWalker.Forms
 
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //non-typable combobox
             }
 

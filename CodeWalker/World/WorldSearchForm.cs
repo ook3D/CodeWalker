@@ -47,7 +47,7 @@ namespace CodeWalker.World
             var loadedOnly = false;// ArchetypeSearchLoadedOnlyCheckBox.Checked; //NOT WORKING...
 
             var gfc = WorldForm.GameFileCache;
-            if (!gfc.IsInited)
+            if (!gfc.IsInited || gfc.RpfMan is not { } rpfman)
             {
                 MessageBox.Show("Please wait for CodeWalker to initialise.");
                 return;
@@ -76,7 +76,6 @@ namespace CodeWalker.World
             Task.Run(() =>
             {
 
-                var rpfman = gfc.RpfMan;
                 var rpflist = loadedOnly ? gfc.ActiveMapRpfFiles.Values.ToList() : rpfman.AllRpfs;
                 var results = new List<Archetype>();
 
@@ -96,7 +95,7 @@ namespace CodeWalker.World
                             {
                                 ArchetypeSearchUpdateStatus(entry.Path);
 
-                                YtypFile ytyp = rpfman.GetFile<YtypFile>(entry);
+                                var ytyp = rpfman.GetFile<YtypFile>(entry);
                                 if (ytyp == null) continue;
                                 if (ytyp.AllArchetypes == null) continue;
 
@@ -286,7 +285,7 @@ namespace CodeWalker.World
             var loadedOnly = EntitySearchLoadedOnlyCheckBox.Checked;
 
             var gfc = WorldForm.GameFileCache;
-            if (!gfc.IsInited)
+            if (!gfc.IsInited || gfc.RpfMan is not { } rpfman)
             {
                 MessageBox.Show("Please wait for CodeWalker to initialise.");
                 return;
@@ -318,7 +317,6 @@ namespace CodeWalker.World
             Task.Run(() =>
             {
 
-                var rpfman = gfc.RpfMan;
                 var rpflist = loadedOnly ? gfc.ActiveMapRpfFiles.Values.ToList() : rpfman.AllRpfs;
                 var results = new List<YmapEntityDef>();
 
@@ -338,7 +336,7 @@ namespace CodeWalker.World
                             {
                                 EntitySearchUpdateStatus(entry.Path);
 
-                                YmapFile ymap = rpfman.GetFile<YmapFile>(entry);
+                                var ymap = rpfman.GetFile<YmapFile>(entry);
                                 if (ymap == null) continue;
                                 if (ymap.AllEntities == null) continue;
 

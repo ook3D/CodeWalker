@@ -15,8 +15,8 @@ namespace CodeWalker.Forms
     public partial class ModelMatForm : Form
     {
         private ModelForm ModelForm;
-        private DrawableBase Drawable;
-        private Dictionary<uint, Drawable> DrawableDict;
+        private DrawableBase? Drawable;
+        private Dictionary<uint, Drawable>? DrawableDict;
 
 
         public ModelMatForm(ModelForm modelForm)
@@ -28,7 +28,7 @@ namespace CodeWalker.Forms
         }
 
 
-        public void LoadModel(DrawableBase drawable)
+        public void LoadModel(DrawableBase? drawable)
         {
             Drawable = drawable;
 
@@ -85,7 +85,7 @@ namespace CodeWalker.Forms
                 }
             }
         }
-        public void LoadModels(Dictionary<uint, Drawable> dict)
+        public void LoadModels(Dictionary<uint, Drawable>? dict)
         {
             DrawableDict = dict;
 
@@ -139,7 +139,7 @@ namespace CodeWalker.Forms
         }
 
 
-        private void SelectGeometry(DrawableGeometry geom)
+        private void SelectGeometry(DrawableGeometry? geom)
         {
             MaterialPropertiesPanel.Controls.Clear();
 
@@ -213,17 +213,13 @@ namespace CodeWalker.Forms
 
         private void ParamTextBox_TextChanged(object? sender, EventArgs e)
         {
-            var tb = sender as TextBox;
-            var parm = tb?.Tag as ShaderParameter;
-            var txt = tb?.Text;
-
-            if (parm == null) return;
+            if (sender is not TextBox { Tag: ShaderParameter parm } tb) return;
+            var txt = tb.Text;
 
             if (parm.DataType == 0)//texture
             {
-                var tex = parm.Data as TextureBase;
-                var ttex = tex as Texture;
-                if (ttex == null)//don't do this for embedded textures!
+                if (parm.Data is not TextureBase tex) return;
+                if (tex is not Texture)//don't do this for embedded textures!
                 {
                     tex.Name = txt;
                     tex.NameHash = JenkHash.GenHash(txt.ToLowerInvariant());
@@ -274,7 +270,7 @@ namespace CodeWalker.Forms
 
         }
 
-        private void UpdateRenderableParams(DrawableBase dwbl, ShaderFX shader)
+        private void UpdateRenderableParams(DrawableBase dwbl, ShaderFX? shader)
         {
             foreach (var model in dwbl.AllModels)
             {
@@ -297,7 +293,7 @@ namespace CodeWalker.Forms
 
         private void ModelsTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            SelectGeometry(e.Node.Tag as DrawableGeometry);
+            SelectGeometry(e.Node?.Tag as DrawableGeometry);
         }
     }
 }

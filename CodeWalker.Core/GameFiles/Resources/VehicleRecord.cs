@@ -24,7 +24,7 @@ namespace CodeWalker.GameFiles
         {
             base.Read(reader, parameters);
 
-            this.Entries = reader.ReadBlock<ResourceSimpleList64<VehicleRecordEntry>>();
+            this.Entries = reader.ReadRequiredBlock<ResourceSimpleList64<VehicleRecordEntry>>();
         }
         public override void Write(ResourceDataWriter writer, params object[] parameters)
         {
@@ -79,7 +79,7 @@ namespace CodeWalker.GameFiles
                 YvrXml.CloseTag(sb, indent, name);
             }
         }
-        public static VehicleRecordList ReadXmlNode(XmlNode? node)
+        public static VehicleRecordList? ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var l = new VehicleRecordList();

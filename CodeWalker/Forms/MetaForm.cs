@@ -18,7 +18,7 @@ namespace CodeWalker.Forms
 {
     public partial class MetaForm : Form
     {
-        private string xml;
+        private string xml = string.Empty;
         public string Xml
         {
             get { return xml; }
@@ -29,7 +29,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -39,15 +39,15 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
         private bool modified = false;
         private bool LoadingXml = false;
         private bool DelayHighlight = false;
 
 
-        private ExploreForm exploreForm = null;
-        public RpfFileEntry rpfFileEntry { get; private set; } = null;
+        private readonly ExploreForm exploreForm;
+        public RpfFileEntry? rpfFileEntry { get; private set; } = null;
         private MetaFormat metaFormat = MetaFormat.XML;
 
 
@@ -306,70 +306,70 @@ namespace CodeWalker.Forms
         }
         public void LoadMeta(YndFile ynd)
         {
-            var fn = ((ynd?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((ynd.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = MetaXml.GetXml(ynd, out fn);
             FileName = fn;
             RawPropertyGrid.SelectedObject = ynd;
-            rpfFileEntry = ynd?.RpfFileEntry;
+            rpfFileEntry = ynd.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (ynd?.RpfFileEntry != null)
+            if (ynd.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.Ynd;
             }
         }
         public void LoadMeta(YldFile yld)
         {
-            var fn = ((yld?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((yld.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = MetaXml.GetXml(yld, out fn);
             FileName = fn;
             RawPropertyGrid.SelectedObject = yld;
-            rpfFileEntry = yld?.RpfFileEntry;
+            rpfFileEntry = yld.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (yld?.RpfFileEntry != null)
+            if (yld.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.Yld;
             }
         }
         public void LoadMeta(YedFile yed)
         {
-            var fn = ((yed?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((yed.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = MetaXml.GetXml(yed, out fn);
             FileName = fn;
             RawPropertyGrid.SelectedObject = yed;
-            rpfFileEntry = yed?.RpfFileEntry;
+            rpfFileEntry = yed.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (yed?.RpfFileEntry != null)
+            if (yed.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.Yed;
             }
         }
         public void LoadMeta(CacheDatFile cachedat)
         {
-            var fn = ((cachedat?.FileEntry?.Name) ?? "") + ".xml";
+            var fn = ((cachedat.FileEntry?.Name) ?? "") + ".xml";
             Xml = MetaXml.GetXml(cachedat, out fn, "");
             FileName = fn;
             RawPropertyGrid.SelectedObject = cachedat;
-            rpfFileEntry = cachedat?.FileEntry;
+            rpfFileEntry = cachedat.FileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (cachedat?.FileEntry != null)
+            if (cachedat.FileEntry != null)
             {
                 metaFormat = MetaFormat.CacheFile;
             }
         }
         public void LoadMeta(HeightmapFile heightmap)
         {
-            var fn = ((heightmap?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((heightmap.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = HmapXml.GetXml(heightmap);
             FileName = fn;
             RawPropertyGrid.SelectedObject = heightmap;
-            rpfFileEntry = heightmap?.RpfFileEntry;
+            rpfFileEntry = heightmap.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (heightmap?.RpfFileEntry != null)
+            if (heightmap.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.Heightmap;
             }
@@ -377,56 +377,56 @@ namespace CodeWalker.Forms
 
         public void LoadMeta(AudioWorldSectorsFile audioworldsectors)
         {
-            var fn = ((audioworldsectors?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((audioworldsectors.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = AudXml.GetXml(audioworldsectors);
             FileName = fn;
             RawPropertyGrid.SelectedObject = audioworldsectors;
-            rpfFileEntry = audioworldsectors?.RpfFileEntry;
+            rpfFileEntry = audioworldsectors.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (audioworldsectors?.RpfFileEntry != null)
+            if (audioworldsectors.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.AudioWorldSectors;
             }
         }
         public void LoadMeta(YpdbFile ypdb)
         {
-            var fn = ((ypdb?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((ypdb.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = MetaXml.GetXml(ypdb, out fn);
             FileName = fn;
             RawPropertyGrid.SelectedObject = ypdb;
-            rpfFileEntry = ypdb?.RpfFileEntry;
+            rpfFileEntry = ypdb.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (ypdb?.RpfFileEntry != null)
+            if (ypdb.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.Ypdb;
             }
         }
         public void LoadMeta(YfdFile yfd)
         {
-            var fn = ((yfd?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((yfd.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = MetaXml.GetXml(yfd, out fn);
             FileName = fn;
             RawPropertyGrid.SelectedObject = yfd;
-            rpfFileEntry = yfd?.RpfFileEntry;
+            rpfFileEntry = yfd.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (yfd?.RpfFileEntry != null)
+            if (yfd.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.Yfd;
             }
         }
         public void LoadMeta(MrfFile mrf)
         {
-            var fn = ((mrf?.RpfFileEntry?.Name) ?? "") + ".xml";
+            var fn = ((mrf.RpfFileEntry?.Name) ?? "") + ".xml";
             Xml = MrfXml.GetXml(mrf);
             FileName = fn;
             RawPropertyGrid.SelectedObject = mrf;
-            rpfFileEntry = mrf?.RpfFileEntry;
+            rpfFileEntry = mrf.RpfFileEntry;
             modified = false;
             metaFormat = MetaFormat.XML;
-            if (mrf?.RpfFileEntry != null)
+            if (mrf.RpfFileEntry != null)
             {
                 metaFormat = MetaFormat.Mrf;
             }

@@ -18,14 +18,14 @@ namespace CodeWalker.Forms
 {
     public partial class YtdForm : Form
     {
-        private string FileName;
-        private YtdFile Ytd { get; set; }
-        private TextureDictionary TexDict { get; set; }
-        private Texture CurrentTexture = null;
+        private string FileName = string.Empty;
+        private YtdFile? Ytd { get; set; }
+        private TextureDictionary? TexDict { get; set; }
+        private Texture? CurrentTexture = null;
         private float CurrentZoom = 0.0f; //1.0 = 100%, 0.0 = stretch
         private bool Modified = false;
-        private ExploreForm ExploreForm = null;
-        private ModelForm ModelForm = null;
+        private ExploreForm? ExploreForm = null;
+        private ModelForm? ModelForm = null;
 
 
         public YtdForm(ExploreForm? exploreForm = null, ModelForm? modelForm = null)
@@ -40,15 +40,15 @@ namespace CodeWalker.Forms
         {
             Ytd = ytd;
 
-            FileName = ytd?.Name;
+            FileName = ytd.Name;
             if (string.IsNullOrEmpty(FileName))
             {
-                FileName = ytd?.RpfFileEntry?.Name;
+                FileName = ytd.RpfFileEntry?.Name ?? string.Empty;
             }
 
             LoadTexDict(ytd.TextureDict, FileName);
         }
-        public void LoadTexDict(TextureDictionary texdict, string filename)
+        public void LoadTexDict(TextureDictionary? texdict, string filename)
         {
             TexDict = texdict;
             FileName = filename;
@@ -99,7 +99,7 @@ namespace CodeWalker.Forms
         }
 
 
-        private void SelectTexture(Texture tex)
+        private void SelectTexture(Texture? tex)
         {
             TexturesListView.SelectedItems.Clear();
             if (tex == null) return;
@@ -113,7 +113,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private void ShowTextureMip(Texture tex, int mip, bool mipchange)
+        private void ShowTextureMip(Texture? tex, int mip, bool mipchange)
         {
             CurrentTexture = tex;
             UpdateSaveTextureAs();
@@ -153,7 +153,7 @@ namespace CodeWalker.Forms
             try
             {
                 int cmip = Math.Min(Math.Max(mip, 0), tex.Levels - 1);
-                byte[] pixels = DDSIO.GetPixels(tex, cmip);
+                var pixels = DDSIO.GetPixels(tex, cmip);
                 int w = tex.Width >> cmip;
                 int h = tex.Height >> cmip;
                 Bitmap bmp = new(w, h, PixelFormat.Format32bppArgb);
@@ -196,7 +196,7 @@ namespace CodeWalker.Forms
 
         private void AddTextures(string[]? filenames = null)
         {
-            if (TexDict.Textures?.data_items == null) return;
+            if (TexDict?.Textures?.data_items == null) return;
 
             var texs = (filenames != null) ? OpenDDSFiles(filenames) : OpenDDSFiles();
             if (texs == null) return;
@@ -210,7 +210,7 @@ namespace CodeWalker.Forms
             var anyok = false;
             foreach (var tex in texs)
             {
-                var txn = tex?.Name;
+                var txn = tex.Name;
                 if (string.IsNullOrEmpty(txn)) continue;
                 var found = textures.Any(t => txn.Equals(t.Name, StringComparison.InvariantCultureIgnoreCase));
                 if (found)
@@ -335,7 +335,7 @@ namespace CodeWalker.Forms
         }
 
 
-        private List<Texture> OpenDDSFiles(bool single = false)
+        private List<Texture>? OpenDDSFiles(bool single = false)
         {
             OpenDDSFileDialog.Multiselect = !single;
 
@@ -366,7 +366,7 @@ namespace CodeWalker.Forms
                     if (isDds)
                     {
                         var dds = File.ReadAllBytes(fn);
-                        tex = DDSIO.GetTexture(dds);
+                        tex = DDSIO.GetTexture(dds) ?? throw new InvalidDataException("Invalid DDS header.");
                     }
                     else
                     {
@@ -393,8 +393,8 @@ namespace CodeWalker.Forms
                     }
 
                     tex.Name = Path.GetFileNameWithoutExtension(fn);
-                    tex.NameHash = JenkHash.GenHash(tex.Name?.ToLowerInvariant());
-                    JenkIndex.Ensure(tex.Name?.ToLowerInvariant());
+                    tex.NameHash = JenkHash.GenHash(tex.Name.ToLowerInvariant());
+                    JenkIndex.Ensure(tex.Name.ToLowerInvariant());
 
                     textures.Add(tex);
                 }
@@ -432,7 +432,8 @@ namespace CodeWalker.Forms
                     if (isDds)
                     {
                         var dds = await File.ReadAllBytesAsync(fn, cancellationToken).ConfigureAwait(false);
-                        tex = await DDSIO.GetTextureAsync(dds, null, cancellationToken).ConfigureAwait(false);
+                        tex = await DDSIO.GetTextureAsync(dds, null, cancellationToken).ConfigureAwait(false)
+                            ?? throw new InvalidDataException("Invalid DDS header.");
                     }
                     else
                     {
@@ -478,8 +479,8 @@ namespace CodeWalker.Forms
                     }
 
                     tex.Name = Path.GetFileNameWithoutExtension(fn);
-                    tex.NameHash = JenkHash.GenHash(tex.Name?.ToLowerInvariant());
-                    JenkIndex.Ensure(tex.Name?.ToLowerInvariant());
+                    tex.NameHash = JenkHash.GenHash(tex.Name.ToLowerInvariant());
+                    JenkIndex.Ensure(tex.Name.ToLowerInvariant());
 
                     textures.Add(tex);
                 }
@@ -524,7 +525,7 @@ namespace CodeWalker.Forms
 
             var img = SelTexturePictureBox.Image;
 
-            if (CurrentZoom <= 0.0f)
+            if (CurrentZoom <= 0.0f || img == null)
             {
                 //stretch image to fit the area available.
                 SelTexturePanel.AutoScroll = false;
@@ -650,12 +651,12 @@ namespace CodeWalker.Forms
                 string fpath = SaveYTDFileDialog.FileName;
                 File.WriteAllBytes(fpath, data);
             }
-            else if (!isinrpf) //save direct to filesystem in RPF explorer
+            else if (!isinrpf && rpfFileEntry != null) //save direct to filesystem in RPF explorer
             {
                 File.WriteAllBytes(rpfFileEntry.Path, data);
                 ExploreForm?.RefreshMainListViewInvoke(); //update the file details in explorer...
             }
-            else //save to RPF...
+            else if (rpfFileEntry?.Parent != null) //save to RPF...
             {
                 if (!(ExploreForm?.EnsureRpfValidEncryption(rpfFileEntry.File) ?? false))
                 {
@@ -764,7 +765,7 @@ namespace CodeWalker.Forms
 
         private void TexturesListView_DragEnter(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data?.GetDataPresent(DataFormats.FileDrop) != true)
             {
                 e.Effect = DragDropEffects.None;
                 return;
@@ -782,11 +783,11 @@ namespace CodeWalker.Forms
 
         private void TexturesListView_DragDrop(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data?.GetDataPresent(DataFormats.FileDrop) != true)
             {
                 return;
             }
-            if (TexDict.Textures?.data_items == null)
+            if (TexDict?.Textures?.data_items == null)
             {
                 return;
             }

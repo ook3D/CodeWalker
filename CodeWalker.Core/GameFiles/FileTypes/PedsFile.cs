@@ -15,10 +15,10 @@ namespace CodeWalker.GameFiles
 {
     [TC(typeof(EXP))] public class PedsFile : GameFile, PackedFile
     {
-        public PsoFile Pso { get; set; }
-        public string Xml { get; set; }
+        public PsoFile? Pso { get; set; }
+        public string Xml { get; set; } = string.Empty;
 
-        public CPedModelInfo__InitDataList InitDataList { get; set; }
+        public CPedModelInfo__InitDataList? InitDataList { get; set; }
 
         public PedsFile() : base(null, GameFileType.Peds)
         { }
@@ -34,7 +34,7 @@ namespace CodeWalker.GameFiles
 
 
             //can be PSO .ymt or XML .meta
-            MemoryStream ms = new(data);
+            using MemoryStream ms = new(data);
             if (PsoFile.IsPSO(ms))
             {
                 Pso = new PsoFile();
@@ -79,49 +79,49 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public class CPedModelInfo__InitDataList
     {
         public string residentTxd { get; set; }
-        public string[] residentAnims { get; set; }
-        public CPedModelInfo__InitData[] InitDatas { get; set; }
-        public CTxdRelationship[] txdRelationships { get; set; }
-        public CMultiTxdRelationship[] multiTxdRelationships { get; set; }
+        public string[] residentAnims { get; set; } = [];
+        public CPedModelInfo__InitData[] InitDatas { get; set; } = [];
+        public CTxdRelationship[] txdRelationships { get; set; } = [];
+        public CMultiTxdRelationship[] multiTxdRelationships { get; set; } = [];
 
         public CPedModelInfo__InitDataList(XmlNode node)
         {
-            XmlNodeList? items;
+            XmlNode[] items;
 
-            residentTxd = Xml.GetChildInnerText(node, "residentTxd");
+            residentTxd = Xml.GetChildInnerText(node, "residentTxd") ?? string.Empty;
 
-            items = node.SelectSingleNode("residentAnims")?.SelectNodes("Item");
-            if (items?.Count > 0)
+            items = node.SelectSingleNode("residentAnims")?.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            if (items.Length > 0)
             {
-                residentAnims = new string[items.Count];
-                for (int i = 0; i < items.Count; i++)
+                residentAnims = new string[items.Length];
+                for (int i = 0; i < items.Length; i++)
                 {
                     residentAnims[i] = items[i].InnerText;
                 }
             }
-            items = node.SelectSingleNode("InitDatas")?.SelectNodes("Item");
-            if (items?.Count > 0)
+            items = node.SelectSingleNode("InitDatas")?.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            if (items.Length > 0)
             {
-                InitDatas = new CPedModelInfo__InitData[items.Count];
-                for (int i = 0; i < items.Count; i++)
+                InitDatas = new CPedModelInfo__InitData[items.Length];
+                for (int i = 0; i < items.Length; i++)
                 {
                     InitDatas[i] = new CPedModelInfo__InitData(items[i]);
                 }
             }
-            items = node.SelectSingleNode("txdRelationships")?.SelectNodes("Item");
-            if (items?.Count > 0)
+            items = node.SelectSingleNode("txdRelationships")?.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            if (items.Length > 0)
             {
-                txdRelationships = new CTxdRelationship[items.Count];
-                for (int i = 0; i < items.Count; i++)
+                txdRelationships = new CTxdRelationship[items.Length];
+                for (int i = 0; i < items.Length; i++)
                 {
                     txdRelationships[i] = new CTxdRelationship(items[i]);
                 }
             }
-            items = node.SelectSingleNode("multiTxdRelationships")?.SelectNodes("Item");
-            if (items?.Count > 0)
+            items = node.SelectSingleNode("multiTxdRelationships")?.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            if (items.Length > 0)
             {
-                multiTxdRelationships = new CMultiTxdRelationship[items.Count];
-                for (int i = 0; i < items.Count; i++)
+                multiTxdRelationships = new CMultiTxdRelationship[items.Length];
+                for (int i = 0; i < items.Length; i++)
                 {
                     multiTxdRelationships[i] = new CMultiTxdRelationship(items[i]);
                 }
@@ -141,7 +141,7 @@ namespace CodeWalker.GameFiles
         public string ExpressionName { get; set; }
         public string Pedtype { get; set; }
         public string MovementClipSet { get; set; }
-        public string[] MovementClipSets { get; set; }
+        public string[] MovementClipSets { get; set; } = [];
         public string StrafeClipSet { get; set; }
         public string MovementToStrafeClipSet { get; set; }
         public string InjuredStrafeClipSet { get; set; }
@@ -207,63 +207,63 @@ namespace CodeWalker.GameFiles
 
         public CPedModelInfo__InitData(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
-            PropsName = Xml.GetChildInnerText(node, "PropsName");
-            ClipDictionaryName = Xml.GetChildInnerText(node, "ClipDictionaryName");
-            BlendShapeFileName = Xml.GetChildInnerText(node, "BlendShapeFileName");
-            ExpressionSetName = Xml.GetChildInnerText(node, "ExpressionSetName");
-            ExpressionDictionaryName = Xml.GetChildInnerText(node, "ExpressionDictionaryName");
-            ExpressionName = Xml.GetChildInnerText(node, "ExpressionName");
-            Pedtype = Xml.GetChildInnerText(node, "Pedtype");
-            MovementClipSet = Xml.GetChildInnerText(node, "MovementClipSet");
-            var items = node.SelectSingleNode("MovementClipSets")?.SelectNodes("Item");
-            if (items?.Count > 0)
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
+            PropsName = Xml.GetChildInnerText(node, "PropsName") ?? string.Empty;
+            ClipDictionaryName = Xml.GetChildInnerText(node, "ClipDictionaryName") ?? string.Empty;
+            BlendShapeFileName = Xml.GetChildInnerText(node, "BlendShapeFileName") ?? string.Empty;
+            ExpressionSetName = Xml.GetChildInnerText(node, "ExpressionSetName") ?? string.Empty;
+            ExpressionDictionaryName = Xml.GetChildInnerText(node, "ExpressionDictionaryName") ?? string.Empty;
+            ExpressionName = Xml.GetChildInnerText(node, "ExpressionName") ?? string.Empty;
+            Pedtype = Xml.GetChildInnerText(node, "Pedtype") ?? string.Empty;
+            MovementClipSet = Xml.GetChildInnerText(node, "MovementClipSet") ?? string.Empty;
+            var items = node.SelectSingleNode("MovementClipSets")?.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            if (items.Length > 0)
             {
-                MovementClipSets = new string[items.Count];
-                for (int i = 0; i < items.Count; i++)
+                MovementClipSets = new string[items.Length];
+                for (int i = 0; i < items.Length; i++)
                 {
                     MovementClipSets[i] = items[i].InnerText;
                 }
             }
-            StrafeClipSet = Xml.GetChildInnerText(node, "StrafeClipSet");
-            MovementToStrafeClipSet = Xml.GetChildInnerText(node, "MovementToStrafeClipSet");
-            InjuredStrafeClipSet = Xml.GetChildInnerText(node, "InjuredStrafeClipSet");
-            FullBodyDamageClipSet = Xml.GetChildInnerText(node, "FullBodyDamageClipSet");
-            AdditiveDamageClipSet = Xml.GetChildInnerText(node, "AdditiveDamageClipSet");
-            DefaultGestureClipSet = Xml.GetChildInnerText(node, "DefaultGestureClipSet");
-            FacialClipsetGroupName = Xml.GetChildInnerText(node, "FacialClipsetGroupName");
-            DefaultVisemeClipSet = Xml.GetChildInnerText(node, "DefaultVisemeClipSet");
-            SidestepClipSet = Xml.GetChildInnerText(node, "SidestepClipSet");
-            PoseMatcherName = Xml.GetChildInnerText(node, "PoseMatcherName");
-            PoseMatcherProneName = Xml.GetChildInnerText(node, "PoseMatcherProneName");
-            GetupSetHash = Xml.GetChildInnerText(node, "GetupSetHash");
-            CreatureMetadataName = Xml.GetChildInnerText(node, "CreatureMetadataName");
-            DecisionMakerName = Xml.GetChildInnerText(node, "DecisionMakerName");
-            MotionTaskDataSetName = Xml.GetChildInnerText(node, "MotionTaskDataSetName");
-            DefaultTaskDataSetName = Xml.GetChildInnerText(node, "DefaultTaskDataSetName");
-            PedCapsuleName = Xml.GetChildInnerText(node, "PedCapsuleName");
-            PedLayoutName = Xml.GetChildInnerText(node, "PedLayoutName");
-            PedComponentSetName = Xml.GetChildInnerText(node, "PedComponentSetName");
-            PedComponentClothName = Xml.GetChildInnerText(node, "PedComponentClothName");
-            PedIKSettingsName = Xml.GetChildInnerText(node, "PedIKSettingsName");
-            TaskDataName = Xml.GetChildInnerText(node, "TaskDataName");
+            StrafeClipSet = Xml.GetChildInnerText(node, "StrafeClipSet") ?? string.Empty;
+            MovementToStrafeClipSet = Xml.GetChildInnerText(node, "MovementToStrafeClipSet") ?? string.Empty;
+            InjuredStrafeClipSet = Xml.GetChildInnerText(node, "InjuredStrafeClipSet") ?? string.Empty;
+            FullBodyDamageClipSet = Xml.GetChildInnerText(node, "FullBodyDamageClipSet") ?? string.Empty;
+            AdditiveDamageClipSet = Xml.GetChildInnerText(node, "AdditiveDamageClipSet") ?? string.Empty;
+            DefaultGestureClipSet = Xml.GetChildInnerText(node, "DefaultGestureClipSet") ?? string.Empty;
+            FacialClipsetGroupName = Xml.GetChildInnerText(node, "FacialClipsetGroupName") ?? string.Empty;
+            DefaultVisemeClipSet = Xml.GetChildInnerText(node, "DefaultVisemeClipSet") ?? string.Empty;
+            SidestepClipSet = Xml.GetChildInnerText(node, "SidestepClipSet") ?? string.Empty;
+            PoseMatcherName = Xml.GetChildInnerText(node, "PoseMatcherName") ?? string.Empty;
+            PoseMatcherProneName = Xml.GetChildInnerText(node, "PoseMatcherProneName") ?? string.Empty;
+            GetupSetHash = Xml.GetChildInnerText(node, "GetupSetHash") ?? string.Empty;
+            CreatureMetadataName = Xml.GetChildInnerText(node, "CreatureMetadataName") ?? string.Empty;
+            DecisionMakerName = Xml.GetChildInnerText(node, "DecisionMakerName") ?? string.Empty;
+            MotionTaskDataSetName = Xml.GetChildInnerText(node, "MotionTaskDataSetName") ?? string.Empty;
+            DefaultTaskDataSetName = Xml.GetChildInnerText(node, "DefaultTaskDataSetName") ?? string.Empty;
+            PedCapsuleName = Xml.GetChildInnerText(node, "PedCapsuleName") ?? string.Empty;
+            PedLayoutName = Xml.GetChildInnerText(node, "PedLayoutName") ?? string.Empty;
+            PedComponentSetName = Xml.GetChildInnerText(node, "PedComponentSetName") ?? string.Empty;
+            PedComponentClothName = Xml.GetChildInnerText(node, "PedComponentClothName") ?? string.Empty;
+            PedIKSettingsName = Xml.GetChildInnerText(node, "PedIKSettingsName") ?? string.Empty;
+            TaskDataName = Xml.GetChildInnerText(node, "TaskDataName") ?? string.Empty;
             IsStreamedGfx = Xml.GetChildBoolAttribute(node, "IsStreamedGfx", "value");
             AmbulanceShouldRespondTo = Xml.GetChildBoolAttribute(node, "AmbulanceShouldRespondTo", "value");
             CanRideBikeWithNoHelmet = Xml.GetChildBoolAttribute(node, "CanRideBikeWithNoHelmet", "value");
             CanSpawnInCar = Xml.GetChildBoolAttribute(node, "CanSpawnInCar", "value");
             IsHeadBlendPed = Xml.GetChildBoolAttribute(node, "IsHeadBlendPed", "value");
             bOnlyBulkyItemVariations = Xml.GetChildBoolAttribute(node, "bOnlyBulkyItemVariations", "value");
-            RelationshipGroup = Xml.GetChildInnerText(node, "RelationshipGroup");
-            NavCapabilitiesName = Xml.GetChildInnerText(node, "NavCapabilitiesName");
-            PerceptionInfo = Xml.GetChildInnerText(node, "PerceptionInfo");
-            DefaultBrawlingStyle = Xml.GetChildInnerText(node, "DefaultBrawlingStyle");
-            DefaultUnarmedWeapon = Xml.GetChildInnerText(node, "DefaultUnarmedWeapon");
-            Personality = Xml.GetChildInnerText(node, "Personality");
-            CombatInfo = Xml.GetChildInnerText(node, "CombatInfo");
-            VfxInfoName = Xml.GetChildInnerText(node, "VfxInfoName");
-            AmbientClipsForFlee = Xml.GetChildInnerText(node, "AmbientClipsForFlee");
-            Radio1 = Xml.GetChildInnerText(node, "Radio1"); // MetaName.ePedRadioGenre
-            Radio2 = Xml.GetChildInnerText(node, "Radio2"); // MetaName.ePedRadioGenre
+            RelationshipGroup = Xml.GetChildInnerText(node, "RelationshipGroup") ?? string.Empty;
+            NavCapabilitiesName = Xml.GetChildInnerText(node, "NavCapabilitiesName") ?? string.Empty;
+            PerceptionInfo = Xml.GetChildInnerText(node, "PerceptionInfo") ?? string.Empty;
+            DefaultBrawlingStyle = Xml.GetChildInnerText(node, "DefaultBrawlingStyle") ?? string.Empty;
+            DefaultUnarmedWeapon = Xml.GetChildInnerText(node, "DefaultUnarmedWeapon") ?? string.Empty;
+            Personality = Xml.GetChildInnerText(node, "Personality") ?? string.Empty;
+            CombatInfo = Xml.GetChildInnerText(node, "CombatInfo") ?? string.Empty;
+            VfxInfoName = Xml.GetChildInnerText(node, "VfxInfoName") ?? string.Empty;
+            AmbientClipsForFlee = Xml.GetChildInnerText(node, "AmbientClipsForFlee") ?? string.Empty;
+            Radio1 = Xml.GetChildInnerText(node, "Radio1") ?? string.Empty; // MetaName.ePedRadioGenre
+            Radio2 = Xml.GetChildInnerText(node, "Radio2") ?? string.Empty; // MetaName.ePedRadioGenre
             FUpOffset = Xml.GetChildFloatAttribute(node, "FUpOffset", "value");
             RUpOffset = Xml.GetChildFloatAttribute(node, "RUpOffset", "value");
             FFrontOffset = Xml.GetChildFloatAttribute(node, "FFrontOffset", "value");
@@ -273,17 +273,17 @@ namespace CodeWalker.GameFiles
             HDDist = Xml.GetChildFloatAttribute(node, "HDDist", "value");
             TargetingThreatModifier = Xml.GetChildFloatAttribute(node, "TargetingThreatModifier", "value");
             KilledPerceptionRangeModifer = Xml.GetChildFloatAttribute(node, "KilledPerceptionRangeModifer", "value");
-            Sexiness = Xml.GetChildInnerText(node, "Sexiness"); // MetaTypeName.ARRAYINFO MetaName.eSexinessFlags
+            Sexiness = Xml.GetChildInnerText(node, "Sexiness") ?? string.Empty; // MetaTypeName.ARRAYINFO MetaName.eSexinessFlags
             Age = (byte)Xml.GetChildUIntAttribute(node, "Age", "value");
             MaxPassengersInCar = (byte)Xml.GetChildUIntAttribute(node, "MaxPassengersInCar", "value");
-            ExternallyDrivenDOFs = Xml.GetChildInnerText(node, "ExternallyDrivenDOFs"); // MetaTypeName.ARRAYINFO MetaName.eExternallyDrivenDOFs
-            PedVoiceGroup = Xml.GetChildInnerText(node, "PedVoiceGroup");
-            AnimalAudioObject = Xml.GetChildInnerText(node, "AnimalAudioObject");
-            AbilityType = Xml.GetChildInnerText(node, "AbilityType"); // MetaName.SpecialAbilityType
-            ThermalBehaviour = Xml.GetChildInnerText(node, "ThermalBehaviour"); // MetaName.ThermalBehaviour
-            SuperlodType = Xml.GetChildInnerText(node, "SuperlodType"); // MetaName.eSuperlodType
-            ScenarioPopStreamingSlot = Xml.GetChildInnerText(node, "ScenarioPopStreamingSlot"); // MetaName.eScenarioPopStreamingSlot
-            DefaultSpawningPreference = Xml.GetChildInnerText(node, "DefaultSpawningPreference"); // MetaName.DefaultSpawnPreference
+            ExternallyDrivenDOFs = Xml.GetChildInnerText(node, "ExternallyDrivenDOFs") ?? string.Empty; // MetaTypeName.ARRAYINFO MetaName.eExternallyDrivenDOFs
+            PedVoiceGroup = Xml.GetChildInnerText(node, "PedVoiceGroup") ?? string.Empty;
+            AnimalAudioObject = Xml.GetChildInnerText(node, "AnimalAudioObject") ?? string.Empty;
+            AbilityType = Xml.GetChildInnerText(node, "AbilityType") ?? string.Empty; // MetaName.SpecialAbilityType
+            ThermalBehaviour = Xml.GetChildInnerText(node, "ThermalBehaviour") ?? string.Empty; // MetaName.ThermalBehaviour
+            SuperlodType = Xml.GetChildInnerText(node, "SuperlodType") ?? string.Empty; // MetaName.eSuperlodType
+            ScenarioPopStreamingSlot = Xml.GetChildInnerText(node, "ScenarioPopStreamingSlot") ?? string.Empty; // MetaName.eScenarioPopStreamingSlot
+            DefaultSpawningPreference = Xml.GetChildInnerText(node, "DefaultSpawningPreference") ?? string.Empty; // MetaName.DefaultSpawnPreference
             DefaultRemoveRangeMultiplier = Xml.GetChildFloatAttribute(node, "DefaultRemoveRangeMultiplier", "value");
             AllowCloseSpawning = Xml.GetChildBoolAttribute(node, "AllowCloseSpawning", "value");
         }
@@ -302,8 +302,8 @@ namespace CodeWalker.GameFiles
 
         public CTxdRelationship(XmlNode node)
         {
-            parent = Xml.GetChildInnerText(node, "parent");
-            child = Xml.GetChildInnerText(node, "child");
+            parent = Xml.GetChildInnerText(node, "parent") ?? string.Empty;
+            child = Xml.GetChildInnerText(node, "child") ?? string.Empty;
         }
 
         public override string ToString()
@@ -315,16 +315,16 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] public class CMultiTxdRelationship
     {
         public string parent { get; set; }
-        public string[] children { get; set; }
+        public string[] children { get; set; } = [];
 
         public CMultiTxdRelationship(XmlNode node)
         {
-            parent = Xml.GetChildInnerText(node, "parent");
-            var items = node.SelectSingleNode("children")?.SelectNodes("Item");
-            if (items?.Count > 0)
+            parent = Xml.GetChildInnerText(node, "parent") ?? string.Empty;
+            var items = node.SelectSingleNode("children")?.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            if (items.Length > 0)
             {
-                children = new string[items.Count];
-                for (int i = 0; i < items.Count; i++)
+                children = new string[items.Length];
+                for (int i = 0; i < items.Length; i++)
                 {
                     children[i] = items[i].InnerText;
                 }

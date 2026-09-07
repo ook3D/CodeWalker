@@ -17,9 +17,9 @@ namespace CodeWalker.Forms
     public partial class YcdForm : Form
     {
 
-        YcdFile Ycd;
+        private YcdFile? Ycd;
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -29,7 +29,7 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
         private bool LoadingXml = false;
         private bool DelayHighlight = false;
@@ -45,11 +45,13 @@ namespace CodeWalker.Forms
 
         private void ExportOnim_Click(object? sender, EventArgs e)
         {
+            var ycd = Ycd;
+            if (ycd == null || MainListView.SelectedItems.Count != 1) return;
             if (MainListView.SelectedItems[0].Tag is Animation anim)
             {
-                var saveFileDialog = new SaveFileDialog();
+                using var saveFileDialog = new SaveFileDialog();
 
-                string newfn = $"{Path.GetFileNameWithoutExtension(Ycd.Name)}_{MainListView.SelectedItems[0].Text}.onim";
+                string newfn = $"{Path.GetFileNameWithoutExtension(ycd.Name)}_{MainListView.SelectedItems[0].Text}.onim";
 
                 saveFileDialog.FileName = newfn;
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
@@ -60,7 +62,7 @@ namespace CodeWalker.Forms
                     {
                         using (var file = File.OpenWrite(path))
                         {
-                            Ycd.SaveOpenFormatsAnimation(anim, file);
+                            ycd.SaveOpenFormatsAnimation(anim, file);
                         }
                     }
                     catch (Exception ex)
@@ -120,14 +122,14 @@ namespace CodeWalker.Forms
 
 
 
-        public void LoadYcd(YcdFile ycd)
+        public void LoadYcd(YcdFile? ycd)
         {
             Ycd = ycd;
 
-            fileName = ycd?.Name;
+            fileName = ycd?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fileName))
             {
-                fileName = ycd?.RpfFileEntry?.Name;
+                fileName = ycd?.RpfFileEntry?.Name ?? string.Empty;
             }
 
             UpdateFormTitle();
@@ -221,22 +223,23 @@ namespace CodeWalker.Forms
 
         private void MainListView_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (MainListView.ContextMenuStrip is not { Items.Count: > 0 } menu) return;
             if (MainListView.SelectedItems.Count == 1)
             {
                 MainPropertyGrid.SelectedObject = MainListView.SelectedItems[0].Tag;
 
                 if (MainPropertyGrid.SelectedObject is Animation)
                 {
-                    MainListView.ContextMenuStrip.Items[0].Enabled = true;
+                    menu.Items[0].Enabled = true;
                 }
                 else
                 {
-                    MainListView.ContextMenuStrip.Items[0].Enabled = false;
+                    menu.Items[0].Enabled = false;
                 }
             }
             else
             {
-                MainListView.ContextMenuStrip.Items[0].Enabled = false;
+                menu.Items[0].Enabled = false;
                 //MainPropertyGrid.SelectedObject = null;
             }
         }

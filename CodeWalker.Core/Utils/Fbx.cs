@@ -261,11 +261,11 @@ namespace CodeWalker
             }
         }
 
-        private object prevTokenSingle;
+        private object? prevTokenSingle;
 
         // Reads a single token, allows peeking
         // Can return 'null' for a comment or whitespace
-        object ReadTokenSingle()
+        object? ReadTokenSingle()
         {
             if (prevTokenSingle != null)
             {
@@ -365,14 +365,14 @@ namespace CodeWalker
                 "Unknown character " + c);
         }
 
-        private object prevToken;
+        private object? prevToken;
 
         // Use a loop rather than recursion to prevent stack overflow
         // Here we can also merge string+colon into an identifier,
         // returning single-character bare strings (for C-type properties)
         object ReadToken()
         {
-            object ret;
+            object? ret;
             if (prevToken != null)
             {
                 ret = prevToken;
@@ -386,7 +386,7 @@ namespace CodeWalker
             var id = ret as Identifier;
             if (id != null)
             {
-                object colon;
+                object? colon;
                 do
                 {
                     colon = ReadTokenSingle();
@@ -550,7 +550,7 @@ namespace CodeWalker
         /// Reads the next node from the stream
         /// </summary>
         /// <returns>The read node, or <c>null</c></returns>
-        public FbxNode ReadNode()
+        public FbxNode? ReadNode()
         {
             var first = ReadToken();
             var id = first as Identifier;
@@ -645,7 +645,7 @@ namespace CodeWalker
             if (!hasVersionString && errorLevel >= FbxErrorLevel.Strict)
                 throw new FbxException(line, column,
                     "Invalid version string; first line must match \"" + versionString + "\"");
-            FbxNode node;
+            FbxNode? node;
             while ((node = ReadNode()) != null)
                 ret.Nodes.Add(node);
             return ret;
@@ -708,7 +708,7 @@ namespace CodeWalker
                 else if (p is Array)
                 {
                     var array = (Array)p;
-                    var elementType = p.GetType().GetElementType();
+                    var elementType = p.GetType().GetElementType() ?? throw new FbxException(nodePath, j, "Invalid array type");
                     // ReSharper disable once PossibleNullReferenceException
                     // We know it's an array, so we don't need to check for null
                     if (array.Rank != 1 || !elementType.IsPrimitive)
@@ -727,7 +727,7 @@ namespace CodeWalker
                     {
                         if (!pFirst)
                             sb.Append(',');
-                        var vstr = v.ToString();
+                        var vstr = v?.ToString() ?? string.Empty;
                         if ((sb.Length - lineStart) + vstr.Length >= MaxLineLength)
                         {
                             sb.Append('\n');
@@ -1186,7 +1186,7 @@ namespace CodeWalker
         /// <returns>The node</returns>
         /// <exception cref="FbxException">The FBX data was malformed
         /// for the reader's error level</exception>
-        public FbxNode ReadNode()
+        public FbxNode? ReadNode()
         {
             var endOffset = stream.ReadInt32();
             var numProperties = stream.ReadInt32();
@@ -1221,7 +1221,7 @@ namespace CodeWalker
                     "Node has invalid end point");
             if (listLen > 0)
             {
-                FbxNode nested;
+                FbxNode? nested;
                 do
                 {
                     nested = ReadNode();
@@ -1251,7 +1251,7 @@ namespace CodeWalker
 
             // Read nodes
             var dataPos = stream.BaseStream.Position;
-            FbxNode nested;
+            FbxNode? nested;
             do
             {
                 nested = ReadNode();
@@ -1314,9 +1314,9 @@ namespace CodeWalker
         struct WriterInfo
         {
             public readonly char id;
-            public readonly PropertyWriter writer;
+            public readonly PropertyWriter? writer;
 
-            public WriterInfo(char id, PropertyWriter writer)
+            public WriterInfo(char id, PropertyWriter? writer)
             {
                 this.id = id;
                 this.writer = writer;
@@ -1351,7 +1351,7 @@ namespace CodeWalker
 
         static void WriteString(BinaryWriter stream, object obj)
         {
-            var str = obj.ToString();
+            var str = obj.ToString() ?? string.Empty;
             // Replace "::" with \0\1 and reverse the tokens
             if (str.Contains(asciiSeparator))
             {
@@ -1394,7 +1394,7 @@ namespace CodeWalker
             }
             foreach (var obj in array)
                 writer(sw, obj);
-            if (compress)
+            if (codec != null)
             {
                 codec.Close(); // This is important - otherwise bytes can be incorrect
                 var checksum = codec.Checksum;
@@ -1430,8 +1430,8 @@ namespace CodeWalker
             // ReSharper disable once AssignNullToNotNullAttribute
             if (writerInfo.writer == null) // Array type
             {
-                var elementType = obj.GetType().GetElementType();
-                WriteArray((Array)obj, elementType, writePropertyActions[elementType].writer);
+                var elementType = obj.GetType().GetElementType() ?? throw new FbxException(nodePath, id, "Invalid array type");
+                WriteArray((Array)obj, elementType, writePropertyActions[elementType].writer ?? throw new FbxException(nodePath, id, "Unsupported array element type"));
             }
             else
                 writerInfo.writer(stream, obj);
@@ -1441,7 +1441,7 @@ namespace CodeWalker
         static readonly byte[] nullData = new byte[13];
 
         // Writes a single document to the buffer
-        void WriteNode(FbxNode node)
+        void WriteNode(FbxNode? node)
         {
             if (node == null)
             {
@@ -1541,7 +1541,7 @@ namespace CodeWalker
         /// (added by dexyfex)
         /// </summary>
         /// <returns></returns>
-        public List<FbxNode> GetSceneNodes()
+        public List<FbxNode>? GetSceneNodes()
         {
             var fobjs = this["Objects"];
             if (fobjs?.Nodes == null)
@@ -1572,10 +1572,8 @@ namespace CodeWalker
                 if ((connType == "OO") || (connType == "OP"))
                 {
                     if (node.Properties.Count < 3) { continue; }
-                    if (!(node.Properties[1] is long)) { continue; }
-                    if (!(node.Properties[2] is long)) { continue; }
-                    long cid = (long)node.Properties[1];
-                    long pid = (long)node.Properties[2];
+                    if (node.Properties[1] is not long cid) { continue; }
+                    if (node.Properties[2] is not long pid) { continue; }
                     FbxNode? cnode;
                     FbxNode? pnode;
                     fobjdict.TryGetValue(cid, out cnode);
@@ -1648,7 +1646,7 @@ namespace CodeWalker
         /// <remarks>
         /// The name must be smaller than 256 characters to be written to a binary stream
         /// </remarks>
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         /// <summary>
         /// The list of properties associated with the node
@@ -1656,7 +1654,7 @@ namespace CodeWalker
         /// <remarks>
         /// Supported types are primitives (apart from byte and char),arrays of primitives, and strings
         /// </remarks>
-        public List<object> Properties { get; } = new List<object>();
+        public List<object?> Properties { get; } = new List<object?>();
 
         /// <summary>
         /// List of FbxNodes that are connected to this node via the Connections section.
@@ -1667,7 +1665,7 @@ namespace CodeWalker
         /// <summary>
         /// The first property element
         /// </summary>
-        public object Value
+        public object? Value
         {
             get { return Properties.Count < 1 ? null : Properties[0]; }
             set
@@ -1702,24 +1700,24 @@ namespace CodeWalker
         /// A list with one or more null elements is treated differently than an empty list,
         /// and represented differently in all FBX output files.
         /// </remarks>
-        public List<FbxNode> Nodes { get; } = new List<FbxNode>();
+        public List<FbxNode?> Nodes { get; } = new List<FbxNode?>();
 
         /// <summary>
         /// Gets a named child node
         /// </summary>
         /// <param name="name"></param>
         /// <returns>The child node, or null</returns>
-        public FbxNode this[string name] { get { return Nodes.Find(n => n != null && n.Name == name); } }
+        public FbxNode? this[string name] { get { return Nodes.Find(n => n != null && n.Name == name); } }
 
         /// <summary>
         /// Gets a child node, using a '/' separated path
         /// </summary>
         /// <param name="path"></param>
         /// <returns>The child node, or null</returns>
-        public FbxNode GetRelative(string path)
+        public FbxNode? GetRelative(string path)
         {
             var tokens = path.Split('/');
-            FbxNodeList n = this;
+            FbxNodeList? n = this;
             foreach (var t in tokens)
             {
                 if (t == "")

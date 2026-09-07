@@ -1,5 +1,6 @@
 ﻿using SharpDX;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -59,12 +60,12 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_58h; // 0x0000000000000000
 
         // reference data
-        public string_r Name { get; set; }
-        public TextureDictionary TextureDictionary { get; set; }
-        public DrawablePtfxDictionary DrawableDictionary { get; set; }
-        public ParticleRuleDictionary ParticleRuleDictionary { get; set; }
-        public ParticleEffectRuleDictionary EffectRuleDictionary { get; set; }
-        public ParticleEmitterRuleDictionary EmitterRuleDictionary { get; set; }
+        public string_r? Name { get; set; }
+        public TextureDictionary? TextureDictionary { get; set; }
+        public DrawablePtfxDictionary? DrawableDictionary { get; set; }
+        public ParticleRuleDictionary? ParticleRuleDictionary { get; set; }
+        public ParticleEffectRuleDictionary? EffectRuleDictionary { get; set; }
+        public ParticleEmitterRuleDictionary? EmitterRuleDictionary { get; set; }
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -159,7 +160,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node, string ddsfolder)
         {
-            Name = (string_r)Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") is string textName ? (string_r)textName : null;
             var efnode = node.SelectSingleNode("EffectRuleDictionary");
             if (efnode != null)
             {
@@ -198,7 +199,7 @@ namespace CodeWalker.GameFiles
             p.WriteXml(sb, indent + 1, ddsfolder);
             YptXml.CloseTag(sb, indent, name);
         }
-        public static ParticleEffectsList ReadXmlNode(XmlNode? node, string ddsfolder)
+        public static ParticleEffectsList? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var p = new ParticleEffectsList();
@@ -224,7 +225,7 @@ namespace CodeWalker.GameFiles
             var drwdict = new Dictionary<MetaHash, DrawablePtfx>();
             if (DrawableDictionary?.Drawables?.data_items != null)
             {
-                var max = Math.Min(DrawableDictionary.Drawables.data_items.Length, (DrawableDictionary.Hashes?.Length ?? 0));
+                var max = Math.Min(DrawableDictionary.Drawables.data_items.Length, DrawableDictionary.Hashes.Length);
                 for (int i = 0; i < max; i++)
                 {
                     drwdict[DrawableDictionary.Hashes[i]] = DrawableDictionary.Drawables.data_items[i];
@@ -377,8 +378,8 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_8h; // 0x0000000000000000
         public ulong Unknown_10h; // 0x0000000000000000
         public ulong Unknown_18h = 1; // 0x0000000000000001
-        public ResourceSimpleList64_s<MetaHash> ParticleRuleNameHashes { get; set; }
-        public ResourcePointerList64<ParticleRule> ParticleRules { get; set; }
+        public ResourceSimpleList64_s<MetaHash> ParticleRuleNameHashes { get; set; } = new();
+        public ResourcePointerList64<ParticleRule> ParticleRules { get; set; } = new();
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -389,8 +390,8 @@ namespace CodeWalker.GameFiles
             Unknown_8h = reader.ReadUInt64();
             Unknown_10h = reader.ReadUInt64();
             Unknown_18h = reader.ReadUInt64();
-            ParticleRuleNameHashes = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
-            ParticleRules = reader.ReadBlock<ResourcePointerList64<ParticleRule>>();
+            ParticleRuleNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
+            ParticleRules = reader.ReadRequiredBlock<ResourcePointerList64<ParticleRule>>();
 
             //if (Unknown_4h != 1)
             //{ }//no hit
@@ -477,8 +478,8 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_8h; // 0x0000000000000000
         public ulong Unknown_10h; // 0x0000000000000000
         public ulong Unknown_18h = 1; // 0x0000000000000001
-        public ResourceSimpleList64_s<MetaHash> EffectRuleNameHashes { get; set; }
-        public ResourcePointerList64<ParticleEffectRule> EffectRules { get; set; }
+        public ResourceSimpleList64_s<MetaHash> EffectRuleNameHashes { get; set; } = new();
+        public ResourcePointerList64<ParticleEffectRule> EffectRules { get; set; } = new();
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -488,8 +489,8 @@ namespace CodeWalker.GameFiles
             Unknown_8h = reader.ReadUInt64();
             Unknown_10h = reader.ReadUInt64();
             Unknown_18h = reader.ReadUInt64();
-            EffectRuleNameHashes = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
-            EffectRules = reader.ReadBlock<ResourcePointerList64<ParticleEffectRule>>();
+            EffectRuleNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
+            EffectRules = reader.ReadRequiredBlock<ResourcePointerList64<ParticleEffectRule>>();
 
             //if (Unknown_4h != 1)
             //{ }//no hit
@@ -575,8 +576,8 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_8h; // 0x0000000000000000
         public ulong Unknown_10h; // 0x0000000000000000
         public ulong Unknown_18h = 1; // 0x0000000000000001
-        public ResourceSimpleList64_s<MetaHash> EmitterRuleNameHashes { get; set; }
-        public ResourcePointerList64<ParticleEmitterRule> EmitterRules { get; set; }
+        public ResourceSimpleList64_s<MetaHash> EmitterRuleNameHashes { get; set; } = new();
+        public ResourcePointerList64<ParticleEmitterRule> EmitterRules { get; set; } = new();
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -587,8 +588,8 @@ namespace CodeWalker.GameFiles
             Unknown_8h = reader.ReadUInt64();
             Unknown_10h = reader.ReadUInt64();
             Unknown_18h = reader.ReadUInt64();
-            EmitterRuleNameHashes = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
-            EmitterRules = reader.ReadBlock<ResourcePointerList64<ParticleEmitterRule>>();
+            EmitterRuleNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
+            EmitterRules = reader.ReadRequiredBlock<ResourcePointerList64<ParticleEmitterRule>>();
 
 
             //if (Unknown_4h != 1)
@@ -684,8 +685,8 @@ namespace CodeWalker.GameFiles
         public ulong UIData;
 
         // ptxParticleRule
-        public ParticleEffectSpawner EffectSpawnerAtRatio { get; set; }
-        public ParticleEffectSpawner EffectSpawnerOnCollision { get; set; }
+        public ParticleEffectSpawner EffectSpawnerAtRatio { get; set; } = new();
+        public ParticleEffectSpawner EffectSpawnerOnCollision { get; set; } = new();
 
         // ptxRenderState
         public int CullMode { get; set; }
@@ -702,14 +703,14 @@ namespace CodeWalker.GameFiles
         public uint TexFrameIDMin { get; set; }
         public uint TexFrameIDMax { get; set; }
         public ulong NamePointer { get; set; }
-        public ResourcePointerList64<ParticleBehaviour> AllBehaviours { get; set; }
-        public ResourcePointerList64<ParticleBehaviour> InitBehaviours { get; set; }
-        public ResourcePointerList64<ParticleBehaviour> UpdateBehaviours { get; set; }
-        public ResourcePointerList64<ParticleBehaviour> UpdateFinalizeBehaviours { get; set; }
-        public ResourcePointerList64<ParticleBehaviour> DrawBehaviours { get; set; }
+        public ResourcePointerList64<ParticleBehaviour> AllBehaviours { get; set; } = new();
+        public ResourcePointerList64<ParticleBehaviour> InitBehaviours { get; set; } = new();
+        public ResourcePointerList64<ParticleBehaviour> UpdateBehaviours { get; set; } = new();
+        public ResourcePointerList64<ParticleBehaviour> UpdateFinalizeBehaviours { get; set; } = new();
+        public ResourcePointerList64<ParticleBehaviour> DrawBehaviours { get; set; } = new();
         public ulong ReleaseBehaviours1 { get; set; }
         public ulong ReleaseBehaviours2 { get; set; }
-        public ResourceSimpleList64<ParticleRuleBiasLink> BiasLinks { get; set; }
+        public ResourceSimpleList64<ParticleRuleBiasLink> BiasLinks { get; set; } = new();
         public ulong PointPool { get; set; }
         public ulong FuncTable_UNUSED1 { get; set; }
         public ulong FuncTable_UNUSED2 { get; set; }
@@ -737,7 +738,7 @@ namespace CodeWalker.GameFiles
         public short padding10 { get; set; }
 
         // InstVars
-        public ResourcePointerList64<ParticleShaderVar> ShaderVars { get; set; }
+        public ResourcePointerList64<ParticleShaderVar> ShaderVars { get; set; } = new();
         public byte IsDataInSync { get; set; }
         public byte padding11 { get; set; }
         public short padding12 { get; set; }
@@ -746,7 +747,7 @@ namespace CodeWalker.GameFiles
         public uint padding14 { get; set; }
 
 
-        public ResourceSimpleList64<ParticleDrawable> Drawables { get; set; }
+        public ResourceSimpleList64<ParticleDrawable> Drawables { get; set; } = new();
         public byte SortType { get; set; }
         public byte DrawType { get; set; }
         public byte Flags { get; set; }
@@ -757,10 +758,10 @@ namespace CodeWalker.GameFiles
         public ulong padding16 { get; set; }
 
         // reference data
-        public string_r Name { get; set; }
+        public string_r? Name { get; set; }
         public MetaHash NameHash { get; set; }
-        public string_r ShaderFile { get; set; }
-        public string_r ShaderTechnique { get; set; }
+        public string_r? ShaderFile { get; set; }
+        public string_r? ShaderTechnique { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -773,8 +774,8 @@ namespace CodeWalker.GameFiles
             padding03 = reader.ReadUInt32();
             UIData = reader.ReadUInt64();
 
-            EffectSpawnerAtRatio = reader.ReadBlock<ParticleEffectSpawner>();
-            EffectSpawnerOnCollision = reader.ReadBlock<ParticleEffectSpawner>();
+            EffectSpawnerAtRatio = reader.ReadRequiredBlock<ParticleEffectSpawner>();
+            EffectSpawnerOnCollision = reader.ReadRequiredBlock<ParticleEffectSpawner>();
 
 
             CullMode = reader.ReadInt32();
@@ -791,14 +792,14 @@ namespace CodeWalker.GameFiles
             TexFrameIDMin = reader.ReadUInt32();
             TexFrameIDMax = reader.ReadUInt32();
             NamePointer = reader.ReadUInt64();
-            AllBehaviours = reader.ReadBlock<ResourcePointerList64<ParticleBehaviour>>();
-            InitBehaviours = reader.ReadBlock<ResourcePointerList64<ParticleBehaviour>>();
-            UpdateBehaviours = reader.ReadBlock<ResourcePointerList64<ParticleBehaviour>>();
-            UpdateFinalizeBehaviours = reader.ReadBlock<ResourcePointerList64<ParticleBehaviour>>();
-            DrawBehaviours = reader.ReadBlock<ResourcePointerList64<ParticleBehaviour>>();
+            AllBehaviours = reader.ReadRequiredBlock<ResourcePointerList64<ParticleBehaviour>>();
+            InitBehaviours = reader.ReadRequiredBlock<ResourcePointerList64<ParticleBehaviour>>();
+            UpdateBehaviours = reader.ReadRequiredBlock<ResourcePointerList64<ParticleBehaviour>>();
+            UpdateFinalizeBehaviours = reader.ReadRequiredBlock<ResourcePointerList64<ParticleBehaviour>>();
+            DrawBehaviours = reader.ReadRequiredBlock<ResourcePointerList64<ParticleBehaviour>>();
             ReleaseBehaviours1 = reader.ReadUInt64();
             ReleaseBehaviours2 = reader.ReadUInt64();
-            BiasLinks = reader.ReadBlock<ResourceSimpleList64<ParticleRuleBiasLink>>();
+            BiasLinks = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleRuleBiasLink>>();
             PointPool = reader.ReadUInt64();
             FuncTable_UNUSED1 = reader.ReadUInt64();
             FuncTable_UNUSED2 = reader.ReadUInt64();
@@ -826,7 +827,7 @@ namespace CodeWalker.GameFiles
             padding10 = reader.ReadInt16();
 
 
-            ShaderVars = reader.ReadBlock<ResourcePointerList64<ParticleShaderVar>>();
+            ShaderVars = reader.ReadRequiredBlock<ResourcePointerList64<ParticleShaderVar>>();
             IsDataInSync = reader.ReadByte();
             padding11 = reader.ReadByte();
             padding12 = reader.ReadInt16();
@@ -835,7 +836,7 @@ namespace CodeWalker.GameFiles
             padding14 = reader.ReadUInt32();
 
 
-            Drawables = reader.ReadBlock<ResourceSimpleList64<ParticleDrawable>>();
+            Drawables = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleDrawable>>();
             SortType = reader.ReadByte();
             DrawType = reader.ReadByte();
             Flags = reader.ReadByte();
@@ -1001,11 +1002,11 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node, string ddsfolder)
         {
-            Name = (string_r)Xml.GetChildInnerText(node, "Name"); if (Name.Value == null) Name = null;
+            Name = Xml.GetChildInnerText(node, "Name") is string textName ? (string_r)textName : null;
             NameHash = JenkHash.GenHash(Name?.Value ?? "");
             RefCount = Xml.GetChildUIntAttribute(node, "RefCount");
-            ShaderFile = (string_r)Xml.GetChildInnerText(node, "ShaderFile"); if (ShaderFile.Value == null) ShaderFile = null;
-            ShaderTechnique = (string_r)Xml.GetChildInnerText(node, "ShaderTechnique"); if (ShaderTechnique.Value == null) ShaderTechnique = null;
+            ShaderFile = Xml.GetChildInnerText(node, "ShaderFile") is string textShaderFile ? (string_r)textShaderFile : null;
+            ShaderTechnique = Xml.GetChildInnerText(node, "ShaderTechnique") is string textShaderTechnique ? (string_r)textShaderTechnique : null;
             CullMode = Xml.GetChildIntAttribute(node, "CullMode");
             BlendSet = Xml.GetChildIntAttribute(node, "BlendSet");
             LightingMode = Xml.GetChildIntAttribute(node, "LightingMode");
@@ -1045,7 +1046,7 @@ namespace CodeWalker.GameFiles
                     foreach (XmlNode inode in inodes)
                     {
                         var b = ParticleBehaviour.ReadXmlNode(inode);
-                        blist.Add(b);
+                        if (b != null) blist.Add(b);
                     }
                 }
             }
@@ -1055,7 +1056,7 @@ namespace CodeWalker.GameFiles
 
 
             BiasLinks = new ResourceSimpleList64<ParticleRuleBiasLink>();
-            BiasLinks.data_items = XmlMeta.ReadItemArrayNullable<ParticleRuleBiasLink>(node, "BiasLinks");
+            BiasLinks.data_items = XmlMeta.ReadItemArrayNullable<ParticleRuleBiasLink>(node, "BiasLinks") ?? [];
 
 
             ResourcePointerList64<ParticleShaderVar> readShaderVars(string name)
@@ -1071,7 +1072,7 @@ namespace CodeWalker.GameFiles
                         foreach (XmlNode inode in inodes)
                         {
                             var s = ParticleShaderVar.ReadXmlNode(inode);
-                            slist.Add(s);
+                            if (s != null) slist.Add(s);
                         }
                         sha.data_items = slist.ToArray();
                     }
@@ -1082,7 +1083,7 @@ namespace CodeWalker.GameFiles
 
 
             Drawables = new ResourceSimpleList64<ParticleDrawable>();
-            Drawables.data_items = XmlMeta.ReadItemArrayNullable<ParticleDrawable>(node, "Drawables");
+            Drawables.data_items = XmlMeta.ReadItemArrayNullable<ParticleDrawable>(node, "Drawables") ?? [];
         }
 
 
@@ -1185,7 +1186,7 @@ namespace CodeWalker.GameFiles
             };
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return Name?.ToString() ?? base.ToString();
         }
@@ -1205,7 +1206,7 @@ namespace CodeWalker.GameFiles
         public ulong padding01 { get; set; }
         public ulong padding02 { get; set; }
         public ulong padding03 { get; set; }
-        public ResourceSimpleList64_s<MetaHash> KeyframePropIDs { get; set; }
+        public ResourceSimpleList64_s<MetaHash> KeyframePropIDs { get; set; } = new();
         public byte RandomIndex { get; set; }
         public byte padding05 { get; set; }
         public short padding06 { get; set; }
@@ -1219,7 +1220,7 @@ namespace CodeWalker.GameFiles
             padding01 = reader.ReadUInt64();
             padding02 = reader.ReadUInt64();
             padding03 = reader.ReadUInt64();
-            KeyframePropIDs = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
+            KeyframePropIDs = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
             RandomIndex = reader.ReadByte();
             padding05 = reader.ReadByte();
             padding06 = reader.ReadInt16();
@@ -1243,14 +1244,14 @@ namespace CodeWalker.GameFiles
         {
             YptXml.StringTag(sb, indent, "Name", YptXml.XmlEscape(Name.ToString()));
             YptXml.ValueTag(sb, indent, "RandomIndex", RandomIndex.ToString());
-            YptXml.WriteHashItemArray(sb, KeyframePropIDs?.data_items, indent, "KeyframePropIDs");
+            YptXml.WriteHashItemArray(sb, KeyframePropIDs.data_items, indent, "KeyframePropIDs");
         }
         public void ReadXml(XmlNode node)
         {
-            Name = new PsoChar32(Xml.GetChildInnerText(node, "Name"));
+            Name = new PsoChar32(Xml.GetChildInnerText(node, "Name") ?? string.Empty);
             RandomIndex = (byte)Xml.GetChildUIntAttribute(node, "RandomIndex");
             KeyframePropIDs = new ResourceSimpleList64_s<MetaHash>();
-            KeyframePropIDs.data_items = XmlMeta.ReadHashItemArray(node, "KeyframePropIDs");
+            KeyframePropIDs.data_items = XmlMeta.ReadHashItemArray(node, "KeyframePropIDs") ?? [];
         }
 
         public override Tuple<long, IResourceBlock>[] GetParts()
@@ -1260,7 +1261,7 @@ namespace CodeWalker.GameFiles
             };
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             var n = Name.ToString();
             return (!string.IsNullOrEmpty(n)) ? n : base.ToString();
@@ -1307,8 +1308,8 @@ namespace CodeWalker.GameFiles
         public byte TracksPointNegDir { get; set; }
 
         // reference data
-        public ParticleEffectRule EffectRule { get; set; }
-        public string_r EffectRuleName { get; set; }
+        public ParticleEffectRule? EffectRule { get; set; }
+        public string_r? EffectRuleName { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1426,7 +1427,7 @@ namespace CodeWalker.GameFiles
             return list.ToArray();
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             var str = EffectRuleName?.ToString();
             return (!string.IsNullOrEmpty(str)) ? str : base.ToString();
@@ -1450,8 +1451,8 @@ namespace CodeWalker.GameFiles
         public ulong padding01 { get; set; }
 
         // reference data
-        public string_r Name { get; set; }
-        public DrawablePtfx Drawable { get; set; }
+        public string_r? Name { get; set; }
+        public DrawablePtfx? Drawable { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1505,7 +1506,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = (string_r)Xml.GetChildInnerText(node, "Name"); if (Name.Value == null) Name = null;
+            Name = Xml.GetChildInnerText(node, "Name") is string textName ? (string_r)textName : null;
             NameHash = JenkHash.GenHash(Name?.Value ?? "");
             BoundBoxWidth = Xml.GetChildFloatAttribute(node, "BoundBoxWidth");
             BoundBoxHeight = Xml.GetChildFloatAttribute(node, "BoundBoxHeight");
@@ -1521,7 +1522,7 @@ namespace CodeWalker.GameFiles
             return list.ToArray();
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             if (!string.IsNullOrEmpty(Name?.Value)) return Name.Value;
             if (NameHash != 0) return NameHash.ToString();
@@ -1600,11 +1601,11 @@ namespace CodeWalker.GameFiles
         public byte ShareEntityCollisions { get; set; }
         public byte OnlyUseBVHCollisions { get; set; }
         public byte GameFlags { get; set; }
-        public ParticleKeyframeProp ColourTintMinKFP { get; set; }
-        public ParticleKeyframeProp ColourTintMaxKFP { get; set; }
-        public ParticleKeyframeProp ZoomScalarKFP { get; set; }
-        public ParticleKeyframeProp DataSphereKFP { get; set; }
-        public ParticleKeyframeProp DataCapsuleKFP { get; set; }
+        public ParticleKeyframeProp ColourTintMinKFP { get; set; } = new();
+        public ParticleKeyframeProp ColourTintMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp ZoomScalarKFP { get; set; } = new();
+        public ParticleKeyframeProp DataSphereKFP { get; set; } = new();
+        public ParticleKeyframeProp DataCapsuleKFP { get; set; } = new();
         public ulong KeyframePropsPointer { get; set; } // KeyframePropList
         public ushort KeyframePropsCount { get; set; } = 5; //always 5
         public ushort KeyframePropsCapacity { get; set; } = 16; //always 16
@@ -1620,11 +1621,11 @@ namespace CodeWalker.GameFiles
         public ulong padding06 { get; set; }
 
         // reference data
-        public string_r Name { get; set; }
+        public string_r? Name { get; set; }
         public MetaHash NameHash { get; set; }
-        public ResourcePointerArray64<ParticleEventEmitter> EventEmitters { get; set; }
-        public ParticleEvolutionList EvolutionList { get; set; }
-        public ResourcePointerArray64<ParticleKeyframeProp> KeyframeProps { get; set; } // these just point to the 5x embedded KeyframeProps, padded to 16 items
+        public ResourcePointerArray64<ParticleEventEmitter>? EventEmitters { get; set; }
+        public ParticleEvolutionList? EvolutionList { get; set; }
+        public ResourcePointerArray64<ParticleKeyframeProp>? KeyframeProps { get; set; } // these just point to the 5x embedded KeyframeProps, padded to 16 items
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -1682,11 +1683,11 @@ namespace CodeWalker.GameFiles
             ShareEntityCollisions = reader.ReadByte();
             OnlyUseBVHCollisions = reader.ReadByte();
             GameFlags = reader.ReadByte();
-            ColourTintMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            ColourTintMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            ZoomScalarKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            DataSphereKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            DataCapsuleKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            ColourTintMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            ColourTintMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            ZoomScalarKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            DataSphereKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            DataCapsuleKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             KeyframePropsPointer = reader.ReadUInt64();
             KeyframePropsCount = reader.ReadUInt16();
             KeyframePropsCapacity = reader.ReadUInt16();
@@ -1855,7 +1856,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = (string_r)Xml.GetChildInnerText(node, "Name"); if (Name.Value == null) Name = null;
+            Name = Xml.GetChildInnerText(node, "Name") is string textName ? (string_r)textName : null;
             NameHash = JenkHash.GenHash(Name?.Value ?? "");
             RefCount = Xml.GetChildUIntAttribute(node, "RefCount");
             FileVersion = Xml.GetChildFloatAttribute(node, "FileVersion");
@@ -1898,10 +1899,11 @@ namespace CodeWalker.GameFiles
 
             var emlist = XmlMeta.ReadItemArray<ParticleEventEmitter>(node, "EventEmitters")?.ToList() ?? new List<ParticleEventEmitter>();
             EventEmittersCount = (ushort)emlist.Count;
-            for (int i = emlist.Count; i < 32; i++) emlist.Add(null);
+            var emitters = emlist.ToArray();
+            Array.Resize(ref emitters, Math.Max(32, emitters.Length));
             EventEmitters = new ResourcePointerArray64<ParticleEventEmitter>();
-            EventEmitters.data_items = emlist.ToArray();
-            for (int i = 0; i < (EventEmitters.data_items?.Length ?? 0); i++)
+            EventEmitters.data_items = emitters;
+            for (int i = 0; i < EventEmitters.data_items.Length; i++)
             {
                 if (EventEmitters.data_items[i] != null)
                 {
@@ -1916,9 +1918,10 @@ namespace CodeWalker.GameFiles
             ZoomScalarKFP = (kflist.Count > 2) ? kflist[2] : new ParticleKeyframeProp();
             DataSphereKFP = (kflist.Count > 3) ? kflist[3] : new ParticleKeyframeProp();
             DataCapsuleKFP = (kflist.Count > 4) ? kflist[4] : new ParticleKeyframeProp();
-            for (int i = kflist.Count; i < 16; i++) kflist.Add(null);
+            var keyframes = kflist.ToArray();
+            Array.Resize(ref keyframes, Math.Max(16, keyframes.Length));
             KeyframeProps = new ResourcePointerArray64<ParticleKeyframeProp>();
-            KeyframeProps.data_items = kflist.ToArray();
+            KeyframeProps.data_items = keyframes;
             KeyframeProps.ManualReferenceOverride = true;
             KeyframePropsCount = 5;//this should always be 5.......
             KeyframePropsCapacity = 16;//should always be 16...
@@ -1957,7 +1960,7 @@ namespace CodeWalker.GameFiles
             };
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return Name?.ToString() ?? base.ToString();
         }
@@ -1993,11 +1996,11 @@ namespace CodeWalker.GameFiles
         public ulong padding04 { get; set; }
 
         // reference data
-        public ParticleEvolutionList EvolutionList { get; set; }
-        public string_r EmitterRuleName { get; set; }
-        public string_r ParticleRuleName { get; set; }
-        public ParticleEmitterRule EmitterRule { get; set; }
-        public ParticleRule ParticleRule { get; set; }
+        public ParticleEvolutionList? EvolutionList { get; set; }
+        public string_r? EmitterRuleName { get; set; }
+        public string_r? ParticleRuleName { get; set; }
+        public ParticleEmitterRule? EmitterRule { get; set; }
+        public ParticleRule? ParticleRule { get; set; }
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -2094,8 +2097,8 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            EmitterRuleName = (string_r)Xml.GetChildInnerText(node, "EmitterRule"); if (EmitterRuleName.Value == null) EmitterRuleName = null;
-            ParticleRuleName = (string_r)Xml.GetChildInnerText(node, "ParticleRule"); if (ParticleRuleName.Value == null) ParticleRuleName = null;
+            EmitterRuleName = Xml.GetChildInnerText(node, "EmitterRule") is string textEmitterRuleName ? (string_r)textEmitterRuleName : null;
+            ParticleRuleName = Xml.GetChildInnerText(node, "ParticleRule") is string textParticleRuleName ? (string_r)textParticleRuleName : null;
             EventType = Xml.GetChildUIntAttribute(node, "EventType");
             StartRatio = Xml.GetChildFloatAttribute(node, "StartRatio");
             EndRatio = Xml.GetChildFloatAttribute(node, "EndRatio");
@@ -2124,7 +2127,7 @@ namespace CodeWalker.GameFiles
             return list.ToArray();
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return EmitterRuleName?.ToString() ?? ParticleRuleName?.ToString() ?? base.ToString();
         }
@@ -2137,19 +2140,19 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x40;
 
         // structure data
-        public ResourceSimpleList64<ParticleEvolutions> Evolutions { get; set; }
-        public ResourceSimpleList64<ParticleEvolvedKeyframeProps> EvolvedKeyframeProps { get; set; }
+        public ResourceSimpleList64<ParticleEvolutions> Evolutions { get; set; } = new();
+        public ResourceSimpleList64<ParticleEvolvedKeyframeProps> EvolvedKeyframeProps { get; set; } = new();
         public ulong Unknown_20h = 1;
-        public ResourceSimpleList64<ParticleEvolvedKeyframePropMap> EvolvedKeyframePropMap { get; set; }
+        public ResourceSimpleList64<ParticleEvolvedKeyframePropMap> EvolvedKeyframePropMap { get; set; } = new();
         public ulong Unknown_38h;
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             // read structure data
-            Evolutions = reader.ReadBlock<ResourceSimpleList64<ParticleEvolutions>>();
-            EvolvedKeyframeProps = reader.ReadBlock<ResourceSimpleList64<ParticleEvolvedKeyframeProps>>();
+            Evolutions = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleEvolutions>>();
+            EvolvedKeyframeProps = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleEvolvedKeyframeProps>>();
             Unknown_20h = reader.ReadUInt64();
-            EvolvedKeyframePropMap = reader.ReadBlock<ResourceSimpleList64<ParticleEvolvedKeyframePropMap>>();
+            EvolvedKeyframePropMap = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleEvolvedKeyframePropMap>>();
             Unknown_38h = reader.ReadUInt64();
         }
         public override void Write(ResourceDataWriter writer, params object[] parameters)
@@ -2190,7 +2193,7 @@ namespace CodeWalker.GameFiles
             var unode = node.SelectSingleNode("Evolutions");
             if (unode != null)
             {
-                var inodes = unode.SelectNodes("Item");
+                var inodes = unode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
                 var ilist = new List<ParticleEvolutions>();
                 foreach (XmlNode inode in inodes)
                 {
@@ -2230,7 +2233,7 @@ namespace CodeWalker.GameFiles
             };
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return base.ToString();
         }
@@ -2247,7 +2250,7 @@ namespace CodeWalker.GameFiles
         public ulong padding01 { get; set; }
 
         // reference data
-        public string_r Name { get; set; }
+        public string_r? Name { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -2277,7 +2280,7 @@ namespace CodeWalker.GameFiles
             return list.ToArray();
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return Name?.ToString() ?? base.ToString();
         }
@@ -2294,7 +2297,7 @@ namespace CodeWalker.GameFiles
         public ulong ItemPointer { get; set; }
 
         // reference data
-        public ParticleEvolvedKeyframeProps Item { get; set; }
+        public ParticleEvolvedKeyframeProps? Item { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -2331,14 +2334,14 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 24;
 
         // structure data
-        public ResourceSimpleList64<ParticleEvolvedKeyframes> EvolvedKeyframes { get; set; }
+        public ResourceSimpleList64<ParticleEvolvedKeyframes> EvolvedKeyframes { get; set; } = new();
         public ParticleKeyframePropName Name { get; set; }
         public uint BlendMode { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             // read structure data
-            EvolvedKeyframes = reader.ReadBlock<ResourceSimpleList64<ParticleEvolvedKeyframes>>();
+            EvolvedKeyframes = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleEvolvedKeyframes>>();
             Name = reader.ReadUInt32();
             BlendMode = reader.ReadUInt32();
         }
@@ -2360,7 +2363,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             BlendMode = Xml.GetChildUIntAttribute(node, "BlendMode");
             EvolvedKeyframes = new ResourceSimpleList64<ParticleEvolvedKeyframes>();
             EvolvedKeyframes.data_items = XmlMeta.ReadItemArray<ParticleEvolvedKeyframes>(node, "Items");
@@ -2386,7 +2389,7 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x30;
 
         // structure data
-        public ResourceSimpleList64<ParticleKeyframePropValue> Keyframe { get; set; }
+        public ResourceSimpleList64<ParticleKeyframePropValue> Keyframe { get; set; } = new();
         public ulong padding00 { get; set; }
         public ulong padding01 { get; set; }
         public int EvolutionID { get; set; }
@@ -2398,7 +2401,7 @@ namespace CodeWalker.GameFiles
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             // read structure data
-            Keyframe = reader.ReadBlock<ResourceSimpleList64<ParticleKeyframePropValue>>();
+            Keyframe = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleKeyframePropValue>>();
             padding00 = reader.ReadUInt64();
             padding01 = reader.ReadUInt64();
             EvolutionID = reader.ReadInt32();
@@ -2489,12 +2492,12 @@ namespace CodeWalker.GameFiles
         public uint padding11 { get; set; }
 
         // reference data
-        public string_r Name { get; set; }
+        public string_r? Name { get; set; }
         public MetaHash NameHash { get; set; }
-        public ParticleDomain CreationDomainObj { get; set; }
-        public ParticleDomain TargetDomainObj { get; set; }
-        public ParticleDomain AttractorDomainObj { get; set; }
-        public ResourcePointerArray64<ParticleKeyframeProp> KeyframePropList { get; set; }//just pointers to KeyframeProps1
+        public ParticleDomain? CreationDomainObj { get; set; }
+        public ParticleDomain? TargetDomainObj { get; set; }
+        public ParticleDomain? AttractorDomainObj { get; set; }
+        public ResourcePointerArray64<ParticleKeyframeProp>? KeyframePropList { get; set; }//just pointers to KeyframeProps1
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -2519,7 +2522,7 @@ namespace CodeWalker.GameFiles
             padding07 = reader.ReadUInt64();
             for (int i = 0; i < 10; i++)
             {
-                KeyframeProps[i] = reader.ReadBlock<ParticleKeyframeProp>();
+                KeyframeProps[i] = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             }
             KeyframePropListPointer = reader.ReadUInt64();
             KeyframePropsCount1 = reader.ReadUInt16();
@@ -2600,7 +2603,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = (string_r)Xml.GetChildInnerText(node, "Name"); if (Name.Value == null) Name = null;
+            Name = Xml.GetChildInnerText(node, "Name") is string textName ? (string_r)textName : null;
             NameHash = JenkHash.GenHash(Name?.Value ?? "");
             RefCount = Xml.GetChildUIntAttribute(node, "RefCount");
             IsOneShot = (byte)Xml.GetChildUIntAttribute(node, "IsOneShot");
@@ -2651,7 +2654,7 @@ namespace CodeWalker.GameFiles
             };
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return Name?.ToString() ?? base.ToString();
         }
@@ -2762,7 +2765,7 @@ namespace CodeWalker.GameFiles
             InvertBiasLink = reader.ReadByte();
             RandomIndex = reader.ReadByte();
             unused00 = reader.ReadInt16();
-            Values = reader.ReadBlock<ResourceSimpleList64<ParticleKeyframePropValue>>();
+            Values = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleKeyframePropValue>>();
             padding12 = reader.ReadUInt64();
             padding13 = reader.ReadUInt64();
         }
@@ -2805,7 +2808,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             InvertBiasLink = (byte)Xml.GetChildUIntAttribute(node, "InvertBiasLink");
             RandomIndex = (byte)Xml.GetChildUIntAttribute(node, "RandomIndex");
 
@@ -2917,7 +2920,7 @@ namespace CodeWalker.GameFiles
             }
             return YptXml.HashString((MetaHash)hash);
         }
-        private static Dictionary<uint, string> NameDict;
+        private static Dictionary<uint, string>? NameDict;
 
 
     }
@@ -2992,13 +2995,13 @@ namespace CodeWalker.GameFiles
         public byte IsCreationRelative { get; set; }
         public byte IsTargetRelatve { get; set; }
         public uint padding03 { get; set; }
-        public ParticleKeyframeProp PositionKFP { get; set; }
-        public ParticleKeyframeProp RotationKFP { get; set; }
-        public ParticleKeyframeProp SizeOuterKFP { get; set; }
-        public ParticleKeyframeProp SizeInnerKFP { get; set; }
+        public ParticleKeyframeProp PositionKFP { get; set; } = new();
+        public ParticleKeyframeProp RotationKFP { get; set; } = new();
+        public ParticleKeyframeProp SizeOuterKFP { get; set; } = new();
+        public ParticleKeyframeProp SizeInnerKFP { get; set; } = new();
         public float FileVersion { get; set; }
         public uint padding04 { get; set; }
-        public ResourcePointerList64<ParticleKeyframeProp> KeyframeProps { get; set; }
+        public ResourcePointerList64<ParticleKeyframeProp> KeyframeProps { get; set; } = new();
         public ulong padding05 { get; set; }
         public ulong padding06 { get; set; }
 
@@ -3016,13 +3019,13 @@ namespace CodeWalker.GameFiles
             IsCreationRelative = reader.ReadByte();
             IsTargetRelatve = reader.ReadByte();
             padding03 = reader.ReadUInt32();
-            PositionKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            RotationKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            SizeOuterKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            SizeInnerKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            PositionKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            RotationKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            SizeOuterKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            SizeInnerKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             FileVersion = reader.ReadSingle();
             padding04 = reader.ReadUInt32();
-            KeyframeProps = reader.ReadBlock<ResourcePointerList64<ParticleKeyframeProp>>();
+            KeyframeProps = reader.ReadRequiredBlock<ResourcePointerList64<ParticleKeyframeProp>>();
             padding05 = reader.ReadUInt64();
             padding06 = reader.ReadUInt64();
 
@@ -3122,10 +3125,12 @@ namespace CodeWalker.GameFiles
             }
 
             KeyframeProps = new ResourcePointerList64<ParticleKeyframeProp>();
-            KeyframeProps.data_items = new[] { PositionKFP, RotationKFP, SizeInnerKFP, SizeOuterKFP, null, null, null, null, null, null, null, null, null, null, null, null };
+            var keyframes = new[] { PositionKFP, RotationKFP, SizeInnerKFP, SizeOuterKFP };
+            Array.Resize(ref keyframes, 16);
+            KeyframeProps.data_items = keyframes;
 
         }
-        public static void WriteXmlNode(ParticleDomain d, StringBuilder sb, int indent, string name)
+        public static void WriteXmlNode(ParticleDomain? d, StringBuilder sb, int indent, string name)
         {
             if (d != null)
             {
@@ -3134,7 +3139,7 @@ namespace CodeWalker.GameFiles
                 YptXml.CloseTag(sb, indent, name);
             }
         }
-        public static ParticleDomain ReadXmlNode(XmlNode node)
+        public static ParticleDomain? ReadXmlNode(XmlNode? node)
         {
             if (node != null)
             {
@@ -3171,9 +3176,9 @@ namespace CodeWalker.GameFiles
             reader.Position += 12;
             var type = (ParticleDomainType)reader.ReadByte();
             reader.Position -= 13;
-            return Create(type);
+            return Create(type) ?? throw new InvalidDataException($"Unsupported particle block type: {type}.");
         }
-        public static ParticleDomain Create(ParticleDomainType type)
+        public static ParticleDomain? Create(ParticleDomainType type)
         {
             switch (type)
             {
@@ -3262,7 +3267,7 @@ namespace CodeWalker.GameFiles
         public uint Unknown_4h = 1; // 0x00000001
         public ParticleBehaviourType Type { get; set; }
         public uint Unknown_Ch; // 0x00000000
-        public ResourcePointerList64<ParticleKeyframeProp> KeyframeProps { get; set; }
+        public ResourcePointerList64<ParticleKeyframeProp> KeyframeProps { get; set; } = new();
         public ulong Unknown_20h; // 0x0000000000000000
         public ulong Unknown_28h; // 0x0000000000000000
 
@@ -3273,7 +3278,7 @@ namespace CodeWalker.GameFiles
             Unknown_4h = reader.ReadUInt32();
             Type = (ParticleBehaviourType)reader.ReadUInt32();
             Unknown_Ch = reader.ReadUInt32();
-            KeyframeProps = reader.ReadBlock<ResourcePointerList64<ParticleKeyframeProp>>();
+            KeyframeProps = reader.ReadRequiredBlock<ResourcePointerList64<ParticleKeyframeProp>>();
             Unknown_20h = reader.ReadUInt64();
             Unknown_28h = reader.ReadUInt64();
 
@@ -3321,7 +3326,7 @@ namespace CodeWalker.GameFiles
                 YptXml.CloseTag(sb, indent, name);
             }
         }
-        public static ParticleBehaviour ReadXmlNode(XmlNode node)
+        public static ParticleBehaviour? ReadXmlNode(XmlNode? node)
         {
             if (node != null)
             {
@@ -3344,9 +3349,9 @@ namespace CodeWalker.GameFiles
             ParticleBehaviourType type = (ParticleBehaviourType)reader.ReadUInt32();
             reader.Position -= 12;
 
-            return Create(type);
+            return Create(type) ?? throw new InvalidDataException($"Unsupported particle block type: {type}.");
         }
-        public static ParticleBehaviour Create(ParticleBehaviourType type)
+        public static ParticleBehaviour? Create(ParticleBehaviourType type)
         {
             switch (type)
             {
@@ -3385,21 +3390,18 @@ namespace CodeWalker.GameFiles
 
         public void CreateKeyframeProps(params ParticleKeyframeProp[] props)
         {
-            var plist = props.ToList();
-            if (plist.Count > 0)
+            var keyframes = props.ToArray();
+            if (keyframes.Length > 0)
             {
-                for (int i = plist.Count; i < 16; i++)
-                {
-                    plist.Add(null);
-                }
+                Array.Resize(ref keyframes, Math.Max(16, keyframes.Length));
             }
 
             KeyframeProps = new ResourcePointerList64<ParticleKeyframeProp>();
-            KeyframeProps.data_items = plist.ToArray();
+            KeyframeProps.data_items = keyframes;
             KeyframeProps.ManualCountOverride = true;
             KeyframeProps.ManualReferenceOverride = true;
             KeyframeProps.EntriesCount = (ushort)(props?.Length ?? 0);
-            KeyframeProps.EntriesCapacity = (ushort)((plist.Count > 0) ? 16 : 0);
+            KeyframeProps.EntriesCapacity = (ushort)((keyframes.Length > 0) ? 16 : 0);
 
         }
 
@@ -3438,8 +3440,8 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x170;
 
         // structure data
-        public ParticleKeyframeProp XYZMinKFP { get; set; }
-        public ParticleKeyframeProp XYZMaxKFP { get; set; }
+        public ParticleKeyframeProp XYZMinKFP { get; set; } = new();
+        public ParticleKeyframeProp XYZMaxKFP { get; set; } = new();
         public ulong unused00 { get; set; }
         public int ReferenceSpace { get; set; }
         public byte IsAffectedByZoom { get; set; }
@@ -3453,8 +3455,8 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            XYZMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            XYZMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            XYZMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            XYZMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             unused00 = reader.ReadUInt64();
             ReferenceSpace = reader.ReadInt32();
             IsAffectedByZoom = reader.ReadByte();
@@ -3557,10 +3559,10 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x280;
 
         // structure data
-        public ParticleKeyframeProp InitialAngleMinKFP { get; set; }
-        public ParticleKeyframeProp InitialAngleMaxKFP { get; set; }
-        public ParticleKeyframeProp AngleMinKFP { get; set; }
-        public ParticleKeyframeProp AngleMaxKFP { get; set; }
+        public ParticleKeyframeProp InitialAngleMinKFP { get; set; } = new();
+        public ParticleKeyframeProp InitialAngleMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp AngleMinKFP { get; set; } = new();
+        public ParticleKeyframeProp AngleMaxKFP { get; set; } = new();
         public int InitRotationMode { get; set; }
         public int UpdateRotationMode { get; set; }
         public byte AccumulateAngle { get; set; }
@@ -3574,10 +3576,10 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            InitialAngleMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            InitialAngleMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            AngleMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            AngleMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            InitialAngleMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            InitialAngleMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            AngleMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            AngleMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             InitRotationMode = reader.ReadInt32();
             UpdateRotationMode = reader.ReadInt32();
             AccumulateAngle = reader.ReadByte();
@@ -3697,10 +3699,10 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x280;
 
         // structure data
-        public ParticleKeyframeProp WhdMinKFP { get; set; }
-        public ParticleKeyframeProp WhdMaxKFP { get; set; }
-        public ParticleKeyframeProp TblrScalarKFP { get; set; }
-        public ParticleKeyframeProp TblrVelScalarKFP { get; set; }
+        public ParticleKeyframeProp WhdMinKFP { get; set; } = new();
+        public ParticleKeyframeProp WhdMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp TblrScalarKFP { get; set; } = new();
+        public ParticleKeyframeProp TblrVelScalarKFP { get; set; } = new();
         public int KeyframeMode { get; set; }
         public byte IsProportional { get; set; }
         public byte padding00 { get; set; }
@@ -3712,10 +3714,10 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            WhdMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            WhdMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            TblrScalarKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            TblrVelScalarKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            WhdMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            WhdMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            TblrScalarKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            TblrVelScalarKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             KeyframeMode = reader.ReadInt32();
             IsProportional = reader.ReadByte();
             padding00 = reader.ReadByte();
@@ -3823,8 +3825,8 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x170;
 
         // structure data
-        public ParticleKeyframeProp XYZMinKFP { get; set; }
-        public ParticleKeyframeProp XYZMaxKFP { get; set; }
+        public ParticleKeyframeProp XYZMinKFP { get; set; } = new();
+        public ParticleKeyframeProp XYZMaxKFP { get; set; } = new();
         public ulong unused00 { get; set; }
         public int ReferenceSpace { get; set; }
         public byte EnableAirResistance { get; set; }
@@ -3838,8 +3840,8 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            XYZMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            XYZMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            XYZMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            XYZMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             unused00 = reader.ReadUInt64();
             ReferenceSpace = reader.ReadInt32();
             EnableAirResistance = reader.ReadByte();
@@ -3920,7 +3922,7 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0xD0;
 
         // structure data
-        public ParticleKeyframeProp mtxWeightKFP { get; set; }
+        public ParticleKeyframeProp mtxWeightKFP { get; set; } = new();
         public int ReferenceSpace { get; set; }
         public uint padding00 { get; set; }
         public ulong padding01 { get; set; }
@@ -3930,7 +3932,7 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            mtxWeightKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            mtxWeightKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             ReferenceSpace = reader.ReadInt32();
             padding00 = reader.ReadUInt32();
             padding01 = reader.ReadUInt64();
@@ -3987,8 +3989,8 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x170;
 
         // structure data
-        public ParticleKeyframeProp BouncinessKFP { get; set; }
-        public ParticleKeyframeProp BounceDirVarKFP { get; set; }
+        public ParticleKeyframeProp BouncinessKFP { get; set; } = new();
+        public ParticleKeyframeProp BounceDirVarKFP { get; set; } = new();
         public float RadiusMult { get; set; }
         public float RestSpeed { get; set; }
         public int CollisionChance { get; set; }
@@ -4004,8 +4006,8 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            BouncinessKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            BounceDirVarKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            BouncinessKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            BounceDirVarKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             RadiusMult = reader.ReadSingle();
             RestSpeed = reader.ReadSingle();
             CollisionChance = reader.ReadInt32();
@@ -4097,7 +4099,7 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0xD0;
 
         // structure data
-        public ParticleKeyframeProp AnimRateKFP { get; set; }
+        public ParticleKeyframeProp AnimRateKFP { get; set; } = new();
         public int KeyframeMode { get; set; }
         public int LastFrameID { get; set; }
         public int LoopMode { get; set; }
@@ -4111,7 +4113,7 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            AnimRateKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            AnimRateKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             KeyframeMode = reader.ReadInt32();
             LastFrameID = reader.ReadInt32();
             LoopMode = reader.ReadInt32();
@@ -4188,9 +4190,9 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x1F0;
 
         // structure data
-        public ParticleKeyframeProp RGBAMinKFP { get; set; }
-        public ParticleKeyframeProp RGBAMaxKFP { get; set; }
-        public ParticleKeyframeProp EmissiveIntensityKFP { get; set; }
+        public ParticleKeyframeProp RGBAMinKFP { get; set; } = new();
+        public ParticleKeyframeProp RGBAMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp EmissiveIntensityKFP { get; set; } = new();
         public int KeyframeMode { get; set; }
         public byte RGBAMaxEnable { get; set; }
         public byte RGBAProportional { get; set; }
@@ -4203,9 +4205,9 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            RGBAMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            RGBAMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            EmissiveIntensityKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            RGBAMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            RGBAMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            EmissiveIntensityKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             KeyframeMode = reader.ReadInt32();
             RGBAMaxEnable = reader.ReadByte();
             RGBAProportional = reader.ReadByte();
@@ -4418,7 +4420,7 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0xF0;
 
         // structure data
-        public ParticleKeyframeProp InfluenceKFP { get; set; }
+        public ParticleKeyframeProp InfluenceKFP { get; set; } = new();
         public ulong unused00 { get; set; }
         public ulong unused01 { get; set; }
         public float HighLodRange { get; set; }
@@ -4436,7 +4438,7 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            InfluenceKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            InfluenceKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             unused00 = reader.ReadUInt64();
             unused01 = reader.ReadUInt64();
             HighLodRange = reader.ReadSingle();
@@ -4516,15 +4518,15 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x550;
 
         // structure data
-        public ParticleKeyframeProp RGBMinKFP { get; set; }
-        public ParticleKeyframeProp RGBMaxKFP { get; set; }
-        public ParticleKeyframeProp IntensityKFP { get; set; }
-        public ParticleKeyframeProp RangeKFP { get; set; }
-        public ParticleKeyframeProp CoronaRGBMinKFP { get; set; }
-        public ParticleKeyframeProp CoronaRGBMaxKFP { get; set; }
-        public ParticleKeyframeProp CoronaIntensityKFP { get; set; }
-        public ParticleKeyframeProp CoronaSizeKFP { get; set; }
-        public ParticleKeyframeProp CoronaFlareKFP { get; set; }
+        public ParticleKeyframeProp RGBMinKFP { get; set; } = new();
+        public ParticleKeyframeProp RGBMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp IntensityKFP { get; set; } = new();
+        public ParticleKeyframeProp RangeKFP { get; set; } = new();
+        public ParticleKeyframeProp CoronaRGBMinKFP { get; set; } = new();
+        public ParticleKeyframeProp CoronaRGBMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp CoronaIntensityKFP { get; set; } = new();
+        public ParticleKeyframeProp CoronaSizeKFP { get; set; } = new();
+        public ParticleKeyframeProp CoronaFlareKFP { get; set; } = new();
         public float CoronaZBias { get; set; }
         public byte CoronaUseLightColour { get; set; }
         public byte ColourFromParticle { get; set; }
@@ -4541,15 +4543,15 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            RGBMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            RGBMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            IntensityKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            RangeKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            CoronaRGBMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            CoronaRGBMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            CoronaIntensityKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            CoronaSizeKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            CoronaFlareKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            RGBMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            RGBMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            IntensityKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            RangeKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            CoronaRGBMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            CoronaRGBMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            CoronaIntensityKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            CoronaSizeKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            CoronaFlareKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             CoronaZBias = reader.ReadSingle();
             CoronaUseLightColour = reader.ReadByte();
             ColourFromParticle = reader.ReadByte();
@@ -4812,8 +4814,8 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x180;
 
         // structure data
-        public ParticleKeyframeProp DimensionsKFP { get; set; }
-        public ParticleKeyframeProp AlphaKFP { get; set; }
+        public ParticleKeyframeProp DimensionsKFP { get; set; } = new();
+        public ParticleKeyframeProp AlphaKFP { get; set; } = new();
         public int DecalID { get; set; }
         public float VelocityThreshold { get; set; }
         public float TotalLife { get; set; }
@@ -4837,8 +4839,8 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            DimensionsKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            AlphaKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            DimensionsKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            AlphaKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             DecalID = reader.ReadInt32();
             VelocityThreshold = reader.ReadSingle();
             TotalLife = reader.ReadSingle();
@@ -4964,8 +4966,8 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x170;
 
         // structure data
-        public ParticleKeyframeProp HeightKFP { get; set; }
-        public ParticleKeyframeProp FadeDistKFP { get; set; }
+        public ParticleKeyframeProp HeightKFP { get; set; } = new();
+        public ParticleKeyframeProp FadeDistKFP { get; set; } = new();
         public ulong unsued00 { get; set; }
         public int CullMode { get; set; }
         public int ReferenceSpace { get; set; }
@@ -4977,8 +4979,8 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            HeightKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            FadeDistKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            HeightKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            FadeDistKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             unsued00 = reader.ReadUInt64();
             CullMode = reader.ReadInt32();
             ReferenceSpace = reader.ReadInt32();
@@ -5056,10 +5058,10 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x280;
 
         // structure data
-        public ParticleKeyframeProp PosNoiseMinKFP { get; set; }
-        public ParticleKeyframeProp PosNoiseMaxKFP { get; set; }
-        public ParticleKeyframeProp VelNoiseMinKFP { get; set; }
-        public ParticleKeyframeProp VelNoiseMaxKFP { get; set; }
+        public ParticleKeyframeProp PosNoiseMinKFP { get; set; } = new();
+        public ParticleKeyframeProp PosNoiseMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp VelNoiseMinKFP { get; set; } = new();
+        public ParticleKeyframeProp VelNoiseMaxKFP { get; set; } = new();
         public uint ReferenceSpace { get; set; }
         public byte KeepConstantSpeed { get; set; }
         public byte padding00 { get; set; }
@@ -5071,10 +5073,10 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            PosNoiseMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            PosNoiseMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            VelNoiseMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            VelNoiseMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            PosNoiseMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            PosNoiseMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            VelNoiseMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            VelNoiseMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             ReferenceSpace = reader.ReadUInt32();
             KeepConstantSpeed = reader.ReadByte();
             padding00 = reader.ReadByte();
@@ -5182,14 +5184,14 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0xC0;
 
         // structure data
-        public ParticleKeyframeProp StrengthKFP { get; set; }
+        public ParticleKeyframeProp StrengthKFP { get; set; } = new();
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             base.Read(reader, parameters);
 
             // read structure data
-            StrengthKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            StrengthKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
 
 
         }
@@ -5240,7 +5242,7 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0xF0;
 
         // structure data
-        public ParticleKeyframeProp TexInfoKFP { get; set; }
+        public ParticleKeyframeProp TexInfoKFP { get; set; } = new();
         public Vector3 AlignAxis { get; set; }
         public uint padding00 { get; set; }
         public int AlignmentMode { get; set; }
@@ -5260,7 +5262,7 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            TexInfoKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            TexInfoKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             AlignAxis = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
             padding00 = reader.ReadUInt32();
             AlignmentMode = reader.ReadInt32();
@@ -5361,13 +5363,13 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 0x430;
 
         // structure data
-        public ParticleKeyframeProp RGBTintMinKFP { get; set; }
-        public ParticleKeyframeProp RGBTintMaxKFP { get; set; }
-        public ParticleKeyframeProp DensityRangeKFP { get; set; }
-        public ParticleKeyframeProp ScaleMinKFP { get; set; }
-        public ParticleKeyframeProp ScaleMaxKFP { get; set; }
-        public ParticleKeyframeProp RotationMinKFP { get; set; }
-        public ParticleKeyframeProp RotationMaxKFP { get; set; }
+        public ParticleKeyframeProp RGBTintMinKFP { get; set; } = new();
+        public ParticleKeyframeProp RGBTintMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp DensityRangeKFP { get; set; } = new();
+        public ParticleKeyframeProp ScaleMinKFP { get; set; } = new();
+        public ParticleKeyframeProp ScaleMaxKFP { get; set; } = new();
+        public ParticleKeyframeProp RotationMinKFP { get; set; } = new();
+        public ParticleKeyframeProp RotationMaxKFP { get; set; } = new();
         public float Falloff { get; set; } // 1.0f, 3.0f
         public float HDRMult { get; set; } // 1.0f
         public int LightingType { get; set; }
@@ -5381,13 +5383,13 @@ namespace CodeWalker.GameFiles
             base.Read(reader, parameters);
 
             // read structure data
-            RGBTintMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            RGBTintMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            DensityRangeKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            ScaleMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            ScaleMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            RotationMinKFP = reader.ReadBlock<ParticleKeyframeProp>();
-            RotationMaxKFP = reader.ReadBlock<ParticleKeyframeProp>();
+            RGBTintMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            RGBTintMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            DensityRangeKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            ScaleMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            ScaleMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            RotationMinKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
+            RotationMaxKFP = reader.ReadRequiredBlock<ParticleKeyframeProp>();
             Falloff = reader.ReadSingle();
             HDRMult = reader.ReadSingle();
             LightingType = reader.ReadInt32();
@@ -5832,7 +5834,7 @@ namespace CodeWalker.GameFiles
                 YptXml.CloseTag(sb, indent, name);
             }
         }
-        public static ParticleShaderVar ReadXmlNode(XmlNode node)
+        public static ParticleShaderVar? ReadXmlNode(XmlNode? node)
         {
             if (node != null)
             {
@@ -5854,9 +5856,9 @@ namespace CodeWalker.GameFiles
             var type = (ParticleShaderVarType)reader.ReadByte();
             reader.Position -= 21;
 
-            return Create(type);
+            return Create(type) ?? throw new InvalidDataException($"Unsupported particle block type: {type}.");
         }
-        public static ParticleShaderVar Create(ParticleShaderVarType type)
+        public static ParticleShaderVar? Create(ParticleShaderVarType type)
         {
             switch (type)
             {
@@ -5976,8 +5978,8 @@ namespace CodeWalker.GameFiles
         public short padding06 { get; set; }
 
         // reference data
-        public Texture Texture { get; set; }
-        public string_r TextureName { get; set; }
+        public Texture? Texture { get; set; }
+        public string_r? TextureName { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -6037,7 +6039,7 @@ namespace CodeWalker.GameFiles
             ShaderVarID = Xml.GetChildUIntAttribute(node, "ShaderVarID");
             IsKeyframeable = (byte)Xml.GetChildUIntAttribute(node, "IsKeyframeable");
             ExternalReference = (byte)Xml.GetChildUIntAttribute(node, "ExternalReference");
-            TextureName = (string_r)Xml.GetChildInnerText(node, "TextureName"); if (TextureName.Value == null) TextureName = null;
+            TextureName = Xml.GetChildInnerText(node, "TextureName") is string textTextureName ? (string_r)textTextureName : null;
             TextureNameHash = JenkHash.GenHash(TextureName?.Value ?? "");
         }
 
@@ -6061,7 +6063,7 @@ namespace CodeWalker.GameFiles
         public byte OwnsInfo { get; set; }
         public short padding00 { get; set; }
         public ulong padding01 { get; set; }
-        public ResourceSimpleList64<ParticleShaderVarKeyframeItem> Items { get; set; }
+        public ResourceSimpleList64<ParticleShaderVarKeyframeItem> Items { get; set; } = new();
         public ulong padding02 { get; set; }
         public ulong padding03 { get; set; }
         public ulong padding04 { get; set; }
@@ -6076,7 +6078,7 @@ namespace CodeWalker.GameFiles
             OwnsInfo = reader.ReadByte();
             padding00 = reader.ReadInt16();
             padding01 = reader.ReadUInt64();
-            Items = reader.ReadBlock<ResourceSimpleList64<ParticleShaderVarKeyframeItem>>();
+            Items = reader.ReadRequiredBlock<ResourceSimpleList64<ParticleShaderVarKeyframeItem>>();
             padding02 = reader.ReadUInt64();
             padding03 = reader.ReadUInt64();
             padding04 = reader.ReadUInt64();
@@ -6102,7 +6104,7 @@ namespace CodeWalker.GameFiles
             base.WriteXml(sb, indent);
             YptXml.ValueTag(sb, indent, "ShaderVarID", ShaderVarID.ToString());
             YptXml.ValueTag(sb, indent, "IsKeyframeable", IsKeyframeable.ToString());
-            YptXml.WriteItemArray(sb, Items?.data_items, indent, "Items");
+            YptXml.WriteItemArray(sb, Items.data_items, indent, "Items");
         }
         public override void ReadXml(XmlNode node)
         {

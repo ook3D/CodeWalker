@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYbnPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YbnFile Ybn { get; set; }
+        public YbnFile? Ybn { get; set; }
 
         //private bool populatingui = false;
         private bool waschanged = false;

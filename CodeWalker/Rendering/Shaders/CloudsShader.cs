@@ -174,7 +174,7 @@ namespace CodeWalker.Rendering
             context.PixelShader.Set(ps);
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             CloudsLocalVars.Update(context);
             CloudsLocalVars.SetVSCBuffer(context, 0);
@@ -212,7 +212,7 @@ namespace CodeWalker.Rendering
         public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
         {
 
-            switch (geom.DrawableGeom.Shader.FileName.Hash)
+            switch ((geom.DrawableGeom?.Shader?.FileName.Hash ?? 0))
             {
                 case 4103916155://{clouds_animsoft.sps}
                 case 1097000161://{clouds_altitude.sps}
@@ -268,39 +268,32 @@ namespace CodeWalker.Rendering
                 }
             }
 
-            bool usedens = ((DensitySampler != null) && (DensitySampler.ShaderResourceView != null));
-            bool usenorm = ((NormalSampler != null) && (NormalSampler.ShaderResourceView != null));
-            bool usedden = ((DetailDensitySampler != null) && (DetailDensitySampler.ShaderResourceView != null));
-            bool usednrm = ((DetailNormalSampler != null) && (DetailNormalSampler.ShaderResourceView != null));
-            bool useddn2 = ((DetailDensity2Sampler != null) && (DetailDensity2Sampler.ShaderResourceView != null));
-            bool usednm2 = ((DetailNormal2Sampler != null) && (DetailNormal2Sampler.ShaderResourceView != null));
-            bool usedept = ((DepthMapTexSampler != null) && (DepthMapTexSampler.ShaderResourceView != null));
 
-            if (usedens)
+            if (DensitySampler is { ShaderResourceView: not null })
             {
                 DensitySampler.SetPSResource(context, 0);
             }
-            if (usenorm)
+            if (NormalSampler is { ShaderResourceView: not null })
             {
                 NormalSampler.SetPSResource(context, 1);
             }
-            if (usedden)
+            if (DetailDensitySampler is { ShaderResourceView: not null })
             {
                 DetailDensitySampler.SetPSResource(context, 2);
             }
-            if (usednrm)
+            if (DetailNormalSampler is { ShaderResourceView: not null })
             {
                 DetailNormalSampler.SetPSResource(context, 3);
             }
-            if (useddn2)
+            if (DetailDensity2Sampler is { ShaderResourceView: not null })
             {
                 DetailDensity2Sampler.SetPSResource(context, 4);
             }
-            if (usednm2)
+            if (DetailNormal2Sampler is { ShaderResourceView: not null })
             {
                 DetailNormal2Sampler.SetPSResource(context, 5);
             }
-            if (usedept)
+            if (DepthMapTexSampler is { ShaderResourceView: not null })
             {
                 DepthMapTexSampler.SetPSResource(context, 6);
             }

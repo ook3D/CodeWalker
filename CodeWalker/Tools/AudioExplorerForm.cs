@@ -180,9 +180,9 @@ namespace CodeWalker.Tools
             return $"{str}";
         }
 
-        private IEnumerable<MetaHash> GetUniqueHashes(MetaHash[] hashes, RelData item)
+        private IEnumerable<MetaHash> GetUniqueHashes(MetaHash[]? hashes, RelData item)
         {
-            return hashes?.Distinct()?.Where(h => h != item.NameHash);
+            return hashes?.Distinct().Where(h => h != item.NameHash) ?? Enumerable.Empty<MetaHash>();
         }
 
         private Color GetItemTypeColor(RelData item)
@@ -233,7 +233,8 @@ namespace CodeWalker.Tools
 
         private void HierarchyTreeView_NodeMouseHover(object? sender, TreeNodeMouseHoverEventArgs e)
         {
-            var item = e.Node.Tag as RelData;
+            if (e.Node is not { } node) return;
+            var item = node.Tag as RelData;
             if (item != null)
             {
                 var tooltip = $"Type: {item.GetType().Name}\n" +
@@ -250,7 +251,7 @@ namespace CodeWalker.Tools
 
         private void HierarchyTreeView_DrawNode(object? sender, DrawTreeNodeEventArgs e)
         {
-            var treeView = sender as TreeView;
+            if (sender is not TreeView treeView || e.Node == null) return;
             var bounds = e.Bounds;
             
             var adjustedBounds = new Rectangle(bounds.X, bounds.Y, bounds.Width, Math.Max(bounds.Height, treeView.ItemHeight));
@@ -439,7 +440,7 @@ namespace CodeWalker.Tools
         }
 
 
-        private void SelectItem(RelData item)
+        private void SelectItem(RelData? item)
         {
             DetailsPropertyGrid.SelectedObject = item;
 

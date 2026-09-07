@@ -514,7 +514,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             uint rendermode = 0;
             uint rendermodeind = 1;
@@ -584,7 +584,7 @@ namespace CodeWalker.Rendering
 
         public override void SetModelVars(DeviceContext context, RenderableModel model)
         {
-            if ((model.Owner.Skeleton?.BoneTransforms != null) && (model.Owner.Skeleton.BoneTransforms.Length > 0))
+            if ((model.Owner?.Skeleton?.BoneTransforms != null) && (model.Owner.Skeleton.BoneTransforms.Length > 0))
             {
                 SetBoneMatrices(context, model.Owner.Skeleton.BoneTransforms);
                 defaultBoneMatricesBound = false;
@@ -594,7 +594,7 @@ namespace CodeWalker.Rendering
                 SetBoneMatrices(context, defaultBoneMatrices);
                 defaultBoneMatricesBound = true;
             }
-            if (model.Owner.Cloth?.Vertices != null)
+            if (model.Owner?.Cloth?.Vertices != null)
             {
                 SetClothVertices(context, model.Owner.Cloth.Vertices);
             }
@@ -654,7 +654,7 @@ namespace CodeWalker.Rendering
                             case ShaderParamNames.TintPaletteSampler:
                             case ShaderParamNames.TextureSamplerDiffPal:
                                 tintpal = itex;
-                                if (tintpal.Key != null)
+                                if (tintpal?.Key != null)
                                 {
                                     //this is slightly dodgy but VSEntityVars should have the correct value in it...
                                     tntpalind = (VSEntityVars.Vars.TintPaletteIndex + 0.5f) / tintpal.Key.Height;
@@ -721,8 +721,8 @@ namespace CodeWalker.Rendering
             uint windflag = geom.EnableWind ? 1u : 0u;
             uint emflag = geom.IsEmissive ? 1u : 0u;
             uint pstintflag = tintflag;
-            var shaderName = geom.DrawableGeom.Shader.Name;
-            var shaderFile = geom.DrawableGeom.Shader.FileName;
+            var shaderName = geom.DrawableGeom?.Shader?.Name ?? 0;
+            var shaderFile = geom.DrawableGeom?.Shader?.FileName ?? 0;
             switch (shaderFile.Hash)
             {
                 case 2245870123: //trees_normal_diffspec_tnt.sps
@@ -788,7 +788,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.bumpiness = geom.bumpiness;
             PSGeomVars.Vars.AlphaScale = isdistmap ? 1.0f : AlphaScale;
             PSGeomVars.Vars.HardAlphaBlend = geom.HardAlphaBlend;
-            PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode(shaderFile.Hash, geom.DrawableGeom.Shader.RenderBucket);
+            PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode(shaderFile.Hash, (geom.DrawableGeom?.Shader?.RenderBucket ?? 0));
             if (PSGeomVars.Vars.AlphaMode == 3) PSGeomVars.Vars.IsDecal = 0;
             PSGeomVars.Vars.detailSettings = geom.detailSettings;
             PSGeomVars.Vars.specMapIntMask = geom.specMapIntMask;
@@ -835,35 +835,35 @@ namespace CodeWalker.Rendering
 
             context.VertexShader.SetSampler(0, geom.IsFragment ? texsamplertntyft : texsamplertnt);
             context.PixelShader.SetSampler(0, AnisotropicFilter ? texsampleranis : texsampler);
-            if (usediff)
+            if (usediff && texture != null)
             {
                 texture.SetPSResource(context, 0);
             }
-            if (usebump)
+            if (usebump && bumptex != null)
             {
                 bumptex.SetPSResource(context, 2);
             }
-            if (usespec)
+            if (usespec && spectex != null)
             {
                 spectex.SetPSResource(context, 3);
             }
-            if (usedetl)
+            if (usedetl && detltex != null)
             {
                 detltex.SetPSResource(context, 4);
             }
-            if (usediff2)
+            if (usediff2 && texture2 != null)
             {
                 texture2.SetPSResource(context, 5);
             }
-            if (usetint)
+            if (usetint && tintpal != null)
             {
                 tintpal.SetVSResource(context, 0);
             }
-            if (pstintflag == 2)
+            if (pstintflag == 2 && tintpal != null)
             {
                 tintpal.SetPSResource(context, 6);
             }
-            if (useheight)
+            if (useheight && heighttex != null)
             {
                 heighttex.SetPSResource(context, 7);
             }

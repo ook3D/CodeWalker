@@ -26,7 +26,7 @@ public class Camera(float smoothness, float sensitivity, float fov)
     public float AspectRatio = 1920.0f / 1080.0f;
     public float ZNear = 0.01f;
     public float ZFar = 100000.0f;
-    public Entity FollowEntity = null;
+    public Entity? FollowEntity;
     public Vector3 LocalLookAt = Vector3.ForwardLH;
     public float VOffset = 0.0f;
     public bool UpdateProj = true;

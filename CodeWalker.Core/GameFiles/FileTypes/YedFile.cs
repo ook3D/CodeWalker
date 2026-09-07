@@ -12,12 +12,12 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YedFile : GameFile, PackedFile
     {
-        public ExpressionDictionary ExpressionDictionary { get; set; }
+        public ExpressionDictionary? ExpressionDictionary { get; set; }
 
-        public string LoadException { get; set; }
+        public string? LoadException { get; set; }
 
 
-        public Dictionary<MetaHash, Expression> ExprMap { get; set; }
+        public Dictionary<MetaHash, Expression> ExprMap { get; set; } = new();
 
 
 
@@ -60,7 +60,8 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
-            byte[] data = ResourceBuilder.Build(ExpressionDictionary, 25); //yed is type/version 25...
+            byte[] data = ResourceBuilder.Build(ExpressionDictionary
+                ?? throw new InvalidOperationException("An expression dictionary must be loaded before saving."), 25); //yed is type/version 25...
 
             return data;
         }

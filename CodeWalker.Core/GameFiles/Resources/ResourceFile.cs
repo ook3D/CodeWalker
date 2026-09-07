@@ -48,7 +48,7 @@ namespace CodeWalker.GameFiles
         public ulong FilePagesInfoPointer { get; set; }
 
         // reference data
-        public ResourcePagesInfo FilePagesInfo { get; set; }
+        public ResourcePagesInfo? FilePagesInfo { get; set; }
 
         /// <summary>
         /// Reads the data-block from a stream.

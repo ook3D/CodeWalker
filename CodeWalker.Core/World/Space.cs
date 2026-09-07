@@ -17,10 +17,12 @@ namespace CodeWalker.World
         public LinkedList<Entity> PersistentEntities = new();
         public List<Entity> EnabledEntities = new(); //built each frame
 
-        private GameFileCache GameFileCache = null;
+        private GameFileCache? gameFileCache;
+        private GameFileCache GameFileCache => gameFileCache ?? throw new InvalidOperationException("Space has not been initialized.");
+        private RpfManager ArchiveManager => GameFileCache.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.");
 
-        public SpaceMapDataStore MapDataStore;
-        public SpaceBoundsStore BoundsStore;
+        public SpaceMapDataStore MapDataStore = new();
+        public SpaceBoundsStore BoundsStore = new();
 
         private Dictionary<MetaHash, MetaHash> interiorLookup = new();
         private Dictionary<MetaHash, YmfInterior> interiorManifest = new();
@@ -36,10 +38,10 @@ namespace CodeWalker.World
         public bool Inited = false;
 
 
-        public SpaceNodeGrid NodeGrid;
+        public SpaceNodeGrid? NodeGrid;
         private Dictionary<uint, YndFile> AllYnds = new();
 
-        public SpaceNavGrid NavGrid;
+        public SpaceNavGrid? NavGrid;
 
         public List<SpaceEntityCollision> Collisions = new();
         private bool[] CollisionLayers = new[] { true, false, false };
@@ -50,7 +52,7 @@ namespace CodeWalker.World
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus)
         {
-            GameFileCache = gameFileCache;
+            this.gameFileCache = gameFileCache;
 
 
             updateStatus("Scanning manifests...");
@@ -319,7 +321,7 @@ namespace CodeWalker.World
                 {
                     var entries = maprpf?.AllEntries;
                     if (entries == null) continue;
-                    var isextra = extraset?.Contains(maprpf) == true;
+                    var isextra = maprpf != null && extraset?.Contains(maprpf) == true;
 
                     foreach (var entry in entries)
                     {
@@ -382,7 +384,7 @@ namespace CodeWalker.World
                     {
                         if (isYmap)
                         {
-                            var ymap = GameFileCache.RpfMan.GetFile<YmapFile>(entry);
+                            var ymap = ArchiveManager.GetFile<YmapFile>(entry);
                             if (ymap != null)
                             {
                                 //A DLC map changeset swapped this ymap's variant out (eg the vanilla id2_* set
@@ -422,7 +424,7 @@ namespace CodeWalker.World
                         }
                         else
                         {
-                            var ybn = GameFileCache.RpfMan.GetFile<YbnFile>(entry);
+                            var ybn = ArchiveManager.GetFile<YbnFile>(entry);
                             if (ybn?.Bounds != null)
                             {
                                 var ehash = new MetaHash(entry.ShortNameHash);
@@ -465,7 +467,7 @@ namespace CodeWalker.World
             NodeGrid = new SpaceNodeGrid();
             AllYnds.Clear();
 
-            var rpfman = GameFileCache.RpfMan;
+            var rpfman = ArchiveManager;
             Dictionary<uint, RpfFileEntry> yndentries = new();
             foreach (var rpffile in GameFileCache.BaseRpfs) //load nodes from base rpfs
             {
@@ -506,6 +508,7 @@ namespace CodeWalker.World
                     if (yndentries.TryGetValue(fnhash, out fentry))
                     {
                         cell.Ynd = rpfman.GetFile<YndFile>(fentry);
+                        if (cell.Ynd == null) continue;
                         cell.Ynd.BBMin = corner + (cellsize * new Vector3(x, y, 0));
                         cell.Ynd.BBMax = cell.Ynd.BBMin + cellsize;
                         cell.Ynd.CellX = x;
@@ -614,7 +617,7 @@ namespace CodeWalker.World
         {
             //ideally we should be able to revert to the vanilla ynd's after closing the project window,
             //but codewalker can always just be restarted, so who cares really
-            NodeGrid.UpdateYnd(ynd);
+            NodeGrid?.UpdateYnd(ynd);
         }
 
         private void AddRpfYnds(RpfFile rpffile, Dictionary<uint, RpfFileEntry> yndentries)
@@ -655,7 +658,7 @@ namespace CodeWalker.World
                     var llid = linkid + l;
                     if (llid >= links.Length) continue;
                     var link = links[llid];
-                    YndNode tnode;
+                    YndNode? tnode;
                     if (link.AreaID == node.AreaID)
                     {
                         if (link.NodeID >= ynodes.Length)
@@ -664,11 +667,9 @@ namespace CodeWalker.World
                     }
                     else
                     {
-                        tnode = NodeGrid.GetYndNode(link.AreaID, link.NodeID);
+                        tnode = NodeGrid?.GetYndNode(link.AreaID, link.NodeID);
                         if (tnode == null)
                         { continue; }
-                        if ((Math.Abs(tnode.Ynd.CellX - ynd.CellX) > 1) || (Math.Abs(tnode.Ynd.CellY - ynd.CellY) > 1))
-                        { /*continue;*/ } //non-adjacent cell? seems to be the carrier problem...
                     }
 
                     YndLink yl = new();
@@ -681,7 +682,7 @@ namespace CodeWalker.World
             ynd.Links = tlinks.ToArray();
 
         }
-        public void BuildYndVerts(YndFile ynd, YndNode[] selectedNodes, List<EditorVertex>? tverts = null)
+        public void BuildYndVerts(YndFile ynd, YndNode[]? selectedNodes, List<EditorVertex>? tverts = null)
         {
             var laneColour = (uint)new Color4(0f, 0f, 1f, 1f).ToRgba();
             var ynodes = ynd.Nodes;
@@ -798,7 +799,7 @@ namespace CodeWalker.World
                 for (int i = 0; i < junccount; i++)
                 {
                     var junc = yjuncs[i];
-                    var cell = NodeGrid.GetCell(junc.RefData.AreaID);
+                    var cell = NodeGrid?.GetCell(junc.RefData.AreaID);
                     if ((cell == null) || (cell.Ynd == null) || (cell.Ynd.Nodes == null))
                     { continue; }
 
@@ -834,16 +835,17 @@ namespace CodeWalker.World
 
         }
 
-        public HashSet<YndFile> GetYndFilesThatDependOnYndFile(YndFile file)
+        public HashSet<YndFile> GetYndFilesThatDependOnYndFile(YndFile? file)
         {
             HashSet<YndFile> result = new();
+            if (file == null) return result;
             int targetAreaID = file.AreaID; // Cache to avoid repeated property access
 
             foreach (var ynd in AllYnds.Values)
             {
                 foreach (var link in ynd.Links)
                 {
-                    if (link.Node2.AreaID == targetAreaID)
+                    if (link.Node2?.AreaID == targetAreaID)
                     {
                         result.Add(ynd);
                         break; // No need to check more links for this YndFile
@@ -856,6 +858,7 @@ namespace CodeWalker.World
 
         public void MoveYndArea(YndFile ynd, int desiredX, int desiredY)
         {
+            if (NodeGrid == null) throw new InvalidOperationException("The node grid has not been initialized.");
             var xDir = Math.Min(1, Math.Max(-1, desiredX - ynd.CellX));
             var yDir = Math.Min(1, Math.Max(-1, desiredY - ynd.CellY));
             var x = desiredX;
@@ -935,7 +938,7 @@ namespace CodeWalker.World
                 ynd.UpdateTriangleVertices(null);
                 ynd.BuildStructs();
             }
-            NodeGrid.UpdateYnd(ynd);
+            NodeGrid?.UpdateYnd(ynd);
         }
 
         public void RecalculateAllYndIndices()
@@ -951,7 +954,7 @@ namespace CodeWalker.World
         {
             NavGrid = new SpaceNavGrid();
 
-            var rpfman = GameFileCache.RpfMan;
+            var rpfman = ArchiveManager;
             Dictionary<uint, RpfFileEntry> ynventries = new();
             foreach (var rpffile in GameFileCache.BaseRpfs) //load navmeshes from base rpfs
             {
@@ -1403,7 +1406,7 @@ namespace CodeWalker.World
         public SpaceRayIntersectResult RayIntersect(Ray ray, float maxdist = float.MaxValue, bool[]? layers = null, bool testDrawableCollisions = true)
         {
             var res = new SpaceRayIntersectResult();
-            if (GameFileCache == null) return res;
+            if (gameFileCache == null) return res;
             bool testcomplete = true;
             res.HitDist = maxdist;
             var box = new BoundingBox();
@@ -1423,7 +1426,7 @@ namespace CodeWalker.World
                     if (boxhitdisttest > res.HitDist)
                     { continue; } //already a closer hit
 
-                    YbnFile ybn = GameFileCache.GetYbn(bound.Name);
+                    YbnFile? ybn = GameFileCache.GetYbn(bound.Name);
                     if (ybn == null)
                     { continue; } //ybn not found?
                     if (!ybn.Loaded)
@@ -1596,7 +1599,7 @@ namespace CodeWalker.World
 
             var hash = mlo.Archetype.Hash;
             var ybn = GameFileCache.GetYbn(hash);
-            if ((ybn != null) && (ybn.Loaded))
+            if ((ybn != null) && ybn.Loaded && ybn.Bounds != null)
             {
                 var ihit = ybn.Bounds.RayIntersect(ref iray, res.HitDist);
                 if (ihit.Hit)
@@ -1674,7 +1677,7 @@ namespace CodeWalker.World
         public SpaceSphereIntersectResult SphereIntersect(BoundingSphere sph, bool[]? layers = null)
         {
             var res = new SpaceSphereIntersectResult();
-            if (GameFileCache == null) return res;
+            if (gameFileCache == null) return res;
             bool testcomplete = true;
             Vector3 sphmin = sph.Center - sph.Radius;
             Vector3 sphmax = sph.Center + sph.Radius;
@@ -1692,7 +1695,7 @@ namespace CodeWalker.World
                 box.Maximum = bound.Max;
                 if (sph.Intersects(ref box))
                 {
-                    YbnFile ybn = GameFileCache.GetYbn(bound.Name);
+                    YbnFile? ybn = GameFileCache.GetYbn(bound.Name);
                     if (ybn == null)
                     { continue; } //ybn not found?
                     if (!ybn.Loaded)
@@ -1829,7 +1832,7 @@ namespace CodeWalker.World
 
             var hash = mlo.Archetype.Hash;
             var ybn = GameFileCache.GetYbn(hash);
-            if ((ybn != null) && (ybn.Loaded))
+            if ((ybn != null) && ybn.Loaded && ybn.Bounds != null)
             {
                 var ihit = ybn.Bounds.SphereIntersect(ref isph);
                 if (ihit.Hit)
@@ -1927,7 +1930,7 @@ namespace CodeWalker.World
 
     public class SpaceMapDataStore
     {
-        public SpaceMapDataStoreNode RootNode;
+        public SpaceMapDataStoreNode? RootNode;
         public int SplitThreshold = 10;
 
         public void Init(List<MapDataStoreNode> rootnodes)
@@ -1971,9 +1974,9 @@ namespace CodeWalker.World
     }
     public class SpaceMapDataStoreNode
     {
-        public SpaceMapDataStore Owner = null;
-        public SpaceMapDataStoreNode[] Children = null;
-        public List<MapDataStoreNode> Items = null;
+        public SpaceMapDataStore? Owner = null;
+        public SpaceMapDataStoreNode[]? Children = null;
+        public List<MapDataStoreNode>? Items = null;
         public Vector3 BBMin = new(float.MaxValue);
         public Vector3 BBMax = new(float.MinValue);
         public int Depth = 0;
@@ -2135,7 +2138,7 @@ namespace CodeWalker.World
 
     public class SpaceBoundsStore
     {
-        public SpaceBoundsStoreNode RootNode;
+        public SpaceBoundsStoreNode? RootNode;
         public int SplitThreshold = 10;
 
         public void Init(List<BoundsStoreItem> items)
@@ -2170,9 +2173,9 @@ namespace CodeWalker.World
     }
     public class SpaceBoundsStoreNode
     {
-        public SpaceBoundsStore Owner = null;
-        public SpaceBoundsStoreNode[] Children = null;
-        public List<BoundsStoreItem> Items = null;
+        public SpaceBoundsStore? Owner = null;
+        public SpaceBoundsStoreNode[]? Children = null;
+        public List<BoundsStoreItem>? Items = null;
         public Vector3 BBMin = new(float.MaxValue);
         public Vector3 BBMax = new(float.MinValue);
         public int Depth = 0;
@@ -2333,7 +2336,7 @@ namespace CodeWalker.World
             }
         }
 
-        public SpaceNodeGridCell GetCell(int id)
+        public SpaceNodeGridCell? GetCell(int id)
         {
             int x = id % CellCountX;
             int y = id / CellCountX;
@@ -2344,7 +2347,7 @@ namespace CodeWalker.World
             return null;
         }
 
-        public SpaceNodeGridCell GetCellForPosition(Vector3 position)
+        public SpaceNodeGridCell? GetCellForPosition(Vector3 position)
         {
             var x = (int)((position.X - CornerX) / CellSize);
             var y = (int)((position.Y - CornerY) / CellSize);
@@ -2358,7 +2361,7 @@ namespace CodeWalker.World
         }
 
 
-        public YndNode GetYndNode(ushort areaid, ushort nodeid)
+        public YndNode? GetYndNode(ushort areaid, ushort nodeid)
         {
             var cell = GetCell(areaid);
             if ((cell == null) || (cell.Ynd == null) || (cell.Ynd.Nodes == null))
@@ -2401,7 +2404,7 @@ namespace CodeWalker.World
         public int Y;
         public int ID;
 
-        public YndFile Ynd;
+        public YndFile? Ynd;
 
         public SpaceNodeGridCell(int x, int y)
         {
@@ -2439,7 +2442,7 @@ namespace CodeWalker.World
             }
         }
 
-        public SpaceNavGridCell GetCell(int id)
+        public SpaceNavGridCell? GetCell(int id)
         {
             int x = id % CellCountX;
             int y = id / CellCountX;
@@ -2464,7 +2467,7 @@ namespace CodeWalker.World
             y = (y < 0) ? 0 : (y >= CellCountY) ? CellCountY-1 : y;
             return new Vector2I(x, y);
         }
-        public SpaceNavGridCell GetCell(Vector2I g)
+        public SpaceNavGridCell? GetCell(Vector2I g)
         {
             var cell = Cells[g.X, g.Y];
             if (cell == null)
@@ -2474,7 +2477,7 @@ namespace CodeWalker.World
             }
             return cell;
         }
-        public SpaceNavGridCell GetCell(Vector3 p)
+        public SpaceNavGridCell? GetCell(Vector3 p)
         {
             return GetCell(GetCellPos(p));
         }
@@ -2499,8 +2502,8 @@ namespace CodeWalker.World
         public int FileX;
         public int FileY;
 
-        public RpfResourceFileEntry YnvEntry;
-        public YnvFile Ynv;
+        public RpfResourceFileEntry? YnvEntry;
+        public YnvFile? Ynv;
 
         public SpaceNavGridCell(int x, int y)
         {

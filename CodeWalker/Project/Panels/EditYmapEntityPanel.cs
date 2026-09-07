@@ -8,8 +8,8 @@ namespace CodeWalker.Project.Panels
     public partial class EditYmapEntityPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YmapEntityDef CurrentEntity { get; set; }
-        public MCEntityDef CurrentMCEntity { get; set; }
+        public YmapEntityDef? CurrentEntity { get; set; }
+        public MCEntityDef? CurrentMCEntity { get; set; }
 
         private bool populatingui = false;
 
@@ -219,7 +219,7 @@ namespace CodeWalker.Project.Panels
             EntityTabControl.TabPages.Add(EntityPivotTabPage);
             if (CurrentEntity?.MloInstance != null) EntityTabControl.TabPages.Add(EntityMiloTabPage);
 
-            if (EntityTabControl.TabPages.Contains(seltab))
+            if (seltab != null && EntityTabControl.TabPages.Contains(seltab))
             {
                 EntityTabControl.SelectedTab = seltab;
             }
@@ -273,7 +273,7 @@ namespace CodeWalker.Project.Panels
 
                         if (CurrentEntity.IsMlo)
                         {
-                            CurrentEntity.MloInstance.InitYmapEntityArchetypes(ProjectForm.GameFileCache);
+                            CurrentEntity.MloInstance?.InitYmapEntityArchetypes(ProjectForm.GameFileCache);
                         }
 
                         ProjectItemChanged();
@@ -286,11 +286,11 @@ namespace CodeWalker.Project.Panels
 
         private void ProjectItemChanged()
         {
-            if (CurrentEntity.Ymap != null)
+            if (CurrentEntity?.Ymap != null)
             {
                 ProjectForm.SetYmapHasChanged(true);
             }
-            else if (CurrentEntity.MloParent?.Archetype?.Ytyp != null)
+            else if (CurrentEntity?.MloParent?.Archetype?.Ytyp != null)
             {
                 ProjectForm.SetYtypHasChanged(true);
             }
@@ -490,7 +490,7 @@ namespace CodeWalker.Project.Panels
                         CurrentMCEntity._Data.parentIndex = pind;
 
                     string parentName = string.Empty;
-                    var parentEntities = CurrentEntity.Ymap.Parent.AllEntities;
+                    var parentEntities = CurrentEntity.Ymap?.Parent?.AllEntities ?? [];
                     if (parentEntities != null && pind >= 0 && pind < parentEntities.Length)
                     {
                         parentName = parentEntities[pind]?.Name ?? string.Empty;
@@ -820,7 +820,7 @@ namespace CodeWalker.Project.Panels
             string? parentName = parentEntityTextBox.Text?.Trim();
             if (string.IsNullOrEmpty(parentName)) return;
 
-            var parentEntities = CurrentEntity.Ymap.Parent.AllEntities;
+            var parentEntities = CurrentEntity.Ymap?.Parent?.AllEntities ?? [];
             int newIndex = -1;
 
             for (int i = 0; i < parentEntities.Length; i++)

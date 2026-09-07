@@ -180,7 +180,8 @@ namespace CodeWalker.Project
 
         private void Update(WorldForm wf, ref MapSelection sel, Vector3 p)
         {
-            Entity?.SetPositionFromWidget(p);
+            if (Entity == null) return;
+            Entity.SetPositionFromWidget(p);
 
             if (Entity != sel.EntityDef) wf.SelectObject(Entity);
             wf.SetWidgetPosition(Entity.WidgetPosition);
@@ -472,6 +473,11 @@ namespace CodeWalker.Project
 
     public abstract class LodLightUndoStep : UndoStep
     {
+        protected LodLightUndoStep(YmapLODLight lodlight)
+        {
+            LodLight = lodlight;
+        }
+
         public YmapLODLight LodLight { get; set; }
 
         protected void UpdateGraphics(WorldForm wf)
@@ -487,9 +493,8 @@ namespace CodeWalker.Project
         public Vector3 StartPosition { get; set; }
         public Vector3 EndPosition { get; set; }
 
-        public LodLightPositionUndoStep(YmapLODLight lodlight, Vector3 startpos)
+        public LodLightPositionUndoStep(YmapLODLight lodlight, Vector3 startpos) : base(lodlight)
         {
-            LodLight = lodlight;
             StartPosition = startpos;
             EndPosition = lodlight?.Position ?? Vector3.Zero;
         }
@@ -524,9 +529,8 @@ namespace CodeWalker.Project
         public Quaternion StartRotation { get; set; }
         public Quaternion EndRotation { get; set; }
 
-        public LodLightRotationUndoStep(YmapLODLight lodlight, Quaternion startrot)
+        public LodLightRotationUndoStep(YmapLODLight lodlight, Quaternion startrot) : base(lodlight)
         {
-            LodLight = lodlight;
             StartRotation = startrot;
             EndRotation = lodlight?.Orientation ?? Quaternion.Identity;
         }
@@ -562,9 +566,8 @@ namespace CodeWalker.Project
         public Vector3 StartScale { get; set; }
         public Vector3 EndScale { get; set; }
 
-        public LodLightScaleUndoStep(YmapLODLight lodlight, Vector3 startscale)
+        public LodLightScaleUndoStep(YmapLODLight lodlight, Vector3 startscale) : base(lodlight)
         {
-            LodLight = lodlight;
             StartScale = startscale;
             EndScale = lodlight?.Scale ?? new Vector3(1.0f);
         }
@@ -599,6 +602,11 @@ namespace CodeWalker.Project
 
     public abstract class BoxOccluderUndoStep : UndoStep
     {
+        protected BoxOccluderUndoStep(YmapBoxOccluder box)
+        {
+            BoxOccluder = box;
+        }
+
         public YmapBoxOccluder BoxOccluder { get; set; }
 
         protected void UpdateGraphics(WorldForm wf)
@@ -614,9 +622,8 @@ namespace CodeWalker.Project
         public Vector3 StartPosition { get; set; }
         public Vector3 EndPosition { get; set; }
 
-        public BoxOccluderPositionUndoStep(YmapBoxOccluder box, Vector3 startpos)
+        public BoxOccluderPositionUndoStep(YmapBoxOccluder box, Vector3 startpos) : base(box)
         {
-            BoxOccluder = box;
             StartPosition = startpos;
             EndPosition = box?.Position ?? Vector3.Zero;
         }
@@ -651,9 +658,8 @@ namespace CodeWalker.Project
         public Quaternion StartRotation { get; set; }
         public Quaternion EndRotation { get; set; }
 
-        public BoxOccluderRotationUndoStep(YmapBoxOccluder box, Quaternion startrot)
+        public BoxOccluderRotationUndoStep(YmapBoxOccluder box, Quaternion startrot) : base(box)
         {
-            BoxOccluder = box;
             StartRotation = startrot;
             EndRotation = box?.Orientation ?? Quaternion.Identity;
         }
@@ -689,9 +695,8 @@ namespace CodeWalker.Project
         public Vector3 StartScale { get; set; }
         public Vector3 EndScale { get; set; }
 
-        public BoxOccluderScaleUndoStep(YmapBoxOccluder box, Vector3 startscale)
+        public BoxOccluderScaleUndoStep(YmapBoxOccluder box, Vector3 startscale) : base(box)
         {
-            BoxOccluder = box;
             StartScale = startscale;
             EndScale = box?.Size ?? new Vector3(1.0f);
         }
@@ -726,6 +731,11 @@ namespace CodeWalker.Project
 
     public abstract class OccludeModelTriUndoStep : UndoStep
     {
+        protected OccludeModelTriUndoStep(YmapOccludeModelTriangle tri)
+        {
+            OccludeModelTri = tri;
+        }
+
         public YmapOccludeModelTriangle OccludeModelTri { get; set; }
 
         protected void UpdateGraphics(WorldForm wf)
@@ -741,9 +751,8 @@ namespace CodeWalker.Project
         public Vector3 StartPosition { get; set; }
         public Vector3 EndPosition { get; set; }
 
-        public OccludeModelTriPositionUndoStep(YmapOccludeModelTriangle tri, Vector3 startpos)
+        public OccludeModelTriPositionUndoStep(YmapOccludeModelTriangle tri, Vector3 startpos) : base(tri)
         {
-            OccludeModelTri = tri;
             StartPosition = startpos;
             EndPosition = tri?.Center ?? Vector3.Zero;
         }
@@ -778,9 +787,8 @@ namespace CodeWalker.Project
         public Quaternion StartRotation { get; set; }
         public Quaternion EndRotation { get; set; }
 
-        public OccludeModelTriRotationUndoStep(YmapOccludeModelTriangle tri, Quaternion startrot)
+        public OccludeModelTriRotationUndoStep(YmapOccludeModelTriangle tri, Quaternion startrot) : base(tri)
         {
-            OccludeModelTri = tri;
             StartRotation = startrot;
             EndRotation = tri?.Orientation ?? Quaternion.Identity;
         }
@@ -816,9 +824,8 @@ namespace CodeWalker.Project
         public Vector3 StartScale { get; set; }
         public Vector3 EndScale { get; set; }
 
-        public OccludeModelTriScaleUndoStep(YmapOccludeModelTriangle tri, Vector3 startscale)
+        public OccludeModelTriScaleUndoStep(YmapOccludeModelTriangle tri, Vector3 startscale) : base(tri)
         {
-            OccludeModelTri = tri;
             StartScale = startscale;
             EndScale = tri?.Scale ?? new Vector3(1.0f);
         }
@@ -855,11 +862,11 @@ namespace CodeWalker.Project
     public class CollisionPositionUndoStep : UndoStep
     {
         public Bounds Bounds { get; set; }
-        public YmapEntityDef Entity { get; set; }
+        public YmapEntityDef? Entity { get; set; }
         public Vector3 StartPosition { get; set; }
         public Vector3 EndPosition { get; set; }
 
-        public CollisionPositionUndoStep(Bounds bounds, YmapEntityDef ent, Vector3 startpos, WorldForm wf)
+        public CollisionPositionUndoStep(Bounds bounds, YmapEntityDef? ent, Vector3 startpos, WorldForm wf)
         {
             Bounds = bounds;
             Entity = ent;
@@ -916,11 +923,11 @@ namespace CodeWalker.Project
     public class CollisionRotationUndoStep : UndoStep
     {
         public Bounds Bounds { get; set; }
-        public YmapEntityDef Entity { get; set; }
+        public YmapEntityDef? Entity { get; set; }
         public Quaternion StartRotation { get; set; }
         public Quaternion EndRotation { get; set; }
 
-        public CollisionRotationUndoStep(Bounds bounds, YmapEntityDef ent, Quaternion startrot, WorldForm wf)
+        public CollisionRotationUndoStep(Bounds bounds, YmapEntityDef? ent, Quaternion startrot, WorldForm wf)
         {
             Bounds = bounds;
             Entity = ent;
@@ -1033,11 +1040,11 @@ namespace CodeWalker.Project
     public class CollisionPolyPositionUndoStep : UndoStep
     {
         public BoundPolygon Polygon { get; set; }
-        public YmapEntityDef Entity { get; set; }
+        public YmapEntityDef? Entity { get; set; }
         public Vector3 StartPosition { get; set; }
         public Vector3 EndPosition { get; set; }
 
-        public CollisionPolyPositionUndoStep(BoundPolygon poly, YmapEntityDef ent, Vector3 startpos, WorldForm wf)
+        public CollisionPolyPositionUndoStep(BoundPolygon poly, YmapEntityDef? ent, Vector3 startpos, WorldForm wf)
         {
             Polygon = poly;
             Entity = ent;
@@ -1093,11 +1100,11 @@ namespace CodeWalker.Project
     public class CollisionPolyRotationUndoStep : UndoStep
     {
         public BoundPolygon Polygon { get; set; }
-        public YmapEntityDef Entity { get; set; }
+        public YmapEntityDef? Entity { get; set; }
         public Quaternion StartRotation { get; set; }
         public Quaternion EndRotation { get; set; }
 
-        public CollisionPolyRotationUndoStep(BoundPolygon poly, YmapEntityDef ent, Quaternion startrot, WorldForm wf)
+        public CollisionPolyRotationUndoStep(BoundPolygon poly, YmapEntityDef? ent, Quaternion startrot, WorldForm wf)
         {
             Polygon = poly;
             Entity = ent;
@@ -1209,11 +1216,11 @@ namespace CodeWalker.Project
     public class CollisionVertexPositionUndoStep : UndoStep
     {
         public BoundVertex Vertex { get; set; }
-        public YmapEntityDef Entity { get; set; }
+        public YmapEntityDef? Entity { get; set; }
         public Vector3 StartPosition { get; set; }
         public Vector3 EndPosition { get; set; }
 
-        public CollisionVertexPositionUndoStep(BoundVertex vertex, YmapEntityDef ent, Vector3 startpos, WorldForm wf)
+        public CollisionVertexPositionUndoStep(BoundVertex vertex, YmapEntityDef? ent, Vector3 startpos, WorldForm wf)
         {
             Vertex = vertex;
             Entity = ent;

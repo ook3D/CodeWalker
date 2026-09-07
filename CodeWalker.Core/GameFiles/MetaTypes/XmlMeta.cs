@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml;
+using System.IO;
 using SharpDX;
 
 namespace CodeWalker.GameFiles
@@ -11,7 +12,7 @@ namespace CodeWalker.GameFiles
     {
 
 
-        public static byte[] GetData(XmlDocument doc, MetaFormat mformat, string fpathin)
+        public static byte[]? GetData(XmlDocument doc, MetaFormat mformat, string fpathin)
         {
             switch (mformat)
             {
@@ -68,152 +69,152 @@ namespace CodeWalker.GameFiles
             }
             return null;
         }
-        public static byte[] GetRSCData(XmlDocument doc)
+        public static byte[]? GetRSCData(XmlDocument doc)
         {
             var meta = GetMeta(doc);
             if ((meta.DataBlocks?.Data == null) || (meta.DataBlocks.Count == 0)) return null;
             return ResourceBuilder.Build(meta, 2); //meta is RSC V:2
         }
-        public static byte[] GetPSOData(XmlDocument doc)
+        public static byte[]? GetPSOData(XmlDocument doc)
         {
             var pso = XmlPso.GetPso(doc);
             if ((pso.DataSection == null) || (pso.DataMapSection == null) || (pso.SchemaSection == null)) return null;
             return pso.Save();
         }
-        public static byte[] GetRBFData(XmlDocument doc)
+        public static byte[]? GetRBFData(XmlDocument doc)
         {
             var rbf = XmlRbf.GetRbf(doc);
             if (rbf.current == null) return null;
             return rbf.Save();
         }
-        public static byte[] GetRelData(XmlDocument doc)
+        public static byte[]? GetRelData(XmlDocument doc)
         {
             var rel = XmlRel.GetRel(doc);
             if ((rel.RelDatasSorted == null) || (rel.RelDatas == null)) return null;
             return rel.Save();
         }
-        public static byte[] GetYndData(XmlDocument doc)
+        public static byte[]? GetYndData(XmlDocument doc)
         {
             var ynd = XmlYnd.GetYnd(doc);
             if (ynd.NodeDictionary == null) return null;
             return ynd.Save();
         }
-        public static byte[] GetYnvData(XmlDocument doc)
+        public static byte[]? GetYnvData(XmlDocument doc)
         {
             var ynv = XmlYnv.GetYnv(doc);
             if (ynv.Nav == null) return null;
             return ynv.Save();
         }
-        public static byte[] GetYcdData(XmlDocument doc)
+        public static byte[]? GetYcdData(XmlDocument doc)
         {
             var ycd = XmlYcd.GetYcd(doc);
             if (ycd.ClipDictionary == null) return null;
             return ycd.Save();
         }
-        public static byte[] GetYbnData(XmlDocument doc)
+        public static byte[]? GetYbnData(XmlDocument doc)
         {
             var ybn = XmlYbn.GetYbn(doc);
             if (ybn.Bounds == null) return null;
             return ybn.Save();
         }
-        public static byte[] GetYtdData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYtdData(XmlDocument doc, string fpathin)
         {
             var ytd = XmlYtd.GetYtd(doc, fpathin);
             if (ytd.TextureDict == null) return null;
             return ytd.Save();
         }
-        public static byte[] GetYdrData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYdrData(XmlDocument doc, string fpathin)
         {
             var ydr = XmlYdr.GetYdr(doc, fpathin);
             if (ydr.Drawable == null) return null;
             return ydr.Save();
         }
-        public static byte[] GetYddData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYddData(XmlDocument doc, string fpathin)
         {
             var ydd = XmlYdd.GetYdd(doc, fpathin);
             if (ydd.DrawableDict == null) return null;
             return ydd.Save();
         }
-        public static byte[] GetYftData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYftData(XmlDocument doc, string fpathin)
         {
             var yft = XmlYft.GetYft(doc, fpathin);
             if (yft.Fragment == null) return null;
             return yft.Save();
         }
-        public static byte[] GetYptData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYptData(XmlDocument doc, string fpathin)
         {
             var ypt = XmlYpt.GetYpt(doc, fpathin);
             if (ypt.PtfxList == null) return null;
             return ypt.Save();
         }
-        public static byte[] GetYldData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYldData(XmlDocument doc, string fpathin)
         {
             var yld = XmlYld.GetYld(doc, fpathin);
             if (yld.ClothDictionary == null) return null;
             return yld.Save();
         }
-        public static byte[] GetYedData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYedData(XmlDocument doc, string fpathin)
         {
             var yed = XmlYed.GetYed(doc, fpathin);
             if (yed.ExpressionDictionary == null) return null;
             return yed.Save();
         }
-        public static byte[] GetYwrData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYwrData(XmlDocument doc, string fpathin)
         {
             var ywr = XmlYwr.GetYwr(doc, fpathin);
             if (ywr.Waypoints == null) return null;
             return ywr.Save();
         }
-        public static byte[] GetYvrData(XmlDocument doc, string fpathin)
+        public static byte[]? GetYvrData(XmlDocument doc, string fpathin)
         {
             var yvr = XmlYvr.GetYvr(doc, fpathin);
             if (yvr.Records == null) return null;
             return yvr.Save();
         }
-        public static byte[] GetAwcData(XmlDocument doc, string fpathin)
+        public static byte[]? GetAwcData(XmlDocument doc, string fpathin)
         {
             var awc = XmlAwc.GetAwc(doc, fpathin);
             if (awc.Streams == null) return null;
             return awc.Save();
         }
-        public static byte[] GetFxcData(XmlDocument doc, string fpathin)
+        public static byte[]? GetFxcData(XmlDocument doc, string fpathin)
         {
             var fxc = XmlFxc.GetFxc(doc, fpathin);
             if (fxc.Shaders == null) return null;
             return fxc.Save();
         }
-        public static byte[] GetCacheFileData(XmlDocument doc)
+        public static byte[]? GetCacheFileData(XmlDocument doc)
         {
             var cdf = XmlCacheDat.GetCacheDat(doc);
             if (cdf == null) return null;
             return cdf.Save();
         }
-        public static byte[] GetHeightmapData(XmlDocument doc)
+        public static byte[]? GetHeightmapData(XmlDocument doc)
         {
             var hmf = XmlHmap.GetHeightmap(doc);
             if (hmf.MaxHeights == null) return null;
             return hmf.Save();
         }
-        public static byte[] GetYpdbData(XmlDocument doc)
+        public static byte[]? GetYpdbData(XmlDocument doc)
         {
             var ypdb = XmlYpdb.GetYpdb(doc);
             if (ypdb.WeightSet == null) return null;
             return ypdb.Save();
         }
-        public static byte[] GetYfdData(XmlDocument doc)
+        public static byte[]? GetYfdData(XmlDocument doc)
         {
             var yfd = XmlYfd.GetYfd(doc);
             if (yfd.FrameFilterDictionary == null) return null;
             return yfd.Save();
         }
-        public static byte[] GetMrfData(XmlDocument doc)
+        public static byte[]? GetMrfData(XmlDocument doc)
         {
             var mrf = XmlMrf.GetMrf(doc);
             if (mrf == null) return null;
             return mrf.Save();
         }
 
-        public static byte[] GetAudioWorldSectorsData(XmlDocument doc)
+        public static byte[]? GetAudioWorldSectorsData(XmlDocument doc)
         {
             var aws = XmlAud.GetAudWorldSectors(doc);
             if (aws.Sectors == null) return null;
@@ -369,9 +370,9 @@ namespace CodeWalker.GameFiles
         {
             MetaBuilder mb = new();
 
-            Traverse(doc.DocumentElement, mb, 0, true);
+            Traverse(doc.DocumentElement ?? throw new XmlException("The metadata document must have a root element."), mb, 0, true);
 
-            XmlNode? metaName = doc.DocumentElement.Attributes.GetNamedItem("name");
+            var metaName = doc.DocumentElement?.GetAttributeNode("name");
 
             if (metaName != null)
                 return mb.GetMeta(metaName.Value);
@@ -459,14 +460,14 @@ namespace CodeWalker.GameFiles
 
                         case MetaStructureEntryDataType.Boolean:
                             {
-                                byte val = (cnode.Attributes["value"].Value == "false") ? (byte)0 : (byte)1;
+                                byte val = ((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")) == "false") ? (byte)0 : (byte)1;
                                 data[entry.DataOffset] = val;
                                 break;
                             }
 
                         case MetaStructureEntryDataType.ByteEnum:
                             {
-                                byte val = Convert.ToByte(cnode.Attributes["value"].Value);
+                                byte val = Convert.ToByte((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 data[entry.DataOffset] = val;
                                 break;
                             }
@@ -509,16 +510,16 @@ namespace CodeWalker.GameFiles
 
                         case MetaStructureEntryDataType.Float:
                             {
-                                float val = FloatUtil.Parse(cnode.Attributes["value"].Value);
+                                float val = FloatUtil.Parse((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
 
                         case MetaStructureEntryDataType.Float_XYZ:
                             {
-                                float x = FloatUtil.Parse(cnode.Attributes["x"].Value);
-                                float y = FloatUtil.Parse(cnode.Attributes["y"].Value);
-                                float z = FloatUtil.Parse(cnode.Attributes["z"].Value);
+                                float x = FloatUtil.Parse((cnode.Attributes?["x"]?.Value ?? throw new XmlException("Missing required attribute: x.")));
+                                float y = FloatUtil.Parse((cnode.Attributes?["y"]?.Value ?? throw new XmlException("Missing required attribute: y.")));
+                                float z = FloatUtil.Parse((cnode.Attributes?["z"]?.Value ?? throw new XmlException("Missing required attribute: z.")));
 
                                 Write(x, data, entry.DataOffset);
                                 Write(y, data, entry.DataOffset + sizeof(float));
@@ -530,10 +531,10 @@ namespace CodeWalker.GameFiles
 
                         case MetaStructureEntryDataType.Float_XYZW:
                             {
-                                float x = FloatUtil.Parse(cnode.Attributes["x"].Value);
-                                float y = FloatUtil.Parse(cnode.Attributes["y"].Value);
-                                float z = FloatUtil.Parse(cnode.Attributes["z"].Value);
-                                float w = FloatUtil.Parse(cnode.Attributes["w"].Value);
+                                float x = FloatUtil.Parse((cnode.Attributes?["x"]?.Value ?? throw new XmlException("Missing required attribute: x.")));
+                                float y = FloatUtil.Parse((cnode.Attributes?["y"]?.Value ?? throw new XmlException("Missing required attribute: y.")));
+                                float z = FloatUtil.Parse((cnode.Attributes?["z"]?.Value ?? throw new XmlException("Missing required attribute: z.")));
+                                float w = FloatUtil.Parse((cnode.Attributes?["w"]?.Value ?? throw new XmlException("Missing required attribute: w.")));
 
                                 Write(x, data, entry.DataOffset);
                                 Write(y, data, entry.DataOffset + sizeof(float));
@@ -557,7 +558,7 @@ namespace CodeWalker.GameFiles
                                 if (entry.ReferenceKey != 0)
                                 {
                                     var _infos = MetaTypes.GetEnumInfo(entry.ReferenceKey);
-                                    mb.AddEnumInfo(_infos.EnumNameHash);
+                                    if (_infos != null) mb.AddEnumInfo(_infos.EnumNameHash);
                                 }
 
                                 int val = GetEnumInt(entry.ReferenceKey, cnode.InnerText, entry.DataType);
@@ -570,7 +571,7 @@ namespace CodeWalker.GameFiles
                                 if (entry.ReferenceKey != 0)
                                 {
                                     var _infos = MetaTypes.GetEnumInfo(entry.ReferenceKey);
-                                    mb.AddEnumInfo(_infos.EnumNameHash);
+                                    if (_infos != null) mb.AddEnumInfo(_infos.EnumNameHash);
                                 }
 
                                 int val = GetEnumInt(entry.ReferenceKey, cnode.InnerText, entry.DataType);
@@ -580,21 +581,21 @@ namespace CodeWalker.GameFiles
 
                         case MetaStructureEntryDataType.SignedByte:
                             {
-                                var val = Convert.ToSByte(cnode.Attributes["value"].Value);
+                                var val = Convert.ToSByte((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 data[entry.DataOffset] = (byte)val;
                                 break;
                             }
 
                         case MetaStructureEntryDataType.SignedInt:
                             {
-                                var val = Convert.ToInt32(cnode.Attributes["value"].Value);
+                                var val = Convert.ToInt32((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
 
                         case MetaStructureEntryDataType.SignedShort:
                             {
-                                var val = Convert.ToInt16(cnode.Attributes["value"].Value);
+                                var val = Convert.ToInt16((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
@@ -619,7 +620,7 @@ namespace CodeWalker.GameFiles
 
                         case MetaStructureEntryDataType.UnsignedByte:
                             {
-                                var val = Convert.ToByte(cnode.Attributes["value"].Value);
+                                var val = Convert.ToByte((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 data[entry.DataOffset] = val;
                                 break;
                             }
@@ -630,14 +631,14 @@ namespace CodeWalker.GameFiles
                                 {
                                     case MetaName.color:
                                         {
-                                            var val = Convert.ToUInt32(cnode.Attributes["value"].Value, 16);
+                                            var val = Convert.ToUInt32((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")), 16);
                                             Write(val, data, entry.DataOffset);
                                             break;
                                         }
 
                                     default:
                                         {
-                                            var val = Convert.ToUInt32(cnode.Attributes["value"].Value);
+                                            var val = Convert.ToUInt32((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                             Write(val, data, entry.DataOffset);
                                             break;
                                         }
@@ -648,7 +649,7 @@ namespace CodeWalker.GameFiles
 
                         case MetaStructureEntryDataType.UnsignedShort:
                             {
-                                var val = Convert.ToUInt16(cnode.Attributes["value"].Value);
+                                var val = Convert.ToUInt16((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
@@ -670,7 +671,7 @@ namespace CodeWalker.GameFiles
                 return data;
             }
 
-            return null;
+            throw new InvalidDataException($"No metadata structure definition exists for {type}.");
         }
 
         private static void GetParsedArrayOfBytes(XmlNode node, byte[] data, MetaStructureEntryInfo_s entry, MetaStructureEntryInfo_s arrEntry)
@@ -863,7 +864,7 @@ namespace CodeWalker.GameFiles
             {
                 if (cnode.NodeType != XmlNodeType.Element) continue;
 
-                var type = (MetaName)(uint)GetHash(cnode.Attributes["type"].Value);
+                var type = (MetaName)(uint)GetHash((cnode.Attributes?["type"]?.Value ?? throw new XmlException("Missing required attribute: type.")));
                 var struc = Traverse(cnode, mb, type);
 
                 if(struc != null)
@@ -974,7 +975,7 @@ namespace CodeWalker.GameFiles
             float w = 0f;
 
             var cnodes = node.SelectNodes("Item");
-            if (cnodes.Count > 0)
+            if (cnodes is { Count: > 0 })
             {
                 foreach (XmlNode cnode in cnodes)
                 {
@@ -1088,7 +1089,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        private static XmlNode GetEntryNode(XmlNodeList nodes, MetaStructureEntryInfo_s entry)
+        private static XmlNode? GetEntryNode(XmlNodeList nodes, MetaStructureEntryInfo_s entry)
         {
             foreach (XmlNode node in nodes)
             {
@@ -1196,10 +1197,10 @@ namespace CodeWalker.GameFiles
                     return vlist.ToArray();
                 }
             }
-            return null;
+            return [];
         }
 
-        public static T[] ReadItemArrayNullable<T>(XmlNode node, string name) where T : IMetaXmlItem, new()
+        public static T[]? ReadItemArrayNullable<T>(XmlNode node, string name) where T : IMetaXmlItem, new()
         {
             var vnode2 = node.SelectSingleNode(name);
             if (vnode2 != null)
@@ -1207,28 +1208,26 @@ namespace CodeWalker.GameFiles
                 var inodes = vnode2.SelectNodes("Item");
                 if (inodes?.Count > 0)
                 {
-                    var vlist = new List<T>();
+                    var items = new T[inodes.Count];
+                    var index = 0;
                     foreach (XmlNode inode in inodes)
                     {
                         if (inode.HasChildNodes)
                         {
                             var v = new T();
                             v.ReadXml(inode);
-                            vlist.Add(v);
+                            items[index] = v;
                         }
-                        else
-                        {
-                            vlist.Add(default(T));
-                        }
+                        index++;
                     }
-                    return vlist.ToArray();
+                    return items;
                 }
             }
             return null;
         }
 
 
-        public static MetaHash[] ReadHashItemArray(XmlNode node, string name)
+        public static MetaHash[]? ReadHashItemArray(XmlNode node, string name)
         {
             var vnode = node.SelectSingleNode(name);
             if (vnode != null)
@@ -1246,7 +1245,7 @@ namespace CodeWalker.GameFiles
             }
             return null;
         }
-        public static string[] ReadStringItemArray(XmlNode node, string name)
+        public static string[]? ReadStringItemArray(XmlNode node, string name)
         {
             var vnode = node.SelectSingleNode(name);
             if (vnode != null)

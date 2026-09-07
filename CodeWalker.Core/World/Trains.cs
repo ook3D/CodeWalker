@@ -12,7 +12,7 @@ namespace CodeWalker.World
     public class Trains
     {
         public volatile bool Inited = false;
-        public GameFileCache GameFileCache;
+        public GameFileCache? GameFileCache;
 
         public List<TrainTrack> TrainTracks { get; set; } = new List<TrainTrack>();
 
@@ -21,7 +21,7 @@ namespace CodeWalker.World
         {
             GameFileCache = gameFileCache;
 
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.");
 
             string trainsfilename = "common.rpf\\data\\levels\\gta5\\trains.xml";
             XmlDocument trainsxml = rpfman.GetFileXml(trainsfilename);
@@ -32,12 +32,11 @@ namespace CodeWalker.World
             string tracksfilename = "common.rpf\\data\\levels\\gta5\\traintracks.xml";
             XmlDocument tracksxml = rpfman.GetFileXml(tracksfilename);
             XmlElement? tracksdata = tracksxml.DocumentElement;
-            XmlNodeList? tracks = tracksdata.SelectNodes("train_track");
+            var tracks = tracksdata?.SelectNodes("train_track")?.Cast<XmlNode>() ?? Enumerable.Empty<XmlNode>();
 
             TrainTracks.Clear();
-            for (int i = 0; i < tracks.Count; i++)
+            foreach (var trackxml in tracks)
             {
-                var trackxml = tracks[i];
                 TrainTrack tt = new();
                 tt.Load(gameFileCache, trackxml);
                 TrainTracks.Add(tt);
@@ -51,8 +50,8 @@ namespace CodeWalker.World
 
     public class TrainTrack : BasePathData
     {
-        public string filename { get; set; }
-        public string trainConfigName { get; set; }
+        public string filename { get; set; } = string.Empty;
+        public string trainConfigName { get; set; } = string.Empty;
         public bool isPingPongTrack { get; set; }
         public bool stopsAtStations { get; set; }
         public bool MPstopsAtStations { get; set; }
@@ -60,7 +59,7 @@ namespace CodeWalker.World
         public float brakingDist { get; set; }
 
 
-        public List<TrainTrackNode> Nodes { get; set; }
+        public List<TrainTrackNode> Nodes { get; set; } = [];
         public int NodeCount { get; set; }
 
 
@@ -84,8 +83,8 @@ namespace CodeWalker.World
         }
 
 
-        public EditorVertex[] LinkedVerts { get; set; }
-        public Vector4[] NodePositions { get; set; }
+        public EditorVertex[] LinkedVerts { get; set; } = [];
+        public Vector4[] NodePositions { get; set; } = [];
 
         public EditorVertex[] GetPathVertices()
         {
@@ -93,19 +92,19 @@ namespace CodeWalker.World
         }
         public EditorVertex[] GetTriangleVertices()
         {
-            return null;
+            return [];
         }
         public Vector4[] GetNodePositions()
         {
             return NodePositions;
         }
 
-        public PathBVH BVH { get; set; }
+        public PathBVH? BVH { get; set; }
 
-        public string NodesString { get; set; }
-        public RpfFileEntry RpfFileEntry { get; set; }
-        public string Name { get; set; }
-        public string FilePath { get; set; }
+        public string NodesString { get; set; } = string.Empty;
+        public RpfFileEntry? RpfFileEntry { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
         public bool HasChanged { get; set; }
         public bool Loaded { get; set; }
 
@@ -116,16 +115,16 @@ namespace CodeWalker.World
         {
             //load from game file cache
 
-            filename = Xml.GetStringAttribute(node, "filename");
-            trainConfigName = Xml.GetStringAttribute(node, "trainConfigName");
+            filename = Xml.GetStringAttribute(node, "filename") ?? string.Empty;
+            trainConfigName = Xml.GetStringAttribute(node, "trainConfigName") ?? string.Empty;
             isPingPongTrack = Xml.GetBoolAttribute(node, "isPingPongTrack");
             stopsAtStations = Xml.GetBoolAttribute(node, "stopsAtStations");
             MPstopsAtStations = Xml.GetBoolAttribute(node, "MPstopsAtStations");
             speed = Xml.GetFloatAttribute(node, "speed");
             brakingDist = Xml.GetFloatAttribute(node, "brakingDist");
 
-            RpfFileEntry = gameFileCache.RpfMan.GetEntry(filename) as RpfFileEntry;
-            NodesString = gameFileCache.RpfMan.GetFileUTF8Text(filename);
+            RpfFileEntry = (gameFileCache.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.")).GetEntry(filename) as RpfFileEntry;
+            NodesString = gameFileCache.RpfMan?.GetFileUTF8Text(filename) ?? string.Empty;
             SetNameFromFilename();
             FilePath = Name;
 
@@ -215,9 +214,9 @@ namespace CodeWalker.World
                             ttnode.Track = this;
                             ttnode.Index = nodes.Count;
                             ttnode.Links[0] = (nodes.Count > 0) ? nodes[nodes.Count - 1] : null;
-                            if (ttnode.Links[0] != null)
+                            if (ttnode.Links[0] is { } previous)
                             {
-                                ttnode.Links[0].Links[1] = ttnode;
+                                previous.Links[1] = ttnode;
                             }
                             nodes.Add(ttnode);
                         }
@@ -322,7 +321,7 @@ namespace CodeWalker.World
 
             if (afternode != null)
             {
-                TrainTrackNode aln = afternode.Links[1];
+                TrainTrackNode? aln = afternode.Links[1];
                 if (aln != null) aln.Links[0] = tn;
                 afternode.Links[1] = tn;
                 tn.Links[0] = afternode;
@@ -403,9 +402,9 @@ namespace CodeWalker.World
         public Vector3 Position { get; set; }
         public int NodeType { get; set; }
 
-        public TrainTrack Track { get; set; }
+        public TrainTrack? Track { get; set; }
         public int Index { get; set; }
-        public TrainTrackNode[] Links { get; set; } = new TrainTrackNode[2];
+        public TrainTrackNode?[] Links { get; set; } = new TrainTrackNode?[2];
 
         public int GetColour()
         {

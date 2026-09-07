@@ -12,10 +12,10 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))] public class GtxdFile : GameFile, PackedFile
     {
 
-        public RbfFile Rbf { get; set; }
+        public RbfFile? Rbf { get; set; }
 
 
-        public Dictionary<string, string> TxdRelationships { get; set; }
+        public Dictionary<string, string> TxdRelationships { get; set; } = new();
 
 
 
@@ -141,10 +141,11 @@ namespace CodeWalker.GameFiles
             XmlNodeList? items = xmldoc.SelectNodes("CMapParentTxds/txdRelationships/Item | CMapParentTxds/txdRelationships/item");
 
             TxdRelationships = new Dictionary<string, string>();
+            if (items == null) return;
             for (int i = 0; i < items.Count; i++)
             {
-                string parentstr = Xml.GetChildInnerText(items[i], "parent");
-                string childstr = Xml.GetChildInnerText(items[i], "child");
+                var parentstr = Xml.GetChildInnerText(items[i], "parent");
+                var childstr = Xml.GetChildInnerText(items[i], "child");
 
                 if ((!string.IsNullOrEmpty(parentstr)) && (!string.IsNullOrEmpty(childstr)))
                 {

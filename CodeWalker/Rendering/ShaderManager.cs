@@ -38,8 +38,8 @@ namespace CodeWalker.Rendering
 
 
 
-        public DeferredScene DefScene { get; set; }
-        public PostProcessor HDR { get; set; }
+        public DeferredScene? DefScene { get; set; }
+        public PostProcessor? HDR { get; set; }
         public BasicShader Basic { get; set; }
         public CableShader Cable { get; set; }
         public WaterShader Water { get; set; }
@@ -59,7 +59,7 @@ namespace CodeWalker.Rendering
         public ParticleShader Particles { get; set; }
 
         public bool shadows = Settings.Default.Shadows;
-        public Shadowmap Shadowmap { get; set; }
+        public Shadowmap? Shadowmap { get; set; }
         List<RenderableGeometryInst> shadowcasters = new List<RenderableGeometryInst>();
         List<RenderableGeometryInst> shadowbatch = new List<RenderableGeometryInst>();
         List<ShaderBatch> shadowbatches = new List<ShaderBatch>();
@@ -101,13 +101,15 @@ namespace CodeWalker.Rendering
         public double CurrentRealTime = 0;
         public float CurrentElapsedTime = 0;
 
-        private Camera Camera;
+        private Camera? camera;
+        private Camera Camera { get => camera ?? throw new InvalidOperationException("No active render camera."); set => camera = value; }
         public ShaderGlobalLights GlobalLights = new ShaderGlobalLights();
         public bool PathsDepthClip = true;//false;//
         public Vector3? SelectedScenarioNodePosition = null; // Position of selected scenario node to exclude from cube rendering
 
-        private GameFileCache GameFileCache;
-        private RenderableCache RenderableCache;
+        private GameFileCache? GameFileCache;
+        private RenderableCache? renderableCache;
+        private RenderableCache RenderableCache { get => renderableCache ?? throw new InvalidOperationException("Shader textures have not been initialized."); set => renderableCache = value; }
 
 
         public long TotalGraphicsMemoryUse
@@ -436,13 +438,13 @@ namespace CodeWalker.Rendering
 
         }
 
-        private RenderableTexture EnsureTexture(uint texDict, uint texName)
+        private RenderableTexture? EnsureTexture(uint texDict, uint texName)
         {
-            YtdFile ytd = GameFileCache.GetYtd(texDict);
+            var ytd = GameFileCache?.GetYtd(texDict);
             if ((ytd != null) && (ytd.Loaded) && (ytd.TextureDict != null))
             {
                 var dtex = ytd.TextureDict.Lookup(texName);
-                return RenderableCache.GetRenderableTexture(dtex);
+                return dtex != null ? RenderableCache.GetRenderableTexture(dtex) : null;
             }
             return null;
         }
@@ -481,7 +483,7 @@ namespace CodeWalker.Rendering
                     shadowbatches.AddRange(bucket.TreesBatches);
                     shadowbatches.AddRange(bucket.ClothBatches);
                     foreach (var batch in bucket.ForwardAlphaBatches)
-                        if (MaterialAlpha.Mode(batch.Key.ShaderFile.Hash, batch.Geometries[0].Geom.DrawableGeom.Shader.RenderBucket) == 4)
+                        if (MaterialAlpha.Mode(batch.Key.ShaderFile.Hash, (batch.Geometries[0].Geom.DrawableGeom?.Shader?.RenderBucket ?? 0)) == 4)
                             shadowbatches.Add(batch);
                 }
             }
@@ -748,7 +750,7 @@ namespace CodeWalker.Rendering
 
             if (HDR != null)
             {
-                if ((DefScene?.SSAASampleCount ?? 1) > 1)
+                if (DefScene != null && DefScene.SSAASampleCount > 1)
                 {
                     HDR.SetPrimary(context);
                     DefScene.SSAAPass(context);
@@ -768,6 +770,7 @@ namespace CodeWalker.Rendering
 
         private void RenderShadowmap(DeviceContext context)
         {
+            if (Shadowmap == null) return;
             context.OutputMerger.BlendState = bsDefault;
             context.OutputMerger.DepthStencilState = dsEnabled;
             context.Rasterizer.State = rsSolid;
@@ -891,6 +894,7 @@ namespace CodeWalker.Rendering
             {
                 var geom = batch[i];
                 var gmodel = geom.Geom.Owner;
+                if (gmodel == null) continue;
                 shader.SetEntityVars(context, ref geom.Inst);
 
                 if (gmodel != model)
@@ -944,6 +948,7 @@ namespace CodeWalker.Rendering
             {
                 var geom = batch[i];
                 var gmodel = geom.Geom.Owner;
+                if (gmodel == null) continue;
                 GrassFur.SetEntityVars(context, ref geom.Inst);
 
                 if (gmodel != model)
@@ -1009,7 +1014,7 @@ namespace CodeWalker.Rendering
 
         public void Enqueue(ref RenderableGeometryInst geom)
         {
-            var shader = geom.Geom.DrawableGeom.Shader;
+            var shader = geom.Geom.DrawableGeom?.Shader;
 
             var b = (shader!=null) ? shader.RenderBucket : 0; //rage render bucket?
 
@@ -1060,16 +1065,12 @@ namespace CodeWalker.Rendering
 
         public ShaderRenderBucket EnsureRenderBucket(int index)
         {
-            ShaderRenderBucket? bucket = null;
+            ArgumentOutOfRangeException.ThrowIfNegative(index);
             while (index >= RenderBuckets.Count)
             {
                 RenderBuckets.Add(new ShaderRenderBucket(RenderBuckets.Count));
             }
-            if (index < RenderBuckets.Count)
-            {
-                bucket = RenderBuckets[index];
-            }
-            return bucket;
+            return RenderBuckets[index];
         }
 
 
@@ -1269,8 +1270,8 @@ namespace CodeWalker.Rendering
             {
                 if (kvp.Value.Geometries.Count == 0) continue;
 
-                var material = kvp.Value.Geometries[0].Geom.DrawableGeom.Shader;
-                uint alphaMode = MaterialAlpha.Mode(kvp.Key.ShaderFile.Hash, material.RenderBucket);
+                var material = kvp.Value.Geometries[0].Geom.DrawableGeom?.Shader;
+                uint alphaMode = MaterialAlpha.Mode(kvp.Key.ShaderFile.Hash, (material?.RenderBucket ?? 0));
                 List<ShaderBatch>? b = null;
                 switch (kvp.Key.ShaderFile.Hash)
                 {
@@ -1582,7 +1583,7 @@ namespace CodeWalker.Rendering
                         // Preserve double-sided cloth/cutout geometry while disabling alpha.
                         if (b != CutoutBatches && b != ClothBatches) b = BasicBatches;
                     }
-                    else if (material.RenderBucket == 2) b = DecalBatches;
+                    else if ((material?.RenderBucket ?? 0) == 2) b = DecalBatches;
                 }
 
                 if (b != null)
@@ -1613,7 +1614,7 @@ namespace CodeWalker.Rendering
 
     public class ShaderGlobalLights
     {
-        public Weather Weather;
+        public Weather? Weather;
         public ShaderGlobalLightParams Params;
         public Vector3 CurrentSunDir;
         public Vector3 CurrentMoonDir;

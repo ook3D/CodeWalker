@@ -15,8 +15,8 @@ namespace CodeWalker.Forms
     public partial class YvrForm : Form
     {
 
-        private string fileName;
-        private YvrFile yvr;
+        private string fileName = string.Empty;
+        private YvrFile? yvr;
         public string FileName
         {
             get { return fileName; }
@@ -26,7 +26,7 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
 
 
@@ -43,22 +43,25 @@ namespace CodeWalker.Forms
             Text = fileName + " - Vehicle Records Viewer - CodeWalker by dexyfex";
         }
 
-        public void LoadYvr(YvrFile yvr)
+        public void LoadYvr(YvrFile? yvr)
         {
             this.yvr = yvr;
-            fileName = yvr?.Name;
+            fileName = yvr?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fileName))
             {
-                fileName = yvr?.RpfFileEntry?.Name;
+                fileName = yvr?.RpfFileEntry?.Name ?? string.Empty;
             }
 
             UpdateFormTitle();
+
+            ExportButton.Enabled = false;
+            CopyClipboardButton.Enabled = false;
+            LoadListView();
 
             if ((yvr != null) && (yvr.Records != null) && (yvr.Records.Entries != null) && (yvr.Records.Entries.data_items != null))
             {
                 ExportButton.Enabled = true;
                 CopyClipboardButton.Enabled = true;
-                LoadListView();
             }
         }
 
@@ -67,7 +70,7 @@ namespace CodeWalker.Forms
         {
             StringBuilder sb = new();
             sb.AppendLine("PositionX, PositionY, PositionZ, Time, VelocityX, VelocityY, VelocityZ, RightX, RightY, RightZ, ForwardX, ForwardY, ForwardZ, SteeringAngle, GasPedalPower, BrakePedalPower, HandbrakeUsed");
-            foreach (var entry in yvr.Records.Entries.data_items)
+            foreach (var entry in yvr?.Records?.Entries?.data_items ?? [])
             {
                 sb.Append(FloatUtil.ToString(entry.Position.X));
                 sb.Append(", ");
@@ -110,7 +113,8 @@ namespace CodeWalker.Forms
         public void LoadListView()
         {
             MainListView.BeginUpdate(); // performance
-            foreach (var entry in yvr.Records.Entries.data_items)
+            MainListView.Items.Clear();
+            foreach (var entry in yvr?.Records?.Entries?.data_items ?? [])
             {
                 string[] row =
                 {

@@ -98,6 +98,9 @@ namespace CodeWalker.GameFiles
         /// <summary>
         /// Initializes a new data reader for the specified stream.
         /// </summary>
+        // Derived resource streams provide their own read/write routing.
+        protected DataReader(Endianess endianess) : this(Stream.Null, endianess) { }
+
         public DataReader(Stream stream, Endianess endianess = Endianess.LittleEndian)
         {
             this.baseStream = stream;
@@ -491,6 +494,9 @@ namespace CodeWalker.GameFiles
         /// <summary>
         /// Initializes a new data writer for the specified stream.
         /// </summary>
+        // Derived resource streams provide their own read/write routing.
+        protected DataWriter(Endianess endianess) : this(Stream.Null, endianess) { }
+
         public DataWriter(Stream stream, Endianess endianess = Endianess.LittleEndian)
         {
             this.baseStream = stream;

@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYmapCarGenPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YmapCarGen CurrentCarGen { get; set; }
+        public YmapCarGen? CurrentCarGen { get; set; }
 
         private bool populatingui = false;
 
@@ -35,6 +35,11 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateFormTitle()
         {
+            if (CurrentCarGen == null)
+            {
+                Text = "Car Generator";
+                return;
+            }
             if (CurrentCarGen._CCarGen.carModel == 0)
             {
                 Text = "Car Generator";

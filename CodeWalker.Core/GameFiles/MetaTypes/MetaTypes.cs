@@ -209,14 +209,14 @@ namespace CodeWalker.GameFiles
         {
             StringBuilder sb = new();
 
-            foreach (var si in meta.StructureInfos)
+            foreach (var si in meta.StructureInfos?.Data ?? [])
             {
                 AddStructureInfoString(si, sb);
             }
 
             sb.AppendLine();
 
-            foreach (var ei in meta.EnumInfos)
+            foreach (var ei in meta.EnumInfos?.Data ?? [])
             {
                 AddEnumInfoString(ei, sb);
             }
@@ -295,7 +295,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static MetaStructureInfo GetStructureInfo(MetaName name)
+        public static MetaStructureInfo? GetStructureInfo(MetaName name)
         {
             //to generate structinfos
             switch (name)
@@ -1241,7 +1241,7 @@ namespace CodeWalker.GameFiles
                     return null;
             }
         }
-        public static MetaEnumInfo GetEnumInfo(MetaName name)
+        public static MetaEnumInfo? GetEnumInfo(MetaName name)
         {
             //to generate enuminfos
             switch (name)
@@ -1449,7 +1449,7 @@ namespace CodeWalker.GameFiles
         }
         public static byte[] ConvertArrayToBytes<T>(params T[] items) where T : struct
         {
-            if (items == null) return null;
+            if (items == null) return [];
 
             var size = Marshal.SizeOf(typeof(T)) * items.Length;
             var b = new byte[size];
@@ -1514,11 +1514,11 @@ namespace CodeWalker.GameFiles
         {
             //return ConvertDataArray<T>(meta, name, array.Pointer, array.Count1);
             uint count = array.Count1;
-            if (count == 0) return null;
+            if (count == 0) return [];
             MetaPOINTER[] ptrs = GetPointerArray(meta, array);
-            if (ptrs == null) return null;
+            if (ptrs == null) return [];
             if (ptrs.Length < count)
-            { return null; }
+            { return []; }
 
             T[] items = new T[count];
             int itemsize = Marshal.SizeOf(typeof(T));
@@ -1538,7 +1538,7 @@ namespace CodeWalker.GameFiles
                 //{ } //not all the same type..!
 
                 if (block.StructureNameHash != name)
-                { return null; } //type mismatch - don't return anything...
+                { return []; } //type mismatch - don't return anything...
                 if ((offset < 0) || (block.Data == null) || (offset >= block.Data.Length))
                 { continue; }
                 items[i] = ConvertData<T>(block.Data, offset);
@@ -1552,7 +1552,7 @@ namespace CodeWalker.GameFiles
         }
         public static T[] ConvertDataArray<T>(Meta meta, MetaName name, ulong pointer, uint count) where T : struct
         {
-            if (count == 0) return null;
+            if (count == 0) return [];
 
             T[] items = new T[count];
             int itemsize = Marshal.SizeOf(typeof(T));
@@ -1560,9 +1560,9 @@ namespace CodeWalker.GameFiles
 
             uint ptrindex = (uint)(pointer & 0xFFF) - 1;
             uint ptroffset = (uint)((pointer >> 12) & 0xFFFFF);
-            var ptrblock = (ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
+            var ptrblock = (meta.DataBlocks != null && ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
             if ((ptrblock == null) || (ptrblock.Data == null) || (ptrblock.StructureNameHash != name))
-            { return null; } //no block or wrong block? shouldn't happen!
+            { return []; } //no block or wrong block? shouldn't happen!
 
             int byteoffset = (int)ptroffset;// (ptroffset * 16 + ptrunkval);
             int itemoffset = byteoffset / itemsize;
@@ -1586,14 +1586,14 @@ namespace CodeWalker.GameFiles
                 if (itemsleft <= 0)
                 { return items; }//all done!
                 ptrindex++;
-                ptrblock = (ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
+                ptrblock = (meta.DataBlocks != null && ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
                 if ((ptrblock == null) || (ptrblock.Data == null))
                 { break; } //not enough items..?
                 if (ptrblock.StructureNameHash != name)
                 { break; } //type mismatch..
             }
 
-            return null;
+            return [];
 
 
 
@@ -1623,7 +1623,7 @@ namespace CodeWalker.GameFiles
                 }
                 if (currentp < 0) //couldn't find the right type.
                 {
-                    return null;
+                    return [];
                 }
             }
 
@@ -1646,7 +1646,7 @@ namespace CodeWalker.GameFiles
                     if (totusedbytes == 0)
                     {
                         //not big enough for one item..
-                        if (curindex == 0) return null; //nothing read if on first iteration.
+                        if (curindex == 0) return []; //nothing read if on first iteration.
                         T[] newitems = new T[curindex]; //have to return a smaller array.. just return whatever we got
                         for (int n = 0; n < curindex; n++) newitems[n] = items[n];
                         return newitems;
@@ -1685,14 +1685,14 @@ namespace CodeWalker.GameFiles
         public static MetaPOINTER[] GetPointerArray(Meta meta, Array_StructurePointer array)
         {
             uint count = array.Count1;
-            if (count == 0) return null;
+            if (count == 0) return [];
 
             MetaPOINTER[] ptrs = new MetaPOINTER[count];
             int ptrsize = Marshal.SizeOf(typeof(MetaPOINTER));
             int ptroffset = (int)array.PointerDataOffset;
             var ptrblock = meta.GetBlock((int)array.PointerDataId);
             if ((ptrblock == null) || (ptrblock.Data == null) || (ptrblock.StructureNameHash != (MetaName)MetaTypeName.POINTER))
-            { return null; }
+            { return []; }
 
             for (int i = 0; i < count; i++)
             {
@@ -1733,12 +1733,12 @@ namespace CodeWalker.GameFiles
         {
             uint ptrindex = array.PointerDataIndex;
             uint ptroffset = array.PointerDataOffset;
-            var ptrblock = (ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
+            var ptrblock = (meta.DataBlocks != null && ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
             if ((ptrblock == null) || (ptrblock.Data == null))// || (ptrblock.StructureNameHash != name))
-            { return null; } //no block or wrong block? shouldn't happen!
+            { return []; } //no block or wrong block? shouldn't happen!
             var count = array.Count1;
             if ((ptroffset + count) > ptrblock.Data.Length)
-            { return null; }
+            { return []; }
             byte[] data = new byte[count];
             Buffer.BlockCopy(ptrblock.Data, (int)ptroffset, data, 0, count);
             return data;
@@ -1748,12 +1748,12 @@ namespace CodeWalker.GameFiles
             //var pointer = array.Pointer;
             uint ptrindex = ptr.PointerDataIndex;// (pointer & 0xFFF) - 1;
             uint ptroffset = ptr.PointerDataOffset;// ((pointer >> 12) & 0xFFFFF);
-            var ptrblock = (ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
+            var ptrblock = (meta.DataBlocks != null && ptrindex < meta.DataBlocks.Count) ? meta.DataBlocks[(int)ptrindex] : null;
             if ((ptrblock == null) || (ptrblock.Data == null))// || (ptrblock.StructureNameHash != name))
-            { return null; } //no block or wrong block? shouldn't happen!
+            { return []; } //no block or wrong block? shouldn't happen!
             //var count = array.Count1;
             if ((ptroffset + count) > ptrblock.Data.Length)
-            { return null; }
+            { return []; }
             byte[] data = new byte[count];
             Buffer.BlockCopy(ptrblock.Data, (int)ptroffset, data, 0, (int)count);
             return data;
@@ -1766,9 +1766,9 @@ namespace CodeWalker.GameFiles
             //there could be subclasses in the array, which the returned struct array can't handle.
             //so, this will return a filtered list with only types matching the given name parameter.
             //NOTE: this is very similar to ConvertDataArray(Meta, MetaName, Array_StructurePointer)
-            if (arr == null) return null;//use GetPointerArray for this parameter
-            var datablocks = meta.DataBlocks.Data;
-            if (datablocks == null) return null;
+            if (arr == null) return [];//use GetPointerArray for this parameter
+            var datablocks = meta.DataBlocks?.Data;
+            if (datablocks == null) return [];
             int tsize = Marshal.SizeOf(typeof(T));
             var list = new List<T>();
             for (int i = 0; i < arr.Length; i++)
@@ -1787,12 +1787,12 @@ namespace CodeWalker.GameFiles
                 var item = ConvertData<T>(block.Data, offset);
                 list.Add(item);
             }
-            if (list.Count == 0) return null;
+            if (list.Count == 0) return [];
             return list.ToArray();
         }
         public static T GetTypedData<T>(Meta meta, MetaName name) where T : struct
         {
-            foreach (var block in meta.DataBlocks)
+            foreach (var block in meta.DataBlocks?.Data ?? [])
             {
                 if (block.StructureNameHash == name)
                 {
@@ -1805,7 +1805,7 @@ namespace CodeWalker.GameFiles
         {
             //look for strings in the sectionSTRINGS data block(s)
 
-            if ((meta == null) || (meta.DataBlocks == null)) return null;
+            if ((meta == null) || (meta.DataBlocks == null)) return [];
 
             var datablocks = meta.DataBlocks.Data;
 
@@ -1823,7 +1823,7 @@ namespace CodeWalker.GameFiles
             }
             if (startblock == null)
             {
-                return null; //couldn't find the strings data section.
+                return []; //couldn't find the strings data section.
             }
 
             List<string> strings = new();
@@ -1872,7 +1872,7 @@ namespace CodeWalker.GameFiles
 
             if (strings.Count <= 0)
             {
-                return null; //don't return empty array...
+                return []; //don't return empty array...
             }
             return strings.ToArray();
         }
@@ -1880,21 +1880,21 @@ namespace CodeWalker.GameFiles
         {
             var blocki = (int)ptr.PointerDataIndex;// (ptr.Pointer & 0xFFF) - 1;
             var offset = (int)ptr.PointerDataOffset;// (ptr.Pointer >> 12) & 0xFFFFF;
-            if ((blocki < 0) || (blocki >= meta.DataBlocks.BlockLength))
-            { return null; }
+            if (meta.DataBlocks == null || blocki < 0 || blocki >= meta.DataBlocks.Count)
+            { return string.Empty; }
             var block = meta.DataBlocks[blocki];
             if (block.StructureNameHash != (MetaName)MetaTypeName.STRING)
-            { return null; }
+            { return string.Empty; }
             //var byteoffset = offset * 16 + offset2;
             var length = ptr.Count1;
             var lastbyte = offset + length;
             if (lastbyte >= block.DataLength)
-            { return null; }
+            { return string.Empty; }
             string s = Encoding.ASCII.GetString(block.Data, offset, length);
 
-            //if (meta.Strings == null) return null;
-            //if (offset < 0) return null;
-            //if (offset >= meta.Strings.Length) return null;
+            //if (meta.Strings == null) return string.Empty;
+            //if (offset < 0) return string.Empty;
+            //if (offset >= meta.Strings.Length) return string.Empty;
             //string s = meta.Strings[offset];
 
             return s;
@@ -1902,8 +1902,8 @@ namespace CodeWalker.GameFiles
 
         public static MetaWrapper[] GetExtensions(Meta meta, Array_StructurePointer ptr)
         {
-            if (ptr.Count1 == 0) return null;
-            var result = new MetaWrapper[ptr.Count1];
+            if (ptr.Count1 == 0) return [];
+            var result = new MetaWrapper?[ptr.Count1];
             var extptrs = GetPointerArray(meta, ptr);
             if (extptrs != null)
             {
@@ -1912,6 +1912,7 @@ namespace CodeWalker.GameFiles
                     var extptr = extptrs[i];
                     MetaWrapper? ext = null;
                     var block = meta.GetBlock(extptr.BlockID);
+                    if (block == null) continue;
                     var h = block.StructureNameHash;
                     switch (h)
                     {
@@ -1980,7 +1981,7 @@ namespace CodeWalker.GameFiles
                     }
                 }
             }
-            return result;
+            return result.OfType<MetaWrapper>().ToArray();
         }
 
 
@@ -1996,7 +1997,7 @@ namespace CodeWalker.GameFiles
         {
             var block = meta.GetBlock(ptr.BlockID);
             var offset = GetDataOffset(block, ptr);
-            if (offset < 0) return new T();
+            if (offset < 0 || block == null) return new T();
             return ConvertData<T>(block.Data, offset);
         }
 
@@ -2085,7 +2086,7 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public abstract class MetaWrapper
     {
-        public virtual string Name { get { return ToString(); } }
+        public virtual string Name { get { return ToString() ?? GetType().Name; } }
         public abstract void Load(Meta meta, MetaPOINTER ptr);
         public abstract MetaPOINTER Save(MetaBuilder mb);
     }
@@ -2458,8 +2459,8 @@ namespace CodeWalker.GameFiles
     {
         public CMloRoomDef _Data;
         public CMloRoomDef Data { get { return _Data; } }
-        public string RoomName { get; set; }
-        public uint[] AttachedObjects { get; set; }
+        public string RoomName { get; set; } = string.Empty;
+        public uint[] AttachedObjects { get; set; } = [];
 
         public Vector3 BBCenter { get { return (_Data.bbMax + _Data.bbMin) * 0.5f; } }
         public Vector3 BBSize { get { return (_Data.bbMax - _Data.bbMin); } }
@@ -2468,7 +2469,7 @@ namespace CodeWalker.GameFiles
         public Vector3 BBMin_CW { get; set; }
         public Vector3 BBMax_CW { get; set; }
         
-        public MloArchetype OwnerMlo { get; set; } // for browsing/reference purposes
+        public MloArchetype? OwnerMlo { get; set; } // for browsing/reference purposes
         public int Index { get; set; }
 
         public MCMloRoomDef() { }
@@ -2541,8 +2542,8 @@ namespace CodeWalker.GameFiles
     {
         public CMloPortalDef _Data;
         public CMloPortalDef Data { get { return _Data; } }
-        public Vector4[] Corners { get; set; }
-        public uint[] AttachedObjects { get; set; }
+        public Vector4[] Corners { get; set; } = [];
+        public uint[] AttachedObjects { get; set; } = [];
 
         public Vector3 Center
         {
@@ -2559,7 +2560,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public MloArchetype OwnerMlo { get; set; } // for browsing/reference purposes
+        public MloArchetype? OwnerMlo { get; set; } // for browsing/reference purposes
         public int Index { get; set; }
 
         public MCMloPortalDef() { }
@@ -2628,10 +2629,10 @@ namespace CodeWalker.GameFiles
     {
         public CMloEntitySet _Data;
         public CMloEntitySet Data { get { return _Data; } }
-        public uint[] Locations { get; set; }
-        public MCEntityDef[] Entities { get; set; }
+        public uint[] Locations { get; set; } = [];
+        public MCEntityDef[] Entities { get; set; } = [];
 
-        public MloArchetype OwnerMlo { get; set; } // for browsing/reference purposes
+        public MloArchetype? OwnerMlo { get; set; } // for browsing/reference purposes
         public int Index { get; set; }
 
         public bool ForceVisible { get; set; } = false; //forces this entity set visible from the project window, for rendering  purpose
@@ -2801,10 +2802,10 @@ namespace CodeWalker.GameFiles
     {
         public CEntityDef _Data;
         public CEntityDef Data { get { return _Data; } set { _Data = value; } }
-        public MetaWrapper[] Extensions { get; set; }
+        public MetaWrapper[] Extensions { get; set; } = [];
 
 
-        public MloArchetype OwnerMlo { get; set; } // for browsing/reference purposes
+        public MloArchetype? OwnerMlo { get; set; } // for browsing/reference purposes
         public int Index { get; set; }
 
         public MCEntityDef(MCEntityDef copy)
@@ -3067,7 +3068,7 @@ namespace CodeWalker.GameFiles
         public CExtensionDefParticleEffect _Data;
         public CExtensionDefParticleEffect Data { get { return _Data; } }
 
-        public string fxName { get; set; }
+        public string fxName { get; set; } = string.Empty;
 
         public override void Load(Meta meta, MetaPOINTER ptr)
         {
@@ -3120,7 +3121,7 @@ namespace CodeWalker.GameFiles
         public CExtensionDefLightEffect _Data;
         public CExtensionDefLightEffect Data { get { return _Data; } }
 
-        public CLightAttrDef[] instances { get; set; }
+        public CLightAttrDef[] instances { get; set; } = [];
 
         public override void Load(Meta meta, MetaPOINTER ptr)
         {
@@ -3318,7 +3319,7 @@ namespace CodeWalker.GameFiles
         public CExtensionDefExplosionEffect _Data;
         public CExtensionDefExplosionEffect Data { get { return _Data; } }
 
-        public string explosionName { get; set; }
+        public string explosionName { get; set; } = string.Empty;
 
         public override void Load(Meta meta, MetaPOINTER ptr)
         {
@@ -3662,8 +3663,8 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCExtensionDefSpawnPoint : MetaWrapper
     {
-        [TC(typeof(EXP))] public object Parent { get; set; }
-        public MCScenarioPointRegion ScenarioRegion { get; private set; }
+        [TC(typeof(EXP))] public object? Parent { get; set; }
+        public MCScenarioPointRegion? ScenarioRegion { get; private set; }
 
         public CExtensionDefSpawnPoint _Data;
         public CExtensionDefSpawnPoint Data { get { return _Data; } }
@@ -3692,13 +3693,13 @@ namespace CodeWalker.GameFiles
         public Quaternion Orientation { get { return new Quaternion(_Data.offsetRotation);  } set { _Data.offsetRotation = value.ToVector4(); } }
 
         public MCExtensionDefSpawnPoint() { }
-        public MCExtensionDefSpawnPoint(MCScenarioPointRegion region, Meta meta, CExtensionDefSpawnPoint data, object parent)
+        public MCExtensionDefSpawnPoint(MCScenarioPointRegion? region, Meta meta, CExtensionDefSpawnPoint data, object parent)
         {
             ScenarioRegion = region;
             Parent = parent;
             _Data = data;
         }
-        public MCExtensionDefSpawnPoint(MCScenarioPointRegion region, MCExtensionDefSpawnPoint copy)
+        public MCExtensionDefSpawnPoint(MCScenarioPointRegion? region, MCExtensionDefSpawnPoint? copy)
         {
             ScenarioRegion = region;
             if (copy != null)
@@ -3915,7 +3916,7 @@ namespace CodeWalker.GameFiles
         public rage__phVerletClothCustomBounds _Data;
         public rage__phVerletClothCustomBounds Data { get { return _Data; } }
 
-        public Mrage__phCapsuleBoundDef[] CollisionData { get; set; }
+        public Mrage__phCapsuleBoundDef[] CollisionData { get; set; } = [];
 
         public override void Load(Meta meta, MetaPOINTER ptr)
         {
@@ -3971,7 +3972,7 @@ namespace CodeWalker.GameFiles
         public rage__phCapsuleBoundDef _Data;
         public rage__phCapsuleBoundDef Data { get { return _Data; } }
 
-        public string OwnerName { get; set; }
+        public string OwnerName { get; set; } = string.Empty;
 
         public Mrage__phCapsuleBoundDef() { }
         public Mrage__phCapsuleBoundDef(Meta meta, rage__phCapsuleBoundDef s)
@@ -4129,17 +4130,17 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioPointRegion : MetaWrapper
     {
-        public YmtFile Ymt { get; set; }
+        public YmtFile? Ymt { get; set; }
 
         public CScenarioPointRegion _Data;
         public CScenarioPointRegion Data { get { return _Data; } }
 
-        public MCScenarioPointContainer Points { get; set; }
-        public MCScenarioEntityOverride[] EntityOverrides { get; set; }
-        public MCScenarioChainingGraph Paths { get; set; }
-        public ushort[] Unk_3844724227 { get; set; } //GRID DATA - 2d dimensions - AccelGrid ((MaxX-MinX)+1)*((MaxY-MinY)+1)
-        public MCScenarioPointCluster[] Clusters { get; set; }
-        public MCScenarioPointLookUps LookUps { get; set; }
+        public MCScenarioPointContainer? Points { get; set; }
+        public MCScenarioEntityOverride[] EntityOverrides { get; set; } = [];
+        public MCScenarioChainingGraph? Paths { get; set; }
+        public ushort[] Unk_3844724227 { get; set; } = []; //GRID DATA - 2d dimensions - AccelGrid ((MaxX-MinX)+1)*((MaxY-MinY)+1)
+        public MCScenarioPointCluster[] Clusters { get; set; } = [];
+        public MCScenarioPointLookUps? LookUps { get; set; }
 
         public int VersionNumber { get { return _Data.VersionNumber; } set { _Data.VersionNumber = value; } }
 
@@ -4514,23 +4515,23 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioPointContainer : MetaWrapper
     {
-        [TC(typeof(EXP))] public object Parent { get; set; }
-        public MCScenarioPointRegion Region { get; private set; }
+        [TC(typeof(EXP))] public object? Parent { get; set; }
+        public MCScenarioPointRegion? Region { get; private set; }
 
         public CScenarioPointContainer _Data;
         public CScenarioPointContainer Data { get { return _Data; } set { _Data = value; } }
 
-        public MCExtensionDefSpawnPoint[] LoadSavePoints { get; set; }
-        public MCScenarioPoint[] MyPoints { get; set; }
+        public MCExtensionDefSpawnPoint[] LoadSavePoints { get; set; } = [];
+        public MCScenarioPoint[] MyPoints { get; set; } = [];
 
 
 
         public MCScenarioPointContainer() { }
-        public MCScenarioPointContainer(MCScenarioPointRegion region)
+        public MCScenarioPointContainer(MCScenarioPointRegion? region)
         {
             Region = region;
         }
-        public MCScenarioPointContainer(MCScenarioPointRegion region, Meta meta, CScenarioPointContainer d)
+        public MCScenarioPointContainer(MCScenarioPointRegion? region, Meta meta, CScenarioPointContainer d)
         {
             Region = region;
             _Data = d;
@@ -4576,7 +4577,7 @@ namespace CodeWalker.GameFiles
 
         public CExtensionDefSpawnPoint[] GetCLoadSavePoints()
         {
-            if ((LoadSavePoints == null) || (LoadSavePoints.Length == 0)) return null;
+            if ((LoadSavePoints == null) || (LoadSavePoints.Length == 0)) return [];
             CExtensionDefSpawnPoint[] r = new CExtensionDefSpawnPoint[LoadSavePoints.Length];
             for (int i = 0; i < LoadSavePoints.Length; i++)
             {
@@ -4586,7 +4587,7 @@ namespace CodeWalker.GameFiles
         }
         public CScenarioPoint[] GetCMyPoints()
         {
-            if ((MyPoints == null) || (MyPoints.Length == 0)) return null;
+            if ((MyPoints == null) || (MyPoints.Length == 0)) return [];
             CScenarioPoint[] r = new CScenarioPoint[MyPoints.Length];
             for (int i = 0; i < MyPoints.Length; i++)
             {
@@ -4723,8 +4724,8 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioPoint : MetaWrapper
     {
-        [TC(typeof(EXP))] public MCScenarioPointContainer Container { get; set; }
-        public MCScenarioPointRegion Region { get; set; }
+        [TC(typeof(EXP))] public MCScenarioPointContainer? Container { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
         public CScenarioPoint _Data;
         public CScenarioPoint Data { get { return _Data; } set { _Data = value; } }
@@ -4744,10 +4745,10 @@ namespace CodeWalker.GameFiles
 
 
         public byte TypeId { get { return _Data.iType; } set { _Data.iType = value; } }
-        public ScenarioTypeRef Type { get; set; }
+        public ScenarioTypeRef? Type { get; set; }
 
         public byte ModelSetId { get { return _Data.ModelSetId; } set { _Data.ModelSetId = value; } }
-        public AmbientModelSet ModelSet { get; set; }
+        public AmbientModelSet? ModelSet { get; set; }
 
         public byte InteriorId {  get { return _Data.iInterior; } set { _Data.iInterior = value; } }
         public MetaHash InteriorName { get; set; }
@@ -4770,14 +4771,14 @@ namespace CodeWalker.GameFiles
         public int PointIndex { get; set; }
 
 
-        public MCScenarioPoint(MCScenarioPointRegion region) { Region = region; }
-        public MCScenarioPoint(MCScenarioPointRegion region, Meta meta, CScenarioPoint d, MCScenarioPointContainer container)
+        public MCScenarioPoint(MCScenarioPointRegion? region) { Region = region; }
+        public MCScenarioPoint(MCScenarioPointRegion? region, Meta meta, CScenarioPoint d, MCScenarioPointContainer container)
         {
             Region = region;
             Container = container;
             _Data = d;
         }
-        public MCScenarioPoint(MCScenarioPointRegion region, MCScenarioPoint copy)
+        public MCScenarioPoint(MCScenarioPointRegion? region, MCScenarioPoint? copy)
         {
             Region = region;
             if (copy != null)
@@ -4855,8 +4856,8 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioEntityOverride : MetaWrapper
     {
-        [TC(typeof(EXP))] public object Parent { get; set; }
-        public MCScenarioPointRegion Region { get; set; }
+        [TC(typeof(EXP))] public object? Parent { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
         public CScenarioEntityOverride _Data;
         public CScenarioEntityOverride Data { get { return _Data; } set { _Data = value; } }
@@ -4868,10 +4869,10 @@ namespace CodeWalker.GameFiles
         public bool SpecificallyPreventArtPoints { get { return _Data.SpecificallyPreventArtPoints == 1; } set { _Data.SpecificallyPreventArtPoints = (byte)(value ? 1 : 0); } }
 
 
-        public MCExtensionDefSpawnPoint[] ScenarioPoints { get; set; }
+        public MCExtensionDefSpawnPoint[] ScenarioPoints { get; set; } = [];
 
         public MCScenarioEntityOverride() { }
-        public MCScenarioEntityOverride(MCScenarioPointRegion region, MCScenarioEntityOverride copy)
+        public MCScenarioEntityOverride(MCScenarioPointRegion? region, MCScenarioEntityOverride? copy)
         {
             Region = region;
             if (copy != null)
@@ -4879,7 +4880,7 @@ namespace CodeWalker.GameFiles
                 _Data = copy.Data;
             }
         }
-        public MCScenarioEntityOverride(MCScenarioPointRegion region, Meta meta, CScenarioEntityOverride d)
+        public MCScenarioEntityOverride(MCScenarioPointRegion? region, Meta meta, CScenarioEntityOverride d)
         {
             Region = region;
             _Data = d;
@@ -4963,7 +4964,7 @@ namespace CodeWalker.GameFiles
 
         public CExtensionDefSpawnPoint[] GetCScenarioPoints()
         {
-            if ((ScenarioPoints == null) || (ScenarioPoints.Length == 0)) return null;
+            if ((ScenarioPoints == null) || (ScenarioPoints.Length == 0)) return [];
             CExtensionDefSpawnPoint[] r = new CExtensionDefSpawnPoint[ScenarioPoints.Length];
             for (int i = 0; i < ScenarioPoints.Length; i++)
             {
@@ -5011,18 +5012,18 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioChainingGraph : MetaWrapper
     {
-        public MCScenarioPointRegion Region { get; private set; }
+        public MCScenarioPointRegion? Region { get; private set; }
 
         public CScenarioChainingGraph _Data;
         public CScenarioChainingGraph Data { get { return _Data; } set { _Data = value; } }
 
-        public MCScenarioChainingNode[] Nodes { get; set; }
-        public MCScenarioChainingEdge[] Edges { get; set; }
-        public MCScenarioChain[] Chains { get; set; }
+        public MCScenarioChainingNode[] Nodes { get; set; } = [];
+        public MCScenarioChainingEdge[] Edges { get; set; } = [];
+        public MCScenarioChain[] Chains { get; set; } = [];
 
         public MCScenarioChainingGraph() { }
-        public MCScenarioChainingGraph(MCScenarioPointRegion region) { Region = region; }
-        public MCScenarioChainingGraph(MCScenarioPointRegion region, Meta meta, CScenarioChainingGraph d)
+        public MCScenarioChainingGraph(MCScenarioPointRegion? region) { Region = region; }
+        public MCScenarioChainingGraph(MCScenarioPointRegion? region, Meta meta, CScenarioChainingGraph d)
         {
             Region = region;
             _Data = d;
@@ -5084,7 +5085,7 @@ namespace CodeWalker.GameFiles
 
         public CScenarioChainingNode[] GetCNodes()
         {
-            if ((Nodes == null) || (Nodes.Length == 0)) return null;
+            if ((Nodes == null) || (Nodes.Length == 0)) return [];
             CScenarioChainingNode[] r = new CScenarioChainingNode[Nodes.Length];
             for (int i = 0; i < Nodes.Length; i++)
             {
@@ -5094,7 +5095,7 @@ namespace CodeWalker.GameFiles
         }
         public CScenarioChainingEdge[] GetCEdges()
         {
-            if ((Edges == null) || (Edges.Length == 0)) return null;
+            if ((Edges == null) || (Edges.Length == 0)) return [];
             CScenarioChainingEdge[] r = new CScenarioChainingEdge[Edges.Length];
             for (int i = 0; i < Edges.Length; i++)
             {
@@ -5104,7 +5105,7 @@ namespace CodeWalker.GameFiles
         }
         public CScenarioChain[] GetCChains()
         {
-            if ((Chains == null) || (Chains.Length == 0)) return null;
+            if ((Chains == null) || (Chains.Length == 0)) return [];
             CScenarioChain[] r = new CScenarioChain[Chains.Length];
             for (int i = 0; i < Chains.Length; i++)
             {
@@ -5192,10 +5193,10 @@ namespace CodeWalker.GameFiles
                 {
                     Nodes = newnodes.ToArray();
 
-                    foreach (var e in Edges)
+                    foreach (var e in Edges ?? [])
                     {
-                        e.NodeIndexFrom = (ushort)e.NodeFrom.NodeIndex;
-                        e.NodeIndexTo = (ushort)e.NodeTo.NodeIndex;
+                        if (e.NodeFrom is { } from) e.NodeIndexFrom = (ushort)from.NodeIndex;
+                        if (e.NodeTo is { } to) e.NodeIndexTo = (ushort)to.NodeIndex;
                     }
 
                     UpdateNodesHaveEdges();
@@ -5263,7 +5264,7 @@ namespace CodeWalker.GameFiles
             return r;
         }
 
-        private List<MCScenarioChain> TrySplitChain(MCScenarioChain chain)
+        private List<MCScenarioChain>? TrySplitChain(MCScenarioChain chain)
         {
             var edges = chain.Edges;
             if (edges == null || edges.Length <= 1) return null;
@@ -5409,8 +5410,8 @@ namespace CodeWalker.GameFiles
                         Nodes = newnodes.ToArray();
                         foreach (var e in Edges)
                         {
-                            e.NodeIndexFrom = (ushort)e.NodeFrom.NodeIndex;
-                            e.NodeIndexTo = (ushort)e.NodeTo.NodeIndex;
+                            if (e.NodeFrom is { } from) e.NodeIndexFrom = (ushort)from.NodeIndex;
+                            if (e.NodeTo is { } to) e.NodeIndexTo = (ushort)to.NodeIndex;
                         }
                         totalRemoved++;
                         found = true;
@@ -5496,9 +5497,9 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioChainingNode : MetaWrapper
     {
-        [TC(typeof(EXP))] public MCScenarioChainingGraph Parent { get; set; }
-        public MCScenarioPointRegion Region { get; set; }
-        public ScenarioNode ScenarioNode { get; set; }
+        [TC(typeof(EXP))] public MCScenarioChainingGraph? Parent { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
+        public ScenarioNode? ScenarioNode { get; set; }
 
         public CScenarioChainingNode _Data;
         public CScenarioChainingNode Data { get { return _Data; } set { _Data = value; } }
@@ -5506,23 +5507,23 @@ namespace CodeWalker.GameFiles
         public Vector3 Position { get { return _Data.Position; } set { _Data.Position = value; } }
         public MetaHash PropHash { get { return _Data.Unk_2602393771; } set { _Data.Unk_2602393771 = value; } }
         public MetaHash TypeHash { get { return _Data.ScenarioType; } set { _Data.ScenarioType = value; } }
-        public ScenarioTypeRef Type { get; set; }
+        public ScenarioTypeRef? Type { get; set; }
         public bool HasIncomingEdges { get { return _Data.HasIncomingEdges == 1; } set { _Data.HasIncomingEdges = (byte)(value ? 1 : 0); } }
         public bool HasOutgoingEdges { get { return _Data.HasOutgoingEdges == 1; } set { _Data.HasOutgoingEdges = (byte)(value ? 1 : 0); } }
 
         public int NodeIndex { get; set; }
-        public MCScenarioChain Chain { get; set; }
+        public MCScenarioChain? Chain { get; set; }
 
 
         public MCScenarioChainingNode() { }
-        public MCScenarioChainingNode(MCScenarioPointRegion region, Meta meta, CScenarioChainingNode d, MCScenarioChainingGraph parent, int index)
+        public MCScenarioChainingNode(MCScenarioPointRegion? region, Meta meta, CScenarioChainingNode d, MCScenarioChainingGraph parent, int index)
         {
             Region = region;
             Parent = parent;
             _Data = d;
             NodeIndex = index;
         }
-        public MCScenarioChainingNode(MCScenarioPointRegion region, MCScenarioChainingNode copy)
+        public MCScenarioChainingNode(MCScenarioPointRegion? region, MCScenarioChainingNode copy)
         {
             Region = region;
             _Data = copy._Data;
@@ -5578,13 +5579,13 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioChainingEdge : MetaWrapper
     {
-        public MCScenarioPointRegion Region { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
         public CScenarioChainingEdge _Data;
         public CScenarioChainingEdge Data { get { return _Data; } set { _Data = value; } }
 
-        public MCScenarioChainingNode NodeFrom { get; set; }
-        public MCScenarioChainingNode NodeTo { get; set; }
+        public MCScenarioChainingNode? NodeFrom { get; set; }
+        public MCScenarioChainingNode? NodeTo { get; set; }
         public ushort NodeIndexFrom { get { return _Data.NodeIndexFrom; } set { _Data.NodeIndexFrom = value; } }
         public ushort NodeIndexTo { get { return _Data.NodeIndexTo; } set { _Data.NodeIndexTo = value; } }
         public CScenarioChainingEdge__eAction Action { get { return _Data.Action; } set { _Data.Action = value; } }
@@ -5595,13 +5596,13 @@ namespace CodeWalker.GameFiles
         public int EdgeIndex { get; set; }
 
         public MCScenarioChainingEdge() { }
-        public MCScenarioChainingEdge(MCScenarioPointRegion region, Meta meta, CScenarioChainingEdge d, int index)
+        public MCScenarioChainingEdge(MCScenarioPointRegion? region, Meta meta, CScenarioChainingEdge d, int index)
         {
             Region = region;
             _Data = d;
             EdgeIndex = index;
         }
-        public MCScenarioChainingEdge(MCScenarioPointRegion region, MCScenarioChainingEdge copy)
+        public MCScenarioChainingEdge(MCScenarioPointRegion? region, MCScenarioChainingEdge copy)
         {
             Region = region;
             _Data = copy._Data;
@@ -5654,20 +5655,20 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioChain : MetaWrapper
     {
-        public MCScenarioPointRegion Region { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
         public CScenarioChain _Data;
         public CScenarioChain Data { get { return _Data; } set { _Data = value; } }
 
         public byte Unk1 { get { return _Data.Unk_1156691834; } set { _Data.Unk_1156691834 = value; } }
 
-        public ushort[] EdgeIds { get; set; }
-        public MCScenarioChainingEdge[] Edges { get; set; }
+        public ushort[] EdgeIds { get; set; } = [];
+        public MCScenarioChainingEdge[] Edges { get; set; } = [];
 
         public int ChainIndex { get; set; }
 
         public MCScenarioChain() { }
-        public MCScenarioChain(MCScenarioPointRegion region, Meta meta, CScenarioChain d)
+        public MCScenarioChain(MCScenarioPointRegion? region, Meta meta, CScenarioChain d)
         {
             Region = region;
             _Data = d;
@@ -5772,12 +5773,12 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioPointCluster : MetaWrapper
     {
-        public MCScenarioPointRegion Region { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
         public CScenarioPointCluster _Data;
         public CScenarioPointCluster Data { get { return _Data; } set { _Data = value; } }
 
-        public MCScenarioPointContainer Points { get; set; }
+        public MCScenarioPointContainer? Points { get; set; }
 
         public Vector3 Position //is separate from Points...
         {
@@ -5801,8 +5802,8 @@ namespace CodeWalker.GameFiles
         public bool AllPointsRequiredForSpawn { get { return _Data.AllPointsRequiredForSpawn==1; } set { _Data.AllPointsRequiredForSpawn = (byte)(value?1:0); } }
 
         public MCScenarioPointCluster() { }
-        public MCScenarioPointCluster(MCScenarioPointRegion region) { Region = region; }
-        public MCScenarioPointCluster(MCScenarioPointRegion region, MCScenarioPointCluster copy)
+        public MCScenarioPointCluster(MCScenarioPointRegion? region) { Region = region; }
+        public MCScenarioPointCluster(MCScenarioPointRegion? region, MCScenarioPointCluster? copy)
         {
             Region = region;
             if (copy != null)
@@ -5812,7 +5813,7 @@ namespace CodeWalker.GameFiles
             Points = new MCScenarioPointContainer(region);
             Points.Parent = this;
         }
-        public MCScenarioPointCluster(MCScenarioPointRegion region, Meta meta, CScenarioPointCluster d)
+        public MCScenarioPointCluster(MCScenarioPointRegion? region, Meta meta, CScenarioPointCluster d)
         {
             Region = region;
             _Data = d;
@@ -5902,25 +5903,25 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCScenarioPointLookUps : MetaWrapper
     {
-        public MCScenarioPointRegion Region { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
         public CScenarioPointLookUps _Data;
         public CScenarioPointLookUps Data { get { return _Data; } set { _Data = value; } }
 
-        public MetaHash[] TypeNames { get; set; } //scenario type hashes used by points
-        public MetaHash[] PedModelSetNames { get; set; } //ped names
-        public MetaHash[] VehicleModelSetNames { get; set; } //vehicle names
-        public MetaHash[] GroupNames { get; set; }  //scenario group names?
-        public MetaHash[] InteriorNames { get; set; }
-        public MetaHash[] RequiredIMapNames { get; set; } //ymap names
+        public MetaHash[] TypeNames { get; set; } = []; //scenario type hashes used by points
+        public MetaHash[] PedModelSetNames { get; set; } = []; //ped names
+        public MetaHash[] VehicleModelSetNames { get; set; } = []; //vehicle names
+        public MetaHash[] GroupNames { get; set; } = [];  //scenario group names?
+        public MetaHash[] InteriorNames { get; set; } = [];
+        public MetaHash[] RequiredIMapNames { get; set; } = []; //ymap names
 
 
         public MCScenarioPointLookUps() { }
-        public MCScenarioPointLookUps(MCScenarioPointRegion region)
+        public MCScenarioPointLookUps(MCScenarioPointRegion? region)
         {
             Region = region;
         }
-        public MCScenarioPointLookUps(MCScenarioPointRegion region, Meta meta, CScenarioPointLookUps d)
+        public MCScenarioPointLookUps(MCScenarioPointRegion? region, Meta meta, CScenarioPointLookUps d)
         {
             Region = region;
             _Data = d;
@@ -6204,11 +6205,11 @@ namespace CodeWalker.GameFiles
         public CPedVariationInfo _Data;
         public CPedVariationInfo Data { get { return _Data; } }
 
-        public byte[] ComponentIndices { get; set; }
-        public MCPVComponentData[] ComponentData3 { get; set; }
-        public MCPedSelectionSet[] SelectionSets { get; set; }
-        public MCComponentInfo[] CompInfos { get; set; }
-        public MCPedPropInfo PropInfo { get; set; }
+        public byte[] ComponentIndices { get; set; } = [];
+        public MCPVComponentData[] ComponentData3 { get; set; } = [];
+        public MCPedSelectionSet[] SelectionSets { get; set; } = [];
+        public MCComponentInfo[] CompInfos { get; set; } = [];
+        public MCPedPropInfo? PropInfo { get; set; }
 
 
         public override void Load(Meta meta, MetaPOINTER ptr)
@@ -6294,12 +6295,12 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public MCPVComponentData GetComponentData(int componentType)
+        public MCPVComponentData? GetComponentData(int componentType)
         {
             if ((componentType < 0) || (componentType > 11)) return null;
-            if (ComponentIndices == null) return null;
+            if (ComponentIndices == null || componentType >= ComponentIndices.Length) return null;
             var index = ComponentIndices[componentType];
-            if (index > ComponentData3?.Length) return null;
+            if (ComponentData3 == null || index >= ComponentData3.Length) return null;
             return ComponentData3[index];
         }
 
@@ -6315,14 +6316,14 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCPVComponentData : MetaWrapper
     {
-        public MCPedVariationInfo Owner { get; set; }
+        public MCPedVariationInfo? Owner { get; set; }
 
         public CPVComponentData _Data;
         public CPVComponentData Data { get { return _Data; } }
 
         public byte numAvailTex { get { return _Data.numAvailTex; } set { _Data.numAvailTex = value; } }
 
-        public MCPVDrawblData[] DrawblData3 { get; set; }
+        public MCPVDrawblData[] DrawblData3 { get; set; } = [];
 
         public int ComponentType { get; set; } = 0;
         public static string[] ComponentTypeNames { get; } =
@@ -6379,7 +6380,7 @@ namespace CodeWalker.GameFiles
         public override string ToString()
         {
             string r = (ComponentType < 12) ? ComponentTypeNames[ComponentType] : "error";
-            return r + " : " + DrawblData3?.Length.ToString() ?? base.ToString();
+            return r + " : " + DrawblData3?.Length.ToString() ?? (base.ToString() ?? GetType().Name);
         }
     }
 
@@ -6394,12 +6395,12 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCPVDrawblData : MetaWrapper
     {
-        public MCPVComponentData Owner { get; set; }
+        public MCPVComponentData? Owner { get; set; }
 
         public CPVDrawblData _Data;
         public CPVDrawblData Data { get { return _Data; } }
 
-        public CPVTextureData[] TexData { get; set; }
+        public CPVTextureData[] TexData { get; set; } = [];
 
         public int ComponentType { get; set; } = 0;
         public int DrawableIndex { get; set; } = 0;
@@ -6545,7 +6546,7 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCPedSelectionSet : MetaWrapper
     {
-        public MCPedVariationInfo Owner { get; set; }
+        public MCPedVariationInfo? Owner { get; set; }
 
         public CPedSelectionSet _Data;
         public CPedSelectionSet Data { get { return _Data; } }
@@ -6584,7 +6585,7 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCComponentInfo : MetaWrapper
     {
-        public MCPedVariationInfo Owner { get; set; }
+        public MCPedVariationInfo? Owner { get; set; }
 
         public CComponentInfo _Data;
         public CComponentInfo Data { get { return _Data; } }
@@ -6613,7 +6614,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return (ComponentType < 12) ? MCPVComponentData.ComponentTypeNames[ComponentType] + "_" + ComponentIndex.ToString("000") : base.ToString();
+            return (ComponentType < 12) ? MCPVComponentData.ComponentTypeNames[ComponentType] + "_" + ComponentIndex.ToString("000") : (base.ToString() ?? GetType().Name);
         }
     }
 
@@ -6634,13 +6635,13 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCPedPropInfo : MetaWrapper
     {
-        public MCPedVariationInfo Owner { get; set; }
+        public MCPedVariationInfo? Owner { get; set; }
 
         public CPedPropInfo _Data;
         public CPedPropInfo Data { get { return _Data; } }
 
-        public MCPedPropMetaData[] PropMetaData { get; set; }
-        public MCAnchorProps[] Anchors { get; set; }
+        public MCPedPropMetaData[] PropMetaData { get; set; } = [];
+        public MCAnchorProps[] Anchors { get; set; } = [];
 
         public MCPedPropInfo() { }
         public MCPedPropInfo(Meta meta, CPedPropInfo data, MCPedVariationInfo owner)
@@ -6704,12 +6705,12 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCPedPropMetaData : MetaWrapper
     {
-        public MCPedPropInfo Owner { get; set; }
+        public MCPedPropInfo? Owner { get; set; }
 
         public CPedPropMetaData _Data;
         public CPedPropMetaData Data { get { return _Data; } }
 
-        public CPedPropTexData[] TexData { get; set; }
+        public CPedPropTexData[] TexData { get; set; } = [];
 
         public MCPedPropMetaData(Meta meta, CPedPropMetaData data, MCPedPropInfo owner)
         {
@@ -6748,12 +6749,12 @@ namespace CodeWalker.GameFiles
     }
     [TC(typeof(EXP))] public class MCAnchorProps : MetaWrapper
     {
-        public MCPedPropInfo Owner { get; set; }
+        public MCPedPropInfo? Owner { get; set; }
 
         public CAnchorProps _Data;
         public CAnchorProps Data { get { return _Data; } }
 
-        public byte[] Props { get; set; }
+        public byte[] Props { get; set; } = [];
 
         public MCAnchorProps(Meta meta, CAnchorProps data, MCPedPropInfo owner)
         {

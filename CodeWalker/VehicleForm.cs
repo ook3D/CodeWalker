@@ -24,7 +24,7 @@ namespace CodeWalker
     {
         public Form Form { get { return this; } } //for DXForm/DXManager use
 
-        public Renderer Renderer = null;
+        public readonly Renderer Renderer;
         public Lock RenderSyncRoot { get { return Renderer.RenderSyncRoot; } }
 
         volatile bool formopen = false;
@@ -125,7 +125,7 @@ namespace CodeWalker
 
 
             camera.FollowEntity = camEntity;
-            camera.FollowEntity.Position = Vector3.Zero;// prevworldpos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = Vector3.Zero;// prevworldpos;
             camera.FollowEntity.Orientation = Quaternion.LookAtLH(Vector3.Zero, Vector3.Up, Vector3.ForwardLH);
             camera.TargetDistance = 2.0f;
             camera.CurrentDistance = 2.0f;
@@ -450,7 +450,7 @@ namespace CodeWalker
 
             rad = Math.Max(0.01f, rad);
 
-            camera.FollowEntity.Position = pos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = pos;
             camera.TargetDistance = rad * 1.6f;
             camera.CurrentDistance = rad * 1.6f;
 
@@ -625,7 +625,7 @@ namespace CodeWalker
 
 
 
-        private void UpdateModelsUI(DrawableBase drawable)
+        private void UpdateModelsUI(DrawableBase? drawable)
         {
             DetailsPropertyGrid.SelectedObject = drawable;
 
@@ -725,7 +725,7 @@ namespace CodeWalker
                 MoveCameraToView(dr.BoundingCenter, dr.BoundingSphereRadius);
             }
 
-            UpdateModelsUI(yft.Fragment.Drawable);
+            UpdateModelsUI(yft.Fragment?.Drawable);
         }
 
 
@@ -1016,12 +1016,12 @@ namespace CodeWalker
         {
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //nontypable combobox
             }
 
@@ -1099,12 +1099,12 @@ namespace CodeWalker
 
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //non-typable combobox
             }
 

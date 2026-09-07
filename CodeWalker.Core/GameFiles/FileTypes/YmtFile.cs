@@ -12,27 +12,27 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))] public class YmtFile : GameFile, PackedFile
     {
 
-        public Meta Meta { get; set; }
-        public PsoFile Pso { get; set; }
-        public RbfFile Rbf { get; set; }
+        public Meta? Meta { get; set; }
+        public PsoFile? Pso { get; set; }
+        public RbfFile? Rbf { get; set; }
 
         public YmtFileFormat FileFormat { get; set; } = YmtFileFormat.Unknown;
         public YmtFileContentType ContentType { get; set; } = YmtFileContentType.None;
 
 
-        public Dictionary<string,string> CMapParentTxds { get; set; }
+        public Dictionary<string,string> CMapParentTxds { get; set; } = new();
 
-        public YmtScenarioPointManifest CScenarioPointManifest { get; set; }
+        public YmtScenarioPointManifest? CScenarioPointManifest { get; set; }
 
-        public MCScenarioPointRegion CScenarioPointRegion { get; set; }
-        public ScenarioRegion ScenarioRegion { get; set; }
+        public MCScenarioPointRegion? CScenarioPointRegion { get; set; }
+        public ScenarioRegion? ScenarioRegion { get; set; }
 
 
 
 
         //fields used by the editor:
         public bool HasChanged { get; set; } = false;
-        public List<string> SaveWarnings = null;
+        public List<string>? SaveWarnings;
 
         public YmtFile() : base(null, GameFileType.Ymt)
         {
@@ -64,7 +64,7 @@ namespace CodeWalker.GameFiles
             {
                 ResourceDataReader rd = new(resentry, data);
 
-                Meta = rd.ReadBlock<Meta>();
+                Meta = rd.ReadRequiredBlock<Meta>();
 
                 var rootblock = Meta.GetRootBlock();
                 if (rootblock != null)
@@ -225,7 +225,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public byte[] Save()
+        public byte[]? Save()
         {
 
             switch (ContentType)
@@ -239,17 +239,17 @@ namespace CodeWalker.GameFiles
         }
 
 
-        private byte[] SaveMapParentTxds()
+        private byte[]? SaveMapParentTxds()
         {
             return null;
         }
 
-        private byte[] SaveScenarioPointManifest()
+        private byte[]? SaveScenarioPointManifest()
         {
             return null;
         }
 
-        private byte[] SaveScenarioPointRegion()
+        private byte[]? SaveScenarioPointRegion()
         {
             if (ScenarioRegion != null)
             {
@@ -278,7 +278,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return RpfFileEntry.ToString();
+            return RpfFileEntry?.ToString() ?? Name ?? string.Empty;
         }
     }
 
@@ -305,17 +305,17 @@ namespace CodeWalker.GameFiles
         public CScenarioPointManifest _Data;
         public CScenarioPointManifest Data { get { return _Data; } set { _Data = value; } }
 
-        public CScenarioPointRegionDef[] RegionDefs { get; set; }
-        public CScenarioPointGroup[] Groups { get; set; }
-        public MetaHash[] InteriorNames { get; set; }
+        public CScenarioPointRegionDef[] RegionDefs { get; set; } = [];
+        public CScenarioPointGroup[] Groups { get; set; } = [];
+        public MetaHash[] InteriorNames { get; set; } = [];
 
 
         public void Load(PsoFile pso)
         {
             Data = PsoTypes.GetRootItem<CScenarioPointManifest>(pso);
-            RegionDefs = PsoTypes.ConvertDataArray<CScenarioPointRegionDef>(pso, _Data.RegionDefs);
-            Groups = PsoTypes.ConvertDataArray<CScenarioPointGroup>(pso, _Data.Groups);
-            InteriorNames = PsoTypes.GetHashArray(pso, _Data.InteriorNames);
+            RegionDefs = PsoTypes.ConvertDataArray<CScenarioPointRegionDef>(pso, _Data.RegionDefs) ?? [];
+            Groups = PsoTypes.ConvertDataArray<CScenarioPointGroup>(pso, _Data.Groups) ?? [];
+            InteriorNames = PsoTypes.GetHashArray(pso, _Data.InteriorNames) ?? [];
         }
 
     }

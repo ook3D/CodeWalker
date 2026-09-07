@@ -9,7 +9,7 @@ namespace CodeWalker.World
     public class Watermaps : BasePathData
     {
         public volatile bool Inited = false;
-        public GameFileCache GameFileCache;
+        public GameFileCache? GameFileCache;
 
         public List<WatermapFile> WatermapFiles = new();
 
@@ -20,15 +20,15 @@ namespace CodeWalker.World
         }
         public EditorVertex[] GetPathVertices()
         {
-            return null;
+            return [];
         }
         public EditorVertex[] GetTriangleVertices()
         {
             return TriangleVerts;
         }
 
-        public Vector4[] NodePositions;
-        public EditorVertex[] TriangleVerts;
+        public Vector4[] NodePositions = [];
+        public EditorVertex[] TriangleVerts = [];
 
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus)
@@ -52,8 +52,10 @@ namespace CodeWalker.World
 
         private void LoadWatermap(string filename)
         {
-            var wmf = GameFileCache.RpfMan.GetFile<WatermapFile>(filename);
-            WatermapFiles.Add(wmf);
+            var manager = GameFileCache?.RpfMan
+                ?? throw new InvalidOperationException("An RPF manager is required to load watermaps.");
+            var wmf = manager.GetFile<WatermapFile>(filename);
+            if (wmf != null) WatermapFiles.Add(wmf);
         }
 
 
@@ -75,7 +77,7 @@ namespace CodeWalker.World
             }
             else
             {
-                TriangleVerts = null;
+                TriangleVerts = [];
             }
             if (nlist.Count > 0)
             {
@@ -83,7 +85,7 @@ namespace CodeWalker.World
             }
             else
             {
-                NodePositions = null;
+                NodePositions = [];
             }
 
         }

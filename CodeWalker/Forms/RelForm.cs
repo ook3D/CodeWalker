@@ -21,7 +21,7 @@ namespace CodeWalker.Forms
 {
     public partial class RelForm : Form
     {
-        private string xml;
+        private string xml = string.Empty;
         public string Xml
         {
             get { return xml; }
@@ -33,7 +33,7 @@ namespace CodeWalker.Forms
         }
 
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -43,21 +43,21 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
-        private RelFile CurrentFile { get; set; }
+        private RelFile? CurrentFile { get; set; }
 
 
         private bool modified = false;
         private bool LoadingXml = false;
         private bool DelayHighlight = false;
 
-        private ExploreForm exploreForm = null;
-        public RpfFileEntry rpfFileEntry { get; private set; } = null;
+        private readonly ExploreForm exploreForm;
+        public RpfFileEntry? rpfFileEntry { get; private set; } = null;
         private MetaFormat metaFormat = MetaFormat.XML;
 
         private bool loadingSynth = false;
-        private Dat10Synth currentSynth = null;
+        private Dat10Synth? currentSynth = null;
 
 
         public RelForm(ExploreForm owner)
@@ -120,10 +120,10 @@ namespace CodeWalker.Forms
         public void LoadRel(RelFile rel)
         {
 
-            fileName = rel?.Name;
+            fileName = rel.Name;
             if (string.IsNullOrEmpty(fileName))
             {
-                fileName = rel?.RpfFileEntry?.Name;
+                fileName = rel.RpfFileEntry?.Name ?? string.Empty;
             }
 
             UpdateFormTitle();
@@ -132,7 +132,7 @@ namespace CodeWalker.Forms
 
             CurrentFile = rel;
 
-            rpfFileEntry = rel?.RpfFileEntry;
+            rpfFileEntry = rel.RpfFileEntry;
 
             Xml = RelXml.GetXml(rel);
 
@@ -185,7 +185,7 @@ namespace CodeWalker.Forms
             SynthTextBox.Language = Language.Custom;
             SynthTextBox.Text = "";
             SynthTextBox.ClearUndo();
-            if (rel.RelType == RelDatFileType.Dat10ModularSynth)
+            if (rel?.RelType == RelDatFileType.Dat10ModularSynth)
             {
                 foreach (var relData in rel.RelDatasSorted)
                 {
@@ -448,8 +448,9 @@ namespace CodeWalker.Forms
             return variables;
         }
 
-        private Dat10Synth AssembleSynth()
+        private Dat10Synth? AssembleSynth()
         {
+            if (CurrentFile == null) return null;
             var outputs = ParseSynthOutputs();
             var variables = ParseSynthVariables();
 
@@ -709,7 +710,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private Synthesizer synthesizer = null; // TODO(alexguirre): dispose synthesizer
+        private Synthesizer? synthesizer = null; // TODO(alexguirre): dispose synthesizer
 
         private void SynthPlayButton_Click(object sender, EventArgs e)
         {

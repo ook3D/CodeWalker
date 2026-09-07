@@ -130,7 +130,7 @@ namespace CodeWalker.Utils
         }
 
 
-        public static byte[] GetPixels(Texture texture, int mip)
+        public static byte[]? GetPixels(Texture texture, int mip)
         {
             //dexyfex version
             var format = GetDXGIFormat(texture.Format);
@@ -386,7 +386,7 @@ namespace CodeWalker.Utils
         }
 
 
-        public static Texture GetTexture(byte[] ddsfile)
+        public static Texture? GetTexture(byte[] ddsfile)
         {
             var ms = new MemoryStream(ddsfile);
             var br = new BinaryReader(ms);
@@ -497,7 +497,7 @@ namespace CodeWalker.Utils
             return tex;
         }
 
-        public static async Task<Texture> GetTextureAsync(byte[] ddsfile, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
+        public static async Task<Texture?> GetTextureAsync(byte[] ddsfile, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
         {
             return await Task.Run(() =>
             {
@@ -508,7 +508,7 @@ namespace CodeWalker.Utils
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        public static async Task<Texture> GetTextureAsync(ReadOnlyMemory<byte> ddsfile, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
+        public static async Task<Texture?> GetTextureAsync(ReadOnlyMemory<byte> ddsfile, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
         {
             return await Task.Run(() =>
             {
@@ -531,7 +531,7 @@ namespace CodeWalker.Utils
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        public static async Task<byte[]> GetPixelsAsync(Texture texture, int mip, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
+        public static async Task<byte[]?> GetPixelsAsync(Texture texture, int mip, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
         {
             return await Task.Run(() =>
             {
@@ -620,7 +620,7 @@ namespace CodeWalker.Utils
         private static ImageStruct GetImageStruct(Texture texture, DXGI_FORMAT format)
         {
             ImageStruct img = new();
-            img.Data = texture.Data.FullData;
+            img.Data = (texture.Data ?? throw new InvalidOperationException("Texture has no pixel data.")).FullData;
             img.Width = texture.Width;
             img.Height = texture.Height;
             img.MipMapLevels = texture.Levels;
@@ -1660,7 +1660,7 @@ namespace CodeWalker.Utils
             //property int Stride;
             public int Format;
             public int MipMapLevels;
-            public byte[] Data;
+            public byte[] Data = [];
 
             int GetRowPitch()
             {

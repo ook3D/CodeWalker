@@ -43,8 +43,8 @@ namespace CodeWalker.GameFiles
         public uint Unknown_14h { get; set; } // 0x00000000
         public uint Unknown_18h { get; set; } = 1; // 0x00000001
         public uint Unknown_1Ch { get; set; } // 0x00000000
-        public ResourceSimpleList64_s<MetaHash> FilterNameHashes { get; set; }
-        public ResourcePointerList64<FrameFilterBase> Filters { get; set; }
+        public ResourceSimpleList64_s<MetaHash> FilterNameHashes { get; set; } = new();
+        public ResourcePointerList64<FrameFilterBase> Filters { get; set; } = new();
 
         /// <summary>
         /// Reads the data-block from a stream.
@@ -58,8 +58,8 @@ namespace CodeWalker.GameFiles
             this.Unknown_14h = reader.ReadUInt32();
             this.Unknown_18h = reader.ReadUInt32();
             this.Unknown_1Ch = reader.ReadUInt32();
-            this.FilterNameHashes = reader.ReadBlock<ResourceSimpleList64_s<MetaHash>>();
-            this.Filters = reader.ReadBlock<ResourcePointerList64<FrameFilterBase>>();
+            this.FilterNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_s<MetaHash>>();
+            this.Filters = reader.ReadRequiredBlock<ResourcePointerList64<FrameFilterBase>>();
 
             if (Filters?.data_items != null)
             {
@@ -226,10 +226,10 @@ namespace CodeWalker.GameFiles
             var type = reader.ReadUInt32();
             reader.Position -= 0x14;
 
-            return ConstructFilter((FrameFilterType)type);
+            return ConstructFilter((FrameFilterType)type) ?? throw new System.IO.InvalidDataException($"Unsupported frame filter type: {type}.");
         }
 
-        public static FrameFilterBase ConstructFilter(FrameFilterType type)
+        public static FrameFilterBase? ConstructFilter(FrameFilterType type)
         {
             switch (type)
             {
@@ -331,8 +331,8 @@ namespace CodeWalker.GameFiles
         // rage::crFrameFilterMultiWeight
         public override long BlockLength => 0x40;
         
-        public ResourceSimpleList64_s<TrackIdIndex> Entries { get; set; } // sorted by (BoneId | (Track << 16))
-        public ResourceSimpleList64_float Weights { get; set; }
+        public ResourceSimpleList64_s<TrackIdIndex> Entries { get; set; } = new(); // sorted by (BoneId | (Track << 16))
+        public ResourceSimpleList64_float Weights { get; set; } = new();
         public ulong Unknown_38h { get; set; } // 0
 
         public FrameFilterMultiWeight()
@@ -347,8 +347,8 @@ namespace CodeWalker.GameFiles
         {
             base.Read(reader, parameters);
             // read structure data
-            this.Entries = reader.ReadBlock<ResourceSimpleList64_s<TrackIdIndex>>();
-            this.Weights = reader.ReadBlock<ResourceSimpleList64_float>();
+            this.Entries = reader.ReadRequiredBlock<ResourceSimpleList64_s<TrackIdIndex>>();
+            this.Weights = reader.ReadRequiredBlock<ResourceSimpleList64_float>();
             this.Unknown_38h = reader.ReadUInt64();
         }
 

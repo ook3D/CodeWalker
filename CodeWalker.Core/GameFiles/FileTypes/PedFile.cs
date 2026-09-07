@@ -13,16 +13,16 @@ namespace CodeWalker.GameFiles
 {
     [TC(typeof(EXP))] public class PedFile : GameFile, PackedFile
     {
-        public Meta Meta { get; set; }
-        public PsoFile Pso { get; set; }
-        public RbfFile Rbf { get; set; }
-        public string Xml { get; set; }
+        public Meta? Meta { get; set; }
+        public PsoFile? Pso { get; set; }
+        public RbfFile? Rbf { get; set; }
+        public string? Xml { get; set; }
 
-        public MCPedVariationInfo VariationInfo { get; set; }
+        public MCPedVariationInfo? VariationInfo { get; set; }
 
 
 
-        public string[] Strings { get; set; }
+        public string[]? Strings { get; set; }
 
 
 
@@ -50,10 +50,10 @@ namespace CodeWalker.GameFiles
 
             ResourceDataReader rd = new(resentry, data);
 
-            Meta = rd.ReadBlock<Meta>();
+            Meta = rd.ReadRequiredBlock<Meta>();
 
 
-            LoadMeta();
+            LoadMeta(Meta);
 
 
 
@@ -62,13 +62,13 @@ namespace CodeWalker.GameFiles
 
 
 
-        private void LoadMeta()
+        private void LoadMeta(Meta meta)
         {
-            var vVariationInfo = MetaTypes.GetTypedData<CPedVariationInfo>(Meta, MetaName.CPedVariationInfo);
+            var vVariationInfo = MetaTypes.GetTypedData<CPedVariationInfo>(meta, MetaName.CPedVariationInfo);
             VariationInfo = new MCPedVariationInfo();
-            VariationInfo.Load(Meta, vVariationInfo);
+            VariationInfo.Load(meta, vVariationInfo);
 
-            Strings = MetaTypes.GetStrings(Meta);
+            Strings = MetaTypes.GetStrings(meta);
             if (Strings != null)
             {
                 foreach (string str in Strings)
@@ -77,12 +77,12 @@ namespace CodeWalker.GameFiles
                 }
             }
         }
-        private void LoadPso()
+        private void LoadPso(PsoFile pso)
         {
 
-            var vVariationInfo = PsoTypes.GetRootItem<CPedVariationInfo>(Pso);
+            var vVariationInfo = PsoTypes.GetRootItem<CPedVariationInfo>(pso);
             VariationInfo = new MCPedVariationInfo();
-            VariationInfo.Load(Pso, vVariationInfo);
+            VariationInfo.Load(pso, vVariationInfo);
 
         }
 
@@ -101,7 +101,7 @@ namespace CodeWalker.GameFiles
             {
                 Pso = new PsoFile();
                 Pso.Load(ms);
-                LoadPso();
+                LoadPso(Pso);
             }
             else
             {

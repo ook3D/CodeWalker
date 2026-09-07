@@ -24,7 +24,7 @@ namespace CodeWalker
     {
         public Form Form { get { return this; } } //for DXForm/DXManager use
 
-        public Renderer Renderer = null;
+        public readonly Renderer Renderer;
         public Lock RenderSyncRoot { get { return Renderer.RenderSyncRoot; } }
 
         volatile bool formopen = false;
@@ -78,7 +78,7 @@ namespace CodeWalker
         Ped SelectedPed = new();
 
 
-        ComboBox[] ComponentComboBoxes = null;
+        ComboBox[] ComponentComboBoxes = [];
         public class ComponentComboItem
         {
             public MCPVDrawblData DrawableData { get; set; }
@@ -108,7 +108,7 @@ namespace CodeWalker
             {
                 get
                 {
-                    return DrawableData?.GetTextureName(TextureIndex);
+                    return DrawableData?.GetTextureName(TextureIndex) ?? string.Empty;
                 }
             }
         }
@@ -174,7 +174,7 @@ namespace CodeWalker
 
 
             camera.FollowEntity = camEntity;
-            camera.FollowEntity.Position = Vector3.Zero;// prevworldpos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = Vector3.Zero;// prevworldpos;
             camera.FollowEntity.Orientation = Quaternion.LookAtLH(Vector3.Zero, Vector3.Up, Vector3.ForwardLH);
             camera.TargetDistance = 2.0f;
             camera.CurrentDistance = 2.0f;
@@ -500,7 +500,7 @@ namespace CodeWalker
 
             rad = Math.Max(0.01f, rad*0.1f);
 
-            camera.FollowEntity.Position = pos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = pos;
             camera.TargetDistance = rad * 1.2f;
             camera.CurrentDistance = rad * 1.2f;
 
@@ -514,7 +514,7 @@ namespace CodeWalker
 
 
 
-        private void AddDrawableTreeNode(DrawableBase drawable, string name, bool check)
+        private void AddDrawableTreeNode(DrawableBase drawable, string? name, bool check)
         {
             var tnode = TexturesTreeView.Nodes.Add(name);
             var dnode = ModelsTreeView.Nodes.Add(name);
@@ -795,7 +795,7 @@ namespace CodeWalker
             c.Items.Add("");
             c.Text = string.Empty;
         }
-        private void PopulateCompCombo(ComboBox c, MCPVComponentData compData)
+        private void PopulateCompCombo(ComboBox c, MCPVComponentData? compData)
         {
             if (compData?.DrawblData3 == null) return;
             foreach (var item in compData.DrawblData3)
@@ -821,7 +821,7 @@ namespace CodeWalker
             }
         }
 
-        private void SetComponentDrawable(int index, object comboObj)
+        private void SetComponentDrawable(int index, object? comboObj)
         {
             var comboItem = comboObj as ComponentComboItem;
             var name = comboItem?.DrawableName;
@@ -860,7 +860,7 @@ namespace CodeWalker
             });
         }
 
-        private void PopulateClipComboBox(YcdFile ycd)
+        private void PopulateClipComboBox(YcdFile? ycd)
         {
             SelectedPed.Ycd = ycd;
 
@@ -1172,12 +1172,12 @@ namespace CodeWalker
         {
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //nontypable combobox
             }
 
@@ -1255,12 +1255,12 @@ namespace CodeWalker
 
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //non-typable combobox
             }
 

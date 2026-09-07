@@ -57,7 +57,7 @@ namespace CodeWalker.GameFiles
         public int DrawableArrayFlag { get; set; }  // 0, -1   (DrawableArray flag: 0 when ArrayCount>0, -1 when not)
         public ulong Unknown_50h; // 0x0000000000000000
         public ulong NamePointer { get; set; }
-        public ResourcePointerList64<EnvironmentCloth> Cloths { get; set; }
+        public ResourcePointerList64<EnvironmentCloth> Cloths { get; set; } = new();
         public ulong Unknown_70h; // 0x0000000000000000
         public ulong Unknown_78h; // 0x0000000000000000
         public ulong Unknown_80h; // 0x0000000000000000
@@ -86,28 +86,28 @@ namespace CodeWalker.GameFiles
         public ulong DrawableClothPointer { get; set; }
         public ulong Unknown_100h; // 0x0000000000000000
         public ulong Unknown_108h; // 0x0000000000000000
-        public ResourceSimpleList64<LightAttributes> LightAttributes { get; set; }
+        public ResourceSimpleList64<LightAttributes> LightAttributes { get; set; } = new();
         public ulong VehicleGlassWindowsPointer { get; set; }
         public ulong Unknown_128h; // 0x0000000000000000
 
         // reference data
-        public FragDrawable Drawable { get; set; }
-        public ResourcePointerArray64<FragDrawable> DrawableArray { get; set; }
-        public ResourcePointerArray64<string_r> DrawableArrayNames { get; set; }
-        public string Name { get; set; }
-        public FragBoneTransforms BoneTransforms { get; set; }
-        public ResourcePointerArray64<FragGlassWindow> GlassWindows { get; set; }
-        public FragPhysicsLODGroup PhysicsLODGroup { get; set; }
-        public FragDrawable DrawableCloth { get; set; }
-        public FragVehicleGlassWindows VehicleGlassWindows { get; set; }
+        public FragDrawable? Drawable { get; set; }
+        public ResourcePointerArray64<FragDrawable>? DrawableArray { get; set; }
+        public ResourcePointerArray64<string_r>? DrawableArrayNames { get; set; }
+        public string? Name { get; set; }
+        public FragBoneTransforms? BoneTransforms { get; set; }
+        public ResourcePointerArray64<FragGlassWindow>? GlassWindows { get; set; }
+        public FragPhysicsLODGroup? PhysicsLODGroup { get; set; }
+        public FragDrawable? DrawableCloth { get; set; }
+        public FragVehicleGlassWindows? VehicleGlassWindows { get; set; }
 
 
-        private string_r NameBlock = null; //only used for saving
+        private string_r? NameBlock = null; //only used for saving
 
-        public YftFile Yft { get; set; }
+        public YftFile? Yft { get; set; }
 
 #if DEBUG
-        public ResourceAnalyzer Analyzer { get; set; }
+        public ResourceAnalyzer? Analyzer { get; set; }
 #endif
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -126,7 +126,7 @@ namespace CodeWalker.GameFiles
             this.DrawableArrayFlag = reader.ReadInt32();
             this.Unknown_50h = reader.ReadUInt64();
             this.NamePointer = reader.ReadUInt64();
-            this.Cloths = reader.ReadBlock<ResourcePointerList64<EnvironmentCloth>>();
+            this.Cloths = reader.ReadRequiredBlock<ResourcePointerList64<EnvironmentCloth>>();
             this.Unknown_70h = reader.ReadUInt64();
             this.Unknown_78h = reader.ReadUInt64();
             this.Unknown_80h = reader.ReadUInt64();
@@ -155,7 +155,7 @@ namespace CodeWalker.GameFiles
             this.DrawableClothPointer = reader.ReadUInt64();
             this.Unknown_100h = reader.ReadUInt64();
             this.Unknown_108h = reader.ReadUInt64();
-            this.LightAttributes = reader.ReadBlock<ResourceSimpleList64<LightAttributes>>();
+            this.LightAttributes = reader.ReadRequiredBlock<ResourceSimpleList64<LightAttributes>>();
             this.VehicleGlassWindowsPointer = reader.ReadUInt64();
             this.Unknown_128h = reader.ReadUInt64();
 
@@ -390,15 +390,15 @@ namespace CodeWalker.GameFiles
             {
                 FragDrawable.WriteXmlNode(Drawable, sb, indent, ddsfolder, "Drawable");
             }
-            if ((DrawableArray?.data_items?.Length ?? 0) > 0)
+            if (DrawableArray?.data_items is { Length: > 0 })
             {
                 var danames = DrawableArrayNames?.data_items;
                 YftXml.OpenTag(sb, indent, "DrawableArray");
                 for (int i = 0; i < DrawableArray.data_items.Length; i++)
                 {
                     var d = DrawableArray.data_items[i];
-                    var name = (i < (danames?.Length ?? 0)) ? danames[i] : null;
-                    if (d.Name != name.Value)
+                    var name = (danames != null && i < danames.Length) ? danames[i] : null;
+                    if (name != null && d.Name != name.Value)
                     {
                         d.Name = name.Value;
                     }
@@ -430,7 +430,7 @@ namespace CodeWalker.GameFiles
             {
                 YftXml.WriteItemArray(sb, LightAttributes.data_items, indent, "Lights");
             }
-            if ((Cloths?.data_items?.Length ?? 0) > 0)
+            if (Cloths.data_items is { Length: > 0 })
             {
                 YftXml.OpenTag(sb, indent, "Cloths");
                 var cind = indent + 1;
@@ -474,12 +474,13 @@ namespace CodeWalker.GameFiles
             {
                 var dlist = new List<FragDrawable>();
                 var nlist = new List<string_r>();
-                var dnodes = danode.SelectNodes("Item");
+                var dnodes = danode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
                 foreach (XmlNode dn in dnodes)
                 {
                     var d = FragDrawable.ReadXmlNode(dn, ddsfolder);
+                    if (d == null) continue;
                     dlist.Add(d);
-                    nlist.Add((string_r)d?.Name);
+                    nlist.Add((string_r)(d.Name ?? string.Empty));
                 }
                 DrawableArray = new ResourcePointerArray64<FragDrawable>();
                 DrawableArray.data_items = dlist.ToArray();
@@ -508,7 +509,7 @@ namespace CodeWalker.GameFiles
             if ((gwinds?.Length ?? 0) > 0)
             {
                 GlassWindows = new ResourcePointerArray64<FragGlassWindow>();
-                GlassWindows.data_items = gwinds;
+                GlassWindows.data_items = gwinds ?? [];
             }
             LightAttributes = new ResourceSimpleList64<LightAttributes>();
             LightAttributes.data_items = XmlMeta.ReadItemArray<LightAttributes>(node, "Lights");
@@ -520,8 +521,8 @@ namespace CodeWalker.GameFiles
             var cnode = node.SelectSingleNode("Cloths");
             if (cnode != null)
             {
-                var inodes = cnode.SelectNodes("Item");
-                if (inodes?.Count > 0)
+                var inodes = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (inodes.Length > 0)
                 {
                     var vlist = new List<EnvironmentCloth>();
                     foreach (XmlNode inode in inodes)
@@ -559,7 +560,8 @@ namespace CodeWalker.GameFiles
             f.WriteXml(sb, indent + 1, ddsfolder);
             YftXml.CloseTag(sb, indent, name);
         }
-        public static FragType ReadXmlNode(XmlNode? node, string ddsfolder)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(node))]
+        public static FragType? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var f = new FragType();
@@ -577,7 +579,7 @@ namespace CodeWalker.GameFiles
             var pdrwbl = Drawable ?? DrawableCloth;
             var pskel = pdrwbl?.Skeleton;
 
-            void assigndr(FragDrawable dr, BoundComposite pbcmp, int i)
+            void assigndr(FragDrawable? dr, BoundComposite? pbcmp, int i)
             {
                 if (dr == null) return;
                 if (pdrwbl == null) return;
@@ -601,7 +603,7 @@ namespace CodeWalker.GameFiles
                 //else
                 //{ }//no hit
             };
-            void assign(FragPhysicsLOD lod)
+            void assign(FragPhysicsLOD? lod)
             {
                 var children = lod?.Children?.data_items;
                 var pbcmp1 = (lod?.Archetype1?.Bound ?? pdrwbl?.Bound) as BoundComposite;
@@ -645,7 +647,7 @@ namespace CodeWalker.GameFiles
             var pdrwbl = Drawable ?? DrawableCloth;
             var pskel = pdrwbl?.Skeleton;
 
-            void assignskb(FragDrawable dr, BoundComposite pbcmp, int i)
+            void assignskb(FragDrawable? dr, BoundComposite? pbcmp, int i)
             {
                 if (dr == null) return;
                 if (pdrwbl == null) return;
@@ -653,7 +655,7 @@ namespace CodeWalker.GameFiles
                 dr.Skeleton = pskel;
                 dr.Bound = ((pbch != null) && (i < pbch.Length)) ? pbch[i] : null;
             };
-            void assign(FragPhysicsLOD lod)
+            void assign(FragPhysicsLOD? lod)
             {
                 if (lod == null) return;
                 lod.Bound = lod.Archetype1?.Bound;
@@ -678,7 +680,7 @@ namespace CodeWalker.GameFiles
         public void AssignGlassWindowsGroups()
         {
 
-            void assign(FragPhysicsLOD lod)
+            void assign(FragPhysicsLOD? lod)
             {
                 if (lod?.Groups?.data_items == null) return;
                 foreach (var grp in lod.Groups.data_items)
@@ -740,7 +742,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            void ensure(FragPhysicsLOD lod)
+            void ensure(FragPhysicsLOD? lod)
             {
                 var children = lod?.Children?.data_items;
                 if (children == null) return;
@@ -815,19 +817,19 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_148h; // 0x0000000000000000
 
         // reference data
-        public Bounds Bound { get; set; }
-        public ulong[] FragMatricesInds { get; set; }
-        public Matrix4F_s[] FragMatrices { get; set; }
-        public string Name { get; set; }
+        public Bounds? Bound { get; set; }
+        public ulong[] FragMatricesInds { get; set; } = [];
+        public Matrix4F_s[] FragMatrices { get; set; } = [];
+        public string? Name { get; set; }
 
-        public FragType OwnerFragment { get; set; } //for handy use
-        public EnvironmentCloth OwnerCloth { get; set; }
-        public FragPhysTypeChild OwnerFragmentPhys { get; set; }
-        public FragDrawable OwnerDrawable { get; set; } //if inheriting shaders, skeletons and bounds
+        public FragType? OwnerFragment { get; set; } //for handy use
+        public EnvironmentCloth? OwnerCloth { get; set; }
+        public FragPhysTypeChild? OwnerFragmentPhys { get; set; }
+        public FragDrawable? OwnerDrawable { get; set; } //if inheriting shaders, skeletons and bounds
 
-        private ResourceSystemStructBlock<ulong> FragMatricesIndsBlock = null; //used for saving only
-        private ResourceSystemStructBlock<Matrix4F_s> FragMatricesBlock = null;
-        private string_r NameBlock = null;
+        private ResourceSystemStructBlock<ulong>? FragMatricesIndsBlock = null; //used for saving only
+        private ResourceSystemStructBlock<Matrix4F_s>? FragMatricesBlock = null;
+        private string_r? NameBlock = null;
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -855,8 +857,8 @@ namespace CodeWalker.GameFiles
 
             // read reference data
             Bound = reader.ReadBlockAt<Bounds>(BoundPointer);
-            FragMatricesInds = reader.ReadUlongsAt(FragMatricesIndsPointer, FragMatricesIndsCount);
-            FragMatrices = reader.ReadStructsAt<Matrix4F_s>(FragMatricesPointer, FragMatricesCapacity);
+            FragMatricesInds = reader.ReadUlongsAt(FragMatricesIndsPointer, FragMatricesIndsCount) ?? [];
+            FragMatrices = reader.ReadStructsAt<Matrix4F_s>(FragMatricesPointer, FragMatricesCapacity) ?? [];
             Name = reader.ReadStringAt(NamePointer);
 
             if (Bound != null)
@@ -1010,7 +1012,7 @@ namespace CodeWalker.GameFiles
                 var mats = new List<Matrix4F_s>();
                 var matinds = new List<ulong>();
                 var cap = Xml.GetIntAttribute(msnode, "capacity");
-                var inodes = msnode.SelectNodes("Item");
+                var inodes = msnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
                 foreach (XmlNode inode in inodes)
                 {
                     var id = Xml.GetULongAttribute(inode, "id");
@@ -1045,7 +1047,8 @@ namespace CodeWalker.GameFiles
             d.WriteXml(sb, indent + 1, ddsfolder);
             YftXml.CloseTag(sb, indent, name);
         }
-        public static FragDrawable ReadXmlNode(XmlNode? node, string ddsfolder)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(node))]
+        public static FragDrawable? ReadXmlNode(XmlNode? node, string ddsfolder)
         {
             if (node == null) return null;
             var d = new FragDrawable();
@@ -1091,7 +1094,7 @@ namespace CodeWalker.GameFiles
         public ushort Unknown_12h { get; set; } // 0, 1
         public uint Unknown_14h; // 0x00000000
         public ulong Unknown_18h; // 0x0000000000000000
-        public Matrix3_s[] Items { get; set; }
+        public Matrix3_s[] Items { get; set; } = [];
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1154,7 +1157,7 @@ namespace CodeWalker.GameFiles
         public void ReadXml(XmlNode node)
         {
             Unknown_12h = (ushort)Xml.GetUIntAttribute(node, "unk");
-            var inodes = node.SelectNodes("Item");
+            var inodes = node.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
             if (inodes != null)
             {
                 var mats = new List<Matrix3_s>();
@@ -1164,7 +1167,7 @@ namespace CodeWalker.GameFiles
                     var mat = new Matrix3_s(arr);
                     mats.Add(mat);
                 }
-                Items = (mats.Count > 0) ? mats.ToArray() : null;
+                Items = mats.ToArray();
                 ItemCount1 = ItemCount2 = (byte)mats.Count;
             }
 
@@ -1188,8 +1191,8 @@ namespace CodeWalker.GameFiles
         public float UnkFloat14 { get; set; } //offset?
         public float UnkFloat15 { get; set; } //scale? sum of this and above often gives integers eg 1, 6
         public float UnkFloat16 { get; set; } //(as above, Vector2)
-        public VertexDeclaration VertexDeclaration { get; set; } //VertexTypePNCTT
-        public VertexDeclarationG9 VertexDeclarationG9 { get; set; }
+        public VertexDeclaration? VertexDeclaration { get; set; } //VertexTypePNCTT
+        public VertexDeclarationG9? VertexDeclarationG9 { get; set; }
         public float Thickness { get; set; } //probably
         public ushort UnkUshort1 = 2; //2
         public ushort Flags { get; set; }//512, 768, 1280 etc ... flags
@@ -1200,8 +1203,8 @@ namespace CodeWalker.GameFiles
 
         public byte FlagsLo { get { return (byte)((Flags >> 0) & 0xFF); } }
         public byte FlagsHi { get { return (byte)((Flags >> 8) & 0xFF); } }
-        public FragPhysTypeGroup Group { get; set; }
-        public FragPhysicsLOD GroupLOD { get; set; }
+        public FragPhysTypeGroup? Group { get; set; }
+        public FragPhysicsLOD? GroupLOD { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1302,7 +1305,7 @@ namespace CodeWalker.GameFiles
         {
             Flags = (ushort)Xml.GetChildUIntAttribute(node, "Flags", "value");
             var proj = Xml.GetChildRawFloatArray(node, "Projection");
-            if ((proj?.Length ?? 0) == 9)
+            if (proj is { Length: 9 })
             {
                 ProjectionRow1 = new Vector3(proj[0], proj[1], proj[2]);
                 ProjectionRow2 = new Vector3(proj[3], proj[4], proj[5]);
@@ -1367,10 +1370,10 @@ namespace CodeWalker.GameFiles
             public float CracksTextureTiling { get; set; } // UV multiplier for the "shattered" cracks texture that is applied when the window is broken
             public uint UnkUint4; // 0
             public uint UnkUint5; // 0
-            public ushort[] ShatterMapRowOffsets { get; set; }//byte offsets for shatter map array
-            public WindowShatterMapRow[] ShatterMap { get; set; }
+            public ushort[] ShatterMapRowOffsets { get; set; } = [];//byte offsets for shatter map array
+            public WindowShatterMapRow[] ShatterMap { get; set; } = [];
 
-            public byte[] Padding { get; set; }//should just be leftover padding, TODO: getrid of this
+            public byte[] Padding { get; set; } = [];//should just be leftover padding, TODO: getrid of this
 
             public uint ItemDataLength
             {
@@ -1664,10 +1667,10 @@ namespace CodeWalker.GameFiles
         {
             public byte Start1 { get; set; }
             public byte End1 { get; set; }
-            public byte[] Data1 { get; set; }
+            public byte[]? Data1 { get; set; } = [];
             public byte Start2 { get; set; }
             public byte End2 { get; set; }
-            public byte[] Data2 { get; set; }
+            public byte[]? Data2 { get; set; } = [];
 
             public uint DataLength
             {
@@ -1898,9 +1901,9 @@ namespace CodeWalker.GameFiles
         public ushort Unknown_4h { get; set; } = 112;// = length of item headers
         public ushort ItemCount { get; set; }
         public uint TotalLength { get; set; }
-        public WindowOffset[] WindowOffsets { get; set; }
+        public WindowOffset[] WindowOffsets { get; set; } = [];
         public uint UnkUint0 { get; set; } = 0;
-        public Window[] Windows { get; set; }
+        public Window[] Windows { get; set; } = [];
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -2078,9 +2081,9 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_28h; // 0x0000000000000000
 
         // reference data
-        public FragPhysicsLOD PhysicsLOD1 { get; set; }
-        public FragPhysicsLOD PhysicsLOD2 { get; set; }
-        public FragPhysicsLOD PhysicsLOD3 { get; set; }
+        public FragPhysicsLOD? PhysicsLOD1 { get; set; }
+        public FragPhysicsLOD? PhysicsLOD2 { get; set; }
+        public FragPhysicsLOD? PhysicsLOD3 { get; set; }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -2232,26 +2235,26 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_128h; // 0x0000000000000000
 
         // reference data
-        public FragPhysArticulatedBodyType ArticulatedBodyType { get; set; }
-        public float[] ChildrenUnkFloats { get; set; }
-        public FragPhysGroupNamesBlock GroupNames { get; set; }
-        public ResourcePointerArray64<FragPhysTypeGroup> Groups { get; set; }
-        public ResourcePointerArray64<FragPhysTypeChild> Children { get; set; }
-        public FragPhysArchetype Archetype1 { get; set; }
-        public FragPhysArchetype Archetype2 { get; set; }
-        public Bounds Bound { get; set; }
-        public Vector4[] ChildrenInertiaTensors { get; set; }
-        public Vector4[] ChildrenUnkVecs { get; set; }
-        public FragPhysTransforms FragTransforms { get; set; }
-        public byte[] UnknownData1 { get; set; }
-        public byte[] UnknownData2 { get; set; }
+        public FragPhysArticulatedBodyType? ArticulatedBodyType { get; set; }
+        public float[] ChildrenUnkFloats { get; set; } = [];
+        public FragPhysGroupNamesBlock? GroupNames { get; set; }
+        public ResourcePointerArray64<FragPhysTypeGroup>? Groups { get; set; }
+        public ResourcePointerArray64<FragPhysTypeChild>? Children { get; set; }
+        public FragPhysArchetype? Archetype1 { get; set; }
+        public FragPhysArchetype? Archetype2 { get; set; }
+        public Bounds? Bound { get; set; }
+        public Vector4[] ChildrenInertiaTensors { get; set; } = [];
+        public Vector4[] ChildrenUnkVecs { get; set; } = [];
+        public FragPhysTransforms? FragTransforms { get; set; }
+        public byte[] UnknownData1 { get; set; } = [];
+        public byte[] UnknownData2 { get; set; } = [];
 
 
-        private ResourceSystemStructBlock<float> ChildrenUnkFloatsBlock = null; //used only for saving
-        private ResourceSystemStructBlock<Vector4> ChildrenInertiaTensorsBlock = null;
-        private ResourceSystemStructBlock<Vector4> ChildrenUnkVecsBlock = null;
-        private ResourceSystemStructBlock<byte> UnknownData1Block = null;
-        private ResourceSystemStructBlock<byte> UnknownData2Block = null;
+        private ResourceSystemStructBlock<float>? ChildrenUnkFloatsBlock = null; //used only for saving
+        private ResourceSystemStructBlock<Vector4>? ChildrenInertiaTensorsBlock = null;
+        private ResourceSystemStructBlock<Vector4>? ChildrenUnkVecsBlock = null;
+        private ResourceSystemStructBlock<byte>? UnknownData1Block = null;
+        private ResourceSystemStructBlock<byte>? UnknownData2Block = null;
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -2308,18 +2311,18 @@ namespace CodeWalker.GameFiles
 
             // read reference data
             this.ArticulatedBodyType = reader.ReadBlockAt<FragPhysArticulatedBodyType>(this.ArticulatedBodyTypePointer);
-            this.ChildrenUnkFloats = reader.ReadFloatsAt(this.ChildrenUnkFloatsPointer, this.ChildrenCount);
+            this.ChildrenUnkFloats = reader.ReadFloatsAt(this.ChildrenUnkFloatsPointer, this.ChildrenCount) ?? [];
             this.Groups = reader.ReadBlockAt<ResourcePointerArray64<FragPhysTypeGroup>>(this.GroupsPointer, this.GroupsCount);
-            this.GroupNames = reader.ReadBlockAt<FragPhysGroupNamesBlock>(this.GroupNamesPointer, this.GroupsCount, this.Groups?.data_items);
+            this.GroupNames = reader.ReadBlockAt<FragPhysGroupNamesBlock>(this.GroupNamesPointer, this.GroupsCount, this.Groups?.data_items ?? []);
             this.Children = reader.ReadBlockAt<ResourcePointerArray64<FragPhysTypeChild>>(this.ChildrenPointer, this.ChildrenCount);
             this.Archetype1 = reader.ReadBlockAt<FragPhysArchetype>(this.Archetype1Pointer);
             this.Archetype2 = reader.ReadBlockAt<FragPhysArchetype>(this.Archetype2Pointer);
             this.Bound = reader.ReadBlockAt<Bounds>(this.BoundPointer);
-            this.ChildrenInertiaTensors = reader.ReadStructsAt<Vector4>(this.ChildrenInertiaTensorsPointer, this.ChildrenCount);
-            this.ChildrenUnkVecs = reader.ReadStructsAt<Vector4>(this.ChildrenUnkVecsPointer, this.ChildrenCount);
+            this.ChildrenInertiaTensors = reader.ReadStructsAt<Vector4>(this.ChildrenInertiaTensorsPointer, this.ChildrenCount) ?? [];
+            this.ChildrenUnkVecs = reader.ReadStructsAt<Vector4>(this.ChildrenUnkVecsPointer, this.ChildrenCount) ?? [];
             this.FragTransforms = reader.ReadBlockAt<FragPhysTransforms>(this.FragTransformsPointer);
-            this.UnknownData1 = reader.ReadBytesAt(this.UnknownData1Pointer, this.UnknownData1Count);
-            this.UnknownData2 = reader.ReadBytesAt(this.UnknownData2Pointer, this.UnknownData2Count);
+            this.UnknownData1 = reader.ReadBytesAt(this.UnknownData1Pointer, this.UnknownData1Count) ?? [];
+            this.UnknownData2 = reader.ReadBytesAt(this.UnknownData2Pointer, this.UnknownData2Count) ?? [];
 
 
 
@@ -2560,7 +2563,7 @@ namespace CodeWalker.GameFiles
                 YftXml.OpenTag(sb, indent, "Children");
                 var cind = indent + 1;
                 var cind2 = cind + 1;
-                foreach (var child in Children?.data_items)
+                foreach (var child in Children?.data_items ?? [])
                 {
                     if (child != null)
                     {
@@ -2632,31 +2635,30 @@ namespace CodeWalker.GameFiles
             if ((grps?.Length ?? 0) > 0)
             {
                 Groups = new ResourcePointerArray64<FragPhysTypeGroup>();
-                Groups.data_items = grps;
+                Groups.data_items = grps ?? [];
             }
             var chnode = node.SelectSingleNode("Children");
             if (chnode != null)
             {
-                var clist = new List<FragPhysTypeChild>();
-                var cnodes = chnode.SelectNodes("Item");
-                if ((cnodes?.Count ?? 0) > 0)
+                var childItems = Array.Empty<FragPhysTypeChild>();
+                var cnodes = chnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (cnodes.Length > 0)
                 {
-                    foreach (XmlNode cnode in cnodes)
+                    childItems = new FragPhysTypeChild[cnodes.Length];
+                    for (int childIndex = 0; childIndex < cnodes.Length; childIndex++)
                     {
+                        var cnode = cnodes[childIndex];
                         if (cnode.HasChildNodes)
                         {
                             var c = new FragPhysTypeChild();
                             c.ReadXml(cnode, ddsfolder);
-                            clist.Add(c);
+                            childItems[childIndex] = c;
                         }
-                        else
-                        {
-                            clist.Add(null);
-                        }
+
                     }
                 }
                 Children = new ResourcePointerArray64<FragPhysTypeChild>();
-                Children.data_items = clist.ToArray();
+                Children.data_items = childItems;
             }
             //var bnode = node.SelectSingleNode("Bounds");
             //if (bnode != null)
@@ -2665,8 +2667,8 @@ namespace CodeWalker.GameFiles
             //}
             var ud1 = Xml.GetChildRawByteArray(node, "UnknownData1", 10);
             var ud2 = Xml.GetChildRawByteArray(node, "UnknownData2", 10);
-            UnknownData1 = ((ud1?.Length ?? 0) > 0) ? ud1 : null;
-            UnknownData2 = ((ud2?.Length ?? 0) > 0) ? ud2 : null;
+            UnknownData1 = ud1 ?? [];
+            UnknownData2 = ud2 ?? [];
 
             BuildChildrenData();
             BuildGroupsData();
@@ -2735,10 +2737,11 @@ namespace CodeWalker.GameFiles
                         }
                     }
                     childfound = false;
-                    var childrencount = Children?.data_items?.Length ?? 0;
+                    var children = Children?.data_items ?? [];
+                    var childrencount = children.Length;
                     for (int ii = 0; ii < childrencount; ii++)
                     {
-                        var child = Children.data_items[ii];
+                        var child = children[ii];
                         if (child == null) continue;
                         if (child.GroupIndex == i)
                         {
@@ -2836,7 +2839,7 @@ namespace CodeWalker.GameFiles
         public uint VFT { get; set; } = 1080211704;
         public uint Unknown_04h = 1; // 0x00000001
         public ulong Unknown_08h; // 0x0000000000000000
-        public uint[] ItemIndices { get; set; } // array of 22 uints
+        public uint[] ItemIndices { get; set; } = []; // array of 22 uints
         public uint Unknown_68h; // 0x00000000
         public float Unknown_6Ch = 1.0f; // 1.0f
         public ulong Unknown_70h; // 0x0000000000000000
@@ -2844,15 +2847,15 @@ namespace CodeWalker.GameFiles
         public ulong UnknownVectorsPointer { get; set; }
         public byte UnknownVectorsCount { get; set; }
         public byte JointsCount { get; set; }
-        public byte[] ItemFlags { get; set; } //array of 22 bytes, could be joint types?
+        public byte[] ItemFlags { get; set; } = []; //array of 22 bytes, could be joint types?
         public ulong Unknown_A0h; // 0x0000000000000000
         public ulong Unknown_A8h; // 0x0000000000000000
 
         // reference data
-        public ResourcePointerArray64<FragPhysJointType> Joints { get; set; }
-        public Vector4[] UnknownVectors { get; set; }
+        public ResourcePointerArray64<FragPhysJointType>? Joints { get; set; }
+        public Vector4[] UnknownVectors { get; set; } = [];
 
-        private ResourceSystemStructBlock<Vector4> UnknownVectorsBlock = null;//only used for saving
+        private ResourceSystemStructBlock<Vector4>? UnknownVectorsBlock = null;//only used for saving
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -2875,7 +2878,7 @@ namespace CodeWalker.GameFiles
 
             // read reference data
             this.Joints = reader.ReadBlockAt<ResourcePointerArray64<FragPhysJointType>>(this.JointsPointer, this.JointsCount);
-            this.UnknownVectors = reader.ReadStructsAt<Vector4>(this.UnknownVectorsPointer, this.UnknownVectorsCount);
+            this.UnknownVectors = reader.ReadStructsAt<Vector4>(this.UnknownVectorsPointer, this.UnknownVectorsCount) ?? [];
 
 
             ////testing!!
@@ -2961,21 +2964,22 @@ namespace CodeWalker.GameFiles
             var ii = Xml.GetChildRawUintArray(node, "ItemIndices");
             var fi = Xml.GetChildRawByteArray(node, "ItemFlags", 10);
             var uv = Xml.GetChildRawVector4Array(node, "UnknownVectors");
-            ItemIndices = ((ii?.Length ?? 0) == 22) ? ii : new uint[22];
-            ItemFlags = ((fi?.Length ?? 0) == 22) ? fi : new byte[22];
-            UnknownVectors = ((uv?.Length ?? 0) > 0) ? uv : null;
+            ItemIndices = (ii is { Length: 22 }) ? ii : new uint[22];
+            ItemFlags = (fi is { Length: 22 }) ? fi : new byte[22];
+            UnknownVectors = uv ?? [];
             var jsnode = node.SelectSingleNode("Joints");
             if (jsnode != null)
             {
                 var jlist = new List<FragPhysJointType>();
-                var jnodes = jsnode.SelectNodes("Item");
+                var jnodes = jsnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
                 foreach (XmlNode jnode in jnodes)
                 {
                     var type = Xml.GetEnumValue<FragJointType>(Xml.GetStringAttribute(jnode, "type"));
                     var j = FragPhysJointType.Create(type);
+                    if (j == null) continue;
                     j.Type = type;
-                    j?.ReadXml(jnode);
-                    jlist.Add(j);
+                    j.ReadXml(jnode);
+                    if (j != null) jlist.Add(j);
                 }
                 Joints = new ResourcePointerArray64<FragPhysJointType>();
                 Joints.data_items = jlist.ToArray();
@@ -3071,7 +3075,7 @@ namespace CodeWalker.GameFiles
             Unknown_10h = Xml.GetChildFloatAttribute(node, "Unknown10", "value");
         }
 
-        public static FragPhysJointType Create(FragJointType type)
+        public static FragPhysJointType? Create(FragJointType type)
         {
             switch (type)
             {
@@ -3085,7 +3089,7 @@ namespace CodeWalker.GameFiles
             reader.Position += 21;
             var type = (FragJointType)reader.ReadByte();
             reader.Position -= 22;
-            return Create(type);
+            return Create(type) ?? throw new System.IO.InvalidDataException($"Unsupported fragment joint type: {type}.");
         }
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class FragPhysJoint1DofType : FragPhysJointType
@@ -3327,7 +3331,7 @@ namespace CodeWalker.GameFiles
         public uint MatricesCount { get; set; }
         public uint Unknown_14h; // 0x00000000
         public ulong Unknown_18h; // 0x0000000000000000
-        public Matrix[] Matrices { get; set; }
+        public Matrix[] Matrices { get; set; } = [];
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -3338,7 +3342,7 @@ namespace CodeWalker.GameFiles
             this.MatricesCount = reader.ReadUInt32();
             this.Unknown_14h = reader.ReadUInt32();
             this.Unknown_18h = reader.ReadUInt64();
-            this.Matrices = reader.ReadStructsAt<Matrix>((ulong)reader.Position, MatricesCount);
+            this.Matrices = reader.ReadStructsAt<Matrix>((ulong)reader.Position, MatricesCount) ?? [];
 
             //if (Unknown_04h != 1)
             //{ }//no hit
@@ -3378,13 +3382,13 @@ namespace CodeWalker.GameFiles
         {
             var mats = new List<Matrix>();
             var matinds = new List<ulong>();
-            var inodes = node.SelectNodes("Item");
+            var inodes = node.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
             foreach (XmlNode inode in inodes)
             {
                 var mat = Xml.GetMatrix(inode);
                 mats.Add(mat);
             }
-            Matrices = (mats.Count > 0) ? mats.ToArray() : null;
+            Matrices = mats.ToArray();
         }
     }
 
@@ -3432,13 +3436,13 @@ namespace CodeWalker.GameFiles
         public uint Unknown_DCh = 0x7f800001; // 0x7f800001
 
         // reference data
-        public string Name { get; set; }
-        public Bounds Bound { get; set; }
+        public string? Name { get; set; }
+        public Bounds? Bound { get; set; }
 
 
-        private string_r NameBlock = null;//used only when saving
+        private string_r? NameBlock = null;//used only when saving
 
-        public FragPhysicsLOD Owner { get; set; } //required for correct bounds BVH generation
+        public FragPhysicsLOD? Owner { get; set; } //required for correct bounds BVH generation
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -3709,19 +3713,19 @@ namespace CodeWalker.GameFiles
         public ulong Unknown_F8h; // 0x0000000000000000
 
         // reference data
-        public FragDrawable Drawable1 { get; set; }
-        public FragDrawable Drawable2 { get; set; }
-        public FragPhysEvtSet EvtSet { get; set; }
+        public FragDrawable? Drawable1 { get; set; }
+        public FragDrawable? Drawable2 { get; set; }
+        public FragPhysEvtSet? EvtSet { get; set; }
 
 
         public float UnkFloatFromParent { get; set; }//is this mass..?
         public Vector4 UnkVecFromParent { get; set; }
         public Vector4 InertiaTensorFromParent { get; set; }//is this really an inertia tensor?
 
-        public FragPhysicsLOD OwnerFragPhysLod { get; set; }
+        public FragPhysicsLOD? OwnerFragPhysLod { get; set; }
         public int OwnerFragPhysIndex { get; set; }
-        public FragPhysTypeGroup Group { get; set; }
-        public string GroupName { get { return Group?.ToString(); } }
+        public FragPhysTypeGroup? Group { get; set; }
+        public string? GroupName { get { return Group?.ToString(); } }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -4261,7 +4265,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Name = new FragPhysNameStruct_s(Xml.GetChildInnerText(node, "Name"));
+            Name = new FragPhysNameStruct_s(Xml.GetChildInnerText(node, "Name") ?? string.Empty);
             ParentIndex = (byte)Xml.GetChildUIntAttribute(node, "ParentIndex", "value");
             GlassWindowIndex = (byte)Xml.GetChildUIntAttribute(node, "GlassWindowIndex", "value");
             GlassFlags = (byte)Xml.GetChildUIntAttribute(node, "GlassFlags", "value");
@@ -4308,14 +4312,14 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public ulong[] data_pointers { get; set; }
-        public FragPhysNameStruct_s[] data_items { get; set; }
+        public ulong[] data_pointers { get; set; } = [];
+        public FragPhysNameStruct_s[] data_items { get; set; } = [];
 
         public uint UnkVFT { get; set; } = 1095046985;
         public uint UnkUint1 { get; set; } = 1;
 
 
-        public FragPhysTypeGroup[] Groups;//for writing purposes
+        public FragPhysTypeGroup[]? Groups;//for writing purposes
 
 
 
@@ -4373,7 +4377,7 @@ namespace CodeWalker.GameFiles
 
 
             var gnplist = new List<ulong>();
-            foreach (var grp in Groups)
+            foreach (var grp in Groups ?? [])
             {
                 gnplist.Add((ulong)grp.FilePosition + 128);//manually write group names pointers as offsets to the groups
             }

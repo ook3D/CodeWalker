@@ -10,7 +10,7 @@ namespace CodeWalker.GameFiles;
 
 public static class MetaNames
 {
-    public static bool TryGetString(uint h, out string str)
+    public static bool TryGetString(uint h, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? str)
     {
         if (Enum.IsDefined(typeof(MetaName), h))
         {

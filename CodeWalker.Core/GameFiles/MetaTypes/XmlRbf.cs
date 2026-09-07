@@ -21,19 +21,22 @@ namespace CodeWalker.GameFiles
             using (var reader = new XmlNodeReader(doc))
             {
                 reader.MoveToContent();
-                rbf.current = (RbfStructure) Traverse(XDocument.Load(reader).Root);
+                var root = XDocument.Load(reader).Root
+                    ?? throw new XmlException("The RBF document must have a root element.");
+                rbf.current = Traverse(root) as RbfStructure
+                    ?? throw new XmlException("The RBF root must be a structure.");
             }
 
             return rbf;
         }
 
-        private static IRbfType Traverse(XNode node)
+        private static IRbfType? Traverse(XNode node)
         {
             if (node is XElement element)
             {
-                if (element.Attribute("value") != null)
+                if (element.Attribute("value") is { } valueAttribute)
                 {
-                    var val = element.Attribute("value").Value;
+                    var val = valueAttribute.Value;
                     if (!string.IsNullOrEmpty(val))
                     {
                         var rval = CreateValueNode(element.Name.LocalName, val);
@@ -43,11 +46,11 @@ namespace CodeWalker.GameFiles
                         }
                     }
                 }
-                else if ((element.Attributes().Count() == 3) && (element.Attribute("x") != null) && (element.Attribute("y") != null) && (element.Attribute("z") != null))
+                else if ((element.Attributes().Count() == 3) && (element.Attribute("x") is { } xAttribute) && (element.Attribute("y") is { } yAttribute) && (element.Attribute("z") is { } zAttribute))
                 {
-                    FloatUtil.TryParse(element.Attribute("x").Value, out float x);
-                    FloatUtil.TryParse(element.Attribute("y").Value, out float y);
-                    FloatUtil.TryParse(element.Attribute("z").Value, out float z);
+                    FloatUtil.TryParse(xAttribute.Value, out float x);
+                    FloatUtil.TryParse(yAttribute.Value, out float y);
+                    FloatUtil.TryParse(zAttribute.Value, out float z);
                     return new RbfFloat3()
                     {
                         Name = element.Name.LocalName,
@@ -173,7 +176,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        private static byte[] GetByteArray(string? text)
+        private static byte[]? GetByteArray(string? text)
         {
             if (string.IsNullOrEmpty(text)) return null;
             var data = new List<byte>();

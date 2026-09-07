@@ -21,7 +21,7 @@ namespace CodeWalker.World
         private GameFileCache GameFileCache;
         private AudioDatabase AudioDatabase;
 
-        private Cutscene Cutscene = null;
+        private Cutscene? Cutscene = null;
 
         private bool AnimateCamera = true;
         private bool EnableSubtitles = true;
@@ -32,7 +32,7 @@ namespace CodeWalker.World
 
         class CutsceneDropdownItem
         {
-            public RpfEntry RpfEntry { get; set; }
+            public required RpfEntry RpfEntry { get; set; }
 
             public override string ToString()
             {
@@ -102,7 +102,7 @@ namespace CodeWalker.World
 
 
 
-        private void SelectCutscene(CutsceneDropdownItem dditem)
+        private void SelectCutscene(CutsceneDropdownItem? dditem)
         {
             Cursor = Cursors.WaitCursor;
             Task.Run(() =>
@@ -122,10 +122,9 @@ namespace CodeWalker.World
                     {
 
                         cutFile = new CutFile(entry);
-                        GameFileCache.RpfMan.LoadFile(cutFile, entry);
+                        (GameFileCache.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.")).LoadFile(cutFile, entry);
 
-                        cutscene = new Cutscene();
-                        cutscene.Init(cutFile, GameFileCache, WorldForm, AudioDatabase);
+                        cutscene = new Cutscene(cutFile, GameFileCache, WorldForm, AudioDatabase);
 
                     }
                 }
@@ -134,7 +133,7 @@ namespace CodeWalker.World
 
             });
         }
-        private void CutsceneLoaded(Cutscene cs)
+        private void CutsceneLoaded(Cutscene? cs)
         {
             if (InvokeRequired)
             {
@@ -163,7 +162,7 @@ namespace CodeWalker.World
 
             LoadTreeView(cs);
 
-            TimeTrackBar.Maximum = (int)(cs.Duration * 10.0f);
+            TimeTrackBar.Maximum = (int)((cs?.Duration ?? 0.0f) * 10.0f);
             TimeTrackBar.Value = 0;
             UpdateTimeLabel();
 
@@ -171,13 +170,13 @@ namespace CodeWalker.World
         }
 
 
-        private void LoadTreeView(Cutscene cs)
+        private void LoadTreeView(Cutscene? cs)
         {
             CutsceneTreeView.Nodes.Clear();
 
             var cutFile = cs?.CutFile;
             var cf = cutFile?.CutsceneFile2;
-            if (cf != null)
+            if (cs != null && cutFile != null && cf != null)
             {
                 var csnode = CutsceneTreeView.Nodes.Add(cutFile.FileEntry?.Name);
                 csnode.Tag = cs;
@@ -246,7 +245,7 @@ namespace CodeWalker.World
             StopAudio();
             if (!EnableAudio) return;
             var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            if (Cutscene != null && sp != null)
             {
                 sp.SetVolume(Volume);
                 sp.Play(Cutscene.SoundStartOffset + playTime);
@@ -255,7 +254,7 @@ namespace CodeWalker.World
         private void StopAudio()
         {
             var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            if (Cutscene != null && sp != null)
             {
                 sp.Stop();
             }
@@ -264,7 +263,7 @@ namespace CodeWalker.World
         {
             if (!EnableAudio) return;
             var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            if (Cutscene != null && sp != null)
             {
                 sp.Pause();
             }
@@ -273,7 +272,7 @@ namespace CodeWalker.World
         {
             if (!EnableAudio) return;
             var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            if (Cutscene != null && sp != null)
             {
                 sp.Resume();
             }
@@ -281,7 +280,7 @@ namespace CodeWalker.World
         private void DisposeAudio()
         {
             var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            if (Cutscene != null && sp != null)
             {
                 sp.Stop();
                 sp.DisposeAudio();
@@ -294,6 +293,7 @@ namespace CodeWalker.World
             if (!GameFileCache.IsInited) return;//what to do here?
 
             var rpfman = GameFileCache.RpfMan;
+            if (rpfman == null) return;
             var rpflist = rpfman.AllRpfs; //loadedOnly ? gfc.ActiveMapRpfFiles.Values.ToList() :
 
             var dditems = new List<CutsceneDropdownItem>();
@@ -303,8 +303,7 @@ namespace CodeWalker.World
                 {
                     if (entry.NameLower.EndsWith(".cut"))
                     {
-                        var dditem = new CutsceneDropdownItem();
-                        dditem.RpfEntry = entry;
+                        var dditem = new CutsceneDropdownItem { RpfEntry = entry };
                         dditems.Add(dditem);
                     }
                 }
@@ -374,7 +373,7 @@ namespace CodeWalker.World
             {
                 if (Playing && (Cutscene != null))
                 {
-                    PlayAudio(Cutscene.PlaybackTime);
+                    PlayAudio(Cutscene?.PlaybackTime ?? 0.0f);
                 }
             }
         }
@@ -393,7 +392,7 @@ namespace CodeWalker.World
                 Playing = true;
                 PlayStopButton.Text = "Stop";
                 PlaybackTimer.Enabled = true;
-                PlayAudio(Cutscene.PlaybackTime);
+                PlayAudio(Cutscene?.PlaybackTime ?? 0.0f);
             }
         }
 
@@ -462,7 +461,7 @@ namespace CodeWalker.World
         {
             Volume = VolumeTrackBar.Value / 100.0f;
             var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            if (Cutscene != null && sp != null)
             {
                 sp.SetVolume(Volume);
             }
@@ -472,13 +471,13 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class Cutscene
     {
-        public CutFile CutFile { get; set; } = null;
-        private GameFileCache GameFileCache = null;
-        private WorldForm WorldForm = null;
-        private AudioDatabase AudioDB = null;
+        public CutFile CutFile { get; set; }
+        private GameFileCache GameFileCache;
+        private WorldForm WorldForm;
+        private AudioDatabase AudioDB;
 
-        public float[] CameraCutList { get; set; } = null;
-        public YcdFile[] Ycds { get; set; } = null;
+        public float[] CameraCutList { get; set; } = [];
+        public YcdFile?[] Ycds { get; set; } = [];
 
 
         public float Duration { get; set; } = 0.0f;
@@ -488,35 +487,35 @@ namespace CodeWalker.World
         public bool EnableSubtitles { get; set; } = true;
 
 
-        public Dictionary<int, CutObject> Objects { get; set; } = null;
-        public Dictionary<int, CutsceneObject> SceneObjects { get; set; } = null;
-        public CutEvent[] LoadEvents { get; set; } = null;
-        public CutEvent[] PlayEvents { get; set; } = null;
-        public CutConcatData[] ConcatDatas { get; set; } = null;
+        public Dictionary<int, CutObject> Objects { get; set; } = new();
+        public Dictionary<int, CutsceneObject> SceneObjects { get; set; } = new();
+        public CutEvent[] LoadEvents { get; set; } = [];
+        public CutEvent[] PlayEvents { get; set; } = [];
+        public CutConcatData[] ConcatDatas { get; set; } = [];
 
         public int NextLoadEvent { get; set; } = 0;
         public int NextPlayEvent { get; set; } = 0;
         public int NextCameraCut { get; set; } = 0;
         public int NextConcatData { get; set; } = 0;
 
-        public Gxt2File Gxt2File { get; set; } = null;
+        public Gxt2File? Gxt2File { get; set; } = null;
 
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; }
 
 
-        public CutsceneObject CameraObject = null;
+        public CutsceneObject? CameraObject = null;
         public float CameraNearClip { get; set; } = 0.5f;
         public float CameraFarClip { get; set; } = 12000.0f;
         public bool CameraClipUpdate = false;//signal to the form to update the camera clip planes
         public Quaternion CameraRotationOffset = Quaternion.RotationAxis(Vector3.UnitX, -1.57079632679f) * Quaternion.RotationAxis(Vector3.UnitZ, 3.141592653f);
 
-        public AudioPlayer SoundPlayer { get; set; } = null;
+        public AudioPlayer? SoundPlayer { get; set; } = null;
         public float SoundStartOffset { get; set; }
 
 
 
-        public void Init(CutFile cutFile, GameFileCache gfc, WorldForm wf, AudioDatabase adb)
+        public Cutscene(CutFile cutFile, GameFileCache gfc, WorldForm wf, AudioDatabase adb)
         {
             CutFile = cutFile;
             GameFileCache = gfc;
@@ -609,7 +608,7 @@ namespace CodeWalker.World
             float cutOffset = newTime - cutStart;//offset into the current cut
 
 
-            void updateObjectTransform(CutsceneObject obj, ClipMapEntry cme, ushort boneTag, byte posTrack, byte rotTrack)
+            void updateObjectTransform(CutsceneObject obj, ClipMapEntry? cme, ushort boneTag, byte posTrack, byte rotTrack)
             {
                 if (cme != null)
                 {
@@ -631,6 +630,7 @@ namespace CodeWalker.World
                         {
                             foreach (var anim in alist.Animations.Data)
                             {
+                                if (anim.Animation == null) continue;
                                 var t = anim.GetPlaybackTime(cutOffset);
                                 var f = anim.Animation.GetFramePosition(t);
                                 var p = anim.Animation.FindBoneIndex(boneTag, posTrack);
@@ -646,7 +646,7 @@ namespace CodeWalker.World
 
 
 
-            var ycd = (cutIndex < (Ycds?.Length ?? 0)) ? Ycds[cutIndex] : null;
+            var ycd = (cutIndex < Ycds.Length) ? Ycds[cutIndex] : null;
             if (ycd?.CutsceneMap != null)
             {
                 ClipMapEntry? cme = null;
@@ -977,7 +977,7 @@ namespace CodeWalker.World
             if (args == null)
             { return; }
 
-            var namel = args.cName?.ToLowerInvariant();
+            var namel = args.cName.ToLowerInvariant();
             var namehash = JenkHash.GenHash(namel);
 
             RpfFileEntry? gxt2entry = null;
@@ -985,7 +985,7 @@ namespace CodeWalker.World
 
             if (gxt2entry != null) //probably should do this load async
             {
-                Gxt2File = GameFileCache.RpfMan.GetFile<Gxt2File>(gxt2entry);
+                Gxt2File = GameFileCache.RpfMan?.GetFile<Gxt2File>(gxt2entry);
 
                 if (Gxt2File != null)
                 {
@@ -1252,11 +1252,11 @@ namespace CodeWalker.World
 
         private T[] RecastArray<T>(object[]? arr) where T : class
         {
-            if (arr == null) return null;
+            if (arr == null) return [];
             var r = new T[arr.Length];
             for (int i = 0; i < arr.Length; i++)
             {
-                r[i] = arr[i] as T;
+                if (arr[i] is T item) r[i] = item;
             }
             return r;
         }
@@ -1298,24 +1298,24 @@ namespace CodeWalker.World
     [TypeConverter(typeof(ExpandableObjectConverter))] public class CutsceneObject
     {
         public int ObjectID { get; set; }
-        public CutObject CutObject { get; set; }
+        public CutObject? CutObject { get; set; }
         public MetaHash Name { get; set; }
 
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; }
 
-        public Ped Ped { get; set; }
-        public YmapEntityDef Prop { get; set; }
-        public Vehicle Vehicle { get; set; }
-        public Weapon Weapon { get; set; }
-        public YmapEntityDef HideEntity { get; set; }
+        public Ped? Ped { get; set; }
+        public YmapEntityDef? Prop { get; set; }
+        public Vehicle? Vehicle { get; set; }
+        public Weapon? Weapon { get; set; }
+        public YmapEntityDef? HideEntity { get; set; }
 
         public MetaHash AnimHash { get; set; }
-        public ClipMapEntry AnimClip { get; set; }
+        public ClipMapEntry? AnimClip { get; set; }
 
-        public Dat54Sound SoundInfo { get; set; }
-        public AwcStream[] SoundStreams { get; set; }
-        public AudioPlayer SoundPlayer { get; set; }
+        public Dat54Sound? SoundInfo { get; set; }
+        public AwcStream[] SoundStreams { get; set; } = [];
+        public AudioPlayer? SoundPlayer { get; set; }
 
         public bool Enabled { get; set; } = false;
 
@@ -1441,10 +1441,10 @@ namespace CodeWalker.World
                         if (chanawchash != awchash)
                         {
                             awchash = chanawchash;
-                            if (adb.ContainerDB.TryGetValue(awchash, out RpfFileEntry? awcentry))
+                            if (adb?.ContainerDB != null && adb.ContainerDB.TryGetValue(awchash, out RpfFileEntry? awcentry))
                             {
                                 awc = new AwcFile();
-                                gfc.RpfMan.LoadFile(awc, awcentry);
+                                (gfc.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.")).LoadFile(awc, awcentry);
                             }
                             else
                             { }

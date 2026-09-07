@@ -19,7 +19,7 @@ namespace CodeWalker
 
     public static class PathUtil
     {
-        public static string AppPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+        public static string AppPath = AppContext.BaseDirectory;
         public static string WorkPath = Directory.GetCurrentDirectory();
 
         public static string GetFilePath(string appRelativePath)

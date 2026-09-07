@@ -16,8 +16,8 @@ namespace CodeWalker.World
         public MetaHash NameHash { get; set; } = 0;//base weapon name hash
         public MetaHash ModelHash { get; set; } = 0;//weapon model name hash, can be _hi
 
-        public YdrFile Ydr { get; set; } = null;
-        public Drawable Drawable { get; set; } = null;
+        public YdrFile? Ydr { get; set; }
+        public Drawable? Drawable { get; set; }
 
         public YmapEntityDef RenderEntity = new(); //placeholder entity object for rendering
 

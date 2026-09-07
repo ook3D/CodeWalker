@@ -14,7 +14,7 @@ namespace CodeWalker.Forms
     public partial class GenericForm : Form
     {
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -24,10 +24,10 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
         ExploreForm ExploreForm;
-        object CurrentFile;
+        object? CurrentFile;
 
 
         public GenericForm(ExploreForm exploreForm)
@@ -37,13 +37,13 @@ namespace CodeWalker.Forms
         }
 
 
-        public void LoadFile(object file, RpfFileEntry fileEntry)
+        public void LoadFile(object? file, RpfFileEntry? fileEntry)
         {
             CurrentFile = file;
 
             DetailsPropertyGrid.SelectedObject = file;
 
-            fileName = fileEntry?.Name;
+            fileName = fileEntry?.Name ?? string.Empty;
 
             UpdateFormTitle();
         }

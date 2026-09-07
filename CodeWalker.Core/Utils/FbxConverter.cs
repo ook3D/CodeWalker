@@ -15,7 +15,7 @@ namespace CodeWalker
         public bool InvertTexcoordV { get; set; } = true;
 
 
-        public YdrFile ConvertToYdr(string name, byte[] fbxdata)
+        public YdrFile? ConvertToYdr(string name, byte[] fbxdata)
         {
             var fdoc = FbxIO.Read(fbxdata);
             if (fdoc == null)
@@ -36,7 +36,7 @@ namespace CodeWalker
         private Drawable TryConvertDrawable(FbxDocument fdoc, string name)
         {
 
-            var rootnodes = fdoc.GetSceneNodes();
+            var rootnodes = fdoc.GetSceneNodes() ?? [];
 
             List<List<FbxModel>> mlists = [];
             List<FbxModel> mlistall = [];
@@ -105,6 +105,7 @@ namespace CodeWalker
                 if (m?.Model?.Geometries == null) continue;
                 foreach (var g in m.Model.Geometries)
                 {
+                    if (g.VertexData == null) continue;
                     var vb = g.VertexData.VertexBytes;
                     var vs = g.VertexData.VertexStride;
                     var vc = g.VertexData.VertexCount;
@@ -140,7 +141,7 @@ namespace CodeWalker
                 foreach (var g in m.Geometries)
                 {
                     smapp.Add((ushort)slist.Count);
-                    slist.Add(g.Shader);
+                    slist.Add(g.Shader ?? throw new InvalidOperationException("An exported geometry has no shader."));
                 }
                 m.ShaderMapping = smapp.ToArray();//TODO: re-use shaders!!
             }
@@ -226,7 +227,7 @@ namespace CodeWalker
             return result;
         }
 
-        private FbxModel TryConvertModel(FbxNode mnode)
+        private FbxModel? TryConvertModel(FbxNode mnode)
         {
 
             FbxNode? geonode = null;
@@ -294,17 +295,17 @@ namespace CodeWalker
             {
                 var pVert = new FbxVertex();
                 pVert.Position = GetVector3FromDoubleArray(fnVerts, (fnIndex < 0) ? (-fnIndex-1) : fnIndex);
-                pVert.Normals = nNormals > 0 ? new Vector3[nNormals] : null;
-                pVert.Binormals = nBinormals > 0 ? new Vector3[nBinormals] : null;
-                pVert.Tangents = nTangents > 0 ? new Vector3[nTangents] : null;
-                pVert.Texcoords = nTexcoords > 0 ? new Vector2[nTexcoords] : null;
-                pVert.Colours = nColours > 0 ? new Vector4[nColours] : null;
+                pVert.Normals = new Vector3[nNormals];
+                pVert.Binormals = new Vector3[nBinormals];
+                pVert.Tangents = new Vector3[nTangents];
+                pVert.Texcoords = new Vector2[nTexcoords];
+                pVert.Colours = new Vector4[nColours];
                 fPolyVerts.Add(pVert);
                 if (fnIndex < 0) //yeah because negative index means end of polygon...
                 {
                     var fPoly = new FbxPolygon();
                     fPoly.Vertices = fPolyVerts.ToArray();
-                    fPoly.Materials = nMaterials > 0 ? new FbxNode[nMaterials] : null;
+                    fPoly.Materials = new FbxNode[nMaterials];
                     fPolyVerts.Clear();
                     fPolys.Add(fPoly);
                     if (fPoly.Vertices.Length > 3)
@@ -315,7 +316,7 @@ namespace CodeWalker
             for (int i = 0; i < nNormals; i++)
             {
                 var fnNorms = fnNormals[i];
-                var arNorms = fnNorms["Normals"]?.Value as double[];
+                var arNorms = fnNorms["Normals"]?.Value as double[] ?? [];
                 var aiNorms = fnNorms["NormalIndex"]?.Value as int[];
                 if (!IsByPolygonVertexMapType(fnNorms))
                 { continue; }
@@ -327,7 +328,7 @@ namespace CodeWalker
                 {
                     foreach (var fVert in fPoly.Vertices)
                     {
-                        var ai = indexed ? aiNorms[j] : j;
+                        var ai = indexed && aiNorms != null ? aiNorms[j] : j;
                         fVert.Normals[i] = GetVector3FromDoubleArray(arNorms, ai);
                         j++;
                     }
@@ -336,7 +337,7 @@ namespace CodeWalker
             for (int i = 0; i < nBinormals; i++)
             {
                 var fnBinorms = fnBinormals[i];
-                var arBinorms = fnBinorms["Binormals"]?.Value as double[];
+                var arBinorms = fnBinorms["Binormals"]?.Value as double[] ?? [];
                 var aiBinorms = fnBinorms["BinormalIndex"]?.Value as int[];
                 if (!IsByPolygonVertexMapType(fnBinorms))
                 { continue; }
@@ -348,7 +349,7 @@ namespace CodeWalker
                 {
                     foreach (var fVert in fPoly.Vertices)
                     {
-                        var ai = indexed ? aiBinorms[j] : j;
+                        var ai = indexed && aiBinorms != null ? aiBinorms[j] : j;
                         fVert.Binormals[i] = GetVector3FromDoubleArray(arBinorms, ai);
                         j++;
                     }
@@ -357,7 +358,7 @@ namespace CodeWalker
             for (int i = 0; i < nTangents; i++)
             {
                 var fnTangs = fnTangents[i];
-                var arTangs = fnTangs["Tangents"]?.Value as double[];
+                var arTangs = fnTangs["Tangents"]?.Value as double[] ?? [];
                 var aiTangs = fnTangs["TangentIndex"]?.Value as int[];
                 if (!IsByPolygonVertexMapType(fnTangs))
                 { continue; }
@@ -369,7 +370,7 @@ namespace CodeWalker
                 {
                     foreach (var fVert in fPoly.Vertices)
                     {
-                        var ai = indexed ? aiTangs[j] : j;
+                        var ai = indexed && aiTangs != null ? aiTangs[j] : j;
                         fVert.Tangents[i] = GetVector3FromDoubleArray(arTangs, ai);
                         j++;
                     }
@@ -378,7 +379,7 @@ namespace CodeWalker
             for (int i = 0; i < nTexcoords; i++)
             {
                 var fnTexcs = fnTexcoords[i];
-                var arTexcs = fnTexcs["UV"]?.Value as double[];
+                var arTexcs = fnTexcs["UV"]?.Value as double[] ?? [];
                 var aiTexcs = fnTexcs["UVIndex"]?.Value as int[];
                 if (!IsByPolygonVertexMapType(fnTexcs))
                 { continue; }
@@ -390,7 +391,7 @@ namespace CodeWalker
                 {
                     foreach (var fVert in fPoly.Vertices)
                     {
-                        var ai = indexed ? aiTexcs[j] : j;
+                        var ai = indexed && aiTexcs != null ? aiTexcs[j] : j;
                         var tc = GetVector2FromDoubleArray(arTexcs, ai);
                         fVert.Texcoords[i] = InvertTexcoordV ? new Vector2(tc.X, -tc.Y) : tc;//whyyyy
                         j++;
@@ -400,7 +401,7 @@ namespace CodeWalker
             for (int i = 0; i < nColours; i++)
             {
                 var fnCols = fnColours[i];
-                var arCols = fnCols["Colors"]?.Value as double[];
+                var arCols = fnCols["Colors"]?.Value as double[] ?? [];
                 var aiCols = fnCols["ColorIndex"]?.Value as int[];
                 if (!IsByPolygonVertexMapType(fnCols))
                 { continue; }
@@ -412,7 +413,7 @@ namespace CodeWalker
                 {
                     foreach (var fVert in fPoly.Vertices)
                     {
-                        var ai = indexed ? aiCols[j] : j;
+                        var ai = indexed && aiCols != null ? aiCols[j] : j;
                         fVert.Colours[i] = GetVector4FromDoubleArray(arCols, ai);
                         j++;
                     }
@@ -422,6 +423,7 @@ namespace CodeWalker
             {
                 var fnMats = fnMaterials[i];
                 var arMats = fnMats["Materials"]?.Value as int[];
+                if (arMats == null || arMats.Length == 0) continue;
                 var mapType = fnMats["MappingInformationType"]?.Value as string;
                 var refType = fnMats["ReferenceInformationType"]?.Value as string;
                 var allSame = false;
@@ -501,15 +503,17 @@ namespace CodeWalker
 
 
 
-            var fModel = new FbxModel();
-            fModel.Name = (mnode.Properties.Count > 1) ? (mnode.Properties[1] as string)?.Replace("Model::", "") : null;
-            fModel.Node = mnode;
-            fModel.Model = dModel;
+            var fModel = new FbxModel
+            {
+                Name = ((mnode.Properties.Count > 1) ? (mnode.Properties[1] as string)?.Replace("Model::", "") : null) ?? string.Empty,
+                Node = mnode,
+                Model = dModel
+            };
 
             return fModel;
         }
 
-        private DrawableGeometry TryConvertGeometry(List<FbxPolygon> fPolys, FbxNode matNode, out AABB_s aabb)
+        private DrawableGeometry? TryConvertGeometry(List<FbxPolygon> fPolys, FbxNode matNode, out AABB_s aabb)
         {
             aabb = new AABB_s();
 
@@ -674,7 +678,7 @@ namespace CodeWalker
                         catch
                         { }
                     }
-                    texNames.Add(texName);
+                    texNames.Add(texName ?? string.Empty);
                 }
             }
 
@@ -880,7 +884,7 @@ namespace CodeWalker
             var pW = aIndW < arr.Length ? arr[aIndW] : 0;
             return new Vector4((float)pX, (float)pY, (float)pZ, (float)pW);
         }
-        private Vector4 GetVector4FromObjectList(List<object> list, int i)
+        private Vector4 GetVector4FromObjectList(List<object?> list, int i)
         {
             var aIndX = i;
             var aIndY = aIndX + 1;
@@ -897,7 +901,7 @@ namespace CodeWalker
             if (pW is double) r.W = (float)(double)pW;
             return r;
         }
-        private string GetStringFromObjectList(List<object> list, int i)
+        private string? GetStringFromObjectList(List<object?> list, int i)
         {
             return (list.Count > i) ? list[i] as string : string.Empty;
         }
@@ -907,9 +911,9 @@ namespace CodeWalker
 
     public class FbxModel
     {
-        public string Name { get; set; }
-        public FbxNode Node { get; set; }
-        public DrawableModel Model { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public required FbxNode Node { get; set; }
+        public required DrawableModel Model { get; set; }
 
         public override string ToString()
         {
@@ -919,19 +923,19 @@ namespace CodeWalker
 
     public class FbxPolygon
     {
-        public FbxVertex[] Vertices { get; set; }
-        public FbxNode[] Materials { get; set; }
+        public FbxVertex[] Vertices { get; set; } = [];
+        public FbxNode[] Materials { get; set; } = [];
     }
 
     public class FbxVertex : IEquatable<FbxVertex>
     {
         public Vector3 Position { get; set; }
-        public Vector3[] Normals { get; set; }
-        public Vector3[] Binormals { get; set; }
-        public Vector3[] Tangents { get; set; }
-        public Vector2[] Texcoords { get; set; }
-        public Vector4[] Colours { get; set; }
-        public byte[] Bytes { get; set; }
+        public Vector3[] Normals { get; set; } = [];
+        public Vector3[] Binormals { get; set; } = [];
+        public Vector3[] Tangents { get; set; } = [];
+        public Vector2[] Texcoords { get; set; } = [];
+        public Vector4[] Colours { get; set; } = [];
+        public byte[] Bytes { get; set; } = [];
 
         public void GenVertexBytes(VertexDeclaration decl)
         {

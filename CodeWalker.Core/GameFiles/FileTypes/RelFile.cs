@@ -63,28 +63,28 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class RelFile : GameFile, PackedFile
     {
-        public byte[] RawFileData { get; set; }
+        public byte[] RawFileData { get; set; } = [];
         public RelDatFileType RelType { get; set; }
         public uint DataLength { get; set; }
-        public byte[] DataBlock { get; set; }
+        public byte[] DataBlock { get; set; } = [];
         public uint DataUnkVal { get; set; }
         public uint NameTableLength { get; set; }
         public uint NameTableCount { get; set; }
-        public uint[] NameTableOffsets { get; set; }
-        public string[] NameTable { get; set; }
+        public uint[] NameTableOffsets { get; set; } = [];
+        public string[] NameTable { get; set; } = [];
         public uint IndexCount { get; set; }
         public uint IndexStringFlags { get; set; } = 2524;
-        public RelIndexHash[] IndexHashes { get; set; }
-        public RelIndexString[] IndexStrings { get; set; }
+        public RelIndexHash[] IndexHashes { get; set; } = [];
+        public RelIndexString[] IndexStrings { get; set; } = [];
         public uint HashTableCount { get; set; }
-        public uint[] HashTableOffsets { get; set; }
-        public MetaHash[] HashTable { get; set; }
+        public uint[] HashTableOffsets { get; set; } = [];
+        public MetaHash[] HashTable { get; set; } = [];
         public uint PackTableCount { get; set; }
-        public uint[] PackTableOffsets { get; set; }
-        public MetaHash[] PackTable { get; set; }
+        public uint[] PackTableOffsets { get; set; } = [];
+        public MetaHash[] PackTable { get; set; } = [];
 
-        public RelData[] RelDatas { get; set; }
-        public RelData[] RelDatasSorted { get; set; }
+        public RelData[] RelDatas { get; set; } = [];
+        public RelData[] RelDatasSorted { get; set; } = [];
         public Dictionary<uint, RelData> RelDataDict { get; set; } = new Dictionary<uint, RelData>();
 
         public bool IsAudioConfig { get; set; }
@@ -92,7 +92,7 @@ namespace CodeWalker.GameFiles
 
         //fields used by the editor:
         public bool HasChanged { get; set; } = false;
-        public List<string> SaveWarnings = null;
+        public List<string>? SaveWarnings;
 
 
         public RelFile() : base(null, GameFileType.Rel)
@@ -103,7 +103,7 @@ namespace CodeWalker.GameFiles
             RpfFileEntry = entry;
         }
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             RawFileData = data;
             if (entry != null)
@@ -380,13 +380,8 @@ namespace CodeWalker.GameFiles
                 var speechDict = new Dictionary<uint, Dat4SpeechData>();
                 foreach (var reldata in RelDatasSorted)
                 {
-                    var speechData = reldata as Dat4SpeechData;
-                    if (speechData != null)
-                    {
-                        speechDict[speechData.DataOffset] = speechData;
-                    }
-                    else
-                    { }
+                    if (reldata is not Dat4SpeechData speechData) continue;
+                    speechDict[speechData.DataOffset] = speechData;
 
 
                     speechData.Type = Dat4SpeechType.ByteArray;
@@ -443,7 +438,7 @@ namespace CodeWalker.GameFiles
         {
             return ReadRelData(br, s.Name, JenkHash.GenHash(s.Name.ToLowerInvariant()), s.Offset, s.Length);
         }
-        private RelData ReadRelData(BinaryReader br, string name, MetaHash hash, uint offset, uint length)
+        private RelData ReadRelData(BinaryReader br, string? name, MetaHash hash, uint offset, uint length)
         {
             br.BaseStream.Position = offset;
             byte[] data = br.ReadBytes((int)length);
@@ -796,7 +791,7 @@ namespace CodeWalker.GameFiles
                         case Dat54SoundType.SoundSetList: return new Dat54SoundSetList(this);
                         case Dat54SoundType.SoundHashList: return new Dat54SoundHashList(this);
                         default:
-                            return new Dat54Sound(this, (Dat54SoundType)d.TypeID); //shouldn't get here
+                            return new Dat54Sound(this, (Dat54SoundType)dataType); //unknown sound type
                     }
                 case RelDatFileType.Dat149:
                 case RelDatFileType.Dat150:
@@ -941,7 +936,7 @@ namespace CodeWalker.GameFiles
                     {
                         d = new Dat4SpeechData(this);
                         d.TypeID = (byte)dataType;
-                        (d as Dat4SpeechData).Type = (Dat4SpeechType)dataType;
+                        ((Dat4SpeechData)d).Type = (Dat4SpeechType)dataType;
                         return d;
                     }
                 case RelDatFileType.Dat10ModularSynth:
@@ -1182,7 +1177,7 @@ namespace CodeWalker.GameFiles
                 for (int i = 0; i < RelDatas.Length; i++)
                 {
                     var rd = RelDatas[i];
-                    strs[i] = new RelIndexString() { Name = rd.Name, Offset = rd.DataOffset, Length = rd.DataLength };
+                    strs[i] = new RelIndexString() { Name = rd.Name ?? throw new InvalidOperationException("Audio configuration entries require a name."), Offset = rd.DataOffset, Length = rd.DataLength };
                 }
                 IndexStrings = strs;
                 IndexCount = (uint)(IndexStrings?.Length ?? 0);
@@ -1254,7 +1249,7 @@ namespace CodeWalker.GameFiles
             }
             else
             {
-                HashTableOffsets = null;
+                HashTableOffsets = [];
             }
 
             HashTableCount = (uint)(HashTableOffsets?.Length ?? 0);
@@ -1302,7 +1297,7 @@ namespace CodeWalker.GameFiles
             }
             else
             {
-                PackTableOffsets = null;
+                PackTableOffsets = [];
             }
 
             PackTableCount = (uint)(PackTableOffsets?.Length ?? 0);
@@ -1429,7 +1424,7 @@ namespace CodeWalker.GameFiles
         }
         public class HashesMapValue
         {
-            public RelData Item { get; set; }
+            public required RelData Item { get; set; }
             public MetaHash Hash { get; set; }
             public uint Offset { get; set; }
             public uint Count { get; set; }
@@ -1477,7 +1472,7 @@ namespace CodeWalker.GameFiles
             BuildPackTable();
 
 
-            if (DataBlock == null) return null;
+            if (DataBlock == null) throw new InvalidOperationException("REL data block could not be built.");
 
 
 
@@ -1590,8 +1585,9 @@ namespace CodeWalker.GameFiles
             RelDatasSorted = newRelDatasSorted.ToArray();
             //RelDataDict[d.NameHash] = d;
         }
-        public bool RemoveRelData(RelData d)
+        public bool RemoveRelData(RelData? d)
         {
+            if (d == null) return false;
             var newRelDatas = new List<RelData>();
             var newRelDatasSorted = new List<RelData>();
 
@@ -1616,7 +1612,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            if (newRelDatas.Count < RelDatas.Length)
+            if (newRelDatas.Count < (RelDatas?.Length ?? 0))
             {
                 RelDatas = newRelDatas.ToArray();
                 RelDatasSorted = newRelDatasSorted.ToArray();
@@ -1667,10 +1663,10 @@ namespace CodeWalker.GameFiles
     public class RelData
     {
         public MetaHash NameHash { get; set; }
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public uint DataOffset { get; set; }
         public uint DataLength { get; set; }
-        public byte[] Data { get; set; }
+        public byte[] Data { get; set; } = [];
         public byte TypeID { get; set; }
 
         public RelFile Rel { get; set; }
@@ -1694,40 +1690,40 @@ namespace CodeWalker.GameFiles
 
         public virtual uint[] GetHashTableOffsets()
         {
-            return null;
+            return [];
         }
         public virtual uint[] GetPackTableOffsets()
         {
-            return null;
+            return [];
         }
 
         public virtual MetaHash[] GetSpeechHashes()
         {
-            return null;
+            return [];
         }
         public virtual MetaHash[] GetSynthHashes()
         {
-            return null;
+            return [];
         }
         public virtual MetaHash[] GetMixerHashes()
         {
-            return null;
+            return [];
         }
         public virtual MetaHash[] GetCurveHashes()
         {
-            return null;
+            return [];
         }
         public virtual MetaHash[] GetCategoryHashes()
         {
-            return null;
+            return [];
         }
         public virtual MetaHash[] GetSoundHashes()
         {
-            return null;
+            return [];
         }
         public virtual MetaHash[] GetGameHashes()
         {
-            return null;
+            return [];
         }
 
 
@@ -1788,6 +1784,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class RelSoundHeader
     {
+        public RelSoundHeader() { }
+
         public FlagsUint Flags { get; set; }
 
         public FlagsUint Flags2 { get; set; }
@@ -2143,11 +2141,11 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class RelSound : RelData
     {
-        public RelSoundHeader Header { get; set; }
+        public RelSoundHeader Header { get; set; } = new();
         public byte ChildSoundsCount { get; set; }
-        public RelData[] ChildSounds { get; set; }
-        public MetaHash[] ChildSoundsHashes { get; set; }
-        public MetaHash[] AudioContainers { get; set; } //Relative path to parent wave container (i.e. "RESIDENT/animals")
+        public RelData[] ChildSounds { get; set; } = [];
+        public MetaHash[] ChildSoundsHashes { get; set; } = [];
+        public MetaHash[] AudioContainers { get; set; } = []; //Relative path to parent wave container (i.e. "RESIDENT/animals")
 
         public RelSound(RelFile rel) : base(rel)
         {
@@ -2232,7 +2230,7 @@ namespace CodeWalker.GameFiles
             var atnode = node.SelectSingleNode(nodeName);
             if (atnode == null) return;
 
-            var childnodes = atnode.SelectNodes("Item");
+            var childnodes = atnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
             var childlist = new List<MetaHash>();
             foreach (XmlNode childnode in childnodes)
             {
@@ -2259,12 +2257,12 @@ namespace CodeWalker.GameFiles
         public override MetaHash[] GetCurveHashes()
         {
             if ((Header != null) && (Header.VolumeCurve != 0)) return new[] { Header.VolumeCurve };
-            return null;
+            return [];
         }
         public override MetaHash[] GetCategoryHashes()
         {
             if ((Header != null) && (Header.Category != 0)) return new[] { Header.Category };
-            return null;
+            return [];
         }
     }
 
@@ -2663,7 +2661,7 @@ namespace CodeWalker.GameFiles
         public int LastVariation { get; set; }
         public MetaHash DynamicFieldName { get; set; } //0x4-0x8
         public MetaHash VoiceName { get; set; } //0x8-0xC
-        public string ContextName { get; set; } //0xD-...
+        public string ContextName { get; set; } = string.Empty; //0xD-...
 
         public Dat54SpeechSound(RelFile rel) : base(rel, Dat54SoundType.SpeechSound)
         { }
@@ -2680,7 +2678,7 @@ namespace CodeWalker.GameFiles
             LastVariation = Xml.GetChildIntAttribute(node, "LastVariation", "value");
             DynamicFieldName = XmlRel.GetHash(Xml.GetChildInnerText(node, "DynamicFieldName"));
             VoiceName = XmlRel.GetHash(Xml.GetChildInnerText(node, "VoiceName"));
-            ContextName = Xml.GetChildInnerText(node, "ContextName");
+            ContextName = Xml.GetChildInnerText(node, "ContextName") ?? string.Empty;
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
@@ -2751,8 +2749,8 @@ namespace CodeWalker.GameFiles
         public MetaHash FallBackSound { get; set; } //0x8-0xC sound falled back on if main sound not found
         public short MinRepeatTime { get; set; } //0xC-0xE  // [camxx:] My guess is that this is related to the time at which a child sound should start playin (or the length of the sound).
         public byte VariableCount { get; set; }
-        public MetaHash[] VariableNames { get; set; } //0xF // apply any variables here. seems to have been a header field in IV but merged only with wrapper sound in V.
-        public byte[] VariableValues { get; set; } // ...
+        public MetaHash[] VariableNames { get; set; } = []; //0xF // apply any variables here. seems to have been a header field in IV but merged only with wrapper sound in V.
+        public byte[] VariableValues { get; set; } = []; // ...
 
         public Dat54WrapperSound(RelFile rel) : base(rel, Dat54SoundType.WrapperSound)
         { }
@@ -2783,8 +2781,8 @@ namespace CodeWalker.GameFiles
             var vnode = node.SelectSingleNode("Variables");
             if (vnode != null)
             {
-                var inodes = vnode.SelectNodes("Item");
-                if (inodes?.Count > 0)
+                var inodes = vnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (inodes.Length > 0)
                 {
                     var nlist = new List<MetaHash>();
                     var vlist = new List<byte>();
@@ -3295,9 +3293,9 @@ namespace CodeWalker.GameFiles
     {
         public byte HistoryIndex { get; set; } //0x0-0x1 retricts the randomization range?
         public byte HistorySpaceCount { get; set; } //0x1-0x2
-        public byte[] HistorySpace { get; set; } //seem to prevent randomization from playing the same sound twice in a row?
+        public byte[] HistorySpace { get; set; } = []; //seem to prevent randomization from playing the same sound twice in a row?
         public byte VariationsCount { get; set; }
-        public float[] VariationsValues { get; set; } //probability..?
+        public float[] VariationsValues { get; set; } = []; //probability..?
 
         public Dat54RandomizedSound(RelFile rel) : base(rel, Dat54SoundType.RandomizedSound)
         { }
@@ -3324,8 +3322,8 @@ namespace CodeWalker.GameFiles
             var vnode = node.SelectSingleNode("Variations");
             if (vnode != null)
             {
-                var inodes = vnode.SelectNodes("Item");
-                if (inodes?.Count > 0)
+                var inodes = vnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (inodes.Length > 0)
                 {
                     var nlist = new List<MetaHash>();
                     var vlist = new List<float>();
@@ -3422,7 +3420,7 @@ namespace CodeWalker.GameFiles
     public class Dat54DynamicEntitySound : Dat54Sound
     {
         public byte EntitiesCount { get; set; }
-        public MetaHash[] Entities { get; set; }
+        public MetaHash[] Entities { get; set; } = [];
 
         public Dat54DynamicEntitySound(RelFile rel) : base(rel, Dat54SoundType.DynamicEntitySound)
         { }
@@ -3548,7 +3546,7 @@ namespace CodeWalker.GameFiles
         public int VirtualisationMode { get; set; } //0xC-0x10
         public int TrackCount { get; set; }
         public int ExposedVariablesCount { get; set; }
-        public Dat54ModularSynthSoundVariable[] ExposedVariables { get; set; } //0x28-..
+        public Dat54ModularSynthSoundVariable[] ExposedVariables { get; set; } = []; //0x28-..
 
         public Dat54ModularSynthSound(RelFile rel) : base(rel, Dat54SoundType.ModularSynthSound)
         { }
@@ -3696,18 +3694,18 @@ namespace CodeWalker.GameFiles
     public class Dat54GranularSound : Dat54Sound
     {
         public int WaveSlotIndex { get; set; } //0x0-0x4
-        public Dat54GranularSoundFile Channel0 { get; set; }
-        public Dat54GranularSoundFile Channel1 { get; set; }
-        public Dat54GranularSoundFile Channel2 { get; set; }
-        public Dat54GranularSoundFile Channel3 { get; set; }
-        public Dat54GranularSoundFile Channel4 { get; set; }
-        public Dat54GranularSoundFile Channel5 { get; set; }
-        public Dat54GranularSoundData ChannelSettings0 { get; set; } //0x34-0x3C
-        public Dat54GranularSoundData ChannelSettings1 { get; set; } //0x3C-0x44
-        public Dat54GranularSoundData ChannelSettings2 { get; set; } //0x44-0x4C
-        public Dat54GranularSoundData ChannelSettings3 { get; set; } //0x4C-0x54
-        public Dat54GranularSoundData ChannelSettings4 { get; set; } //0x54-0x5C
-        public Dat54GranularSoundData ChannelSettings5 { get; set; } //0x5C-0x64
+        public Dat54GranularSoundFile Channel0 { get; set; } = new();
+        public Dat54GranularSoundFile Channel1 { get; set; } = new();
+        public Dat54GranularSoundFile Channel2 { get; set; } = new();
+        public Dat54GranularSoundFile Channel3 { get; set; } = new();
+        public Dat54GranularSoundFile Channel4 { get; set; } = new();
+        public Dat54GranularSoundFile Channel5 { get; set; } = new();
+        public Dat54GranularSoundData ChannelSettings0 { get; set; } = new(); //0x34-0x3C
+        public Dat54GranularSoundData ChannelSettings1 { get; set; } = new(); //0x3C-0x44
+        public Dat54GranularSoundData ChannelSettings2 { get; set; } = new(); //0x44-0x4C
+        public Dat54GranularSoundData ChannelSettings3 { get; set; } = new(); //0x4C-0x54
+        public Dat54GranularSoundData ChannelSettings4 { get; set; } = new(); //0x54-0x5C
+        public Dat54GranularSoundData ChannelSettings5 { get; set; } = new(); //0x5C-0x64
         public float LoopRandomisationChangeRate { get; set; } //0x64-0x68
         public float LoopRandomisationPitchFraction { get; set; } //0x68-0x6C
         public short ChannelVolume0 { get; set; } //0x6C-0x6E
@@ -3718,7 +3716,7 @@ namespace CodeWalker.GameFiles
         public short ChannelVolume5 { get; set; } //0x76-0x78
         public MetaHash ParentSound { get; set; } //0x78-0x7C
         public byte GranularClockCount { get; set; } //0x7C-0x7D
-        public Vector2[] GranularClock { get; set; } //0x7D-...
+        public Vector2[] GranularClock { get; set; } = []; //0x7D-...
 
         public Dat54GranularSound(RelFile rel) : base(rel, Dat54SoundType.GranularSound)
         { }
@@ -3875,6 +3873,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat54GranularSoundFile
     {
+        public Dat54GranularSoundFile() { }
+
         public MetaHash ContainerName { get; set; } //0x0-0x4
         public MetaHash FileName { get; set; } //0x4-0x8
 
@@ -3915,6 +3915,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat54GranularSoundData
     {
+        public Dat54GranularSoundData() { }
+
         public byte OutputBuffer { get; set; } //0x0-0x1
         public byte GranularClockIndex { get; set; } //0x1-0x2
         public byte StretchToMinPitch { get; set; } //0x2-0x3
@@ -4183,7 +4185,7 @@ namespace CodeWalker.GameFiles
     public class Dat54VariablePrintValueSound : Dat54Sound
     {
         public MetaHash Variable { get; set; } //0x0-0x4
-        public string Value { get; set; }
+        public string Value { get; set; } = string.Empty;
 
         public Dat54VariablePrintValueSound(RelFile rel) : base(rel, Dat54SoundType.VariablePrintValueSound)
         { }
@@ -4196,7 +4198,7 @@ namespace CodeWalker.GameFiles
         {
             base.ReadXml(node);
             Variable = XmlRel.GetHash(Xml.GetChildInnerText(node, "Variable"));
-            Value = Xml.GetChildInnerText(node, "Value");
+            Value = Xml.GetChildInnerText(node, "Value") ?? string.Empty;
         }
         public override void WriteXml(StringBuilder sb, int indent)
         {
@@ -4217,7 +4219,7 @@ namespace CodeWalker.GameFiles
     {
         public MetaHash ChildSound { get; set; }
         public byte VariableCount { get; set; }
-        public Dat54VariableData[] Variables { get; set; }
+        public Dat54VariableData[] Variables { get; set; } = [];
 
         public Dat54VariableBlockSound(RelFile rel) : base(rel, Dat54SoundType.VariableBlockSound)
         { }
@@ -4368,7 +4370,7 @@ namespace CodeWalker.GameFiles
     {
         public MetaHash ChildSound { get; set; }
         public byte OperationsCount { get; set; }
-        public Dat54MathOperationSoundData[] Operations { get; set; }
+        public Dat54MathOperationSoundData[] Operations { get; set; } = [];
 
         public Dat54MathOperationSound(RelFile rel) : base(rel, Dat54SoundType.MathOperationSound)
         { }
@@ -4481,7 +4483,7 @@ namespace CodeWalker.GameFiles
     {
         public MetaHash ChildSound { get; set; }
         public int ParameterTransformsCount { get; set; }
-        public Dat54ParameterTransformSoundData[] ParameterTransforms { get; set; }
+        public Dat54ParameterTransformSoundData[] ParameterTransforms { get; set; } = [];
 
         public Dat54ParameterTransformSound(RelFile rel) : base(rel, Dat54SoundType.ParameterTransformSound)
         { }
@@ -4532,7 +4534,7 @@ namespace CodeWalker.GameFiles
         public float InputRangeMin { get; set; } //0x4-0x8
         public float InputRangeMax { get; set; } //0x8-0xC
         public int TransformsCount { get; set; }
-        public Dat54ParameterTransformSoundData2[] Transforms { get; set; } //0x10..
+        public Dat54ParameterTransformSoundData2[] Transforms { get; set; } = []; //0x10..
 
         public Dat54ParameterTransformSoundData()
         { }
@@ -4589,7 +4591,7 @@ namespace CodeWalker.GameFiles
         public float OutputRangeMin { get; set; } //0xC //output range min, multiplies the range covered by the vectors
         public float OutputRangeMax { get; set; } //0x10-0x14 //output range max, multiplies the range covered by the vectors
         public int VectorCount { get; set; }
-        public Vector2[] Vectors { get; set; } //0x18-... //vector graph
+        public Vector2[] Vectors { get; set; } = []; //0x18-... //vector graph
 
         public Dat54ParameterTransformSoundData2()
         { }
@@ -4651,7 +4653,7 @@ namespace CodeWalker.GameFiles
     {
         public MetaHash ChildSound { get; set; }
         public int FluctuatorsCount { get; set; }
-        public Dat54FluctuatorSoundData[] Fluctuators { get; set; }
+        public Dat54FluctuatorSoundData[] Fluctuators { get; set; } = [];
 
         public Dat54FluctuatorSound(RelFile rel) : base(rel, Dat54SoundType.FluctuatorSound)
         { }
@@ -4799,7 +4801,7 @@ namespace CodeWalker.GameFiles
         public MetaHash ContainerName { get; set; } //0x14-0x18 // file path
         public MetaHash FileName { get; set; } //0x18-0x1C // .mid file name
         public int VariableOutputsCount { get; set; } // array data count 0x1C-0x20
-        public Dat54AutomationSoundVariableOutput[] VariableOutputs { get; set; } //0x20-
+        public Dat54AutomationSoundVariableOutput[] VariableOutputs { get; set; } = []; //0x20-
 
         public Dat54AutomationSound(RelFile rel) : base(rel, Dat54SoundType.AutomationSound)
         { }
@@ -4989,7 +4991,7 @@ namespace CodeWalker.GameFiles
     public class Dat54SoundSet : Dat54Sound
     {
         public int SoundSetsCount { get; set; }
-        public Dat54SoundSetItem[] SoundSets { get; set; }
+        public Dat54SoundSetItem[] SoundSets { get; set; } = [];
 
         public Dat54SoundSet(RelFile rel) : base(rel, Dat54SoundType.SoundSet)
         { }
@@ -5078,7 +5080,7 @@ namespace CodeWalker.GameFiles
     public class Dat54AutomationNoteMapSound : Dat54Sound
     {
         public byte RangesCount { get; set; }
-        public Dat54AutomationNoteMapSoundData[] Ranges { get; set; }
+        public Dat54AutomationNoteMapSoundData[] Ranges { get; set; } = [];
 
         public Dat54AutomationNoteMapSound(RelFile rel) : base(rel, Dat54SoundType.AutomationNoteMapSound)
         { }
@@ -5172,7 +5174,7 @@ namespace CodeWalker.GameFiles
     public class Dat54SoundSetList : Dat54Sound
     {
         public uint SoundSetsCount { get; set; }
-        public MetaHash[] SoundSets { get; set; }
+        public MetaHash[] SoundSets { get; set; } = [];
 
         public Dat54SoundSetList(RelFile rel) : base(rel, Dat54SoundType.SoundSetList)
         { }
@@ -5241,7 +5243,7 @@ namespace CodeWalker.GameFiles
     {
         public ushort UnkShort { get; set; }
         public uint SoundHashesCount { get; set; }
-        public MetaHash[] SoundHashes { get; set; }
+        public MetaHash[] SoundHashes { get; set; } = [];
 
         public Dat54SoundHashList(RelFile rel) : base(rel, Dat54SoundType.SoundHashList)
         { }
@@ -5900,7 +5902,7 @@ namespace CodeWalker.GameFiles
     public class Dat151StaticEmitterList: Dat151RelData
     {
         public uint EmitterCount { get; set; }
-        public MetaHash[] EmitterHashes { get; set; }
+        public MetaHash[] EmitterHashes { get; set; } = [];
 
         public Dat151StaticEmitterList(RelFile rel) : base(rel)
         {
@@ -6008,12 +6010,12 @@ namespace CodeWalker.GameFiles
         public byte ZoneWaterCalculation { get; set; }
         public byte NumRules { get; set; }
         public byte Unused11 { get; set; }
-        public MetaHash[] Rules { get; set; }
+        public MetaHash[] Rules { get; set; } = [];
         public byte NumDirAmbiences { get; set; }
         public byte Unused12 { get; set; }
         public byte Unused13 { get; set; }
         public byte Unused14 { get; set; }
-        public DirAmbience[] DirAmbiences { get; set; }
+        public DirAmbience[] DirAmbiences { get; set; } = [];
         public struct DirAmbience : IMetaXmlItem
         {
             public MetaHash Name { get; set; }
@@ -6357,7 +6359,7 @@ namespace CodeWalker.GameFiles
         public byte BlockabilityFactor { get; set; }       // 0, 50, 80, 100
         public byte MaxPathDepth { get; set; }             // 1,2,3,5
         public ushort NumConditions { get; set; }          // 0,1,2,4
-        public Condition[] Conditions { get; set; }
+        public Condition[] Conditions { get; set; } = [];
 
         public struct Condition : IMetaXmlItem
         {
@@ -6589,7 +6591,7 @@ namespace CodeWalker.GameFiles
     public class Dat151AmbientZoneList : Dat151RelData
     {
         public uint ZoneCount { get; set; }
-        public MetaHash[] ZoneHashes { get; set; }
+        public MetaHash[] ZoneHashes { get; set; } = [];
 
         public Dat151AmbientZoneList(RelFile rel) : base(rel)
         {
@@ -6847,7 +6849,7 @@ namespace CodeWalker.GameFiles
         public MetaHash InteriorWallaSoundSet { get; set; }
         public MetaHash InteriorReflections { get; set; }
         public uint RoomsCount { get; set; }
-        public MetaHash[] Rooms { get; set; }
+        public MetaHash[] Rooms { get; set; } = [];
 
         public Dat151InteriorSettings(RelFile rel) : base(rel)
         {
@@ -7123,7 +7125,7 @@ namespace CodeWalker.GameFiles
     public class Dat151RadioStationList : Dat151RelData
     {
         public uint StationsCount { get; set; }
-        public MetaHash[] Stations { get; set; }
+        public MetaHash[] Stations { get; set; } = [];
 
         public Dat151RadioStationList(RelFile rel) : base(rel)
         {
@@ -7197,10 +7199,10 @@ namespace CodeWalker.GameFiles
         public uint NextStationSettingsPtr { get; set; }
         public byte Genre { get; set; }
         public byte AmbientRadioVol { get; set; }
-        public string RadioName { get; set; }
+        public string RadioName { get; set; } = string.Empty;
         public ushort padding00 { get; set; }
         public uint NumTrackList { get; set; }
-        public MetaHash[] TrackList { get; set; }
+        public MetaHash[] TrackList { get; set; } = [];
 
         public Dat151RadioStationSettings(RelFile rel) : base(rel)
         {
@@ -7240,7 +7242,7 @@ namespace CodeWalker.GameFiles
 
             byte[] data = new byte[32];
             int len = Math.Min(RadioName?.Length ?? 0, 32);
-            if (len > 0)
+            if (len > 0 && RadioName != null)
             {
                 Encoding.ASCII.GetBytes(RadioName, 0, len, data, 0);
             }
@@ -7304,7 +7306,7 @@ namespace CodeWalker.GameFiles
             WheelPosition = Xml.GetChildUIntAttribute(node, "WheelPosition", "value");
             Genre = (byte)Xml.GetChildUIntAttribute(node, "Genre", "value");
             AmbientRadioVol = (byte)Xml.GetChildUIntAttribute(node, "AmbientRadioVol", "value");
-            RadioName = Xml.GetChildInnerText(node, "RadioName");
+            RadioName = Xml.GetChildInnerText(node, "RadioName") ?? string.Empty;
             TrackList = XmlRel.ReadHashItemArray(node, "TrackList");
 
             if (TrackList == null)
@@ -7354,7 +7356,7 @@ namespace CodeWalker.GameFiles
         public uint TotalNumTracks { get; set; }
         public ushort NextTrackListPointer { get; set; }
         public uint NumTracks { get; set; }
-        public Dat151HashPair[] Tracks { get; set; }
+        public Dat151HashPair[] Tracks { get; set; } = [];
 
 
         public Dat151RadioStationTrackList(RelFile rel) : base(rel)
@@ -7481,7 +7483,7 @@ namespace CodeWalker.GameFiles
     {
         public FlagsUint Flags { get; set; }
         public uint TrackCount { get; set; }
-        public Dat151HashPair[] Tracks { get; set; }
+        public Dat151HashPair[] Tracks { get; set; } = [];
 
         public Dat151ReplayRadioStationTrackList(RelFile rel) : base(rel)
         {
@@ -7567,7 +7569,7 @@ namespace CodeWalker.GameFiles
     {
         public MetaHash FallBackWeapon { get; set; }
         public uint WeaponsCount { get; set; }
-        public Dat151ItemAudioSettingsItem[] Weapons { get; set; }
+        public Dat151ItemAudioSettingsItem[] Weapons { get; set; } = [];
 
         public Dat151ItemAudioSettings(RelFile rel) : base(rel)
         {
@@ -7698,7 +7700,7 @@ namespace CodeWalker.GameFiles
         public float StartOffsetScalar { get; set; }
         public int LastSong { get; set; }
         public uint AltSongsCount { get; set; }
-        public Dat151StartTrackActionItem[] AltSongs { get; set; }
+        public Dat151StartTrackActionItem[] AltSongs { get; set; } = [];
 
 
         public Dat151StartTrackAction(RelFile rel) : base(rel)
@@ -7992,7 +7994,7 @@ namespace CodeWalker.GameFiles
         public ushort FadeOutTime { get; set; }
         public float AmbMusicDuckingVol { get; set; }
         public uint NumStemMixes { get; set; }
-        public Dat151InteractiveMusicMoodItem[] StemMixes { get; set; }
+        public Dat151InteractiveMusicMoodItem[] StemMixes { get; set; } = [];
 
         public Dat151InteractiveMusicMood(RelFile rel) : base(rel)
         {
@@ -8236,7 +8238,7 @@ namespace CodeWalker.GameFiles
     public class Dat151MusicEvent : Dat151RelData
     {
         public uint ActionsCount { get; set; }
-        public MetaHash[] Actions { get; set; }
+        public MetaHash[] Actions { get; set; } = [];
 
         public Dat151MusicEvent(RelFile rel) : base(rel)
         {
@@ -8680,9 +8682,9 @@ namespace CodeWalker.GameFiles
         public byte padding00 { get; set; }
         public byte padding01 { get; set; }
         public MetaHash Material { get; set; }
-        public Dat151ModelAudioCollisionSettingsMaterialItem[] Materials { get; set; }
+        public Dat151ModelAudioCollisionSettingsMaterialItem[] Materials { get; set; } = [];
         public uint FragComponentSettingsCount { get; set; }
-        public MetaHash[] FragComponentSettings { get; set; }
+        public MetaHash[] FragComponentSettings { get; set; } = [];
 
 
         public Dat151ModelAudioCollisionSettings(RelFile rel) : base(rel)
@@ -9629,7 +9631,7 @@ namespace CodeWalker.GameFiles
         public byte NumMeleeMaterialOverrides { get; set; }
         public byte padding00 { get; set; }
         public short padding01 { get; set; }
-        public Dat151VehicleCollisionSettingsItem[] MeleeMaterialOverrides { get; set; }
+        public Dat151VehicleCollisionSettingsItem[] MeleeMaterialOverrides { get; set; } = [];
 
 
         public Dat151VehicleCollisionSettings(RelFile rel) : base(rel)
@@ -9873,7 +9875,7 @@ namespace CodeWalker.GameFiles
         public override uint[] GetHashTableOffsets()
         {
             if (NumMeleeMaterialOverrides > 0) return new uint[] { 204, 208 };
-            else return null;
+            else return [];
         }
         public override MetaHash[] GetCurveHashes()
         {
@@ -9983,7 +9985,7 @@ namespace CodeWalker.GameFiles
     public class Dat151AnimalFootstepReference : Dat151RelData
     {
         public uint AnimalFootstepSettingsCount { get; set; }
-        public Dat151AnimalFootstepReferenceItem[] AnimalFootstepSettings { get; set; }
+        public Dat151AnimalFootstepReferenceItem[] AnimalFootstepSettings { get; set; } = [];
 
         public Dat151AnimalFootstepReference(RelFile rel) : base(rel)
         {
@@ -10087,7 +10089,7 @@ namespace CodeWalker.GameFiles
         public byte NumTrackLists { get; set; }
         public byte padding02 { get; set; }
         public short padding03 { get; set; }
-        public MetaHash[] TrackList { get; set; }
+        public MetaHash[] TrackList { get; set; } = [];
 
         public Dat151ForceRadioTrackAction(RelFile rel) : base(rel)
         {
@@ -10322,7 +10324,7 @@ namespace CodeWalker.GameFiles
     public class Dat151MicrophoneSettingsReference : Dat151RelData
     {
         public uint MicrophonesCount { get; set; }
-        public Dat151MicrophoneSettingsReferenceItem[] Microphones { get; set; }
+        public Dat151MicrophoneSettingsReferenceItem[] Microphones { get; set; } = [];
 
         public Dat151MicrophoneSettingsReference(RelFile rel) : base(rel)
         {
@@ -10417,7 +10419,7 @@ namespace CodeWalker.GameFiles
     public class Dat151DoorList : Dat151RelData
     {
         public uint DoorsCount { get; set; }
-        public Dat151DoorListItem[] Doors { get; set; }  // prop name, Door
+        public Dat151DoorListItem[] Doors { get; set; } = [];  // prop name, Door
 
         public Dat151DoorList(RelFile rel) : base(rel)
         {
@@ -10512,7 +10514,7 @@ namespace CodeWalker.GameFiles
     public class Dat151ShoeList : Dat151RelData
     {
         public uint ShoesCount { get; set; }
-        public Dat151ShoeListItem[] Shoes { get; set; }  // ShoeAudioSettings
+        public Dat151ShoeListItem[] Shoes { get; set; } = [];  // ShoeAudioSettings
 
         public Dat151ShoeList(RelFile rel) : base(rel)
         {
@@ -10607,7 +10609,7 @@ namespace CodeWalker.GameFiles
     public class Dat151ClothList : Dat151RelData
     {
         public uint ClothesCount { get; set; }
-        public Dat151ClothListItem[] Clothes { get; set; } // ClothAudioSettings
+        public Dat151ClothListItem[] Clothes { get; set; } = []; // ClothAudioSettings
 
         public Dat151ClothList(RelFile rel) : base(rel)
         {
@@ -10702,7 +10704,7 @@ namespace CodeWalker.GameFiles
     public class Dat151CarRecordingList : Dat151RelData
     {
         public uint CarRecordingsCount { get; set; }
-        public Dat151CarRecordingListItem[] CarRecordings { get; set; }  // CarRecordingAudioSettings
+        public Dat151CarRecordingListItem[] CarRecordings { get; set; } = [];  // CarRecordingAudioSettings
 
         public Dat151CarRecordingList(RelFile rel) : base(rel)
         {
@@ -10797,7 +10799,7 @@ namespace CodeWalker.GameFiles
     public class Dat151WeatherTypeAudioSettingsAudioReference : Dat151RelData
     {
         public uint WeatherTypesCount { get; set; }
-        public Dat151WeatherTypeAudioSettingsAudioReferenceItem[] WeatherTypes { get; set; }   // WeatherAudioSettings
+        public Dat151WeatherTypeAudioSettingsAudioReferenceItem[] WeatherTypes { get; set; } = [];   // WeatherAudioSettings
 
         public Dat151WeatherTypeAudioSettingsAudioReference(RelFile rel) : base(rel)
         {
@@ -10905,7 +10907,7 @@ namespace CodeWalker.GameFiles
         public float SmallestDistanceToPoint { get; set; }
         public ushort PointsCount { get; set; }
         public short padding00 { get; set; }
-        public Vector2[] Points { get; set; }
+        public Vector2[] Points { get; set; } = [];
 
 
         public Dat151ShoreLinePoolAudioSettings(RelFile rel) : base(rel)
@@ -11037,7 +11039,7 @@ namespace CodeWalker.GameFiles
         public byte LakeSize { get; set; }
         public byte NumShorelinePoints { get; set; }
         public short padding00 { get; set; }
-        public Vector2[] Points { get; set; }
+        public Vector2[] Points { get; set; } = [];
 
         public Dat151ShoreLineLakeAudioSettings(RelFile rel) : base(rel)
         {
@@ -11142,7 +11144,7 @@ namespace CodeWalker.GameFiles
         public short padding01 { get; set; }
         public float DefaultHeight { get; set; }
         public uint PointsCount { get; set; }
-        public Vector3[] Points { get; set; }
+        public Vector3[] Points { get; set; } = [];
 
         public Dat151ShoreLineRiverAudioSettings(RelFile rel) : base(rel)
         {
@@ -11260,7 +11262,7 @@ namespace CodeWalker.GameFiles
         public float WaveEndHeight { get; set; }
         public float RecedeHeight { get; set; }
         public uint PointsCount { get; set; }
-        public Vector2[] Points { get; set; }
+        public Vector2[] Points { get; set; } = [];
 
         public Dat151ShoreLineOceanAudioSettings(RelFile rel) : base(rel)
         {
@@ -11391,7 +11393,7 @@ namespace CodeWalker.GameFiles
     public class Dat151ShoreLineList : Dat151RelData
     {
         public uint ShoreLineCount { get; set; }
-        public MetaHash[] ShoreLines { get; set; }
+        public MetaHash[] ShoreLines { get; set; } = [];
 
         public Dat151ShoreLineList(RelFile rel) : base(rel)
         {
@@ -11452,7 +11454,7 @@ namespace CodeWalker.GameFiles
     public class Dat151RadioTrackTextIDs : Dat151RelData
     {
         public uint EventCount { get; set; }
-        public EventData[] Events { get; set; }
+        public EventData[] Events { get; set; } = [];
 
         public struct EventData : IMetaXmlItem
         {
@@ -12714,7 +12716,7 @@ namespace CodeWalker.GameFiles
     {
         public FlagsUint Flags { get; set; }
         public int ParamCount { get; set; }
-        public Param[] Params;
+        public Param[] Params = [];
 
         public class Param : IMetaXmlItem
         {
@@ -13460,13 +13462,13 @@ namespace CodeWalker.GameFiles
         public byte VoicePriority { get; set; }
         public MetaHash RingtoneSounds { get; set; }
         public byte PrimaryVoicesCount { get; set; }
-        public Dat151PedVoiceGroupsItem[] PrimaryVoices { get; set; }
+        public Dat151PedVoiceGroupsItem[] PrimaryVoices { get; set; } = [];
         public byte MiniVoicesCount { get; set; }
-        public Dat151PedVoiceGroupsItem[] MiniVoices { get; set; }
+        public Dat151PedVoiceGroupsItem[] MiniVoices { get; set; } = [];
         public byte GangVoicesCount { get; set; }
-        public Dat151PedVoiceGroupsItem[] GangVoices { get; set; }
+        public Dat151PedVoiceGroupsItem[] GangVoices { get; set; } = [];
         public byte BackupPVGCount { get; set; }
-        public MetaHash[] BackupPVGs { get; set; }
+        public MetaHash[] BackupPVGs { get; set; } = [];
         public int Version { get; set; }
 
 
@@ -15826,7 +15828,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))]
     public class Dat151AnimalParamsItem : IMetaXmlItem
     {
-        public string ContextName { get; set; }
+        public string ContextName { get; set; } = string.Empty;
         public float VolumeOffset { get; set; }
         public float RollOff { get; set; }
         public int Priority { get; set; }
@@ -15860,7 +15862,7 @@ namespace CodeWalker.GameFiles
         {
             var data = new byte[32];
             int len = Math.Min(ContextName?.Length ?? 0, 32);
-            if (len > 0)
+            if (len > 0 && ContextName != null)
             {
                 Encoding.ASCII.GetBytes(ContextName, 0, len, data, 0);
             }
@@ -15888,7 +15890,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            ContextName = Xml.GetChildInnerText(node, "ContextName");
+            ContextName = Xml.GetChildInnerText(node, "ContextName") ?? string.Empty;
             VolumeOffset = Xml.GetChildFloatAttribute(node, "VolumeOffset", "value");
             RollOff = Xml.GetChildFloatAttribute(node, "RollOff", "value");
             Priority = Xml.GetChildIntAttribute(node, "Priority", "value");
@@ -15914,7 +15916,7 @@ namespace CodeWalker.GameFiles
         public float VehicleSpeedForBigImpact { get; set; }
         public MetaHash RunOverSound { get; set; }
         public byte ContextsCount { get; set; }
-        public Dat151AnimalParamsItem[] Contexts { get; set; }
+        public Dat151AnimalParamsItem[] Contexts { get; set; } = [];
 
         public Dat151AnimalParams(RelFile rel) : base(rel)
         {
@@ -16267,7 +16269,7 @@ namespace CodeWalker.GameFiles
         public MetaHash TimeCanNextPlayBackup { get; set; }
         public MetaHash PrimarySpeechContext { get; set; }
         public int BackupSpeechContextCount { get; set; }
-        public Dat151TriggeredSpeechContextBackupSpeechContext[] BackupSpeechContexts { get; set; }
+        public Dat151TriggeredSpeechContextBackupSpeechContext[] BackupSpeechContexts { get; set; } = [];
 
 
         public Dat151TriggeredSpeechContext(RelFile rel) : base(rel)
@@ -16526,7 +16528,7 @@ namespace CodeWalker.GameFiles
         public byte FakeGesture4 { get; set; }
         public byte ResolvingFunction { get; set; }
         public byte ItemCount { get; set; }
-        public MetaHash[] Items { get; set; }
+        public MetaHash[] Items { get; set; } = [];
 
         public Dat151SpeechContextVirtual(RelFile rel) : base(rel)
         {
@@ -16703,7 +16705,7 @@ namespace CodeWalker.GameFiles
     public class Dat151SpeechContextList : Dat151RelData
     {
         public int TriggeredSpeechContextsCount { get; set; }
-        public MetaHash[] TriggeredSpeechContexts { get; set; }
+        public MetaHash[] TriggeredSpeechContexts { get; set; } = [];
 
         public Dat151SpeechContextList(RelFile rel) : base(rel)
         {
@@ -16968,7 +16970,7 @@ namespace CodeWalker.GameFiles
         public float WalkSpeedThreshold { get; set; }
         public float RunSpeedThreshold { get; set; }
         public int ItemCount { get; set; }
-        public Dat151ModelPhysicsParamsItem[] Items { get; set; }
+        public Dat151ModelPhysicsParamsItem[] Items { get; set; } = [];
 
 
         public Dat151ModelPhysicsParams(RelFile rel) : base(rel)
@@ -17116,7 +17118,7 @@ namespace CodeWalker.GameFiles
     class Dat151RadioTrackCategoryData : Dat151RelData
     {
         public int ItemCount { get; set; }
-        public Dat151RadioTrackCategoryDataItem[] Items { get; set; }
+        public Dat151RadioTrackCategoryDataItem[] Items { get; set; } = [];
 
         public Dat151RadioTrackCategoryData(RelFile rel) : base(rel)
         {
@@ -17235,7 +17237,7 @@ namespace CodeWalker.GameFiles
         public float AcknowledgeSituationProbability { get; set; }
         public MetaHash SmallCrimeSoundRef { get; set; }
         public int CrimeSetCount { get; set; }
-        public Dat151ScannerCrimeReportCrimeSet[] CrimeSets { get; set; }
+        public Dat151ScannerCrimeReportCrimeSet[] CrimeSets { get; set; } = [];
 
         public Dat151ScannerCrimeReport(RelFile rel) : base(rel)
         {
@@ -17316,7 +17318,7 @@ namespace CodeWalker.GameFiles
         public MetaHash Italian { get; set; }    // ita
         public MetaHash Pakistani { get; set; }  // pak
         public int FriendGroupsCount { get; set; }
-        public MetaHash[] FriendGroups { get; set; }  // FriendGroup
+        public MetaHash[] FriendGroups { get; set; } = [];  // FriendGroup
 
         public Dat151PedRaceToPedVoiceGroup(RelFile rel) : base(rel)
         {
@@ -17460,7 +17462,7 @@ namespace CodeWalker.GameFiles
     {
         public FlagsUint Flags { get; set; }
         public int PhrasesCount { get; set; }
-        public Dat151ScriptedScannerLineItem[] Phrase { get; set; }
+        public Dat151ScriptedScannerLineItem[] Phrase { get; set; } = [];
 
         public Dat151ScriptedScannerLine(RelFile rel) : base(rel)
         {
@@ -17623,7 +17625,7 @@ namespace CodeWalker.GameFiles
         public float Radius { get; set; }
         public float ProbOfPlaying { get; set; }
         public int NumSounds { get; set; }
-        public MetaHash[] Sound { get; set; }
+        public MetaHash[] Sound { get; set; } = [];
         public uint padding06 { get; set; }
 
 
@@ -17723,7 +17725,7 @@ namespace CodeWalker.GameFiles
     public class Dat151ScannerSpecificLocationList : Dat151RelData
     {
         public int LocationsCount { get; set; }
-        public MetaHash[] Locations { get; set; }
+        public MetaHash[] Locations { get; set; } = [];
 
         public Dat151ScannerSpecificLocationList(RelFile rel) : base(rel)
         {
@@ -17822,7 +17824,7 @@ namespace CodeWalker.GameFiles
     public class Dat151AmbientSlotMap : Dat151RelData
     {
         public int AmbienceSlotsCount { get; set; }
-        public Dat151AmbientSlotMapItem[] AmbienceSlots { get; set; }
+        public Dat151AmbientSlotMapItem[] AmbienceSlots { get; set; } = [];
 
         public Dat151AmbientSlotMap(RelFile rel) : base(rel)
         {
@@ -17863,7 +17865,7 @@ namespace CodeWalker.GameFiles
     public class Dat151AmbientBankMap : Dat151RelData
     {
         public int AmbienceBanksCount { get; set; }
-        public Dat151AmbientBankMapItem[] AmbienceBanks { get; set; }
+        public Dat151AmbientBankMapItem[] AmbienceBanks { get; set; } = [];
 
         public Dat151AmbientBankMap(RelFile rel) : base(rel)
         {
@@ -18252,7 +18254,7 @@ namespace CodeWalker.GameFiles
         public MetaHash AudioScene { get; set; }
         public MetaHash WindGustEnd { get; set; }
         public int WindSoundsCount { get; set; }
-        public MetaHash[] WindSounds { get; set; }
+        public MetaHash[] WindSounds { get; set; } = [];
 
         public Dat151WeatherAudioSettings(RelFile rel) : base(rel)
         {
@@ -18747,9 +18749,9 @@ namespace CodeWalker.GameFiles
     {
         public byte Animal { get; set; }
         public byte AngryContextsCount { get; set; }
-        public Contexts[] AngryContexts { get; set; }
+        public Contexts[] AngryContexts { get; set; } = [];
         public byte PlayfulContextsCount { get; set; } 
-        public Contexts[] PlayfulContexts { get; set; }
+        public Contexts[] PlayfulContexts { get; set; } = [];
         public struct Contexts : IMetaXmlItem
         {
             public MetaHash Context { get; set; }
@@ -18855,7 +18857,7 @@ namespace CodeWalker.GameFiles
     public class Dat151AnimalVocalAnimTrigger : Dat151RelData
     {
         public byte ItemCount { get; set; }
-        public Dat151AnimalVocalAnimTriggerItem[] Items { get; set; }
+        public Dat151AnimalVocalAnimTriggerItem[] Items { get; set; } = [];
 
         public Dat151AnimalVocalAnimTrigger(RelFile rel) : base(rel)
         {
@@ -19372,7 +19374,7 @@ namespace CodeWalker.GameFiles
         public byte MicrophonesCount { get; set; }
         public byte padding00 { get; set; }
         public byte padding01 { get; set; }
-        public Dat151MicrophoneItem[] Microphones { get; set; }
+        public Dat151MicrophoneItem[] Microphones { get; set; } = [];
 
         public Dat151MicrophoneSettings(RelFile rel) : base(rel)
         {
@@ -19456,9 +19458,9 @@ namespace CodeWalker.GameFiles
         public MetaHash Group { get; set; }
         public int VehicleModelId { get; set; }
         public int ItemCount { get; set; }
-        public Dat151CarRecordingAudioSettingsItem[] Items { get; set; }
+        public Dat151CarRecordingAudioSettingsItem[] Items { get; set; } = [];
         public int ItemCount2 { get; set; }
-        public Dat151CarRecordingAudioSettingsItem2[] Items2 { get; set; }
+        public Dat151CarRecordingAudioSettingsItem2[] Items2 { get; set; } = [];
 
         public Dat151CarRecordingAudioSettings(RelFile rel) : base(rel)
         {
@@ -19528,7 +19530,7 @@ namespace CodeWalker.GameFiles
             }
             else
             {
-                Items2 = null;
+                Items2 = [];
                 ItemCount2 = 0;
             }
         }
@@ -20065,7 +20067,7 @@ namespace CodeWalker.GameFiles
         public float HasKeysProbability { get; set; }
         public float HasMoneyProbability { get; set; }
         public int ItemCount { get; set; }
-        public Dat151ModelFootStepTuningItem[] Items { get; set; }
+        public Dat151ModelFootStepTuningItem[] Items { get; set; } = [];
 
         public Dat151ModelFootStepTuning(RelFile rel) : base(rel)
         {
@@ -20440,7 +20442,7 @@ namespace CodeWalker.GameFiles
         public MetaHash Sound { get; set; }
         public float SharedOwnershipRadius { get; set; }
         public int VariationsCount { get; set; }
-        public Dat151PedScenarioAudioSettingsItem[] Variations { get; set; }
+        public Dat151PedScenarioAudioSettingsItem[] Variations { get; set; } = [];
 
         public Dat151PedScenarioAudioSettings(RelFile rel) : base(rel)
         {
@@ -20827,7 +20829,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat151PedWallaSpeechSettingsItem : IMetaXmlItem
     {
-        public string ContextName { get; set; }
+        public string ContextName { get; set; } = string.Empty;
         public byte Variations { get; set; }
 
         public override string ToString()
@@ -20848,7 +20850,7 @@ namespace CodeWalker.GameFiles
         {
             var data = new byte[32];
             int len = Math.Min(ContextName?.Length ?? 0, 32);
-            if (len > 0)
+            if (len > 0 && ContextName != null)
             {
                 Encoding.ASCII.GetBytes(ContextName, 0, len, data, 0);
             }
@@ -20862,7 +20864,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            ContextName = Xml.GetChildInnerText(node, "ContextName").Replace("\\n", "\n");
+            ContextName = (Xml.GetChildInnerText(node, "ContextName") ?? string.Empty).Replace("\\n", "\n");
             Variations = (byte)Xml.GetChildUIntAttribute(node, "Variations", "value");
         }
     }
@@ -20875,7 +20877,7 @@ namespace CodeWalker.GameFiles
         public short MaxVolume { get; set; }
         public float PedDensityThreshold { get; set; }
         public byte ItemCount { get; set; }
-        public Dat151PedWallaSpeechSettingsItem[] Items { get; set; }
+        public Dat151PedWallaSpeechSettingsItem[] Items { get; set; } = [];
 
         public Dat151PedWallaSpeechSettings(RelFile rel) : base(rel)
         {
@@ -21313,7 +21315,7 @@ namespace CodeWalker.GameFiles
     public class Dat151PedWallaSpeechSettingsList : Dat151RelData
     {
         public int ItemCount { get; set; }
-        public Dat151PedWallaSpeechSettingsListItem[] Items { get; set; }
+        public Dat151PedWallaSpeechSettingsListItem[] Items { get; set; } = [];
 
         public Dat151PedWallaSpeechSettingsList(RelFile rel) : base(rel)
         {
@@ -22031,7 +22033,7 @@ namespace CodeWalker.GameFiles
     public class Dat151ModelAudioCollisionSettingsOverrideList : Dat151RelData
     {
         public int ItemCount { get; set; }
-        public Dat151ModelAudioCollisionSettingsOverrideListItem[] Items { get; set; }
+        public Dat151ModelAudioCollisionSettingsOverrideListItem[] Items { get; set; } = [];
 
         public Dat151ModelAudioCollisionSettingsOverrideList(RelFile rel) : base(rel)
         {
@@ -22117,7 +22119,7 @@ namespace CodeWalker.GameFiles
     {
         public FlagsUint Flags { get; set; }
         public uint GameObjectHashesCount { get; set; }
-        public MetaHash[] GameObjectHashes { get; set; }
+        public MetaHash[] GameObjectHashes { get; set; } = [];
 
         public Dat151GameObjectHashList(RelFile rel) : base(rel)
         {
@@ -22350,7 +22352,7 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat4ConfigString : Dat4ConfigData
     {
-        public string Value { get; set; }
+        public string Value { get; set; } = string.Empty;
 
         public Dat4ConfigString(RelFile rel) : base(rel)
         {
@@ -22368,7 +22370,7 @@ namespace CodeWalker.GameFiles
 
             byte[] data = new byte[64];
             int len = Math.Min(Value?.Length ?? 0, 64);
-            if (len > 0)
+            if (len > 0 && Value != null)
             {
                 Encoding.ASCII.GetBytes(Value, 0, len, data, 0);
             }
@@ -22382,7 +22384,7 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            Value = Xml.GetChildInnerText(node, "Value");
+            Value = Xml.GetChildInnerText(node, "Value") ?? string.Empty;
         }
     }
 
@@ -22427,7 +22429,7 @@ namespace CodeWalker.GameFiles
     public class Dat4ConfigVariableList : Dat4ConfigData
     {
         public int VariableCount { get; set; }
-        public VariableValue[] Variables { get; set; }
+        public VariableValue[] Variables { get; set; } = [];
         public class VariableValue : IMetaXmlItem
         {
             public MetaHash Name { get; set; }
@@ -22557,7 +22559,7 @@ namespace CodeWalker.GameFiles
     public class Dat4ConfigWaveSlotsList : Dat4ConfigData
     {
         public int WaveSlotsCount { get; set; }
-        public MetaHash[] WaveSlots { get; set; }
+        public MetaHash[] WaveSlots { get; set; } = [];
 
         public Dat4ConfigWaveSlotsList(RelFile rel) : base(rel)
         {
@@ -22628,17 +22630,17 @@ namespace CodeWalker.GameFiles
         Vector3 RoomDimensions { get; set; }
         Vector3 ListenerPos { get; set; }
         int AllPassesCount { get; set; }
-        Pass[] AllPasses { get; set; }
-        Vector4[] NodeGainMatrix { get; set; } // fixed length 6
+        Pass[] AllPasses { get; set; } = [];
+        Vector4[] NodeGainMatrix { get; set; } = new Vector4[6]; // fixed length 6
         Vector4 Gain_1stOrder { get; set; }
         Vector4 Gain_2ndOrder { get; set; }
         Vector4 Gain_3rdOrder { get; set; }
         int NodeLPF_1stOrdersCount { get; set; }
-        Vector4[] NodeLPF_1stOrder { get; set; }
+        Vector4[] NodeLPF_1stOrder { get; set; } = [];
         int NodeLPF_2ndOrdersCount { get; set; }
-        Vector4[] NodeLPF_2ndOrder { get; set; }
+        Vector4[] NodeLPF_2ndOrder { get; set; } = [];
         int NodeLPF_3rdOrders { get; set; }
-        Vector4[] NodeLPF_3rdOrder { get; set; }
+        Vector4[] NodeLPF_3rdOrder { get; set; } = [];
 
 
         public class Pass : IMetaXmlItem
@@ -22913,7 +22915,7 @@ namespace CodeWalker.GameFiles
                 case Dat4SpeechType.Hash:
                     return new uint[] { 0 };
             }
-            return null;
+            return [];
         }
         public override uint[] GetPackTableOffsets()
         {
@@ -22922,7 +22924,7 @@ namespace CodeWalker.GameFiles
                 case Dat4SpeechType.Container:
                     return new uint[] { 4 };
             }
-            return null;
+            return [];
         }
 
         public override string ToString()
@@ -23033,7 +23035,7 @@ namespace CodeWalker.GameFiles
     public class Dat10SynthPreset : Dat10RelData
     {
         public byte VariableCount { get; set; }
-        public Dat10SynthPresetVariable[] Variables { get; set; }
+        public Dat10SynthPresetVariable[] Variables { get; set; } = [];
 
         public Dat10SynthPreset(RelFile rel) : base(rel)
         {
@@ -23118,15 +23120,15 @@ namespace CodeWalker.GameFiles
         public int BuffersCount { get; set; }//buffers count           (4)  (for synth_ambient_aircon_full)
         public int RegistersCount { get; set; }//registers count       (21)
         public int OutputsCount { get; set; }//outputs count           (1)
-        public byte[] OutputsIndices { get; set; }//outputs indices: determines the buffers used as outputs   (1, 0, 0, 0)
+        public byte[] OutputsIndices { get; set; } = new byte[MaxOutputs];//outputs indices: determines the buffers used as outputs   (1, 0, 0, 0)
         public int BytecodeLength { get; set; }//bytecode length       (504)
         public int StateBlocksCount { get; set; }//state blocks count  (18)
         public int RuntimeCost { get; set; }//runtime cost             (50)
-        public byte[] Bytecode { get; set; }
+        public byte[] Bytecode { get; set; } = [];
         public int ConstantsCount { get; set; }//constants count       (21)
-        public float[] Constants { get; set; }//constants (floats)
+        public float[] Constants { get; set; } = [];//constants (floats)
         public int VariablesCount { get; set; }//variables count       (8)
-        public Dat10SynthVariable[] Variables { get; set; }//variables
+        public Dat10SynthVariable[] Variables { get; set; } = [];//variables
 
         public Dat10Synth(RelFile rel) : base(rel)
         {
@@ -23230,10 +23232,10 @@ namespace CodeWalker.GameFiles
         {
             Flags = Xml.GetChildUIntAttribute(node, "Flags", "value");
             Variables = XmlRel.ReadItemArray<Dat10SynthVariable>(node, "Variables");
-            VariablesCount = (Variables?.Length ?? 0);
+            VariablesCount = Variables.Length;
 
             var assembly = Xml.GetChildInnerText(node, "Assembly");
-            var assembled = Assemble(assembly, Variables);
+            var assembled = Assemble(assembly ?? string.Empty, Variables);
             Bytecode = assembled.Bytecode;
             BytecodeLength = (Bytecode?.Length ?? 0);
             BuffersCount = assembled.BuffersCount;
@@ -23350,7 +23352,7 @@ namespace CodeWalker.GameFiles
 
         public class DisassembleResult
         {
-            public string Disassembly { get; set; }
+            public string Disassembly { get; set; } = string.Empty;
             public List<Instruction> Instructions { get; set; } = new List<Instruction>();
         }
 
@@ -23746,6 +23748,8 @@ namespace CodeWalker.GameFiles
 
                 if (parseParameter)
                 {
+                    currInput ??= string.Empty;
+                    currOutput ??= string.Empty;
                     switch (type)
                     {
                         case ParameterType.InputBuffer: paramValue = ParseBuffer(currInput, result, onError); break;
@@ -24584,7 +24588,7 @@ namespace CodeWalker.GameFiles
                 return ToString(null, null);
             }
 
-            public string ToString(float[] constants, Dat10SynthVariable[] variables)
+            public string ToString(float[]? constants, Dat10SynthVariable[]? variables)
             {
                 var stateBlock = Parameters.Where(p => p.IsStateBlock).Cast<Parameter?>().SingleOrDefault();
                 var inputsStr = string.Join(", ", Parameters.Where(p => p.IsInput).Select(p => p.ToString(constants, variables)));
@@ -24614,7 +24618,7 @@ namespace CodeWalker.GameFiles
                 return ToString(null, null);
             }
 
-            public string ToString(float[] constants, Dat10SynthVariable[] variables)
+            public string ToString(float[]? constants, Dat10SynthVariable[]? variables)
             {
                 switch (Type)
                 {
@@ -24917,7 +24921,7 @@ namespace CodeWalker.GameFiles
         public MetaHash ApplyVariable { get; set; }
         public float ApplySmoothRate { get; set; }
         public byte MixCategoriesCount { get; set; }
-        public Dat15PatchItem[] MixCategories { get; set; }
+        public Dat15PatchItem[] MixCategories { get; set; } = [];
 
         public Dat15Patch(RelFile rel) : base(rel)
         {
@@ -25082,7 +25086,7 @@ namespace CodeWalker.GameFiles
     public class Dat15SceneState : Dat15RelData
     {
         public byte ItemCount { get; set; }
-        public Dat151HashPair[] Items { get; set; }//name hash, scene
+        public Dat151HashPair[] Items { get; set; } = [];//name hash, scene
 
         public Dat15SceneState(RelFile rel) : base(rel)
         {
@@ -25138,7 +25142,7 @@ namespace CodeWalker.GameFiles
     {
         public MetaHash OnStopScene { get; set; }
         public byte PatchGroupsCount { get; set; }
-        public Dat15SceneItem[] PatchGroups { get; set; }
+        public Dat15SceneItem[] PatchGroups { get; set; } = [];
 
         public Dat15Scene(RelFile rel) : base(rel)
         {
@@ -25278,7 +25282,7 @@ namespace CodeWalker.GameFiles
     public class Dat15GroupList : Dat15RelData
     {
         public byte GroupCount { get; set; }
-        public MetaHash[] Groups { get; set; }
+        public MetaHash[] Groups { get; set; } = [];
 
         public Dat15GroupList(RelFile rel) : base(rel)
         {
@@ -25535,7 +25539,7 @@ namespace CodeWalker.GameFiles
     public class Dat15GroupMap : Dat15RelData
     {
         public ushort ItemCount { get; set; }
-        public Dat151GroupMapItem[] Items { get; set; }
+        public Dat151GroupMapItem[] Items { get; set; } = [];
 
         public Dat15GroupMap(RelFile rel) : base(rel)
         {
@@ -25847,7 +25851,7 @@ namespace CodeWalker.GameFiles
         public float MinInput { get; set; }
         public float MaxInput { get; set; }
         public uint NumPoints { get; set; }
-        public Vector2[] Points { get; set; }
+        public Vector2[] Points { get; set; } = [];
 
         public Dat16PiecewiseLinearCurve(RelFile rel) : base(rel)
         {
@@ -25943,7 +25947,7 @@ namespace CodeWalker.GameFiles
         public float MinInput { get; set; }
         public float MaxInput { get; set; }
         public int ValueCount { get; set; }
-        public float[] Values { get; set; }
+        public float[] Values { get; set; } = [];
 
         public Dat16ValueTableCurve(RelFile rel) : base(rel)
         {
@@ -26268,7 +26272,7 @@ namespace CodeWalker.GameFiles
         public float MinInput { get; set; }
         public float MaxInput { get; set; }
         public int ValueCount { get; set; }
-        public float[] Values { get; set; }
+        public float[] Values { get; set; } = [];
 
         public Dat16DistanceAttenuationValueTableCurve(RelFile rel) : base(rel)
         {
@@ -26387,7 +26391,7 @@ namespace CodeWalker.GameFiles
         public short StonedWetLevel { get; set; }
         public byte Timer { get; set; }
         public byte SubCategoryCount { get; set; }
-        public MetaHash[] SubCategories { get; set; }
+        public MetaHash[] SubCategories { get; set; } = [];
 
         public Dat22Category(RelFile rel) : base(rel)
         {
@@ -26697,7 +26701,7 @@ namespace CodeWalker.GameFiles
         public static RelFile GetRel(XmlDocument doc)
         {
 
-            var node = doc.DocumentElement;
+            var node = doc.DocumentElement ?? throw new XmlException("REL XML requires a root element.");
             var reltypestr = node.Name.Substring(3);
             var reltypeint = uint.Parse(reltypestr);
             var reltype = (RelDatFileType)reltypeint;
@@ -26721,7 +26725,7 @@ namespace CodeWalker.GameFiles
             if (ntnode != null)
             {
                 var ntstrs = new List<string>();
-                var ntitems = ntnode.SelectNodes("Item");
+                var ntitems = ntnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
                 foreach (XmlNode ntitem in ntitems)
                 {
                     ntstrs.Add(ntitem.InnerText);
@@ -26734,7 +26738,7 @@ namespace CodeWalker.GameFiles
             if (itemsnode != null)
             {
                 var itemslist = new List<RelData>();
-                var items = itemsnode.SelectNodes("Item");
+                var items = itemsnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
                 foreach (XmlNode item in items)
                 {
                     var ntoffset = Xml.GetUIntAttribute(item, "ntOffset");
@@ -26891,8 +26895,8 @@ namespace CodeWalker.GameFiles
             var vnode2 = node.SelectSingleNode(name);
             if (vnode2 != null)
             {
-                var inodes = vnode2.SelectNodes("Item");
-                if (inodes?.Count > 0)
+                var inodes = vnode2.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (inodes.Length > 0)
                 {
                     var vlist = new List<T>();
                     foreach (XmlNode inode in inodes)
@@ -26904,15 +26908,15 @@ namespace CodeWalker.GameFiles
                     return vlist.ToArray();
                 }
             }
-            return null;
+            return [];
         }
         public static MetaHash[] ReadHashItemArray(XmlNode node, string name)
         {
             var vnode = node.SelectSingleNode(name);
             if (vnode != null)
             {
-                var inodes = vnode.SelectNodes("Item");
-                if (inodes?.Count > 0)
+                var inodes = vnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+                if (inodes.Length > 0)
                 {
                     var vlist = new List<MetaHash>();
                     foreach (XmlNode inode in inodes)
@@ -26922,7 +26926,7 @@ namespace CodeWalker.GameFiles
                     return vlist.ToArray();
                 }
             }
-            return null;
+            return [];
         }
     }
 }

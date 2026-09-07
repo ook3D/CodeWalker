@@ -17,7 +17,7 @@ namespace CodeWalker.Project.Panels
     public partial class GenerateLODLightsPanel : ProjectPanel
     {
         public ProjectForm ProjectForm { get; set; }
-        public ProjectFile CurrentProjectFile { get; set; }
+        public ProjectFile? CurrentProjectFile { get; set; }
 
         const float MAX_LODLIGHT_INTENSITY = 48.0f;
         const float MAX_LODLIGHT_CONE_ANGLE = 180.0f;
@@ -45,10 +45,10 @@ namespace CodeWalker.Project.Panels
 
         public GenerateLODLightsPanel(ProjectForm projectForm)
         {
-            ProjectForm = projectForm;
+            ProjectForm = projectForm ?? throw new ArgumentNullException(nameof(projectForm));
             InitializeComponent();
 
-            if (ProjectForm?.WorldForm == null)
+            if (ProjectForm.WorldForm == null)
             {
                 GenerateButton.Enabled = false;
                 UpdateStatus("Unable to generate - World View not available!");
@@ -56,7 +56,7 @@ namespace CodeWalker.Project.Panels
         }
 
 
-        public void SetProject(ProjectFile project)
+        public void SetProject(ProjectFile? project)
         {
             CurrentProjectFile = project;
         }
@@ -143,6 +143,12 @@ namespace CodeWalker.Project.Panels
         {
             var gameFileCache = ProjectForm?.WorldForm?.GameFileCache;
             if (gameFileCache == null) return;
+            var project = ProjectForm?.CurrentProjectFile;
+            if (project == null)
+            {
+                UpdateStatus("Unable to generate - no project is open!");
+                return;
+            }
 
             var outputDir = OutputPathTextBox.Text;
             if (string.IsNullOrEmpty(outputDir) || !Directory.Exists(outputDir))
@@ -153,7 +159,7 @@ namespace CodeWalker.Project.Panels
 
             GenerateButton.Enabled = false;
 
-            List<YmapFile> projectYmaps = ProjectForm.CurrentProjectFile.YmapFiles;
+            List<YmapFile> projectYmaps = project.YmapFiles;
 
             var pname = NameTextBox.Text;
 
@@ -187,6 +193,7 @@ namespace CodeWalker.Project.Panels
 
                 foreach (var (ent, _) in allEntities)
                 {
+                    if (ent.Archetype == null) continue;
                     var hash = ent.Archetype.Hash;
                     if (drawableCache.ContainsKey(hash) || pendingArchetypes.Contains(hash)) continue;
 
@@ -208,7 +215,8 @@ namespace CodeWalker.Project.Panels
                     var archetypeLookup = new Dictionary<uint, Archetype>();
                     foreach (var (ent, _) in allEntities)
                     {
-                        var hash = ent.Archetype.Hash;
+                        if (ent.Archetype == null) continue;
+                    var hash = ent.Archetype.Hash;
                         if (pendingArchetypes.Contains(hash) && !archetypeLookup.ContainsKey(hash))
                         {
                             archetypeLookup[hash] = ent.Archetype;
@@ -261,7 +269,7 @@ namespace CodeWalker.Project.Panels
                 UpdateStatus($"Processing {allEntities.Count} entities...");
                 foreach (var (ent, entName) in allEntities)
                 {
-                    if (!drawableCache.TryGetValue(ent.Archetype.Hash, out var dwbl)) continue;
+                    if (ent.Archetype == null || !drawableCache.TryGetValue(ent.Archetype.Hash, out var dwbl)) continue;
 
                     ent.EnsureLights(dwbl);
                     var elights = ent.Lights;
@@ -284,7 +292,7 @@ namespace CodeWalker.Project.Panels
                         var elight = elights[li];
                         var la = elight.Attributes;
 
-                        if (la.LightFadeDistance > 0) continue;
+                        if (la == null || la.LightFadeDistance > 0) continue;
 
                         uint flags = la.Flags;
 
@@ -433,7 +441,8 @@ namespace CodeWalker.Project.Panels
                     var data = ymap.Save();
                     if (data != null)
                     {
-                        var filePath = Path.Combine(outputDir, ymap.RpfFileEntry.Name);
+                        var entry = ymap.RpfFileEntry ?? throw new InvalidOperationException("Generated light map has no archive entry.");
+                        var filePath = Path.Combine(outputDir, entry.Name);
                         File.WriteAllBytes(filePath, data);
                     }
                 }

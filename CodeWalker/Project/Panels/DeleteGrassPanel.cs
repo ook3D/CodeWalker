@@ -23,14 +23,14 @@ namespace CodeWalker.Project.Panels
         }
 
         public ProjectForm ProjectForm { get; set; }
-        public ProjectFile CurrentProjectFile { get; set; }
+        public ProjectFile? CurrentProjectFile { get; set; }
 
         public DeleteGrassPanel(ProjectForm projectForm)
         {
             ProjectForm = projectForm;
             InitializeComponent();
 
-            if (ProjectForm?.WorldForm == null)
+            if (ProjectForm.WorldForm == null)
             {
                 //could happen in some other startup mode - world form is required for this..
                 brushModeGroupBox.Enabled = false;

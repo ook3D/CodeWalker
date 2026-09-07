@@ -7,6 +7,7 @@ using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Data;
 using System.Drawing;
 using System.IO;
@@ -21,74 +22,74 @@ namespace CodeWalker.Project
 {
     public partial class ProjectForm : Form
     {
-        public WorldForm WorldForm { get; private set; }
+        public WorldForm? WorldForm { get; private set; }
         public ThemeBase Theme { get; private set; }
-        public ProjectExplorerPanel ProjectExplorer { get; set; }
-        public ProjectPanel PreviewPanel { get; set; }
-        public DeleteGrassPanel DeleteGrassPanel { get; set; }
+        public ProjectExplorerPanel? ProjectExplorer { get; set; }
+        public ProjectPanel? PreviewPanel { get; set; }
+        public DeleteGrassPanel? DeleteGrassPanel { get; set; }
 
         public GameFileCache GameFileCache { get; private set; }
-        public RpfManager RpfMan { get; private set; }
+        public RpfManager? RpfMan { get; private set; }
 
 
         public bool IsProjectLoaded
         {
             get { return CurrentProjectFile != null; }
         }
-        public ProjectFile CurrentProjectFile;
+        public ProjectFile? CurrentProjectFile;
 
-        private MapSelection[] CurrentMulti;
+        private MapSelection[]? CurrentMulti;
 
-        private YmapFile CurrentYmapFile;
-        private YmapEntityDef CurrentEntity;
-        private YmapCarGen CurrentCarGen;
-        private YmapLODLight CurrentLodLight;
-        private YmapBoxOccluder CurrentBoxOccluder;
-        private YmapOccludeModel CurrentOccludeModel;
-        private YmapOccludeModelTriangle CurrentOccludeModelTri;
-        private YmapGrassInstanceBatch CurrentGrassBatch;
+        private YmapFile? CurrentYmapFile;
+        private YmapEntityDef? CurrentEntity;
+        private YmapCarGen? CurrentCarGen;
+        private YmapLODLight? CurrentLodLight;
+        private YmapBoxOccluder? CurrentBoxOccluder;
+        private YmapOccludeModel? CurrentOccludeModel;
+        private YmapOccludeModelTriangle? CurrentOccludeModelTri;
+        private YmapGrassInstanceBatch? CurrentGrassBatch;
 
-        private YtypFile CurrentYtypFile;
-        private Archetype CurrentArchetype;
-        private MCEntityDef CurrentMloEntity;
-        private MCMloRoomDef CurrentMloRoom;
-        private MCMloPortalDef CurrentMloPortal;
-        private MCMloEntitySet CurrentMloEntitySet;
+        private YtypFile? CurrentYtypFile;
+        private Archetype? CurrentArchetype;
+        private MCEntityDef? CurrentMloEntity;
+        private MCMloRoomDef? CurrentMloRoom;
+        private MCMloPortalDef? CurrentMloPortal;
+        private MCMloEntitySet? CurrentMloEntitySet;
 
-        private YndFile CurrentYndFile;
-        private YndNode CurrentPathNode;
-        private YndLink CurrentPathLink;
+        private YndFile? CurrentYndFile;
+        private YndNode? CurrentPathNode;
+        private YndLink? CurrentPathLink;
 
-        private YnvFile CurrentYnvFile;
-        private YnvPoly CurrentNavPoly;
-        private YnvPoint CurrentNavPoint;
-        private YnvPortal CurrentNavPortal;
+        private YnvFile? CurrentYnvFile;
+        private YnvPoly? CurrentNavPoly;
+        private YnvPoint? CurrentNavPoint;
+        private YnvPortal? CurrentNavPortal;
 
-        private TrainTrack CurrentTrainTrack;
-        private TrainTrackNode CurrentTrainNode;
+        private TrainTrack? CurrentTrainTrack;
+        private TrainTrackNode? CurrentTrainNode;
 
-        private YmtFile CurrentScenario;
-        private ScenarioNode CurrentScenarioNode;
-        private MCScenarioChainingEdge CurrentScenarioChainEdge;
+        private YmtFile? CurrentScenario;
+        private ScenarioNode? CurrentScenarioNode;
+        private MCScenarioChainingEdge? CurrentScenarioChainEdge;
 
-        private RelFile CurrentAudioFile;
-        private AudioPlacement CurrentAudioAmbientZone;
-        private AudioPlacement CurrentAudioAmbientRule;
-        private AudioPlacement CurrentAudioStaticEmitter;
-        private Dat151AmbientZoneList CurrentAudioAmbientZoneList;
-        private Dat151StaticEmitterList CurrentAudioStaticEmitterList;
-        private Dat151InteriorSettings CurrentAudioInterior;
-        private Dat151InteriorRoom CurrentAudioInteriorRoom;
+        private RelFile? CurrentAudioFile;
+        private AudioPlacement? CurrentAudioAmbientZone;
+        private AudioPlacement? CurrentAudioAmbientRule;
+        private AudioPlacement? CurrentAudioStaticEmitter;
+        private Dat151AmbientZoneList? CurrentAudioAmbientZoneList;
+        private Dat151StaticEmitterList? CurrentAudioStaticEmitterList;
+        private Dat151InteriorSettings? CurrentAudioInterior;
+        private Dat151InteriorRoom? CurrentAudioInteriorRoom;
 
-        private YbnFile CurrentYbnFile;
-        private Bounds CurrentCollisionBounds;
-        private BoundPolygon CurrentCollisionPoly;
-        private BoundVertex CurrentCollisionVertex;
+        private YbnFile? CurrentYbnFile;
+        private Bounds? CurrentCollisionBounds;
+        private BoundPolygon? CurrentCollisionPoly;
+        private BoundVertex? CurrentCollisionVertex;
 
-        private YdrFile CurrentYdrFile;
-        private YddFile CurrentYddFile;
-        private YftFile CurrentYftFile;
-        private YtdFile CurrentYtdFile;
+        private YdrFile? CurrentYdrFile;
+        private YddFile? CurrentYddFile;
+        private YftFile? CurrentYftFile;
+        private YtdFile? CurrentYtdFile;
 
 
 
@@ -178,9 +179,10 @@ namespace CodeWalker.Project
         }
 
 
+        [MemberNotNull(nameof(Theme))]
         private void SetTheme(string themestr, bool changing = true)
         {
-            if (changing && (CurrentProjectFile != null))
+            if (changing && (CurrentProjectFile != null) && Theme != null)
             {
                 if (MessageBox.Show("Project will be closed before changing the theme. Are you sure you want to continue?", "Theme change", MessageBoxButtons.YesNo) != DialogResult.Yes)
                 {
@@ -204,7 +206,6 @@ namespace CodeWalker.Project
                 menu.Checked = false;
             }
 
-            Theme = null;
 
             switch (themestr)
             {
@@ -251,7 +252,7 @@ namespace CodeWalker.Project
 
         }
 
-        private T FindPanel<T>(Func<T, bool> findFunc) where T : ProjectPanel
+        private T? FindPanel<T>(Func<T, bool> findFunc) where T : ProjectPanel
         {
             foreach (var pane in MainDockPanel.Panes)
             {
@@ -292,10 +293,10 @@ namespace CodeWalker.Project
         }
         public void ShowPreviewPanel<T>(Func<T> createFunc, Action<T>? updateAction = null) where T : ProjectPanel
         {
-            if ((PreviewPanel != null) && (PreviewPanel is T))
+            if (PreviewPanel is T typedPreview)
             {
                 PreviewPanel.BringToFront();//.Show();
-                updateAction?.Invoke(PreviewPanel as T);
+                updateAction?.Invoke(typedPreview);
             }
             else
             {
@@ -313,7 +314,7 @@ namespace CodeWalker.Project
         }
         public void ShowPanel<T>(bool promote, Func<T> createFunc, Action<T> updateAction, Func<T, bool> findFunc) where T : ProjectPanel
         {
-            T found = FindPanel(findFunc);
+            T? found = FindPanel(findFunc);
             if ((found != null) && (found != PreviewPanel))
             {
                 if (found.IsHidden)
@@ -347,94 +348,120 @@ namespace CodeWalker.Project
         }
         public void ShowEditProjectPanel(bool promote)
         {
+            var selection = CurrentProjectFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditProjectPanel(this); }, //createFunc
-                (panel) => { panel.SetProject(CurrentProjectFile); },  //updateFunc
+                (panel) => { panel.SetProject(selection); },  //updateFunc
                 (panel) => { return true; }); //findFunc
         }
         public void ShowEditProjectManifestPanel(bool promote)
         {
+            var selection = CurrentProjectFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditProjectManifestPanel(this); }, //createFunc
-                (panel) => { panel.SetProject(CurrentProjectFile); }, //updateFunc
+                (panel) => { panel.SetProject(selection); }, //updateFunc
                 (panel) => { return true; }); //findFunc
         }
         public void ShowDeleteGrassPanel(bool promote)
         {
+            var selection = CurrentProjectFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { DeleteGrassPanel = new DeleteGrassPanel(this); return DeleteGrassPanel; }, //createFunc
-                (panel) => { panel.SetProject(CurrentProjectFile); panel.IsFloat = true; }, //updateFunc
+                (panel) => { panel.SetProject(selection); panel.IsFloat = true; }, //updateFunc
                 (panel) => { return true; }); //findFunc
         }
         public void ShowGenerateLODLightsPanel(bool promote)
         {
+            var selection = CurrentProjectFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new GenerateLODLightsPanel(this); }, //createFunc
-                (panel) => { panel.SetProject(CurrentProjectFile); }, //updateFunc
+                (panel) => { panel.SetProject(selection); }, //updateFunc
                 (panel) => { return true; }); //findFunc
         }
         public void ShowGenerateNavMeshPanel(bool promote)
         {
+            var selection = CurrentProjectFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new GenerateNavMeshPanel(this); }, //createFunc
-                (panel) => { panel.SetProject(CurrentProjectFile); }, //updateFunc
+                (panel) => { panel.SetProject(selection); }, //updateFunc
                 (panel) => { return true; }); //findFunc
         }
         public void ShowEditMultiPanel(bool promote)
         {
+            var selection = CurrentMulti;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditMultiPanel(this); }, //createFunc
-                (panel) => { panel.SetItems(CurrentMulti); }, //updateFunc
-                (panel) => { return panel.Items == CurrentMulti; }); //findFunc
+                (panel) => { panel.SetItems(selection); }, //updateFunc
+                (panel) => { return panel.Items == selection; }); //findFunc
         }
         public void ShowEditYmapPanel(bool promote)
         {
+            var selection = CurrentYmapFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapPanel(this); }, //createFunc
-                (panel) => { panel.SetYmap(CurrentYmapFile); }, //updateFunc
-                (panel) => { return panel.Ymap == CurrentYmapFile; }); //findFunc
+                (panel) => { panel.SetYmap(selection); }, //updateFunc
+                (panel) => { return panel.Ymap == selection; }); //findFunc
         }
         public void ShowYmapLodHierarchyPanel(bool promote)
         {
+            var selection = CurrentYmapFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapLodHierarchyPanel(this); }, //createFunc
-                (panel) => { panel.SetYmap(CurrentYmapFile); }, //updateFunc
+                (panel) => { panel.SetYmap(selection); }, //updateFunc
                 (panel) => { return true; }); //findFunc - single instance
         }
         public void ShowEditYmapEntityPanel(bool promote)
         {
+            var selection = CurrentEntity;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapEntityPanel(this); }, //createFunc
-                (panel) => { panel.SetEntity(CurrentEntity); }, //updateFunc
-                (panel) => { return panel.CurrentEntity == CurrentEntity; }); //findFunc
+                (panel) => { panel.SetEntity(selection); }, //updateFunc
+                (panel) => { return panel.CurrentEntity == selection; }); //findFunc
         }
         public void ShowEditYmapCarGenPanel(bool promote)
         {
+            var selection = CurrentCarGen;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapCarGenPanel(this); }, //createFunc
-                (panel) => { panel.SetCarGen(CurrentCarGen); }, //updateFunc
-                (panel) => { return panel.CurrentCarGen == CurrentCarGen; }); //findFunc
+                (panel) => { panel.SetCarGen(selection); }, //updateFunc
+                (panel) => { return panel.CurrentCarGen == selection; }); //findFunc
         }
         public void ShowEditYmapLodLightPanel(bool promote)
         {
+            var selection = CurrentLodLight;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapLodLightPanel(this); }, //createFunc
-                (panel) => { panel.SetLodLight(CurrentLodLight); }, //updateFunc
-                (panel) => { return panel.CurrentLodLight == CurrentLodLight; }); //findFunc
+                (panel) => { panel.SetLodLight(selection); }, //updateFunc
+                (panel) => { return panel.CurrentLodLight == selection; }); //findFunc
         }
         public void ShowEditYmapBoxOccluderPanel(bool promote)
         {
+            var selection = CurrentBoxOccluder;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapBoxOccluderPanel(this); }, //createFunc
-                (panel) => { panel.SetBoxOccluder(CurrentBoxOccluder); }, //updateFunc
-                (panel) => { return panel.CurrentBoxOccluder == CurrentBoxOccluder; }); //findFunc
+                (panel) => { panel.SetBoxOccluder(selection); }, //updateFunc
+                (panel) => { return panel.CurrentBoxOccluder == selection; }); //findFunc
         }
         public void ShowEditYmapOccludeModelPanel(bool promote)
         {
+            var selection = CurrentOccludeModel;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapOccludeModelPanel(this); }, //createFunc
-                (panel) => { panel.SetOccludeModel(CurrentOccludeModel); }, //updateFunc
-                (panel) => { return panel.CurrentOccludeModel == CurrentOccludeModel; }); //findFunc
+                (panel) => { panel.SetOccludeModel(selection); }, //updateFunc
+                (panel) => { return panel.CurrentOccludeModel == selection; }); //findFunc
         }
         public void ShowEditYmapOccludeModelTrianglePanel(bool promote)
         {
@@ -445,199 +472,255 @@ namespace CodeWalker.Project
         }
         public void ShowEditYmapGrassBatchPanel(bool promote)
         {
+            var selection = CurrentGrassBatch;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYmapGrassPanel(this); }, //createFunc
-                (panel) => { panel.SetBatch(CurrentGrassBatch); }, //updateFunc
-                (panel) => { return panel.CurrentBatch == CurrentGrassBatch; }); //findFunc
+                (panel) => { panel.SetBatch(selection); }, //updateFunc
+                (panel) => { return panel.CurrentBatch == selection; }); //findFunc
         }
         public void ShowEditYtypPanel(bool promote)
         {
+            var selection = CurrentYtypFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYtypPanel(this); }, //createFunc
-                (panel) => { panel.SetYtyp(CurrentYtypFile); }, //updateFunc
-                (panel) => { return panel.Ytyp == CurrentYtypFile; }); //findFunc
+                (panel) => { panel.SetYtyp(selection); }, //updateFunc
+                (panel) => { return panel.Ytyp == selection; }); //findFunc
         }
         public void ShowEditArchetypePanel(bool promote)
         {
+            var selection = CurrentArchetype;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYtypArchetypePanel(this); }, //createFunc
-                (panel) => { panel.SetArchetype(CurrentArchetype); }, //updateFunc
-                (panel) => { return panel.CurrentArchetype == CurrentArchetype; }); //findFunc
+                (panel) => { panel.SetArchetype(selection); }, //updateFunc
+                (panel) => { return panel.CurrentArchetype == selection; }); //findFunc
         }
         public void ShowEditYbnPanel(bool promote)
         {
+            var selection = CurrentYbnFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYbnPanel(this); }, //createFunc
-                (panel) => { panel.SetYbn(CurrentYbnFile); }, //updateFunc
-                (panel) => { return panel.Ybn == CurrentYbnFile; }); //findFunc
+                (panel) => { panel.SetYbn(selection); }, //updateFunc
+                (panel) => { return panel.Ybn == selection; }); //findFunc
         }
         public void ShowEditYbnBoundsPanel(bool promote)
         {
+            var selection = CurrentCollisionBounds;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYbnBoundsPanel(this); }, //createFunc
-                (panel) => { panel.SetCollisionBounds(CurrentCollisionBounds); }, //updateFunc
-                (panel) => { return panel.CollisionBounds == CurrentCollisionBounds; }); //findFunc
+                (panel) => { panel.SetCollisionBounds(selection); }, //updateFunc
+                (panel) => { return panel.CollisionBounds == selection; }); //findFunc
         }
         public void ShowEditYbnBoundPolyPanel(bool promote)
         {
+            var selection = CurrentCollisionPoly;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYbnBoundPolyPanel(this); }, //createFunc
-                (panel) => { panel.SetCollisionPoly(CurrentCollisionPoly); }, //updateFunc
-                (panel) => { return panel.CollisionPoly == CurrentCollisionPoly; }); //findFunc
+                (panel) => { panel.SetCollisionPoly(selection); }, //updateFunc
+                (panel) => { return panel.CollisionPoly == selection; }); //findFunc
         }
         public void ShowEditYbnBoundVertexPanel(bool promote)
         {
+            var selection = CurrentCollisionVertex;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYbnBoundVertexPanel(this); }, //createFunc
-                (panel) => { panel.SetCollisionVertex(CurrentCollisionVertex); }, //updateFunc
-                (panel) => { return panel.CollisionVertex == CurrentCollisionVertex; }); //findFunc
+                (panel) => { panel.SetCollisionVertex(selection); }, //updateFunc
+                (panel) => { return panel.CollisionVertex == selection; }); //findFunc
         }
         public void ShowEditYndPanel(bool promote)
         {
+            var selection = CurrentYndFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYndPanel(this); }, //createFunc
-                (panel) => { panel.SetYnd(CurrentYndFile); }, //updateFunc
-                (panel) => { return panel.Ynd == CurrentYndFile; }); //findFunc
+                (panel) => { panel.SetYnd(selection); }, //updateFunc
+                (panel) => { return panel.Ynd == selection; }); //findFunc
         }
         public void ShowEditYndNodePanel(bool promote)
         {
+            var selection = CurrentPathNode;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYndNodePanel(this); }, //createFunc
-                (panel) => { panel.SetPathNode(CurrentPathNode); }, //updateFunc
-                (panel) => { return panel.CurrentPathNode == CurrentPathNode; }); //findFunc
+                (panel) => { panel.SetPathNode(selection); }, //updateFunc
+                (panel) => { return panel.CurrentPathNode == selection; }); //findFunc
         }
         public void ShowEditYnvPanel(bool promote)
         {
+            var selection = CurrentYnvFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYnvPanel(this); }, //createFunc
-                (panel) => { panel.SetYnv(CurrentYnvFile); }, //updateFunc
-                (panel) => { return panel.Ynv == CurrentYnvFile; }); //findFunc
+                (panel) => { panel.SetYnv(selection); }, //updateFunc
+                (panel) => { return panel.Ynv == selection; }); //findFunc
         }
         public void ShowEditYnvPolyPanel(bool promote)
         {
+            var selection = CurrentNavPoly;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYnvPolyPanel(this); }, //createFunc
-                (panel) => { panel.SetYnvPoly(CurrentNavPoly); }, //updateFunc
-                (panel) => { return panel.YnvPoly == CurrentNavPoly; }); //findFunc
+                (panel) => { panel.SetYnvPoly(selection); }, //updateFunc
+                (panel) => { return panel.YnvPoly == selection; }); //findFunc
         }
         public void ShowEditYnvPointPanel(bool promote)
         {
+            var selection = CurrentNavPoint;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYnvPointPanel(this); }, //createFunc
-                (panel) => { panel.SetYnvPoint(CurrentNavPoint); }, //updateFunc
-                (panel) => { return panel.YnvPoint == CurrentNavPoint; }); //findFunc
+                (panel) => { panel.SetYnvPoint(selection); }, //updateFunc
+                (panel) => { return panel.YnvPoint == selection; }); //findFunc
         }
         public void ShowEditYnvPortalPanel(bool promote)
         {
+            var selection = CurrentNavPortal;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYnvPortalPanel(this); }, //createFunc
-                (panel) => { panel.SetYnvPortal(CurrentNavPortal); }, //updateFunc
-                (panel) => { return panel.YnvPortal == CurrentNavPortal; }); //findFunc
+                (panel) => { panel.SetYnvPortal(selection); }, //updateFunc
+                (panel) => { return panel.YnvPortal == selection; }); //findFunc
         }
         public void ShowEditTrainTrackPanel(bool promote)
         {
+            var selection = CurrentTrainTrack;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditTrainTrackPanel(this); }, //createFunc
-                (panel) => { panel.SetTrainTrack(CurrentTrainTrack); }, //updateFunc
-                (panel) => { return panel.Track == CurrentTrainTrack; }); //findFunc
+                (panel) => { panel.SetTrainTrack(selection); }, //updateFunc
+                (panel) => { return panel.Track == selection; }); //findFunc
         }
         public void ShowEditTrainNodePanel(bool promote)
         {
+            var selection = CurrentTrainNode;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditTrainNodePanel(this); }, //createFunc
-                (panel) => { panel.SetTrainNode(CurrentTrainNode); }, //updateFunc
-                (panel) => { return panel.TrainNode == CurrentTrainNode; }); //findFunc
+                (panel) => { panel.SetTrainNode(selection); }, //updateFunc
+                (panel) => { return panel.TrainNode == selection; }); //findFunc
         }
         public void ShowEditScenarioYmtPanel(bool promote)
         {
+            var selection = CurrentScenario;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditScenarioYmtPanel(this); }, //createFunc
-                (panel) => { panel.SetScenarioYmt(CurrentScenario); }, //updateFunc
-                (panel) => { return panel.CurrentScenario == CurrentScenario; }); //findFunc
+                (panel) => { panel.SetScenarioYmt(selection); }, //updateFunc
+                (panel) => { return panel.CurrentScenario == selection; }); //findFunc
         }
         public void ShowEditScenarioNodePanel(bool promote)
         {
+            var selection = CurrentScenarioNode;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditScenarioNodePanel(this); }, //createFunc
-                (panel) => { panel.SetScenarioNode(CurrentScenarioNode); }, //updateFunc
-                (panel) => { return panel.CurrentScenarioNode == CurrentScenarioNode; }); //findFunc
+                (panel) => { panel.SetScenarioNode(selection); }, //updateFunc
+                (panel) => { return panel.CurrentScenarioNode == selection; }); //findFunc
         }
         public void ShowEditYtypMloRoomPanel(bool promote)
         {
+            var selection = CurrentMloRoom;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYtypMloRoomPanel(this); }, //createFunc
-                (panel) => { panel.SetRoom(CurrentMloRoom); }, //updateFunc
-                (panel) => { return panel.CurrentRoom == CurrentMloRoom; }); //findFunc
+                (panel) => { panel.SetRoom(selection); }, //updateFunc
+                (panel) => { return panel.CurrentRoom == selection; }); //findFunc
         }
         public void ShowEditYtypMloPortalPanel(bool promote)
         {
+            var selection = CurrentMloPortal;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYtypMloPortalPanel(this); }, //createFunc
-                (panel) => { panel.SetPortal(CurrentMloPortal); }, //updateFunc
-                (panel) => { return panel.CurrentPortal == CurrentMloPortal; }); //findFunc
+                (panel) => { panel.SetPortal(selection); }, //updateFunc
+                (panel) => { return panel.CurrentPortal == selection; }); //findFunc
         }
         public void ShowEditYtypMloEntSetPanel(bool promote)
         {
+            var selection = CurrentMloEntitySet;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditYtypMloEntSetPanel(this); }, //createFunc
-                (panel) => { panel.SetEntitySet(CurrentMloEntitySet); }, //updateFunc
-                (panel) => { return panel.CurrentEntitySet == CurrentMloEntitySet; }); //findFunc
+                (panel) => { panel.SetEntitySet(selection); }, //updateFunc
+                (panel) => { return panel.CurrentEntitySet == selection; }); //findFunc
         }
         public void ShowEditAudioFilePanel(bool promote)
         {
+            var selection = CurrentAudioFile;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioFilePanel(this); }, //createFunc
-                (panel) => { panel.SetFile(CurrentAudioFile); }, //updateFunc
-                (panel) => { return panel.CurrentFile == CurrentAudioFile; }); //findFunc
+                (panel) => { panel.SetFile(selection); }, //updateFunc
+                (panel) => { return panel.CurrentFile == selection; }); //findFunc
         }
         public void ShowEditAudioAmbientZonePanel(bool promote)
         {
+            var selection = CurrentAudioAmbientZone;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioAmbientZonePanel(this); }, //createFunc
-                (panel) => { panel.SetZone(CurrentAudioAmbientZone); }, //updateFunc
-                (panel) => { return panel.CurrentZone?.AmbientZone == CurrentAudioAmbientZone?.AmbientZone; }); //findFunc
+                (panel) => { panel.SetZone(selection); }, //updateFunc
+                (panel) => { return panel.CurrentZone?.AmbientZone == selection?.AmbientZone; }); //findFunc
         }
         public void ShowEditAudioAmbientRulePanel(bool promote)
         {
+            var selection = CurrentAudioAmbientRule;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioAmbientRulePanel(this); }, //createFunc
-                (panel) => { panel.SetRule(CurrentAudioAmbientRule); }, //updateFunc
-                (panel) => { return panel.CurrentRule?.AmbientRule == CurrentAudioAmbientRule?.AmbientRule; }); //findFunc
+                (panel) => { panel.SetRule(selection); }, //updateFunc
+                (panel) => { return panel.CurrentRule?.AmbientRule == selection?.AmbientRule; }); //findFunc
         }
         public void ShowEditAudioStaticEmitterPanel(bool promote)
         {
+            var selection = CurrentAudioStaticEmitter;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioStaticEmitterPanel(this); }, //createFunc
-                (panel) => { panel.SetEmitter(CurrentAudioStaticEmitter); }, //updateFunc
-                (panel) => { return panel.CurrentEmitter?.StaticEmitter == CurrentAudioStaticEmitter?.StaticEmitter; }); //findFunc
+                (panel) => { panel.SetEmitter(selection); }, //updateFunc
+                (panel) => { return panel.CurrentEmitter?.StaticEmitter == selection?.StaticEmitter; }); //findFunc
         }
         public void ShowEditAudioAmbientZoneListPanel(bool promote)
         {
+            var selection = CurrentAudioAmbientZoneList;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioAmbientZoneListPanel(this); }, //createFunc
-                (panel) => { panel.SetZoneList(CurrentAudioAmbientZoneList); }, //updateFunc
-                (panel) => { return panel.CurrentZoneList == CurrentAudioAmbientZoneList; }); //findFunc
+                (panel) => { panel.SetZoneList(selection); }, //updateFunc
+                (panel) => { return panel.CurrentZoneList == selection; }); //findFunc
         }
         public void ShowEditAudioStaticEmitterListPanel(bool promote)
         {
+            var selection = CurrentAudioStaticEmitterList;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioStaticEmitterListPanel(this); }, //createFunc
-                (panel) => { panel.SetEmitterList(CurrentAudioStaticEmitterList); }, //updateFunc
-                (panel) => { return panel.CurrentEmitterList == CurrentAudioStaticEmitterList; }); //findFunc
+                (panel) => { panel.SetEmitterList(selection); }, //updateFunc
+                (panel) => { return panel.CurrentEmitterList == selection; }); //findFunc
         }
         public void ShowEditAudioInteriorPanel(bool promote)
         {
+            var selection = CurrentAudioInterior;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioInteriorPanel(this); }, //createFunc
-                (panel) => { panel.SetInterior(CurrentAudioInterior); }, //updateFunc
-                (panel) => { return panel.CurrentInterior == CurrentAudioInterior; }); //findFunc
+                (panel) => { panel.SetInterior(selection); }, //updateFunc
+                (panel) => { return panel.CurrentInterior == selection; }); //findFunc
         }
         public void ShowEditAudioInteriorRoomPanel(bool promote)
         {
+            var selection = CurrentAudioInteriorRoom;
+            if (selection == null) return;
             ShowPanel(promote,
                 () => { return new EditAudioInteriorRoomPanel(this); }, //createFunc
-                (panel) => { panel.SetRoom(CurrentAudioInteriorRoom); }, //updateFunc
-                (panel) => { return panel.CurrentRoom == CurrentAudioInteriorRoom; }); //findFunc
+                (panel) => { panel.SetRoom(selection); }, //updateFunc
+                (panel) => { return panel.CurrentRoom == selection; }); //findFunc
         }
 
         private void ShowCurrentProjectItem(bool promote)
@@ -807,7 +890,7 @@ namespace CodeWalker.Project
                         var instance = TryGetMloInstance(mcent.OwnerMlo);
                         if (instance != null)
                         {
-                            arr[i] = instance.TryGetYmapEntity(mcent);
+                            arr[i] = instance.TryGetYmapEntity(mcent) ?? arr[i];
                         }
                     }
                 }
@@ -906,7 +989,7 @@ namespace CodeWalker.Project
 
             if (CurrentMloEntity != null)
             {
-                MloInstanceData instance = TryGetMloInstance(CurrentMloEntity.OwnerMlo);
+                MloInstanceData? instance = TryGetMloInstance(CurrentMloEntity.OwnerMlo);
 
                 if (instance != null)
                 {
@@ -1047,7 +1130,7 @@ namespace CodeWalker.Project
             }
 
         }
-        public void SetCurrentArchetype(Archetype arch)
+        public void SetCurrentArchetype(Archetype? arch)
         {
             CurrentArchetype = arch;
             if (CurrentArchetype != null)
@@ -1112,7 +1195,7 @@ namespace CodeWalker.Project
             }
         }
 
-        private void PromoteIfPreviewPanel(IDockContent panel)
+        private void PromoteIfPreviewPanel(IDockContent? panel)
         {
             if (panel == PreviewPanel)
             {
@@ -1150,6 +1233,7 @@ namespace CodeWalker.Project
             return 0f;
         }
 
+        [MemberNotNull(nameof(CurrentProjectFile))]
         public void NewProject()
         {
             if (CurrentProjectFile != null)
@@ -1177,7 +1261,7 @@ namespace CodeWalker.Project
             CurrentProjectFile = new ProjectFile();
             CurrentProjectFile.Load(file);
 
-            string cpath = new FileInfo(CurrentProjectFile.Filepath).Directory.FullName;
+            string cpath = Path.GetDirectoryName(Path.GetFullPath(CurrentProjectFile.Filepath)) ?? throw new InvalidOperationException("Project path has no parent directory.");
 
             foreach (var ymap in CurrentProjectFile.YmapFiles)
             {
@@ -1659,6 +1743,7 @@ namespace CodeWalker.Project
                             var ymtdata = File.ReadAllBytes(file);
                             var ymt = new YmtFile();
                             ymt.Load(ymtdata);
+                            ymt.RpfFileEntry ??= new RpfBinaryFileEntry();
                             ymt.RpfFileEntry.Name = Path.GetFileName(file);
                             ymt.FilePath = file;
                             ymt.Name = ymt.RpfFileEntry.Name;
@@ -1846,7 +1931,7 @@ namespace CodeWalker.Project
 
 
 
-        public object NewObject(MapSelection sel, bool copyPosition = false, bool selectNew = true)
+        public object? NewObject(MapSelection sel, bool copyPosition = false, bool selectNew = true)
         {
             //general method to add a new object, given a map selection
             if (sel.MultipleSelectionItems != null)
@@ -1854,7 +1939,7 @@ namespace CodeWalker.Project
                 var objs = new List<object>();
                 for (int i = 0; i < sel.MultipleSelectionItems.Length; i++)
                 {
-                    objs.Add(NewObject(sel.MultipleSelectionItems[i], copyPosition, false));
+                    if (NewObject(sel.MultipleSelectionItems[i], copyPosition, false) is { } newItem) objs.Add(newItem);
                 }
                 LoadProjectTree();
                 CurrentMulti = sel.MultipleSelectionItems;
@@ -1951,7 +2036,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                YmapFile ymap = CurrentProjectFile.AddYmapFile(fname);
+                var ymap = CurrentProjectFile.AddYmapFile(fname);
                 if (ymap != null)
                 {
                     ymap.Loaded = true;
@@ -2031,7 +2116,7 @@ namespace CodeWalker.Project
                 CurrentYmapFile.SaveWarnings = null;//clear it out for next time..
             }
         }
-        public void AddYmapToProject(YmapFile ymap)
+        public void AddYmapToProject(YmapFile? ymap)
         {
             AddYmapToProject(ymap, true, true);
         }
@@ -2081,7 +2166,7 @@ namespace CodeWalker.Project
             CurrentYmapFile = null;
             RefreshUI();
         }
-        public bool YmapExistsInProject(YmapFile? ymap)
+        public bool YmapExistsInProject([NotNullWhen(true)] YmapFile? ymap)
         {
             if (ymap == null) return false;
             if (CurrentProjectFile == null) return false;
@@ -2186,7 +2271,7 @@ namespace CodeWalker.Project
             }
         }
 
-        public YmapEntityDef NewEntity(YmapEntityDef? copy = null, bool copyPosition = false, bool selectNew = true)
+        public YmapEntityDef? NewEntity(YmapEntityDef? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (copy != null)
             {
@@ -2207,8 +2292,8 @@ namespace CodeWalker.Project
             {
                 spawndist = copy.BSRadius * 2.5f;
             }
-            bool cp = copyPosition && (copy != null);
-            Vector3 pos = cp ? copy.Position : GetSpawnPos(spawndist);
+
+            Vector3 pos = (copyPosition && (copy != null)) ? copy.Position : GetSpawnPos(spawndist);
 
 
             CEntityDef cent = new CEntityDef();
@@ -2272,6 +2357,7 @@ namespace CodeWalker.Project
                 if (CurrentEntity.Ymap == null)
                 {
                     CurrentYtypFile = CurrentEntity.MloParent?.Archetype?.Ytyp;
+                    if (CurrentYtypFile == null) return;
 
                     if (!YtypExistsInProject(CurrentYtypFile))
                     {
@@ -2285,7 +2371,7 @@ namespace CodeWalker.Project
                                 CurrentYtypFile.HasChanged = true;
                                 AddYtypToProject(CurrentYtypFile);
                                 CurrentEntity = ent;
-                                CurrentYtypFile = ent.MloParent.Archetype.Ytyp;
+                                CurrentYtypFile = ent.MloParent?.Archetype?.Ytyp;
                                 ProjectExplorer?.TrySelectMloEntityTreeNode(mcEntity);
                             }
                         }
@@ -2294,7 +2380,7 @@ namespace CodeWalker.Project
                 }
 
                 CurrentYmapFile = CurrentEntity.Ymap;
-                if (!YmapExistsInProject(CurrentYmapFile))
+                if (CurrentYmapFile != null && !YmapExistsInProject(CurrentYmapFile))
                 {
                     YmapEntityDef ent = CurrentEntity;
                     CurrentYmapFile.HasChanged = true;
@@ -2316,6 +2402,7 @@ namespace CodeWalker.Project
 
         private bool DeleteYmapEntity()
         {
+            if (CurrentEntity == null) return false;
             if (CurrentEntity.Ymap != CurrentYmapFile) return false;
 
             var children = CurrentEntity.ChildrenMerged ?? CurrentEntity.Children;
@@ -2330,9 +2417,10 @@ namespace CodeWalker.Project
             return DeleteYmapEntity(CurrentEntity, false);
         }
 
-        public bool DeleteYmapEntity(YmapEntityDef ent, bool deleteChildren)
+        public bool DeleteYmapEntity(YmapEntityDef? ent, bool deleteChildren)
         {
-            var ymap = ent?.Ymap;
+            if (ent == null) return false;
+            var ymap = ent.Ymap;
             if (ymap == null) return false;
             if (ymap.AllEntities == null) return false; //nothing to delete..
             if (ymap.RootEntities == null) return false; //nothing to delete..
@@ -2392,7 +2480,7 @@ namespace CodeWalker.Project
             return CurrentEntity == ent;
         }
 
-        public YmapGrassInstanceBatch NewGrassBatch(YmapGrassInstanceBatch? copy = null)
+        public YmapGrassInstanceBatch? NewGrassBatch(YmapGrassInstanceBatch? copy = null)
         {
             if (CurrentYmapFile == null) return null;
 
@@ -2450,7 +2538,7 @@ namespace CodeWalker.Project
         public void AddGrassBatchToProject(YmapGrassInstanceBatch batch)
         {
             var ymap = batch.Ymap;
-            if (!YmapExistsInProject(ymap))
+            if (ymap != null && !YmapExistsInProject(ymap))
             {
                 ymap.HasChanged = true;
                 AddYmapToProject(ymap);
@@ -2461,7 +2549,7 @@ namespace CodeWalker.Project
             if (CurrentGrassBatch == null) return;
 
             CurrentYmapFile = CurrentGrassBatch.Ymap;
-            if (!YmapExistsInProject(CurrentYmapFile))
+            if (CurrentYmapFile != null && !YmapExistsInProject(CurrentYmapFile))
             {
                 var grassBatch = CurrentGrassBatch;
                 CurrentYmapFile.HasChanged = true;
@@ -2530,7 +2618,7 @@ namespace CodeWalker.Project
 
                 if (!mouseRay.Hit || !mouseRay.TestComplete) return;
 
-                EditYmapGrassPanel batchPanel = FindPanel<EditYmapGrassPanel>(x => x.CurrentBatch == CurrentGrassBatch);
+                EditYmapGrassPanel? batchPanel = FindPanel<EditYmapGrassPanel>(x => x.CurrentBatch == CurrentGrassBatch);
                 if (batchPanel == null && DeleteGrassPanel == null) return; // no relevant panels
 
                 // TODO: Maybe move these functions into the batch instead of the grass panel?
@@ -2555,7 +2643,7 @@ namespace CodeWalker.Project
         {
             if (CurrentProjectFile?.YmapFiles == null) return false;
             if (CurrentProjectFile.YmapFiles.Count <= 0) return false;
-            if (CurrentProjectFile.YmapFiles.Contains(batch.Ymap)) return true;
+            if (batch.Ymap != null && CurrentProjectFile.YmapFiles.Contains(batch.Ymap)) return true;
             foreach (var ymapFile in CurrentProjectFile.YmapFiles)
             {
                 if (ymapFile.GrassInstanceBatches == null) continue;
@@ -2615,7 +2703,7 @@ namespace CodeWalker.Project
             }
         }
 
-        public YmapCarGen NewCarGen(YmapCarGen? copy = null, bool copyPosition = false, bool selectNew = true)
+        public YmapCarGen? NewCarGen(YmapCarGen? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentYmapFile == null) return null;
 
@@ -2674,7 +2762,7 @@ namespace CodeWalker.Project
             if (CurrentCarGen == null) return;
 
             CurrentYmapFile = CurrentCarGen.Ymap;
-            if (!YmapExistsInProject(CurrentYmapFile))
+            if (CurrentYmapFile != null && !YmapExistsInProject(CurrentYmapFile))
             {
                 var cargen = CurrentCarGen;
                 CurrentYmapFile.HasChanged = true;
@@ -2736,7 +2824,7 @@ namespace CodeWalker.Project
             return CurrentCarGen == cargen;
         }
 
-        public YmapLODLight NewLodLight(YmapLODLight? copy = null, bool copyPosition = false, bool selectNew = true)
+        public YmapLODLight? NewLodLight(YmapLODLight? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentYmapFile == null) return null;
 
@@ -2799,11 +2887,12 @@ namespace CodeWalker.Project
                 var lodlight = CurrentLodLight;
                 if (lodlight.DistLodLights?.Ymap != null)
                 {
+                    lodlight.DistLodLights.Ymap.HasChanged = true;
                     AddYmapToProject(lodlight.DistLodLights.Ymap);
-                    CurrentYmapFile.HasChanged = true;
                 }
 
                 CurrentYmapFile = lodlight.Ymap;
+                if (CurrentYmapFile == null) return;
                 CurrentYmapFile.HasChanged = true;
                 AddYmapToProject(CurrentYmapFile);
 
@@ -2870,7 +2959,7 @@ namespace CodeWalker.Project
             return CurrentLodLight == lodlight;
         }
 
-        public YmapBoxOccluder NewBoxOccluder(YmapBoxOccluder? copy = null, bool copyPosition = false, bool selectNew = true)
+        public YmapBoxOccluder? NewBoxOccluder(YmapBoxOccluder? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentYmapFile == null) return null;
 
@@ -2988,7 +3077,7 @@ namespace CodeWalker.Project
             return CurrentBoxOccluder == box;
         }
 
-        public YmapOccludeModel NewOccludeModel(YmapOccludeModel? copy = null, bool copyPosition = false, bool selectNew = true)
+        public YmapOccludeModel? NewOccludeModel(YmapOccludeModel? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentYmapFile == null) return null;
 
@@ -3106,7 +3195,7 @@ namespace CodeWalker.Project
             return CurrentOccludeModel == model;
         }
 
-        public YmapOccludeModelTriangle NewOccludeModelTriangle(YmapOccludeModelTriangle? copy = null, bool copyPosition = false, bool selectNew = true)
+        public YmapOccludeModelTriangle? NewOccludeModelTriangle(YmapOccludeModelTriangle? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentYmapFile == null) return null;
 
@@ -3120,7 +3209,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                ot = new YmapOccludeModelTriangle(CurrentOccludeModel, pos, pos + Vector3.UnitY, pos + Vector3.UnitX, CurrentOccludeModel?.Triangles?.Length ?? 0);
+                if (CurrentOccludeModel == null) return null;
+                ot = new YmapOccludeModelTriangle(CurrentOccludeModel, pos, pos + Vector3.UnitY, pos + Vector3.UnitX, CurrentOccludeModel.Triangles?.Length ?? 0);
                 //...
             }
 
@@ -3165,6 +3255,7 @@ namespace CodeWalker.Project
                 var tri = CurrentOccludeModelTri;
 
                 CurrentYmapFile = tri.Ymap;
+                if (CurrentYmapFile == null) return;
                 CurrentYmapFile.HasChanged = true;
                 AddYmapToProject(CurrentYmapFile);
 
@@ -3264,7 +3355,7 @@ namespace CodeWalker.Project
             string fname = menyooXml.Name + ".ymap";
             lock (ProjectSyncRoot)
             {
-                YmapFile ymap = CurrentProjectFile.AddYmapFile(fname);
+                var ymap = CurrentProjectFile.AddYmapFile(fname);
                 if (ymap != null)
                 {
                     ymap.Loaded = true;
@@ -3273,6 +3364,7 @@ namespace CodeWalker.Project
                 }
                 CurrentYmapFile = ymap;
             }
+            if (CurrentYmapFile == null) return;
 
             CurrentProjectFile.HasChanged = true;
 
@@ -3412,7 +3504,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                YtypFile ytyp = CurrentProjectFile.AddYtypFile(fname);
+                var ytyp = CurrentProjectFile.AddYtypFile(fname);
                 if (ytyp != null)
                 {
                     //ytyp.Loaded = true;
@@ -3453,8 +3545,9 @@ namespace CodeWalker.Project
                     string newname = Path.GetFileNameWithoutExtension(filepath);
                     JenkIndex.Ensure(newname);
                     CurrentYtypFile.FilePath = filepath;
-                    CurrentYtypFile.RpfFileEntry.Name = new FileInfo(filepath).Name;
-                    CurrentYtypFile.Name = CurrentYtypFile.RpfFileEntry.Name;
+                    var entry = CurrentYtypFile.RpfFileEntry ?? throw new InvalidOperationException("The file has no archive entry.");
+                    entry.Name = new FileInfo(filepath).Name;
+                    CurrentYtypFile.Name = entry.Name;
                     CurrentYtypFile.NameHash = JenkHash.GenHash(newname);
                     CurrentYtypFile._CMapTypes.name = CurrentYtypFile.NameHash;
                 }
@@ -3523,14 +3616,14 @@ namespace CodeWalker.Project
             CurrentYtypFile = null;
             RefreshUI();
         }
-        public bool YtypExistsInProject(YtypFile? ytyp)
+        public bool YtypExistsInProject([NotNullWhen(true)] YtypFile? ytyp)
         {
             if (ytyp == null) return false;
             if (CurrentProjectFile == null) return false;
             return CurrentProjectFile.ContainsYtyp(ytyp);
         }
 
-        public Archetype NewArchetype(Archetype? copy = null)
+        public Archetype? NewArchetype(Archetype? copy = null)
         {
             if (CurrentYtypFile == null) return null;
             var archetype = CurrentYtypFile.AddArchetype();
@@ -3558,7 +3651,7 @@ namespace CodeWalker.Project
         {
             if (CurrentYtypFile == null) return;
 
-            string[] files = ShowOpenDialogMulti("Ydr files|*.ydr", string.Empty);
+            string[]? files = ShowOpenDialogMulti("Ydr files|*.ydr", string.Empty);
             if (files == null) return;
             if (files.Length == 0) return;
 
@@ -3574,6 +3667,7 @@ namespace CodeWalker.Project
                 archetype._BaseArchetypeDef.assetName = hash;
                 archetype._BaseArchetypeDef.assetType = rage__fwArchetypeDef__eAssetType.ASSET_TYPE_DRAWABLE;
                 archetype._BaseArchetypeDef.specialAttribute = 0;
+                if (ydr.Drawable == null) continue;
                 archetype._BaseArchetypeDef.flags = 32;
                 archetype._BaseArchetypeDef.bbMin = ydr.Drawable.BoundingBoxMin;
                 archetype._BaseArchetypeDef.bbMax = ydr.Drawable.BoundingBoxMax;
@@ -3581,7 +3675,7 @@ namespace CodeWalker.Project
                 archetype._BaseArchetypeDef.bsRadius = ydr.Drawable.BoundingSphereRadius;
                 archetype._BaseArchetypeDef.hdTextureDist = 60.0f;
                 archetype._BaseArchetypeDef.lodDist = 60.0f;
-                if (ydr.Drawable.ShaderGroup.TextureDictionary != null) archetype._BaseArchetypeDef.textureDictionary = hash;
+                if (ydr.Drawable.ShaderGroup?.TextureDictionary != null) archetype._BaseArchetypeDef.textureDictionary = hash;
                 if (ydr.Drawable.Bound != null) archetype._BaseArchetypeDef.physicsDictionary = hash;
 
                 AddProjectArchetype(archetype);
@@ -3592,12 +3686,12 @@ namespace CodeWalker.Project
             CurrentArchetype = archetype;
 
         }
-        public YmapEntityDef NewMloEntity(YmapEntityDef? copy = null, bool copyTransform = false, bool selectNew = true)
+        public YmapEntityDef? NewMloEntity(YmapEntityDef? copy = null, bool copyTransform = false, bool selectNew = true)
         {
             MloArchetype? mloArch = CurrentArchetype as MloArchetype;
             if (mloArch == null)
             {
-                mloArch = (CurrentEntity?.MloParent.Archetype as MloArchetype) ?? CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo;
+                mloArch = (CurrentEntity?.MloParent?.Archetype as MloArchetype) ?? CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo;
                 if (mloArch == null) return null;
                 CurrentArchetype = mloArch;
             }
@@ -3624,7 +3718,7 @@ namespace CodeWalker.Project
                 }
                 else
                 {
-                    if ((mloArch.rooms?.Length ?? 0) <= 0)
+                    if (mloArch.rooms == null || mloArch.rooms.Length == 0)
                     {
                         MessageBox.Show($@"Mlo {mloArch.Name} has no rooms! Cannot create entity.");
                         return null;
@@ -3662,9 +3756,9 @@ namespace CodeWalker.Project
                 spawndist = copy.BSRadius * 2.5f;
             }
 
-            bool cp = copyTransform && (copy != null);
-            Vector3 pos = cp ? copy.CEntityDef.position : GetSpawnPosRel(spawndist, mloInstance.Owner.Position, mloInstance.Owner.Orientation);
-            Quaternion rot = cp ? copy.CEntityDef.rotation.ToQuaternion() : Quaternion.Identity;
+
+            Vector3 pos = (copyTransform && (copy != null)) ? copy.CEntityDef.position : GetSpawnPosRel(spawndist, mloInstance.Owner.Position, mloInstance.Owner.Orientation);
+            Quaternion rot = (copyTransform && (copy != null)) ? copy.CEntityDef.rotation.ToQuaternion() : Quaternion.Identity;
 
 
             CEntityDef cent = new CEntityDef();
@@ -3724,7 +3818,7 @@ namespace CodeWalker.Project
 
             if (selectNew)
             {
-                ProjectExplorer?.AddMloEntityTreeNode(ment);
+                if (ment != null) ProjectExplorer?.AddMloEntityTreeNode(ment);
                 ProjectExplorer?.TrySelectMloEntityTreeNode(ment);
                 CurrentEntity = outEnt;
                 CurrentMloEntity = ment;
@@ -3733,9 +3827,9 @@ namespace CodeWalker.Project
 
             return outEnt;
         }
-        public MCMloRoomDef NewMloRoom(MCMloRoomDef? copy = null)
+        public MCMloRoomDef? NewMloRoom(MCMloRoomDef? copy = null)
         {
-            var mlo = CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo ?? (CurrentEntity?.MloParent.Archetype as MloArchetype) ?? (CurrentArchetype as MloArchetype);
+            var mlo = CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo ?? (CurrentEntity?.MloParent?.Archetype as MloArchetype) ?? (CurrentArchetype as MloArchetype);
             if (mlo == null) return null;
 
             if (copy == null)
@@ -3771,9 +3865,9 @@ namespace CodeWalker.Project
 
             return room;
         }
-        public MCMloPortalDef NewMloPortal(MCMloPortalDef? copy = null)
+        public MCMloPortalDef? NewMloPortal(MCMloPortalDef? copy = null)
         {
-            var mlo = CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo ?? (CurrentEntity?.MloParent.Archetype as MloArchetype) ?? (CurrentArchetype as MloArchetype);
+            var mlo = CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo ?? (CurrentEntity?.MloParent?.Archetype as MloArchetype) ?? (CurrentArchetype as MloArchetype);
             if (mlo == null) return null;
 
             if (copy == null)
@@ -3785,7 +3879,7 @@ namespace CodeWalker.Project
             if (copy != null)
             {
                 portal._Data = copy._Data;
-                portal.Corners = (Vector4[]?)copy.Corners?.Clone();
+                portal.Corners = (Vector4[]?)copy.Corners?.Clone() ?? [];
             }
             else
             {
@@ -3811,9 +3905,9 @@ namespace CodeWalker.Project
 
             return portal;
         }
-        public MCMloEntitySet NewMloEntitySet(MCMloEntitySet? copy = null)
+        public MCMloEntitySet? NewMloEntitySet(MCMloEntitySet? copy = null)
         {
-            var mlo = CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo ?? (CurrentEntity?.MloParent.Archetype as MloArchetype) ?? (CurrentArchetype as MloArchetype);
+            var mlo = CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo ?? (CurrentEntity?.MloParent?.Archetype as MloArchetype) ?? (CurrentArchetype as MloArchetype);
             if (mlo == null) return null;
 
             if (copy == null)
@@ -3849,7 +3943,7 @@ namespace CodeWalker.Project
         }
         public bool DeleteArchetype()
         {
-            if (CurrentArchetype == null) return false;
+            if (CurrentArchetype?.Ytyp == null) return false;
             if (CurrentArchetype.Ytyp != CurrentYtypFile) return false;
 
             if (MessageBox.Show("Are you sure you want to delete this archetype?\n" + CurrentArchetype._BaseArchetypeDef.name.ToString() + "\n\nThis operation cannot be undone. Continue?", "Confirm delete", MessageBoxButtons.YesNo) != DialogResult.Yes)
@@ -3898,8 +3992,8 @@ namespace CodeWalker.Project
         public bool DeleteMloEntity()
         {
             if (CurrentEntity?.MloParent?.Archetype?.Ytyp == null) return false;
-            if (CurrentEntity.MloParent.Archetype.Ytyp != CurrentYtypFile) return false;
-            if (!(CurrentEntity.MloParent.Archetype is MloArchetype mloArchetype)) return false;
+            if (CurrentEntity.MloParent?.Archetype.Ytyp != CurrentYtypFile) return false;
+            if (!(CurrentEntity.MloParent?.Archetype is MloArchetype mloArchetype)) return false;
             if (mloArchetype.entities == null) return false; //nothing to delete..
             //if (mloArchetype.InstancedEntities == null) return false; //nothing to delete..
 
@@ -3914,7 +4008,7 @@ namespace CodeWalker.Project
             //    return true;
             //}
 
-            MloInstanceData mloInstance = CurrentEntity.MloParent.MloInstance;
+            MloInstanceData? mloInstance = CurrentEntity.MloParent.MloInstance;
             if (mloInstance == null) return false;
 
 
@@ -3962,7 +4056,8 @@ namespace CodeWalker.Project
         }
         public bool DeleteMloRoom()
         {
-            var mlo = CurrentMloRoom?.OwnerMlo;
+            if (CurrentMloRoom == null) return false;
+            var mlo = CurrentMloRoom.OwnerMlo;
             if (mlo == null) return false;
 
             if (MessageBox.Show("Are you sure you want to delete this room?\n" + CurrentMloRoom.Name + "\n\nDeleting existing rooms is generally not recommended, as it will mess up all the room IDs.\n\nThis operation cannot be undone. Continue?", "Confirm delete", MessageBoxButtons.YesNo) != DialogResult.Yes)
@@ -3991,7 +4086,8 @@ namespace CodeWalker.Project
         }
         public bool DeleteMloPortal()
         {
-            var mlo = CurrentMloPortal?.OwnerMlo;
+            if (CurrentMloPortal == null) return false;
+            var mlo = CurrentMloPortal.OwnerMlo;
             if (mlo == null) return false;
 
             if (MessageBox.Show("Are you sure you want to delete this portal?\n" + CurrentMloPortal.Name + "\n\nThis operation cannot be undone. Continue?", "Confirm delete", MessageBoxButtons.YesNo) != DialogResult.Yes)
@@ -4020,7 +4116,8 @@ namespace CodeWalker.Project
         }
         public bool DeleteMloEntitySet()
         {
-            var mlo = CurrentMloEntitySet?.OwnerMlo;
+            if (CurrentMloEntitySet == null) return false;
+            var mlo = CurrentMloEntitySet.OwnerMlo;
             if (mlo == null) return false;
 
             if (MessageBox.Show("Are you sure you want to delete this entity set?\n" + CurrentMloEntitySet.Name + "\n\nThis operation cannot be undone. Continue?", "Confirm delete", MessageBoxButtons.YesNo) != DialogResult.Yes)
@@ -4106,7 +4203,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                YbnFile ybn = CurrentProjectFile.AddYbnFile(fname);
+                var ybn = CurrentProjectFile.AddYbnFile(fname);
                 if (ybn != null)
                 {
                     ybn.Loaded = true;
@@ -4150,8 +4247,9 @@ namespace CodeWalker.Project
                     string newname = Path.GetFileNameWithoutExtension(filepath);
                     JenkIndex.Ensure(newname);
                     CurrentYbnFile.FilePath = filepath;
-                    CurrentYbnFile.RpfFileEntry.Name = new FileInfo(filepath).Name;
-                    CurrentYbnFile.Name = CurrentYbnFile.RpfFileEntry.Name;
+                    var entry = CurrentYbnFile.RpfFileEntry ?? throw new InvalidOperationException("The file has no archive entry.");
+                    entry.Name = new FileInfo(filepath).Name;
+                    CurrentYbnFile.Name = entry.Name;
                 }
 
 
@@ -4229,7 +4327,7 @@ namespace CodeWalker.Project
             return CurrentProjectFile.ContainsYbn(ybn);
         }
 
-        public Bounds NewCollisionBounds(BoundsType type, Bounds? copy = null, bool copyPosition = false, bool selectNew = true)
+        public Bounds? NewCollisionBounds(BoundsType type, Bounds? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentYbnFile == null) return null;
 
@@ -4433,13 +4531,14 @@ namespace CodeWalker.Project
             return bounds == CurrentCollisionBounds;
         }
 
-        public BoundPolygon NewCollisionPoly(BoundPolygonType type, BoundPolygon? copy = null, bool copyPosition = false, bool selectNew = true)
+        public BoundPolygon? NewCollisionPoly(BoundPolygonType type, BoundPolygon? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             var bgeom = CurrentCollisionBounds as BoundGeometry;
             if (bgeom == null) return null;
 
 
             var poly = bgeom.AddPolygon(type);
+            if (poly == null) return null;
             var ptri = poly as BoundPolygonTriangle;
             var psph = poly as BoundPolygonSphere;
             var pcap = poly as BoundPolygonCapsule;
@@ -4732,7 +4831,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                YndFile ynd = CurrentProjectFile.AddYndFile(fname);
+                var ynd = CurrentProjectFile.AddYndFile(fname);
                 if (ynd != null)
                 {
                     ynd.Loaded = true;
@@ -4778,11 +4877,12 @@ namespace CodeWalker.Project
                     string newname = Path.GetFileNameWithoutExtension(filepath);
                     JenkIndex.Ensure(newname);
                     CurrentYndFile.FilePath = filepath;
-                    CurrentYndFile.RpfFileEntry.Name = new FileInfo(filepath).Name;
-                    CurrentYndFile.Name = CurrentYndFile.RpfFileEntry.Name;
+                    var entry = CurrentYndFile.RpfFileEntry ?? throw new InvalidOperationException("The file has no archive entry.");
+                    entry.Name = new FileInfo(filepath).Name;
+                    CurrentYndFile.Name = entry.Name;
                 }
 
-                WorldForm.Space.RecalculateAllYndIndices();
+                WorldForm?.Space.RecalculateAllYndIndices();
                 data = CurrentYndFile.Save();
             }
 
@@ -4849,9 +4949,9 @@ namespace CodeWalker.Project
             return CurrentProjectFile.ContainsYnd(ynd);
         }
 
-        public YndNode NewPathNode(YndNode? copy = null, bool copyPosition = false, bool selectNew = true)
+        public YndNode? NewPathNode(YndNode? copy = null, bool copyPosition = false, bool selectNew = true)
         {
-            if (CurrentYndFile == null) return null;
+            if (CurrentYndFile == null || WorldForm == null) return null;
 
             var n = CurrentYndFile.AddYndNode(WorldForm.Space, out var affectedFiles);
 
@@ -4874,8 +4974,8 @@ namespace CodeWalker.Project
                 n.LinkCountUnk = copy.LinkCountUnk;
             }
 
-            bool cp = copyPosition && (copy != null);
-            Vector3 pos = cp ? copy.Position : GetSpawnPos(10.0f);
+
+            Vector3 pos = (copyPosition && (copy != null)) ? copy.Position : GetSpawnPos(10.0f);
             n.SetYndNodePosition(WorldForm.Space, pos, out _);
 
             if (copy != null)
@@ -4887,7 +4987,7 @@ namespace CodeWalker.Project
                     var clink = copy.Links[0];
                     link1.CopyFlags(clink);
                     var clnode = clink.Node2;
-                    if (clnode.Links != null)
+                    if (clnode?.Links != null)
                     {
                         for (int i = 0; i < clnode.Links.Length; i++)
                         {
@@ -5017,7 +5117,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                YnvFile ynv = CurrentProjectFile.AddYnvFile(fname);
+                var ynv = CurrentProjectFile.AddYnvFile(fname);
                 if (ynv != null)
                 {
                     ynv.Loaded = true;
@@ -5062,8 +5162,9 @@ namespace CodeWalker.Project
                     string newname = Path.GetFileNameWithoutExtension(filepath);
                     JenkIndex.Ensure(newname);
                     CurrentYnvFile.FilePath = filepath;
-                    CurrentYnvFile.RpfFileEntry.Name = new FileInfo(filepath).Name;
-                    CurrentYnvFile.Name = CurrentYnvFile.RpfFileEntry.Name;
+                    var entry = CurrentYnvFile.RpfFileEntry ?? throw new InvalidOperationException("The file has no archive entry.");
+                    entry.Name = new FileInfo(filepath).Name;
+                    CurrentYnvFile.Name = entry.Name;
                 }
 
 
@@ -5132,7 +5233,7 @@ namespace CodeWalker.Project
             return CurrentProjectFile.ContainsYnv(ynv);
         }
 
-        public YnvPoly NewNavPoly(YnvPoly? copy = null, bool copyposition = false, bool selectNew = true)//TODO!
+        public YnvPoly? NewNavPoly(YnvPoly? copy = null, bool copyposition = false, bool selectNew = true)//TODO!
         {
             return null;
         }
@@ -5145,7 +5246,7 @@ namespace CodeWalker.Project
             return poly == CurrentNavPoly;
         }
 
-        public YnvPoint NewNavPoint(YnvPoint? copy = null, bool copyposition = false, bool selectNew = true)//TODO!
+        public YnvPoint? NewNavPoint(YnvPoint? copy = null, bool copyposition = false, bool selectNew = true)//TODO!
         {
             return null;
         }
@@ -5158,7 +5259,7 @@ namespace CodeWalker.Project
             return point == CurrentNavPoint;
         }
 
-        public YnvPortal NewNavPortal(YnvPortal? copy = null, bool copyposition = false, bool selectNew = true)//TODO!
+        public YnvPortal? NewNavPortal(YnvPortal? copy = null, bool copyposition = false, bool selectNew = true)//TODO!
         {
             return null;
         }
@@ -5198,7 +5299,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                TrainTrack track = CurrentProjectFile.AddTrainsFile(fname);
+                var track = CurrentProjectFile.AddTrainsFile(fname);
                 if (track != null)
                 {
                     track.Loaded = true;
@@ -5243,6 +5344,7 @@ namespace CodeWalker.Project
                     string newname = Path.GetFileNameWithoutExtension(filepath);
                     //////JenkIndex.Ensure(newname);
                     CurrentTrainTrack.FilePath = filepath;
+                    CurrentTrainTrack.RpfFileEntry ??= new RpfBinaryFileEntry();
                     CurrentTrainTrack.RpfFileEntry.Name = new FileInfo(filepath).Name;
                     CurrentTrainTrack.Name = CurrentTrainTrack.RpfFileEntry.Name;
                 }
@@ -5314,7 +5416,7 @@ namespace CodeWalker.Project
             return CurrentProjectFile.ContainsTrainTrack(track);
         }
 
-        public TrainTrackNode NewTrainNode(TrainTrackNode? copy = null, bool copyPosition = false, bool selectNew = true)
+        public TrainTrackNode? NewTrainNode(TrainTrackNode? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentTrainTrack == null) return null;
 
@@ -5330,8 +5432,8 @@ namespace CodeWalker.Project
                 n.NodeType = copy.NodeType;
             }
 
-            bool cp = copyPosition && (copy != null);
-            Vector3 pos = cp ? copy.Position : GetSpawnPos(10.0f);
+
+            Vector3 pos = (copyPosition && (copy != null)) ? copy.Position : GetSpawnPos(10.0f);
             n.SetPosition(pos);
 
 
@@ -5435,7 +5537,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                YmtFile ymt = CurrentProjectFile.AddScenarioFile(fname);
+                var ymt = CurrentProjectFile.AddScenarioFile(fname);
                 if (ymt != null)
                 {
                     ymt.CScenarioPointRegion = new MCScenarioPointRegion();
@@ -5478,7 +5580,7 @@ namespace CodeWalker.Project
             }
 
 
-            byte[] data;
+            byte[]? data;
             lock (projectsyncroot) //need to sync writes to scenario...
             {
                 saveas = saveas || string.IsNullOrEmpty(filepath);
@@ -5491,8 +5593,9 @@ namespace CodeWalker.Project
                     string newname = Path.GetFileNameWithoutExtension(filepath);
                     JenkIndex.Ensure(newname);
                     CurrentScenario.FilePath = filepath;
-                    CurrentScenario.RpfFileEntry.Name = new FileInfo(filepath).Name;
-                    CurrentScenario.Name = CurrentScenario.RpfFileEntry.Name;
+                    var entry = CurrentScenario.RpfFileEntry ?? throw new InvalidOperationException("The file has no archive entry.");
+                    entry.Name = new FileInfo(filepath).Name;
+                    CurrentScenario.Name = entry.Name;
                 }
 
 
@@ -5563,7 +5666,7 @@ namespace CodeWalker.Project
             return CurrentProjectFile.ContainsScenario(ymt);
         }
 
-        public ScenarioNode NewScenarioNode(ScenarioNode? copy = null, bool copyPosition = false, bool selectNew = true)
+        public ScenarioNode? NewScenarioNode(ScenarioNode? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentScenario == null) return null;
             if (CurrentScenario.ScenarioRegion == null) return null;
@@ -5575,9 +5678,9 @@ namespace CodeWalker.Project
 
             var n = CurrentScenario.ScenarioRegion.AddNode(copy);
 
-            bool cp = copyPosition && (copy != null);
-            Vector3 pos = cp ? copy.Position : GetSpawnPos(10.0f);
-            Quaternion ori = cp ? copy.Orientation : Quaternion.Identity;
+
+            Vector3 pos = (copyPosition && (copy != null)) ? copy.Position : GetSpawnPos(10.0f);
+            Quaternion ori = (copyPosition && (copy != null)) ? copy.Orientation : Quaternion.Identity;
             n.SetPosition(pos);
             n.SetOrientation(ori);
 
@@ -5598,8 +5701,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                CurrentScenario.ScenarioRegion.BuildBVH();
-                CurrentScenario.ScenarioRegion.BuildVertices(); //for the graphics...
+                CurrentScenario.ScenarioRegion?.BuildBVH();
+                CurrentScenario.ScenarioRegion?.BuildVertices(); //for the graphics...
             }
 
             return n;
@@ -5656,15 +5759,16 @@ namespace CodeWalker.Project
         }
 
 
-        public void SetScenarioChainEdge(MCScenarioChainingEdge e)
+        public void SetScenarioChainEdge(MCScenarioChainingEdge? e)
         {
             CurrentScenarioChainEdge = e;
         }
 
         public void AddScenarioChain()
         {
-            if (CurrentScenario.ScenarioRegion == null) return;
-            var paths = CurrentScenario?.CScenarioPointRegion?.Paths;
+            if (CurrentScenario?.ScenarioRegion == null) return;
+            if (CurrentScenario == null) return;
+            var paths = CurrentScenario.CScenarioPointRegion?.Paths;
             if (paths == null) return;
 
             var copy = CurrentScenarioNode?.ChainingNode?.Chain;
@@ -5711,8 +5815,8 @@ namespace CodeWalker.Project
 
             if (copyp != null)
             {
-                n1.MyPoint.CopyFrom(copyp);
-                n2.MyPoint.CopyFrom(copyp);
+                (n1.MyPoint ?? n1.ClusterMyPoint)?.CopyFrom(copyp);
+                n2.MyPoint?.CopyFrom(copyp);
             }
 
             n1.ChainingNode = new MCScenarioChainingNode();
@@ -5778,8 +5882,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                CurrentScenario.ScenarioRegion.BuildBVH();
-                CurrentScenario.ScenarioRegion.BuildVertices(); //for the graphics...
+                CurrentScenario.ScenarioRegion?.BuildBVH();
+                CurrentScenario.ScenarioRegion?.BuildVertices(); //for the graphics...
             }
         }
         public void AddScenarioCluster()//TODO: add defualt cluster points to new cluster
@@ -5849,8 +5953,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                CurrentScenario.ScenarioRegion.BuildBVH();
-                CurrentScenario.ScenarioRegion.BuildVertices(); //for the graphics...
+                CurrentScenario.ScenarioRegion?.BuildBVH();
+                CurrentScenario.ScenarioRegion?.BuildVertices(); //for the graphics...
             }
 
         }
@@ -5908,8 +6012,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                CurrentScenario.ScenarioRegion.BuildBVH();
-                CurrentScenario.ScenarioRegion.BuildVertices(); //for the graphics...
+                CurrentScenario.ScenarioRegion?.BuildBVH();
+                CurrentScenario.ScenarioRegion?.BuildVertices(); //for the graphics...
             }
         }
         public void AddScenarioEntity()//TODO: add default entity point(s) to entity
@@ -5982,8 +6086,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                CurrentScenario.ScenarioRegion.BuildBVH();
-                CurrentScenario.ScenarioRegion.BuildVertices(); //for the graphics...
+                CurrentScenario.ScenarioRegion?.BuildBVH();
+                CurrentScenario.ScenarioRegion?.BuildVertices(); //for the graphics...
             }
 
         }
@@ -6035,8 +6139,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                CurrentScenario.ScenarioRegion.BuildBVH();
-                CurrentScenario.ScenarioRegion.BuildVertices(); //for the graphics...
+                CurrentScenario.ScenarioRegion?.BuildBVH();
+                CurrentScenario.ScenarioRegion?.BuildVertices(); //for the graphics...
             }
         }
 
@@ -6210,7 +6314,8 @@ namespace CodeWalker.Project
 
         public void ImportScenarioChain()
         {
-            var paths = CurrentScenario?.CScenarioPointRegion?.Paths;
+            if (CurrentScenario == null) return;
+            var paths = CurrentScenario.CScenarioPointRegion?.Paths;
             if (paths == null) return;
             var rgn = CurrentScenario.ScenarioRegion;
             if (rgn == null) return;
@@ -6317,27 +6422,28 @@ namespace CodeWalker.Project
 
 
                 thisnode = rgn.AddNode();
+                var point = thisnode.MyPoint ?? throw new InvalidOperationException("A new scenario node has no point data.");
 
-                thisnode.MyPoint.Direction = dir;
-                thisnode.MyPoint.Type = stype;
-                thisnode.MyPoint.ModelSet = modelset;
-                thisnode.MyPoint.Flags = (CScenarioPointFlags__Flags)flags;
+                point.Direction = dir;
+                point.Type = stype;
+                point.ModelSet = modelset;
+                point.Flags = (CScenarioPointFlags__Flags)flags;
 
                 thisnode.ChainingNode = new MCScenarioChainingNode();
                 thisnode.ChainingNode.ScenarioNode = thisnode;
                 thisnode.ChainingNode.Chain = chain;
                 thisnode.ChainingNode.Type = stype;
-                thisnode.ChainingNode.TypeHash = stype.NameHash;
+                thisnode.ChainingNode.TypeHash = stype?.NameHash ?? 0;
                 thisnode.ChainingNode.HasOutgoingEdges = (i < (lines.Length - 1));
                 thisnode.ChainingNode.HasIncomingEdges = (lastnode != null);
 
                 thisnode.SetPosition(pos);
-                thisnode.Orientation = thisnode.MyPoint.Orientation;
+                thisnode.Orientation = point.Orientation;
 
                 paths.AddNode(thisnode.ChainingNode);
 
 
-                if (lastnode != null)
+                if (lastnode?.ChainingNode != null)
                 {
                     var edge = new MCScenarioChainingEdge();
 
@@ -6385,8 +6491,8 @@ namespace CodeWalker.Project
             }
             else
             {
-                CurrentScenario.ScenarioRegion.BuildBVH();
-                CurrentScenario.ScenarioRegion.BuildVertices(); //for the graphics...
+                CurrentScenario.ScenarioRegion?.BuildBVH();
+                CurrentScenario.ScenarioRegion?.BuildVertices(); //for the graphics...
             }
 
 
@@ -6420,7 +6526,7 @@ namespace CodeWalker.Project
 
             lock (projectsyncroot)
             {
-                RelFile rel = CurrentProjectFile.AddAudioRelFile(fname);
+                var rel = CurrentProjectFile.AddAudioRelFile(fname);
                 if (rel != null)
                 {
                     rel.RelType = RelDatFileType.Dat151; //TODO: different types
@@ -6463,8 +6569,9 @@ namespace CodeWalker.Project
                     string newname = Path.GetFileNameWithoutExtension(filepath);
                     JenkIndex.Ensure(newname);
                     CurrentAudioFile.FilePath = filepath;
-                    CurrentAudioFile.RpfFileEntry.Name = new FileInfo(filepath).Name;
-                    CurrentAudioFile.Name = CurrentAudioFile.RpfFileEntry.Name;
+                    var entry = CurrentAudioFile.RpfFileEntry ?? throw new InvalidOperationException("The file has no archive entry.");
+                    entry.Name = new FileInfo(filepath).Name;
+                    CurrentAudioFile.Name = entry.Name;
                 }
 
                 data = CurrentAudioFile.Save();
@@ -6539,7 +6646,7 @@ namespace CodeWalker.Project
             return CurrentProjectFile.ContainsAudioRel(rel);
         }
 
-        public AudioPlacement NewAudioAmbientZone(AudioPlacement? copy = null, bool copyPosition = false, bool selectNew = true)
+        public AudioPlacement? NewAudioAmbientZone(AudioPlacement? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentAudioFile == null) return null;
 
@@ -6548,41 +6655,41 @@ namespace CodeWalker.Project
                 copy = CurrentAudioAmbientZone;
             }
 
-            bool cp = copyPosition && (copy != null);
+
 
             var zone = new Dat151AmbientZone(CurrentAudioFile);
 
             //AA800424 box, line
             //AA800420 sphere
-            zone.Flags = cp ? copy.AmbientZone.Flags.Value : 0xAA800424;
-            zone.Shape = cp ? copy.AmbientZone.Shape : Dat151ZoneShape.Box;
-            zone.PositioningZoneSize = cp ? copy.AmbientZone.PositioningZoneSize : Vector3.One * 10.0f;
-            zone.PositioningZoneRotationAngle = (ushort)(cp ? copy.AmbientZone.PositioningZoneRotationAngle : 0);
-            zone.PositioningZonePostRotationOffset = cp ? copy.AmbientZone.PositioningZonePostRotationOffset : Vector3.Zero;
-            zone.PositioningZoneSizeScale = cp ? copy.AmbientZone.PositioningZoneSizeScale : new Vector3(1, 1, 1);
-            zone.ActivationZoneSize = cp ? copy.AmbientZone.ActivationZoneSize : Vector3.One * 15.0f;
-            zone.ActivationZoneRotationAngle = (ushort)(cp ? copy.AmbientZone.ActivationZoneRotationAngle : 0);
-            zone.ActivationZonePostRotationOffset = cp ? copy.AmbientZone.ActivationZonePostRotationOffset : Vector3.Zero;
-            zone.ActivationZoneSizeScale = cp ? copy.AmbientZone.ActivationZoneSizeScale : new Vector3(1, 1, 1);
-            zone.BuiltUpFactor = cp ? copy.AmbientZone.BuiltUpFactor : 0;
-            zone.MinPedDensity = cp ? copy.AmbientZone.MinPedDensity : 0;
-            zone.MaxPedDensity = cp ? copy.AmbientZone.MaxPedDensity : 0;
-            zone.PedDensityTOD = cp ? copy.AmbientZone.PedDensityTOD : 0;
-            zone.PedDensityScalar = cp ? copy.AmbientZone.PedDensityScalar : 0;
-            zone.MaxWindInfluence = cp ? copy.AmbientZone.MaxWindInfluence : 0;
-            zone.MinWindInfluence = cp ? copy.AmbientZone.MinWindInfluence : 0;
-            zone.WindElevationSounds = cp ? copy.AmbientZone.WindElevationSounds : 0;
-            zone.EnvironmentRule = cp ? copy.AmbientZone.EnvironmentRule : 0;
-            zone.AudioScene = cp ? copy.AmbientZone.AudioScene : 0;
-            zone.UnderwaterCreakFactor = cp ? copy.AmbientZone.UnderwaterCreakFactor : 0;
-            zone.PedWallaSettings = cp ? copy.AmbientZone.PedWallaSettings : 0;
-            zone.RandomisedRadioSettings = cp ? copy.AmbientZone.RandomisedRadioSettings : 0;
-            zone.NumRulesToPlay = cp ? copy.AmbientZone.NumRulesToPlay : (byte)4;
-            zone.ZoneWaterCalculation = cp ? copy.AmbientZone.ZoneWaterCalculation : (byte)1;
-            zone.NumDirAmbiences = cp ? copy.AmbientZone.NumDirAmbiences : (byte)0;
-            zone.NumRules = cp ? copy.AmbientZone.NumRules : (byte)0;
-            zone.Rules = cp ? copy.AmbientZone.Rules : null;
-            zone.DirAmbiences = cp ? copy.AmbientZone.DirAmbiences : null;
+            zone.Flags = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.Flags.Value : 0xAA800424;
+            zone.Shape = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.Shape : Dat151ZoneShape.Box;
+            zone.PositioningZoneSize = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.PositioningZoneSize : Vector3.One * 10.0f;
+            zone.PositioningZoneRotationAngle = (ushort)((copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.PositioningZoneRotationAngle : 0);
+            zone.PositioningZonePostRotationOffset = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.PositioningZonePostRotationOffset : Vector3.Zero;
+            zone.PositioningZoneSizeScale = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.PositioningZoneSizeScale : new Vector3(1, 1, 1);
+            zone.ActivationZoneSize = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.ActivationZoneSize : Vector3.One * 15.0f;
+            zone.ActivationZoneRotationAngle = (ushort)((copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.ActivationZoneRotationAngle : 0);
+            zone.ActivationZonePostRotationOffset = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.ActivationZonePostRotationOffset : Vector3.Zero;
+            zone.ActivationZoneSizeScale = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.ActivationZoneSizeScale : new Vector3(1, 1, 1);
+            zone.BuiltUpFactor = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.BuiltUpFactor : 0;
+            zone.MinPedDensity = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.MinPedDensity : 0;
+            zone.MaxPedDensity = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.MaxPedDensity : 0;
+            zone.PedDensityTOD = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.PedDensityTOD : 0;
+            zone.PedDensityScalar = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.PedDensityScalar : 0;
+            zone.MaxWindInfluence = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.MaxWindInfluence : 0;
+            zone.MinWindInfluence = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.MinWindInfluence : 0;
+            zone.WindElevationSounds = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.WindElevationSounds : 0;
+            zone.EnvironmentRule = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.EnvironmentRule : 0;
+            zone.AudioScene = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.AudioScene : 0;
+            zone.UnderwaterCreakFactor = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.UnderwaterCreakFactor : 0;
+            zone.PedWallaSettings = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.PedWallaSettings : 0;
+            zone.RandomisedRadioSettings = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.RandomisedRadioSettings : 0;
+            zone.NumRulesToPlay = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.NumRulesToPlay : (byte)4;
+            zone.ZoneWaterCalculation = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.ZoneWaterCalculation : (byte)1;
+            zone.NumDirAmbiences = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.NumDirAmbiences : (byte)0;
+            zone.NumRules = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.NumRules : (byte)0;
+            zone.Rules = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.Rules : [];
+            zone.DirAmbiences = (copyPosition && copy?.AmbientZone != null) ? copy.AmbientZone.DirAmbiences : [];
             zone.Name = "ambientzone1";
             zone.NameHash = JenkHash.GenHash(zone.Name);
 
@@ -6590,8 +6697,8 @@ namespace CodeWalker.Project
             ap.Name = zone.Name;
             ap.NameHash = zone.NameHash;
 
-            Vector3 pos = cp ? copy.Position : GetSpawnPos(20.0f);
-            Quaternion ori = cp ? copy.Orientation : Quaternion.Identity;
+            Vector3 pos = (copyPosition && (copy != null)) ? copy.Position : GetSpawnPos(20.0f);
+            Quaternion ori = (copyPosition && (copy != null)) ? copy.Orientation : Quaternion.Identity;
             ap.SetPosition(pos);
             ap.SetOrientation(ori);
 
@@ -6653,7 +6760,7 @@ namespace CodeWalker.Project
             ProjectExplorer?.RemoveAudioAmbientZoneTreeNode(delzone);
             ProjectExplorer?.SetAudioRelHasChanged(delrel, true);
 
-            ClosePanel((EditAudioAmbientZonePanel p) => { return p.CurrentZone.AmbientZone == delzone.AmbientZone; });
+            ClosePanel((EditAudioAmbientZonePanel p) => { return p.CurrentZone?.AmbientZone == delzone.AmbientZone; });
 
             CurrentAudioAmbientZone = null;
 
@@ -6665,7 +6772,7 @@ namespace CodeWalker.Project
             return true;
         }
 
-        public AudioPlacement NewAudioAmbientRule(AudioPlacement? copy = null, bool copyPosition = false, bool selectNew = true)
+        public AudioPlacement? NewAudioAmbientRule(AudioPlacement? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentAudioFile == null) return null;
 
@@ -6674,24 +6781,24 @@ namespace CodeWalker.Project
                 copy = CurrentAudioAmbientRule;
             }
 
-            bool cp = copyPosition && (copy != null);
+
 
             var rule = new Dat151AmbientRule(CurrentAudioFile);
 
-            rule.DynamicBankID = cp ? copy.AmbientRule.DynamicBankID : 0;
-            rule.MinDist = cp ? copy.AmbientRule.MinDist : 0.0f;
-            rule.MaxDist = cp ? copy.AmbientRule.MaxDist : 20.0f;
-            rule.Weight = cp ? copy.AmbientRule.Weight : 1.0f;
-            rule.MinTimeMinutes = cp ? copy.AmbientRule.MinTimeMinutes : (ushort)0;
-            rule.MaxTimeMinutes = cp ? copy.AmbientRule.MaxTimeMinutes : (ushort)1440;
-            rule.MinRepeatTime = cp ? copy.AmbientRule.MinRepeatTime : (ushort)0;
-            rule.MinRepeatTimeVariance = cp ? copy.AmbientRule.MinRepeatTimeVariance : (ushort)0;
-            rule.SpawnHeight = cp ? copy.AmbientRule.SpawnHeight : (byte)0;
-            rule.ExplicitSpawn = cp ? copy.AmbientRule.ExplicitSpawn : Dat151AmbientRule.ExplicitSpawnType.WorldRelative;
-            rule.MaxLocalInstances = cp ? copy.AmbientRule.MaxLocalInstances : (byte)1;
-            rule.MaxGlobalInstances = cp ? copy.AmbientRule.MaxGlobalInstances : (byte)1;
-            rule.BlockabilityFactor = cp ? copy.AmbientRule.BlockabilityFactor : (byte)100;
-            rule.MaxPathDepth = cp ? copy.AmbientRule.MaxPathDepth : (byte)3;
+            rule.DynamicBankID = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.DynamicBankID : 0;
+            rule.MinDist = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MinDist : 0.0f;
+            rule.MaxDist = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MaxDist : 20.0f;
+            rule.Weight = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.Weight : 1.0f;
+            rule.MinTimeMinutes = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MinTimeMinutes : (ushort)0;
+            rule.MaxTimeMinutes = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MaxTimeMinutes : (ushort)1440;
+            rule.MinRepeatTime = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MinRepeatTime : (ushort)0;
+            rule.MinRepeatTimeVariance = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MinRepeatTimeVariance : (ushort)0;
+            rule.SpawnHeight = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.SpawnHeight : (byte)0;
+            rule.ExplicitSpawn = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.ExplicitSpawn : Dat151AmbientRule.ExplicitSpawnType.WorldRelative;
+            rule.MaxLocalInstances = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MaxLocalInstances : (byte)1;
+            rule.MaxGlobalInstances = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MaxGlobalInstances : (byte)1;
+            rule.BlockabilityFactor = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.BlockabilityFactor : (byte)100;
+            rule.MaxPathDepth = (copyPosition && copy?.AmbientRule != null) ? copy.AmbientRule.MaxPathDepth : (byte)3;
 
 
             rule.Name = "ambientrule1";
@@ -6701,8 +6808,8 @@ namespace CodeWalker.Project
             ap.Name = rule.Name;
             ap.NameHash = rule.NameHash;
 
-            Vector3 pos = cp ? copy.Position : GetSpawnPos(20.0f);
-            Quaternion ori = cp ? copy.Orientation : Quaternion.Identity;
+            Vector3 pos = (copyPosition && (copy != null)) ? copy.Position : GetSpawnPos(20.0f);
+            Quaternion ori = (copyPosition && (copy != null)) ? copy.Orientation : Quaternion.Identity;
             ap.SetPosition(pos);
             ap.SetOrientation(ori);
 
@@ -6766,7 +6873,7 @@ namespace CodeWalker.Project
 
             CurrentAudioAmbientRule = null;
 
-            ClosePanel((EditAudioAmbientRulePanel p) => { return p.CurrentRule.AmbientRule == delem.AmbientRule; });
+            ClosePanel((EditAudioAmbientRulePanel p) => { return p.CurrentRule?.AmbientRule == delem.AmbientRule; });
 
 
             if (WorldForm != null)
@@ -6777,7 +6884,7 @@ namespace CodeWalker.Project
             return true;
         }
 
-        public AudioPlacement NewAudioStaticEmitter(AudioPlacement? copy = null, bool copyPosition = false, bool selectNew = true)
+        public AudioPlacement? NewAudioStaticEmitter(AudioPlacement? copy = null, bool copyPosition = false, bool selectNew = true)
         {
             if (CurrentAudioFile == null) return null;
 
@@ -6786,35 +6893,35 @@ namespace CodeWalker.Project
                 copy = CurrentAudioStaticEmitter;
             }
 
-            bool cp = copyPosition && (copy != null);
+
 
             var emitter = new Dat151StaticEmitter(CurrentAudioFile);
 
-            emitter.Flags = cp ? copy.StaticEmitter.Flags : 0;
-            emitter.ChildSound = cp ? copy.StaticEmitter.ChildSound : 0;
-            emitter.RadioStation = cp ? copy.StaticEmitter.RadioStation : 0;
-            emitter.MinDistance = cp ? copy.StaticEmitter.MinDistance : 0.0f;
-            emitter.MaxDistance = cp ? copy.StaticEmitter.MaxDistance : 20.0f;
-            emitter.EmittedVolume = cp ? copy.StaticEmitter.EmittedVolume : 0;
-            emitter.LPFCutoff = cp ? copy.StaticEmitter.LPFCutoff : (ushort)0;
-            emitter.HPFCutoff = cp ? copy.StaticEmitter.HPFCutoff : (ushort)0;
-            emitter.RolloffFactor = cp ? copy.StaticEmitter.RolloffFactor : (ushort)0;
-            emitter.Interior = cp ? copy.StaticEmitter.Interior : 0;
-            emitter.Room = cp ? copy.StaticEmitter.Room : 0;
-            emitter.RadioStationForScore = cp ? copy.StaticEmitter.RadioStationForScore : 0;
-            emitter.MaxLeakage = cp ? copy.StaticEmitter.MaxLeakage : 1.0f;
-            emitter.MinLeakageDistance = cp ? copy.StaticEmitter.MinLeakageDistance : (ushort)0;
-            emitter.MaxLeakageDistance = cp ? copy.StaticEmitter.MaxLeakageDistance : (ushort)0;
-            emitter.Alarm = cp ? copy.StaticEmitter.Alarm : 0;
-            emitter.OnBreakOneShot = cp ? copy.StaticEmitter.OnBreakOneShot : 0;
-            emitter.MaxPathDepth = cp ? copy.StaticEmitter.MaxPathDepth : (byte)3;
-            emitter.SmallReverbSend = cp ? copy.StaticEmitter.SmallReverbSend : (byte)0;
-            emitter.MediumReverbSend = cp ? copy.StaticEmitter.MediumReverbSend : (byte)0;
-            emitter.LargeReverbSend = cp ? copy.StaticEmitter.LargeReverbSend : (byte)0;
-            emitter.MinTimeMinutes = cp ? copy.StaticEmitter.MinTimeMinutes : (ushort)0;
-            emitter.MaxTimeMinutes = cp ? copy.StaticEmitter.MaxTimeMinutes : (ushort)1440;
-            emitter.BrokenHealth = cp ? copy.StaticEmitter.BrokenHealth : 0.0f;
-            emitter.UndamagedHealth = cp ? copy.StaticEmitter.UndamagedHealth : 0.0f;
+            emitter.Flags = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.Flags : 0;
+            emitter.ChildSound = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.ChildSound : 0;
+            emitter.RadioStation = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.RadioStation : 0;
+            emitter.MinDistance = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MinDistance : 0.0f;
+            emitter.MaxDistance = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MaxDistance : 20.0f;
+            emitter.EmittedVolume = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.EmittedVolume : 0;
+            emitter.LPFCutoff = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.LPFCutoff : (ushort)0;
+            emitter.HPFCutoff = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.HPFCutoff : (ushort)0;
+            emitter.RolloffFactor = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.RolloffFactor : (ushort)0;
+            emitter.Interior = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.Interior : 0;
+            emitter.Room = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.Room : 0;
+            emitter.RadioStationForScore = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.RadioStationForScore : 0;
+            emitter.MaxLeakage = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MaxLeakage : 1.0f;
+            emitter.MinLeakageDistance = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MinLeakageDistance : (ushort)0;
+            emitter.MaxLeakageDistance = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MaxLeakageDistance : (ushort)0;
+            emitter.Alarm = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.Alarm : 0;
+            emitter.OnBreakOneShot = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.OnBreakOneShot : 0;
+            emitter.MaxPathDepth = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MaxPathDepth : (byte)3;
+            emitter.SmallReverbSend = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.SmallReverbSend : (byte)0;
+            emitter.MediumReverbSend = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MediumReverbSend : (byte)0;
+            emitter.LargeReverbSend = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.LargeReverbSend : (byte)0;
+            emitter.MinTimeMinutes = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MinTimeMinutes : (ushort)0;
+            emitter.MaxTimeMinutes = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.MaxTimeMinutes : (ushort)1440;
+            emitter.BrokenHealth = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.BrokenHealth : 0.0f;
+            emitter.UndamagedHealth = (copyPosition && copy?.StaticEmitter != null) ? copy.StaticEmitter.UndamagedHealth : 0.0f;
 
             emitter.Name = "staticemitter1";
             emitter.NameHash = JenkHash.GenHash(emitter.Name);
@@ -6823,8 +6930,8 @@ namespace CodeWalker.Project
             ap.Name = emitter.Name;
             ap.NameHash = emitter.NameHash;
 
-            Vector3 pos = cp ? copy.Position : GetSpawnPos(20.0f);
-            Quaternion ori = cp ? copy.Orientation : Quaternion.Identity;
+            Vector3 pos = (copyPosition && (copy != null)) ? copy.Position : GetSpawnPos(20.0f);
+            Quaternion ori = (copyPosition && (copy != null)) ? copy.Orientation : Quaternion.Identity;
             ap.SetPosition(pos);
             ap.SetOrientation(ori);
 
@@ -6888,7 +6995,7 @@ namespace CodeWalker.Project
 
             CurrentAudioStaticEmitter = null;
 
-            ClosePanel((EditAudioStaticEmitterPanel p) => { return p.CurrentEmitter.StaticEmitter == delem.StaticEmitter; });
+            ClosePanel((EditAudioStaticEmitterPanel p) => { return p.CurrentEmitter?.StaticEmitter == delem.StaticEmitter; });
 
 
             if (WorldForm != null)
@@ -7048,7 +7155,8 @@ namespace CodeWalker.Project
         }
         public bool DeleteAudioInterior()
         {
-            if (CurrentAudioInterior?.Rel != CurrentAudioFile) return false;
+            if (CurrentAudioInterior == null) return false;
+            if (CurrentAudioInterior.Rel != CurrentAudioFile) return false;
             if (CurrentAudioFile?.RelDatas == null) return false; //nothing to delete..
             if (CurrentAudioFile?.RelDatasSorted == null) return false; //nothing to delete..
 
@@ -7115,7 +7223,8 @@ namespace CodeWalker.Project
         }
         public bool DeleteAudioInteriorRoom()
         {
-            if (CurrentAudioInteriorRoom?.Rel != CurrentAudioFile) return false;
+            if (CurrentAudioInteriorRoom == null) return false;
+            if (CurrentAudioInteriorRoom.Rel != CurrentAudioFile) return false;
             if (CurrentAudioFile?.RelDatas == null) return false; //nothing to delete..
             if (CurrentAudioFile?.RelDatasSorted == null) return false; //nothing to delete..
 
@@ -7332,7 +7441,7 @@ namespace CodeWalker.Project
                     for (int i = 0; i < CurrentProjectFile.YmapFiles.Count; i++)
                     {
                         var ymap = CurrentProjectFile.YmapFiles[i];
-                        if (ymap.Loaded)
+                        if (ymap.Loaded && ymap.RpfFileEntry != null)
                         {
                             // make sure we're replacing ymaps that have been added by the end-user.
                             if (ymap.RpfFileEntry.ShortNameHash == 0)
@@ -7352,13 +7461,13 @@ namespace CodeWalker.Project
                         {
                             foreach (var ent in ymap.AllEntities)//WHYYYY - maybe only do this after loading/editing ytyp!
                             {
-                                Archetype arch = GameFileCache.GetArchetype(ent._CEntityDef.archetypeName);
+                                var arch = GameFileCache.GetArchetype(ent._CEntityDef.archetypeName);
                                 if ((arch != null) && (ent.Archetype != arch))
                                 {
                                     ent.SetArchetype(arch); //swap archetype to project one...
                                     if (ent.IsMlo)
                                     {
-                                        ent.MloInstance.InitYmapEntityArchetypes(GameFileCache);
+                                        ent.MloInstance?.InitYmapEntityArchetypes(GameFileCache);
                                     }
                                 }
 
@@ -7600,7 +7709,7 @@ namespace CodeWalker.Project
                 for (int i = 0; i < rels.Count; i++)
                 {
                     var rel = rels[i];
-                    visibleaudiofiles[rel.RpfFileEntry.NameHash] = rel;
+                    if (rel.RpfFileEntry is { } entry) visibleaudiofiles[entry.NameHash] = rel;
                 }
 
                 for (int i = 0; i < CurrentProjectFile.AudioRelFiles.Count; i++)
@@ -7608,7 +7717,7 @@ namespace CodeWalker.Project
                     var rel = CurrentProjectFile.AudioRelFiles[i];
                     if (rel.Loaded)
                     {
-                        visibleaudiofiles[rel.RpfFileEntry.NameHash] = rel;
+                        if (rel.RpfFileEntry is { } entry) visibleaudiofiles[entry.NameHash] = rel;
                     }
                 }
 
@@ -7700,7 +7809,7 @@ namespace CodeWalker.Project
 
         }
 
-        public MloInstanceData TryGetMloInstance(MloArchetype arch)
+        public MloInstanceData? TryGetMloInstance(MloArchetype? arch)
         {
             lock (projectsyncroot)
             {
@@ -7809,10 +7918,10 @@ namespace CodeWalker.Project
                     }
                     if (wasmult || (ent != CurrentEntity))
                     {
-                        MloInstanceData? mloInstance = ent.MloParent?.MloInstance;
+                        MloInstanceData? mloInstance = ent?.MloParent?.MloInstance;
                         if (mloInstance != null)
                         {
-                            MCEntityDef entityDef = mloInstance.TryGetArchetypeEntity(ent);
+                            MCEntityDef? entityDef = mloInstance.TryGetArchetypeEntity(ent);
                             ProjectExplorer?.TrySelectMloEntityTreeNode(entityDef);
                         }
                     }
@@ -8071,16 +8180,16 @@ namespace CodeWalker.Project
             }
             else if (ent.MloParent != null && ent.Ymap == null)
             {
-                MloInstanceData? mloInstance = ent.MloParent?.MloInstance;
+                MloInstanceData? mloInstance = ent.MloParent.MloInstance;
                 if (mloInstance != null)
                 {
                     var mcEntity = mloInstance.TryGetArchetypeEntity(ent);
                     if (mcEntity != null)
                     {
-                        if (!YtypExistsInProject(ent.MloParent.Archetype.Ytyp))
+                        if (ent.MloParent?.Archetype?.Ytyp is { } ytyp && !YtypExistsInProject(ytyp))
                         {
-                            ent.MloParent.Archetype.Ytyp.HasChanged = true;
-                            AddYtypToProject(ent.MloParent.Archetype.Ytyp);
+                            ytyp.HasChanged = true;
+                            AddYtypToProject(ytyp);
                             ProjectExplorer?.TrySelectMloEntityTreeNode(mcEntity);
                         }
 
@@ -8096,7 +8205,7 @@ namespace CodeWalker.Project
                 {
                     ShowEditYmapEntityPanel(false);
 
-                    if (ent.MloParent.Archetype.Ytyp != null)
+                    if (ent.MloParent?.Archetype?.Ytyp != null)
                     {
                         SetYtypHasChanged(true);
                     }
@@ -8250,7 +8359,8 @@ namespace CodeWalker.Project
         }
         private void OnWorldCollisionVertexModified(BoundVertex vert)
         {
-            var ybn = vert?.Owner?.GetRootYbn();
+            if (vert?.Owner == null) return;
+            var ybn = vert.Owner.GetRootYbn();
             if (ybn == null) return;
 
             CurrentYbnFile = ybn;
@@ -8289,7 +8399,8 @@ namespace CodeWalker.Project
         }
         private void OnWorldCollisionPolyModified(BoundPolygon poly)
         {
-            var ybn = poly?.Owner?.GetRootYbn();
+            if (poly?.Owner == null) return;
+            var ybn = poly.Owner.GetRootYbn();
             if (ybn == null) return;
 
             CurrentYbnFile = ybn;
@@ -8328,7 +8439,8 @@ namespace CodeWalker.Project
         }
         private void OnWorldCollisionBoundsModified(Bounds bounds)
         {
-            var ybn = bounds?.GetRootYbn();
+            if (bounds == null) return;
+            var ybn = bounds.GetRootYbn();
             if (ybn == null) return;
 
             CurrentYbnFile = ybn;
@@ -8365,7 +8477,7 @@ namespace CodeWalker.Project
             }
 
         }
-        private void OnWorldPathNodeModified(YndNode node, YndLink link)
+        private void OnWorldPathNodeModified(YndNode node, YndLink? link)
         {
             if (node?.Ynd == null) return;
 
@@ -8821,7 +8933,7 @@ namespace CodeWalker.Project
             return pos;
         }
 
-        public RpfFileEntry FindParentYmapEntry(uint hash)
+        public RpfFileEntry? FindParentYmapEntry(uint hash)
         {
             if (CurrentProjectFile != null)
             {
@@ -8876,7 +8988,7 @@ namespace CodeWalker.Project
             {
                 if (ybn?.Bounds != null)
                 {
-                    WorldForm.UpdateCollisionBoundsGraphics(ybn?.Bounds);
+                    WorldForm.UpdateCollisionBoundsGraphics(ybn.Bounds);
                 }
             }
         }
@@ -8884,9 +8996,9 @@ namespace CodeWalker.Project
         {
             byte[] data = File.ReadAllBytes(filename);
             ynd.Load(data);
-            WorldForm.Space.PatchYndFile(ynd);
+            WorldForm?.Space.PatchYndFile(ynd);
 
-            if (WorldForm != null)
+            if (WorldForm != null && CurrentProjectFile != null)
             {
                 HashSet<YndFile> updatedFiles = new HashSet<YndFile>();
                 Dictionary<YndFile, List<YndFile>> dependencyCache = new Dictionary<YndFile, List<YndFile>>();
@@ -8932,6 +9044,7 @@ namespace CodeWalker.Project
             track.Load(data);
             track.Name = fname;
             track.FilePath = filename;
+            track.RpfFileEntry ??= new RpfBinaryFileEntry();
             track.RpfFileEntry.Name = fname;
             track.RpfFileEntry.NameLower = fname.ToLowerInvariant();
 
@@ -8950,7 +9063,7 @@ namespace CodeWalker.Project
         {
             byte[] data = File.ReadAllBytes(filename);
 
-            rel.Load(data, rel?.RpfFileEntry);
+            rel.Load(data, rel.RpfFileEntry);
         }
         private void LoadYdrFromFile(YdrFile ydr, string filename)
         {
@@ -9488,7 +9601,7 @@ namespace CodeWalker.Project
             }
             return OpenFileDialog.FileName;
         }
-        private string[] ShowOpenDialogMulti(string filter, string filename)
+        private string[]? ShowOpenDialogMulti(string filter, string filename)
         {
             OpenFileDialog.FileName = filename;
             OpenFileDialog.Filter = filter;
@@ -9535,11 +9648,11 @@ namespace CodeWalker.Project
             }
         }
 
-        private void ProjectExplorer_OnItemSelected(object item)
+        private void ProjectExplorer_OnItemSelected(object? item)
         {
             ShowProjectItem(item, false);
         }
-        private void ProjectExplorer_OnItemActivated(object item)
+        private void ProjectExplorer_OnItemActivated(object? item)
         {
             //promote from preview panel to full panel...
             ShowProjectItem(item, true);
@@ -9955,7 +10068,7 @@ namespace CodeWalker.Project
                 MloInstanceData? mloInstance = CurrentEntity.MloParent?.MloInstance;
                 if (mloInstance != null) //indexes aren't shown for MLO entities, but just in case one was selected
                 {
-                    MCEntityDef entityDef = mloInstance.TryGetArchetypeEntity(CurrentEntity);
+                    MCEntityDef? entityDef = mloInstance.TryGetArchetypeEntity(CurrentEntity);
                     ProjectExplorer?.TrySelectMloEntityTreeNode(entityDef);
                 }
                 else

@@ -21,7 +21,7 @@ namespace CodeWalker.GameFiles
             sb.AppendLine("</Item>");
             var doc = new XmlDocument();
             doc.LoadXml(sb.ToString());
-            return doc.DocumentElement;
+            return doc.DocumentElement ?? throw new System.Xml.XmlException("Missing particle XML root.");
         }
 
         public static ParticleEffectRule CloneEffect(ParticleEffectRule src)
@@ -87,7 +87,8 @@ namespace CodeWalker.GameFiles
 
         public static void AddEffect(YptFile ypt, ParticleEffectRule effect)
         {
-            var dict = ypt.PtfxList.EffectRuleDictionary;
+            var dict = ypt.PtfxList?.EffectRuleDictionary
+                ?? throw new InvalidOperationException("Editing particle effects requires an effect rule dictionary.");
             var rules = (dict.EffectRules?.data_items ?? Array.Empty<ParticleEffectRule>()).ToList();
             rules.Add(effect);
             rules.Sort((a, b) => a.NameHash.Hash.CompareTo(b.NameHash.Hash));
@@ -96,7 +97,8 @@ namespace CodeWalker.GameFiles
 
         public static void RemoveEffect(YptFile ypt, ParticleEffectRule effect)
         {
-            var dict = ypt.PtfxList.EffectRuleDictionary;
+            var dict = ypt.PtfxList?.EffectRuleDictionary
+                ?? throw new InvalidOperationException("Editing particle effects requires an effect rule dictionary.");
             var rules = (dict.EffectRules?.data_items ?? Array.Empty<ParticleEffectRule>()).ToList();
             rules.Remove(effect);
             WriteEffectDict(dict, rules);
@@ -113,10 +115,12 @@ namespace CodeWalker.GameFiles
 
         // ---- emitters (within an effect) ----
 
-        public static ParticleEventEmitter AddEmitter(ParticleEffectRule eff)
+        public static ParticleEventEmitter? AddEmitter(ParticleEffectRule eff)
         {
-            var items = eff.EventEmitters?.data_items;
-            int count = Math.Min(eff.EventEmittersCount, items?.Length ?? 0);
+            var emitters = eff.EventEmitters;
+            if (emitters == null) return null;
+            var items = emitters.data_items;
+            int count = Math.Min(eff.EventEmittersCount, items.Length);
             ParticleEventEmitter? src = null;
             for (int i = 0; i < count; i++) { if (items[i] != null) { src = items[i]; break; } }
             if (src == null) return null; //nothing to clone (blank emitters not supported yet)
@@ -127,29 +131,32 @@ namespace CodeWalker.GameFiles
             for (int i = 0; i < count; i++) { if (items[i] != null) list.Add(items[i]); }
             list.Add(clone);
             for (int i = 0; i < list.Count; i++) list[i].Index = (uint)i;
-            while (list.Count < 32) list.Add(null);
-            eff.EventEmitters.data_items = list.ToArray();
-            eff.EventEmittersCount = (ushort)list.Count(x => x != null);
+            var slots = new ParticleEventEmitter[32];
+            list.CopyTo(slots);
+            emitters.data_items = slots;
+            eff.EventEmittersCount = (ushort)list.Count;
             return clone;
         }
 
         public static void RemoveEmitter(ParticleEffectRule eff, ParticleEventEmitter em)
         {
-            var items = eff.EventEmitters?.data_items;
-            if (items == null) return;
+            var emitters = eff.EventEmitters;
+            if (emitters == null) return;
+            var items = emitters.data_items;
             var list = new List<ParticleEventEmitter>();
             int count = Math.Min(eff.EventEmittersCount, items.Length);
             for (int i = 0; i < count; i++) { if ((items[i] != null) && (items[i] != em)) list.Add(items[i]); }
             for (int i = 0; i < list.Count; i++) list[i].Index = (uint)i;
-            while (list.Count < 32) list.Add(null);
-            eff.EventEmitters.data_items = list.ToArray();
-            eff.EventEmittersCount = (ushort)list.Count(x => x != null);
+            var slots = new ParticleEventEmitter[32];
+            list.CopyTo(slots);
+            emitters.data_items = slots;
+            eff.EventEmittersCount = (ushort)list.Count;
         }
 
 
         // ---- behaviours (within a particle rule) ----
 
-        public static ParticleBehaviour AddBehaviour(ParticleRule prule, ParticleBehaviourType type)
+        public static ParticleBehaviour? AddBehaviour(ParticleRule prule, ParticleBehaviourType type)
         {
             var beh = ParticleBehaviour.Create(type);
             if (beh == null) return null;
@@ -182,7 +189,7 @@ namespace CodeWalker.GameFiles
 
         private static void RemoveBehaviourFrom(ResourcePointerList64<ParticleBehaviour> list, ParticleBehaviour beh)
         {
-            var items = list?.data_items;
+            var items = list.data_items;
             if (items == null) return;
             var keep = items.Where(x => (x != null) && (x != beh)).ToList();
             if (keep.Count == items.Count(x => x != null)) return;

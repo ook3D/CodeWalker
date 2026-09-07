@@ -49,7 +49,7 @@ namespace CodeWalker.GameFiles
         private Stream systemStream;
         private Stream graphicsStream;
 
-        public RpfResourceFileEntry FileEntry { get; set; }
+        public RpfResourceFileEntry? FileEntry { get; set; }
 
         // this is a dictionary that contains all the resource blocks
         // which were read from this resource reader
@@ -80,14 +80,14 @@ namespace CodeWalker.GameFiles
         /// Initializes a new resource data reader for the specified system- and graphics-stream.
         /// </summary>
         public ResourceDataReader(Stream systemStream, Stream graphicsStream, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream?)null, endianess)
+            : base(endianess)
         {
             this.systemStream = systemStream;
             this.graphicsStream = graphicsStream;
         }
 
         public ResourceDataReader(RpfResourceFileEntry resentry, byte[] data, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream?)null, endianess)
+            : base(endianess)
         {
             FileEntry = resentry;
             var systemSize = resentry.SystemSize;
@@ -112,7 +112,7 @@ namespace CodeWalker.GameFiles
         }
 
         public ResourceDataReader(int systemSize, int graphicsSize, byte[] data, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream?)null, endianess)
+            : base(endianess)
         {
             this.systemStream = new MemoryStream(data, 0, systemSize);
             this.graphicsStream = new MemoryStream(data, systemSize, graphicsSize);
@@ -190,7 +190,7 @@ namespace CodeWalker.GameFiles
         /// <summary>
         /// Reads a block.
         /// </summary>
-        public T ReadBlock<T>(params object[] parameters) where T : IResourceBlock, new()
+        public T? ReadBlock<T>(params object[] parameters) where T : IResourceBlock, new()
         {
             var usepool = !typeof(IResourceNoCacheBlock).IsAssignableFrom(typeof(T));
             if (usepool)
@@ -235,10 +235,18 @@ namespace CodeWalker.GameFiles
             return result;
         }
 
+        /// <summary>Reads an embedded block that must be present in the resource.</summary>
+        public T ReadRequiredBlock<T>(params object[] parameters) where T : IResourceBlock, new()
+        {
+            var block = ReadBlock<T>(parameters);
+            if (block == null) throw new InvalidDataException($"The required {typeof(T).Name} block is missing or unsupported.");
+            return block;
+        }
+
         /// <summary>
         /// Reads a block at a specified position.
         /// </summary>
-        public T ReadBlockAt<T>(ulong position, params object[] parameters) where T : IResourceBlock, new()
+        public T? ReadBlockAt<T>(ulong position, params object[] parameters) where T : IResourceBlock, new()
         {
             if (position != 0)
             {
@@ -256,20 +264,20 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public T[] ReadBlocks<T>(ulong[]? pointers) where T : IResourceBlock, new()
+        public T[]? ReadBlocks<T>(ulong[]? pointers) where T : IResourceBlock, new()
         {
             if (pointers == null) return null;
             var count = pointers.Length;
             var items = new T[count];
             for (int i = 0; i < count; i++)
             {
-                items[i] = ReadBlockAt<T>(pointers[i]);
+                if (ReadBlockAt<T>(pointers[i]) is { } item) items[i] = item;
             }
             return items;
         }
 
 
-        public byte[] ReadBytesAt(ulong position, uint count, bool cache = true)
+        public byte[]? ReadBytesAt(ulong position, uint count, bool cache = true)
         {
             long pos = (long)position;
             if ((pos <= 0) || (count == 0)) return null;
@@ -280,13 +288,13 @@ namespace CodeWalker.GameFiles
             if (cache) arrayPool[(long)position] = result;
             return result;
         }
-        public ushort[] ReadUshortsAt(ulong position, uint count, bool cache = true)
+        public ushort[]? ReadUshortsAt(ulong position, uint count, bool cache = true)
         {
             if ((position <= 0) || (count == 0)) return null;
 
             var result = new ushort[count];
             var length = count * 2;
-            byte[] data = ReadBytesAt(position, length, false);
+            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
             Buffer.BlockCopy(data, 0, result, 0, (int)length);
 
             //var posbackup = Position;
@@ -302,25 +310,25 @@ namespace CodeWalker.GameFiles
 
             return result;
         }
-        public short[] ReadShortsAt(ulong position, uint count, bool cache = true)
+        public short[]? ReadShortsAt(ulong position, uint count, bool cache = true)
         {
             if ((position <= 0) || (count == 0)) return null;
             var result = new short[count];
             var length = count * 2;
-            byte[] data = ReadBytesAt(position, length, false);
+            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
             Buffer.BlockCopy(data, 0, result, 0, (int)length);
 
             if (cache) arrayPool[(long)position] = result;
 
             return result;
         }
-        public uint[] ReadUintsAt(ulong position, uint count, bool cache = true)
+        public uint[]? ReadUintsAt(ulong position, uint count, bool cache = true)
         {
             if ((position <= 0) || (count == 0)) return null;
 
             var result = new uint[count];
             var length = count * 4;
-            byte[] data = ReadBytesAt(position, length, false);
+            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
             Buffer.BlockCopy(data, 0, result, 0, (int)length);
 
             //var posbackup = Position;
@@ -336,13 +344,13 @@ namespace CodeWalker.GameFiles
 
             return result;
         }
-        public ulong[] ReadUlongsAt(ulong position, uint count, bool cache = true)
+        public ulong[]? ReadUlongsAt(ulong position, uint count, bool cache = true)
         {
             if ((position <= 0) || (count == 0)) return null;
 
             var result = new ulong[count];
             var length = count * 8;
-            byte[] data = ReadBytesAt(position, length, false);
+            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
             Buffer.BlockCopy(data, 0, result, 0, (int)length);
 
             //var posbackup = Position;
@@ -358,13 +366,13 @@ namespace CodeWalker.GameFiles
 
             return result;
         }
-        public float[] ReadFloatsAt(ulong position, uint count, bool cache = true)
+        public float[]? ReadFloatsAt(ulong position, uint count, bool cache = true)
         {
             if ((position <= 0) || (count == 0)) return null;
 
             var result = new float[count];
             var length = count * 4;
-            byte[] data = ReadBytesAt(position, length, false);
+            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
             Buffer.BlockCopy(data, 0, result, 0, (int)length);
 
             //var posbackup = Position;
@@ -380,13 +388,13 @@ namespace CodeWalker.GameFiles
 
             return result;
         }
-        public T[] ReadStructsAt<T>(ulong position, uint count, bool cache = true)
+        public T[]? ReadStructsAt<T>(ulong position, uint count, bool cache = true)
         {
             if ((position <= 0) || (count == 0)) return null;
 
             uint structsize = (uint)Marshal.SizeOf(typeof(T));
             var length = count * structsize;
-            byte[] data = ReadBytesAt(position, length, false);
+            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
 
             //var result2 = new T[count];
             //Buffer.BlockCopy(data, 0, result2, 0, (int)length); //error: "object must be an array of primitives" :(
@@ -457,7 +465,7 @@ namespace CodeWalker.GameFiles
             return result;
         }
 
-        public string ReadStringAt(ulong position)
+        public string? ReadStringAt(ulong position)
         {
             long newpos = (long)position;
             if ((newpos <= 0)) return null;
@@ -510,7 +518,7 @@ namespace CodeWalker.GameFiles
         /// Initializes a new resource data reader for the specified system- and graphics-stream.
         /// </summary>
         public ResourceDataWriter(Stream systemStream, Stream graphicsStream, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream?)null, endianess)
+            : base(endianess)
         {
             this.systemStream = systemStream;
             this.graphicsStream = graphicsStream;

@@ -96,7 +96,7 @@ namespace CodeWalker.ModManager
                 {
                     HideWaitForm();
                 }
-                if (GTA5Keys.PC_AES_KEY == null)
+                if (GTA5Keys.PC_AES_KEY.Length == 0)
                 {
                     var msg1 = $"Game exe not valid:\n{Settings.GameExePath}";
                     var msg2 = $"For game: {Settings.GameTitle}";

@@ -86,7 +86,7 @@ namespace CodeWalker.Rendering
             context.InputAssembler.InputLayout = layout;
             return true;
         }
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Vars.ViewInv = Matrix.Transpose(camera.ViewInvMatrix);
@@ -114,8 +114,8 @@ namespace CodeWalker.Rendering
 
         public void RenderBatch(DeviceContext context, RenderableDistantLODLights lights)
         {
-            context.VertexShader.SetShaderResource(0, lights.InstanceBuffer.SRV);
-            context.PixelShader.SetShaderResource(0, lights.Texture.ShaderResourceView);
+            context.VertexShader.SetShaderResource(0, lights.InstanceBuffer?.SRV);
+            context.PixelShader.SetShaderResource(0, lights.Texture?.ShaderResourceView);
             context.PixelShader.SetSampler(0, texsampler);
 
             quad.DrawInstanced(context, lights.InstanceCount);

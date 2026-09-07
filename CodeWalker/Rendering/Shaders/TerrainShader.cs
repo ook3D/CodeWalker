@@ -87,9 +87,9 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<TerrainShaderVSGeomVars> VSGeomVars;
         GpuVarsBuffer<TerrainShaderPSSceneVars> PSSceneVars;
         GpuVarsBuffer<TerrainShaderPSGeomVars> PSGeomVars;
-        SamplerState texsampler;
-        SamplerState texsampleranis;
-        SamplerState texsamplertnt;
+        SamplerState? texsampler;
+        SamplerState? texsampleranis;
+        SamplerState? texsamplertnt;
         public bool AnisotropicFilter = false;
         public WorldRenderMode RenderMode = WorldRenderMode.Default;
         public int RenderVertexColourIndex = 1;
@@ -280,7 +280,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             uint rendermode = 0;
             uint rendermodeind = 1;
@@ -432,7 +432,7 @@ namespace CodeWalker.Rendering
                             break;
                         case ShaderParamNames.TintPaletteSampler:
                             tintpal = itex;
-                            if (tintpal.Key != null)
+                            if (tintpal?.Key != null)
                             {
                                 //this is slightly dodgy but vsentvarsdata should have the correct value in it...
                                 tntpalind = (VSEntityVars.Vars.TintPaletteIndex + 0.5f) / tintpal.Key.Height;
@@ -521,10 +521,11 @@ namespace CodeWalker.Rendering
                     case ShaderParamNames.SpecSampler:
                         break;
                     default:
-                        for (int i = 0; i < geom.RenderableTextures.Length; i++)
+                        if (geom.RenderableTextures is not { } textures || geom.TextureParamHashes is not { } hashes) break;
+                        for (int i = 0; i < Math.Min(textures.Length, hashes.Length); i++)
                         {
-                            var itex = geom.RenderableTextures[i];
-                            var ihash = geom.TextureParamHashes[i];
+                            var itex = textures[i];
+                            var ihash = hashes[i];
                             if (ihash == RenderTextureSampler)
                             {
                                 texture0 = itex;
@@ -570,7 +571,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.EnableTexture4 = usediff4 ? 1u : 0u;
             PSGeomVars.Vars.EnableTextureMask = usemask ? 1u : 0u;
             PSGeomVars.Vars.EnableNormalMap = usenm ? 1u : 0u;
-            PSGeomVars.Vars.ShaderName = geom.DrawableGeom.Shader.Name.Hash;
+            PSGeomVars.Vars.ShaderName = (geom.DrawableGeom?.Shader?.Name.Hash ?? 0);
             PSGeomVars.Vars.EnableTint = usetint ? 1u : 0u;
             PSGeomVars.Vars.EnableVertexColour = usevc ? 1u : 0u;
             PSGeomVars.Vars.bumpiness = bumpiness;
@@ -589,22 +590,22 @@ namespace CodeWalker.Rendering
             context.VertexShader.SetSampler(0, texsamplertnt);
             context.PixelShader.SetSampler(0, AnisotropicFilter ? texsampleranis : texsampler);
 
-            if (usediff0) texture0.SetPSResource(context, 0);
-            if (usediff1) texture1.SetPSResource(context, 2);
-            if (usediff2) texture2.SetPSResource(context, 3);
-            if (usediff3) texture3.SetPSResource(context, 4);
-            if (usediff4) texture4.SetPSResource(context, 5);
-            if (usemask) texturemask.SetPSResource(context, 6);
-            if (usetint) tintpal.SetVSResource(context, 0);
+            if (usediff0 && texture0 != null) texture0.SetPSResource(context, 0);
+            if (usediff1 && texture1 != null) texture1.SetPSResource(context, 2);
+            if (usediff2 && texture2 != null) texture2.SetPSResource(context, 3);
+            if (usediff3 && texture3 != null) texture3.SetPSResource(context, 4);
+            if (usediff4 && texture4 != null) texture4.SetPSResource(context, 5);
+            if (usemask && texturemask != null) texturemask.SetPSResource(context, 6);
+            if (usetint && tintpal != null) tintpal.SetVSResource(context, 0);
             if (normals0 != null) normals0.SetPSResource(context, 7);
             if (normals1 != null) normals1.SetPSResource(context, 8);
             if (normals2 != null) normals2.SetPSResource(context, 9);
             if (normals3 != null) normals3.SetPSResource(context, 10);
             if (normals4 != null) normals4.SetPSResource(context, 11);
-            if (useheight0) heightmap0.SetPSResource(context, 12);
-            if (useheight1) heightmap1.SetPSResource(context, 13);
-            if (useheight2) heightmap2.SetPSResource(context, 14);
-            if (useheight3) heightmap3.SetPSResource(context, 15);
+            if (useheight0 && heightmap0 != null) heightmap0.SetPSResource(context, 12);
+            if (useheight1 && heightmap1 != null) heightmap1.SetPSResource(context, 13);
+            if (useheight2 && heightmap2 != null) heightmap2.SetPSResource(context, 14);
+            if (useheight3 && heightmap3 != null) heightmap3.SetPSResource(context, 15);
 
         }
 

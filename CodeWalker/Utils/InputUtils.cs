@@ -12,7 +12,7 @@ namespace CodeWalker
 
     public class InputManager
     {
-        public Controller xbcontroller = null;
+        public Controller? xbcontroller;
         public State xbcontrollerstate;
         public State xbcontrollerstateprev;
         public Vector4 xbmainaxes = Vector4.Zero;
@@ -88,7 +88,7 @@ namespace CodeWalker
             xbenable = (xbcontroller != null) && (xbcontroller.IsConnected);
             xblx = 0; xbly = 0; xbrx = 0; xbry = 0; xblt = 0; xbrt = 0; //input axes
 
-            if (xbenable)
+            if (xbenable && xbcontroller != null)
             {
                 xbcontrollerstateprev = xbcontrollerstate;
                 xbcontrollerstate = xbcontroller.GetState();
@@ -265,6 +265,7 @@ namespace CodeWalker
         {
             foreach (string? s in sc)
             {
+                if (s == null) continue;
                 string[] parts = s.Split(':');
                 if (parts.Length == 2)
                 {

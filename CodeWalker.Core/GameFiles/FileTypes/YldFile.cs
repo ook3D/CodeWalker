@@ -12,12 +12,12 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YldFile : GameFile, PackedFile
     {
-        public ClothDictionary ClothDictionary { get; set; }
+        public ClothDictionary? ClothDictionary { get; set; }
 
-        public Dictionary<uint, CharacterCloth> Dict { get; set; }
+        public Dictionary<uint, CharacterCloth> Dict { get; set; } = new();
 
 
-        public string LoadException { get; set; }
+        public string? LoadException { get; set; }
 
 
         public YldFile() : base(null, GameFileType.Yld)
@@ -54,18 +54,14 @@ namespace CodeWalker.GameFiles
             ClothDictionary = rd?.ReadBlock<ClothDictionary>();
 
 
-            if (ClothDictionary != null)
+            Dict = new Dictionary<uint, CharacterCloth>();
+            var hashes = ClothDictionary?.ClothNameHashes?.data_items;
+            var clothes = ClothDictionary?.Clothes?.data_items;
+            if (hashes != null && clothes != null)
             {
-                Dict = new Dictionary<uint, CharacterCloth>();
-                int n = ClothDictionary.ClothNameHashes?.data_items?.Length ?? 0;
-                for (int i = 0; i < n; i++)
+                for (int i = 0; i < Math.Min(hashes.Length, clothes.Length); i++)
                 {
-                    if (i >= (ClothDictionary.Clothes?.data_items?.Length ?? 0)) break;
-
-                    var hash = ClothDictionary.ClothNameHashes.data_items[i];
-                    var cloth = ClothDictionary.Clothes.data_items[i];
-
-                    Dict[hash] = cloth;
+                    Dict[hashes[i]] = clothes[i];
                 }
             }
 
@@ -74,7 +70,8 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
-            byte[] data = ResourceBuilder.Build(ClothDictionary, 8); //yld is type/version 8...
+            byte[] data = ResourceBuilder.Build(ClothDictionary
+                ?? throw new InvalidOperationException("A cloth dictionary must be loaded before saving."), 8); //yld is type/version 8...
 
             return data;
         }

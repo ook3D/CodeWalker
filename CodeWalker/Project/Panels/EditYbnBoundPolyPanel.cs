@@ -14,12 +14,12 @@ namespace CodeWalker.Project.Panels
     public partial class EditYbnBoundPolyPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public BoundPolygon CollisionPoly { get; set; }
-        public BoundPolygonTriangle CollisionTriangle { get; set; }
-        public BoundPolygonSphere CollisionSphere { get; set; }
-        public BoundPolygonCapsule CollisionCapsule { get; set; }
-        public BoundPolygonBox CollisionBox { get; set; }
-        public BoundPolygonCylinder CollisionCylinder { get; set; }
+        public BoundPolygon? CollisionPoly { get; set; }
+        public BoundPolygonTriangle? CollisionTriangle { get; set; }
+        public BoundPolygonSphere? CollisionSphere { get; set; }
+        public BoundPolygonCapsule? CollisionCapsule { get; set; }
+        public BoundPolygonBox? CollisionBox { get; set; }
+        public BoundPolygonCylinder? CollisionCylinder { get; set; }
 
         private bool populatingui = false;
         private bool waschanged = false;
@@ -232,7 +232,7 @@ namespace CodeWalker.Project.Panels
             {
                 if (shared)
                 {
-                    CollisionPoly.Owner.SetMaterial(CollisionPoly.Index, mat);
+                    CollisionPoly.Owner?.SetMaterial(CollisionPoly.Index, mat);
                 }
                 else
                 {

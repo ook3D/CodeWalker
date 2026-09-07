@@ -13,16 +13,16 @@ namespace CodeWalker.GameFiles
         public List<DlcContentDataFile> dataFiles { get; set; } = new List<DlcContentDataFile>();
         public List<DlcContentChangeSet> contentChangeSets { get; set; } = new List<DlcContentChangeSet>();
 
-        public RpfFile DlcFile { get; set; } //used by GameFileCache
+        public RpfFile? DlcFile { get; set; } //used by GameFileCache
         public Dictionary<string, DlcExtraFolderMountFile> ExtraMounts { get; set; } = new Dictionary<string, DlcExtraFolderMountFile>();
         public Dictionary<string, DlcContentDataFile> RpfDataFiles { get; set; } = new Dictionary<string, DlcContentDataFile>();
 
-        public DlcExtraTitleUpdateFile ExtraTitleUpdates { get; set; }
+        public DlcExtraTitleUpdateFile? ExtraTitleUpdates { get; set; }
 
         public void Load(XmlDocument doc)
         {
 
-            var root = doc.DocumentElement;
+            var root = doc.DocumentElement ?? throw new XmlException("The DLC document must have a root element.");
 
             dataFiles.Clear();
             contentChangeSets.Clear();
@@ -77,6 +77,8 @@ namespace CodeWalker.GameFiles
 
         public void LoadDicts(DlcSetupFile setupfile, RpfManager rpfman, GameFileCache gfc)
         {
+            var dlcFile = DlcFile ?? throw new InvalidOperationException("The DLC archive must be assigned before loading its content dictionaries.");
+            ExtraTitleUpdates = null;
             ExtraMounts.Clear();
             RpfDataFiles.Clear();
 
@@ -85,7 +87,7 @@ namespace CodeWalker.GameFiles
                 string dfn = GameFileCache.GetDlcPlatformPath(datafile.filename).ToLowerInvariant();
                 if (datafile.fileType == "EXTRA_FOLDER_MOUNT_DATA")
                 {
-                    string efmdxmlpath = datafile.filename.Replace(setupfile.deviceName + ":", DlcFile.Path).Replace('/', '\\');
+                    string efmdxmlpath = datafile.filename.Replace(setupfile.deviceName + ":", dlcFile.Path).Replace('/', '\\');
                     efmdxmlpath = gfc.GetDlcPatchedPath(efmdxmlpath);
                     XmlDocument efmdxml = rpfman.GetFileXml(efmdxmlpath);
 
@@ -96,7 +98,7 @@ namespace CodeWalker.GameFiles
                 }
                 if (datafile.fileType == "EXTRA_TITLE_UPDATE_DATA")
                 {
-                    string etudxmlpath = datafile.filename.Replace(setupfile.deviceName + ":", DlcFile.Path).Replace('/', '\\');
+                    string etudxmlpath = datafile.filename.Replace(setupfile.deviceName + ":", dlcFile.Path).Replace('/', '\\');
                     etudxmlpath = gfc.GetDlcPatchedPath(etudxmlpath);
                     XmlDocument etudxml = rpfman.GetFileXml(etudxmlpath);
 
@@ -121,10 +123,10 @@ namespace CodeWalker.GameFiles
 
     public class DlcContentDataFile
     {
-        public string filename { get; set; }
-        public string fileType { get; set; }
-        public string contents { get; set; }
-        public string installPartition { get; set; }
+        public string filename { get; set; } = string.Empty;
+        public string fileType { get; set; } = string.Empty;
+        public string contents { get; set; } = string.Empty;
+        public string installPartition { get; set; } = string.Empty;
         public bool overlay { get; set; }
         public bool disabled { get; set; }
         public bool persistent { get; set; }
@@ -187,20 +189,20 @@ namespace CodeWalker.GameFiles
 
     public class DlcContentChangeSet
     {
-        public string changeSetName { get; set; }
-        public List<string> filesToInvalidate { get; set; }
-        public List<string> filesToDisable { get; set; }
-        public List<string> filesToEnable { get; set; }
-        public List<string> txdToLoad { get; set; }
-        public List<string> txdToUnload { get; set; }
-        public List<string> residentResources { get; set; }
-        public List<string> unregisterResources { get; set; }
-        public List<DlcContentChangeSet> mapChangeSetData { get; set; }
-        public string associatedMap { get; set; }
+        public string changeSetName { get; set; } = string.Empty;
+        public List<string> filesToInvalidate { get; set; } = [];
+        public List<string> filesToDisable { get; set; } = [];
+        public List<string> filesToEnable { get; set; } = [];
+        public List<string> txdToLoad { get; set; } = [];
+        public List<string> txdToUnload { get; set; } = [];
+        public List<string> residentResources { get; set; } = [];
+        public List<string> unregisterResources { get; set; } = [];
+        public List<DlcContentChangeSet> mapChangeSetData { get; set; } = [];
+        public string associatedMap { get; set; } = string.Empty;
         public bool requiresLoadingScreen { get; set; }
-        public string loadingScreenContext { get; set; }
+        public string loadingScreenContext { get; set; } = string.Empty;
         public bool useCacheLoader { get; set; }
-        public DlcContentChangeSetExecutionConditions executionConditions { get; set; }
+        public DlcContentChangeSetExecutionConditions? executionConditions { get; set; }
 
         public DlcContentChangeSet(XmlNode node)
         {
@@ -280,7 +282,7 @@ namespace CodeWalker.GameFiles
 
         private List<string> GetChildStringArray(XmlNode node)
         {
-            if (!node.HasChildNodes) return null;
+            if (!node.HasChildNodes) return [];
             var result = new List<string>();
             foreach (XmlNode child in node.ChildNodes)
             {
@@ -294,15 +296,15 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return (changeSetName != null) ? changeSetName : (associatedMap != null) ? associatedMap : null;
+            return !string.IsNullOrEmpty(changeSetName) ? changeSetName : associatedMap;
         }
 
     }
 
     public class DlcContentChangeSetExecutionConditions
     {
-        public string activeChangesetConditions { get; set; }
-        public string genericConditions { get; set; }
+        public string activeChangesetConditions { get; set; } = string.Empty;
+        public string genericConditions { get; set; } = string.Empty;
 
         public DlcContentChangeSetExecutionConditions(XmlNode node)
         {
@@ -345,10 +347,10 @@ namespace CodeWalker.GameFiles
 
             XmlNodeList? mountitems = doc.SelectNodes("SExtraFolderMountData/FolderMounts/Item");
             FolderMounts.Clear();
-            for (int i = 0; i < mountitems.Count; i++)
+            foreach (XmlNode node in mountitems?.Cast<XmlNode>() ?? [])
             {
                 var mount = new DlcExtraFolderMount();
-                mount.Init(mountitems[i]);
+                mount.Init(node);
                 FolderMounts.Add(mount);
             }
 
@@ -362,22 +364,22 @@ namespace CodeWalker.GameFiles
 
     public class DlcExtraFolderMount
     {
-        public string type { get; set; }
-        public string platform { get; set; }
-        public string path { get; set; }
-        public string mountAs { get; set; }
+        public string type { get; set; } = string.Empty;
+        public string platform { get; set; } = string.Empty;
+        public string path { get; set; } = string.Empty;
+        public string mountAs { get; set; } = string.Empty;
 
         public void Init(XmlNode node)
         {
-            type = Xml.GetStringAttribute(node, "type");
-            platform = Xml.GetStringAttribute(node, "platform");
-            path = Xml.GetChildInnerText(node, "path");
-            mountAs = Xml.GetChildInnerText(node, "mountAs");
+            type = Xml.GetStringAttribute(node, "type") ?? string.Empty;
+            platform = Xml.GetStringAttribute(node, "platform") ?? string.Empty;
+            path = Xml.GetChildInnerText(node, "path") ?? string.Empty;
+            mountAs = Xml.GetChildInnerText(node, "mountAs") ?? string.Empty;
         }
 
         public override string ToString()
         {
-            return type + ": " + path + " - " + mountAs + ((platform != null) ? (" (" + platform + ")") : "");
+            return type + ": " + path + " - " + mountAs + (!string.IsNullOrEmpty(platform) ? (" (" + platform + ")") : "");
         }
     }
 
@@ -392,10 +394,10 @@ namespace CodeWalker.GameFiles
 
             XmlNodeList? mountitems = doc.SelectNodes("SExtraTitleUpdateData/Mounts/Item");
             Mounts.Clear();
-            for (int i = 0; i < mountitems.Count; i++)
+            foreach (XmlNode node in mountitems?.Cast<XmlNode>() ?? [])
             {
                 var mount = new DlcExtraTitleUpdateMount();
-                mount.Init(mountitems[i]);
+                mount.Init(node);
                 Mounts.Add(mount);
             }
 
@@ -409,15 +411,15 @@ namespace CodeWalker.GameFiles
 
     public class DlcExtraTitleUpdateMount
     {
-        public string type { get; set; }
-        public string deviceName { get; set; }
-        public string path { get; set; }
+        public string type { get; set; } = string.Empty;
+        public string deviceName { get; set; } = string.Empty;
+        public string path { get; set; } = string.Empty;
 
         public void Init(XmlNode node)
         {
-            type = Xml.GetStringAttribute(node, "type");
-            deviceName = Xml.GetChildInnerText(node, "deviceName");
-            path = Xml.GetChildInnerText(node, "path");
+            type = Xml.GetStringAttribute(node, "type") ?? string.Empty;
+            deviceName = Xml.GetChildInnerText(node, "deviceName") ?? string.Empty;
+            path = Xml.GetChildInnerText(node, "path") ?? string.Empty;
         }
 
         public override string ToString()

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SharpDX;
 using System.Xml;
+using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel;
 
 namespace CodeWalker.World
@@ -14,12 +15,12 @@ namespace CodeWalker.World
     {
         public volatile bool Inited = false;
 
-        public Timecycle Timecycle { get; set; }
-        public GameFileCache GameFileCache { get; set; }
+        public Timecycle? Timecycle { get; set; }
+        public GameFileCache? GameFileCache { get; set; }
 
-        public static ScenarioTypes ScenarioTypes { get; set; }
+        public static ScenarioTypes? ScenarioTypes { get; set; }
 
-        public List<YmtFile> ScenarioRegions { get; set; }
+        public List<YmtFile> ScenarioRegions { get; set; } = new();
 
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus, Timecycle timecycle)
@@ -45,11 +46,11 @@ namespace CodeWalker.World
             //List<Vector2I> griddims = new();
             //int maxcells = 0;
 
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.");
 
             // Load base game sp_manifest.ymt
             string manifestfilename = "update\\update.rpf\\x64\\levels\\gta5\\sp_manifest.ymt";
-            YmtFile manifestymt = rpfman.GetFile<YmtFile>(manifestfilename);
+            var manifestymt = rpfman.GetFile<YmtFile>(manifestfilename);
             if ((manifestymt != null) && (manifestymt.CScenarioPointManifest != null))
             {
                 foreach (var region in manifestymt.CScenarioPointManifest.RegionDefs)
@@ -63,7 +64,7 @@ namespace CodeWalker.World
                     {
                         usefilename = basefilename;
                     }
-                    YmtFile regionymt = rpfman.GetFile<YmtFile>(usefilename);
+                    var regionymt = rpfman.GetFile<YmtFile>(usefilename);
 
                     if (regionymt == null)
                     {
@@ -130,7 +131,7 @@ namespace CodeWalker.World
                                     CScenarioPointRegionDef[]? regionDefs = null;
 
                                     // Try loading as PSO/YMT first
-                                    YmtFile dlcmanifest = rpfman.GetFile<YmtFile>(fentry);
+                                    var dlcmanifest = rpfman.GetFile<YmtFile>(fentry);
 
                                     if ((dlcmanifest != null) && (dlcmanifest.CScenarioPointManifest != null))
                                     {
@@ -268,9 +269,9 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class ScenarioRegion : BasePathData
     {
-        public EditorVertex[] PathVerts { get; set; }
-        public EditorVertex[] TriangleVerts { get; set; }
-        public Vector4[] NodePositions { get; set; }
+        public EditorVertex[] PathVerts { get; set; } = [];
+        public EditorVertex[] TriangleVerts { get; set; } = [];
+        public Vector4[] NodePositions { get; set; } = [];
 
         public EditorVertex[] GetPathVertices()
         {
@@ -285,13 +286,13 @@ namespace CodeWalker.World
             return NodePositions;
         }
 
-        public YmtFile Ymt { get; set; }
-        public MCScenarioPointRegion Region { get; set; }
+        public YmtFile? Ymt { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
-        private Dictionary<Vector3, ScenarioNode> NodeDict { get; set; }
-        public List<ScenarioNode> Nodes { get; set; }
+        private Dictionary<Vector3, ScenarioNode> NodeDict { get; set; } = new();
+        public List<ScenarioNode> Nodes { get; set; } = new();
 
-        public PathBVH BVH { get; set; }
+        public PathBVH? BVH { get; set; }
 
 
         public bool Loaded { get; set; }
@@ -340,7 +341,7 @@ namespace CodeWalker.World
 
         private void LoadTypes(MCScenarioPointRegion r, MCScenarioPoint? scp)
         {
-            if (scp == null) return;
+            if (scp == null || r.LookUps == null) return;
 
             var types = Scenarios.ScenarioTypes; //these are loaded by Scenarios.Init
             if (types == null)
@@ -678,7 +679,7 @@ namespace CodeWalker.World
             }
             else
             {
-                PathVerts = null;
+                PathVerts = [];
             }
 
 
@@ -694,7 +695,7 @@ namespace CodeWalker.World
             }
             else
             {
-                NodePositions = null;
+                NodePositions = [];
             }
 
         }
@@ -857,7 +858,7 @@ namespace CodeWalker.World
         {
             var n = new ScenarioNode(Ymt);
 
-            var rgn = Ymt.CScenarioPointRegion;
+            var rgn = Ymt?.CScenarioPointRegion ?? throw new InvalidOperationException("A scenario region must be loaded before adding nodes.");
 
             if (copy != null)
             {
@@ -952,7 +953,7 @@ namespace CodeWalker.World
 
                             if (copy.Region == Region) //only add the new edge if we're in the same region...
                             {
-                                n.ChainingNode.Chain.AddEdge(newEdge);
+                                n.ChainingNode.Chain?.AddEdge(newEdge);
                             }
                             else
                             {
@@ -1032,11 +1033,11 @@ namespace CodeWalker.World
                 foreach (var edge in edges)
                 {
                     //paths.RemoveEdge(edge); //removing nodes also removes edges!
-                    paths.RemoveNode(edge.NodeFrom);
-                    paths.RemoveNode(edge.NodeTo);
+                    if (edge.NodeFrom != null) paths.RemoveNode(edge.NodeFrom);
+                    if (edge.NodeTo != null) paths.RemoveNode(edge.NodeTo);
 
-                    ndict[edge.NodeFrom] = 1;
-                    ndict[edge.NodeTo] = 1;
+                    if (edge.NodeFrom != null) ndict[edge.NodeFrom] = 1;
+                    if (edge.NodeTo != null) ndict[edge.NodeTo] = 1;
                 }
             }
 
@@ -1172,7 +1173,7 @@ namespace CodeWalker.World
 
 
 
-        public byte[] Save()
+        public byte[]? Save()
         {
             if (Region == null) return null;
 
@@ -1316,13 +1317,9 @@ namespace CodeWalker.World
             Region._Data.AccelGrid = grid;
 
             //store the reordered points.
-            if (newpoints.Count > 0)
+            if (Region.Points != null)
             {
                 Region.Points.MyPoints = newpoints.ToArray();
-            }
-            else
-            {
-                Region.Points.MyPoints = null; //todo: error instead?
             }
 
 
@@ -1662,17 +1659,17 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class ScenarioNode : BasePathNode
     {
-        public YmtFile Ymt { get; set; }
-        public MCScenarioPointRegion Region { get; set; }
+        public YmtFile? Ymt { get; set; }
+        public MCScenarioPointRegion? Region { get; set; }
 
-        public MCScenarioPoint MyPoint { get; set; }
-        public MCExtensionDefSpawnPoint LoadSavePoint { get; set; }
-        public MCScenarioPointCluster Cluster { get; set; }
-        public MCScenarioPoint ClusterMyPoint { get; set; }
-        public MCExtensionDefSpawnPoint ClusterLoadSavePoint { get; set; }
-        public MCScenarioEntityOverride Entity { get; set; }
-        public MCExtensionDefSpawnPoint EntityPoint { get; set; }
-        public MCScenarioChainingNode ChainingNode { get; set; }
+        public MCScenarioPoint? MyPoint { get; set; }
+        public MCExtensionDefSpawnPoint? LoadSavePoint { get; set; }
+        public MCScenarioPointCluster? Cluster { get; set; }
+        public MCScenarioPoint? ClusterMyPoint { get; set; }
+        public MCExtensionDefSpawnPoint? ClusterLoadSavePoint { get; set; }
+        public MCScenarioEntityOverride? Entity { get; set; }
+        public MCExtensionDefSpawnPoint? EntityPoint { get; set; }
+        public MCScenarioChainingNode? ChainingNode { get; set; }
 
         public Vector3 Position { get; set; }
         public Quaternion Orientation { get; set; } = Quaternion.Identity;
@@ -1740,10 +1737,10 @@ namespace CodeWalker.World
 
 
 
-        public ScenarioNode(YmtFile ymt)
+        public ScenarioNode(YmtFile? ymt)
         {
             Ymt = ymt;
-            Region = ymt.ScenarioRegion?.Region;
+            Region = ymt?.ScenarioRegion?.Region;
         }
 
 
@@ -1792,14 +1789,14 @@ namespace CodeWalker.World
     {
         private object SyncRoot = new object(); //keep this thread-safe.. technically shouldn't be necessary, but best to be safe
 
-        private Dictionary<uint, ScenarioTypeRef> TypeRefs { get; set; }
-        private Dictionary<uint, ScenarioType> Types { get; set; }
-        private Dictionary<uint, ScenarioTypeGroup> TypeGroups { get; set; }
-        private Dictionary<uint, AmbientModelSet> PropSets { get; set; }
-        private Dictionary<uint, AmbientModelSet> PedModelSets { get; set; }
-        private Dictionary<uint, AmbientModelSet> VehicleModelSets { get; set; }
-        private Dictionary<uint, ConditionalAnimsGroup> AnimGroups { get; set; }
-        private Dictionary<uint, string> ClipSets { get; set; } // Maps ClipSet name hash to clipDictionaryName
+        private Dictionary<uint, ScenarioTypeRef> TypeRefs { get; set; } = new();
+        private Dictionary<uint, ScenarioType> Types { get; set; } = new();
+        private Dictionary<uint, ScenarioTypeGroup> TypeGroups { get; set; } = new();
+        private Dictionary<uint, AmbientModelSet> PropSets { get; set; } = new();
+        private Dictionary<uint, AmbientModelSet> PedModelSets { get; set; } = new();
+        private Dictionary<uint, AmbientModelSet> VehicleModelSets { get; set; } = new();
+        private Dictionary<uint, ConditionalAnimsGroup> AnimGroups { get; set; } = new();
+        private Dictionary<uint, string> ClipSets { get; set; } = new(); // Maps ClipSet name hash to clipDictionaryName
 
 
 
@@ -1833,10 +1830,10 @@ namespace CodeWalker.World
             string comstr = filename.Replace("common:", "common.rpf");
             string updstr = filename.Replace("common:", "update\\update.rpf\\common");
             string usestr = gfc.EnableDlc ? updstr : comstr;
-            var xml = gfc.RpfMan.GetFileXml(usestr);
+            var xml = (gfc.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.")).GetFileXml(usestr);
             if ((xml == null) || (xml.DocumentElement == null))
             {
-                xml = gfc.RpfMan.GetFileXml(comstr);
+                xml = (gfc.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.")).GetFileXml(comstr);
             }
             return xml;
         }
@@ -1855,9 +1852,9 @@ namespace CodeWalker.World
             var typesxml = xml.DocumentElement;
             var items = typesxml.SelectNodes("Scenarios/Item");
 
-            foreach (XmlNode item in items)
+            foreach (XmlNode item in items?.Cast<XmlNode>() ?? [])
             {
-                var typestr = Xml.GetStringAttribute(item, "type");
+                var typestr = Xml.GetStringAttribute(item, "type") ?? string.Empty;
                 ScenarioType? typeobj = null;
                 switch (typestr)
                 {
@@ -1914,7 +1911,7 @@ namespace CodeWalker.World
             var typesxml = xml.DocumentElement;
             var items = typesxml.SelectNodes("ScenarioTypeGroups/Item");
 
-            foreach (XmlNode item in items)
+            foreach (XmlNode item in items?.Cast<XmlNode>() ?? [])
             {
                 ScenarioTypeGroup group = new();
 
@@ -1956,7 +1953,7 @@ namespace CodeWalker.World
             sets[noneset.NameHash] = noneset;
 
 
-            foreach (XmlNode item in items)
+            foreach (XmlNode item in items?.Cast<XmlNode>() ?? [])
             {
                 AmbientModelSet set = new();
                 set.Load(item);
@@ -1985,7 +1982,7 @@ namespace CodeWalker.World
             var setsxml = xml.DocumentElement;
             var items = setsxml.SelectNodes("ConditionalAnimsGroup/Item");
 
-            foreach (XmlNode item in items)
+            foreach (XmlNode item in items?.Cast<XmlNode>() ?? [])
             {
                 ConditionalAnimsGroup group = new();
                 group.Load(item);
@@ -2009,7 +2006,7 @@ namespace CodeWalker.World
             {
                 string usestr = filename.Replace("update:", "update\\update.rpf").Replace("common:", "common.rpf");
 
-                var ymt = gfc.RpfMan.GetFile<YmtFile>(usestr);
+                var ymt = (gfc.RpfMan ?? throw new InvalidOperationException("The game archive manager has not been initialized.")).GetFile<YmtFile>(usestr);
 
                 if ((ymt != null) && (ymt.Pso != null))
                 {
@@ -2065,7 +2062,7 @@ namespace CodeWalker.World
 
 
 
-        public ScenarioTypeRef GetScenarioTypeRef(uint hash)
+        public ScenarioTypeRef? GetScenarioTypeRef(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2075,7 +2072,7 @@ namespace CodeWalker.World
                 return st;
             }
         }
-        public ScenarioType GetScenarioType(uint hash)
+        public ScenarioType? GetScenarioType(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2085,7 +2082,7 @@ namespace CodeWalker.World
                 return st;
             }
         }
-        public ScenarioTypeGroup GetScenarioTypeGroup(uint hash)
+        public ScenarioTypeGroup? GetScenarioTypeGroup(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2095,7 +2092,7 @@ namespace CodeWalker.World
                 return tg;
             }
         }
-        public AmbientModelSet GetPropSet(uint hash)
+        public AmbientModelSet? GetPropSet(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2105,7 +2102,7 @@ namespace CodeWalker.World
                 return ms;
             }
         }
-        public AmbientModelSet GetPedModelSet(uint hash)
+        public AmbientModelSet? GetPedModelSet(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2124,7 +2121,7 @@ namespace CodeWalker.World
                 return ms;
             }
         }
-        public AmbientModelSet GetVehicleModelSet(uint hash)
+        public AmbientModelSet? GetVehicleModelSet(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2143,7 +2140,7 @@ namespace CodeWalker.World
                 return ms;
             }
         }
-        public ConditionalAnimsGroup GetAnimGroup(uint hash)
+        public ConditionalAnimsGroup? GetAnimGroup(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2153,7 +2150,7 @@ namespace CodeWalker.World
                 return ag;
             }
         }
-        public string GetClipSet(uint hash)
+        public string? GetClipSet(uint hash)
         {
             lock (SyncRoot)
             {
@@ -2164,7 +2161,7 @@ namespace CodeWalker.World
             }
         }
 
-        public ScenarioTypeRef[] GetScenarioTypeRefs()
+        public ScenarioTypeRef[]? GetScenarioTypeRefs()
         {
             lock (SyncRoot)
             {
@@ -2172,7 +2169,7 @@ namespace CodeWalker.World
                 return TypeRefs.Values.ToArray();
             }
         }
-        public ScenarioType[] GetScenarioTypes()
+        public ScenarioType[]? GetScenarioTypes()
         {
             lock (SyncRoot)
             {
@@ -2180,7 +2177,7 @@ namespace CodeWalker.World
                 return Types.Values.ToArray();
             }
         }
-        public ScenarioTypeGroup[] GetScenarioTypeGroups()
+        public ScenarioTypeGroup[]? GetScenarioTypeGroups()
         {
             lock (SyncRoot)
             {
@@ -2188,7 +2185,7 @@ namespace CodeWalker.World
                 return TypeGroups.Values.ToArray();
             }
         }
-        public AmbientModelSet[] GetPropSets()
+        public AmbientModelSet[]? GetPropSets()
         {
             lock (SyncRoot)
             {
@@ -2196,7 +2193,7 @@ namespace CodeWalker.World
                 return PropSets.Values.ToArray();
             }
         }
-        public AmbientModelSet[] GetPedModelSets()
+        public AmbientModelSet[]? GetPedModelSets()
         {
             lock (SyncRoot)
             {
@@ -2204,7 +2201,7 @@ namespace CodeWalker.World
                 return PedModelSets.Values.ToArray();
             }
         }
-        public AmbientModelSet[] GetVehicleModelSets()
+        public AmbientModelSet[]? GetVehicleModelSets()
         {
             lock (SyncRoot)
             {
@@ -2212,7 +2209,7 @@ namespace CodeWalker.World
                 return VehicleModelSets.Values.ToArray();
             }
         }
-        public ConditionalAnimsGroup[] GetAnimGroups()
+        public ConditionalAnimsGroup[]? GetAnimGroups()
         {
             lock (SyncRoot)
             {
@@ -2234,14 +2231,16 @@ namespace CodeWalker.World
         public string NameLower => IsGroup ? Group.NameLower : Type.NameLower;
         public MetaHash NameHash => IsGroup ? Group.NameHash : Type.NameHash;
         public bool IsVehicle => IsGroup ? false : Type.IsVehicle; // groups don't support vehicle infos, so always false
-        public string VehicleModelSet => IsGroup ? null : Type.VehicleModelSet;
+        public string? VehicleModelSet => IsGroup ? null : Type.VehicleModelSet;
         public MetaHash VehicleModelSetHash => IsGroup ? 0 : Type.VehicleModelSetHash;
-        public string ConditionalAnimsGroupName => IsGroup ? null : Type.ConditionalAnimsGroupName;
+        public string? ConditionalAnimsGroupName => IsGroup ? null : Type.ConditionalAnimsGroupName;
         public MetaHash ConditionalAnimsGroupHash => IsGroup ? 0 : Type.ConditionalAnimsGroupHash;
 
+        [MemberNotNullWhen(true, nameof(Group))]
+        [MemberNotNullWhen(false, nameof(Type))]
         public bool IsGroup { get; }
-        public ScenarioType Type { get; }
-        public ScenarioTypeGroup Group { get; }
+        public ScenarioType? Type { get; }
+        public ScenarioTypeGroup? Group { get; }
 
 
         public ScenarioTypeRef(ScenarioType type)
@@ -2266,28 +2265,28 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class ScenarioType
     {
-        public string OuterXml { get; set; }
-        public string Name { get; set; }
-        public string NameLower { get; set; }
+        public string OuterXml { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string NameLower { get; set; } = string.Empty;
         public MetaHash NameHash { get; set; }
         public bool IsVehicle { get; set; }
-        public string VehicleModelSet { get; set; }
+        public string VehicleModelSet { get; set; } = string.Empty;
         public MetaHash VehicleModelSetHash { get; set; }
-        public string ConditionalAnimsGroupName { get; set; }
+        public string ConditionalAnimsGroupName { get; set; } = string.Empty;
         public MetaHash ConditionalAnimsGroupHash { get; set; }
 
 
         public virtual void Load(XmlNode node)
         {
             OuterXml = node.OuterXml;
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameLower = Name.ToLowerInvariant();
             NameHash = JenkHash.GenHash(NameLower);
 
 
             if (IsVehicle)
             {
-                VehicleModelSet = Xml.GetChildStringAttribute(node, "VehicleModelSet", "ref");
+                VehicleModelSet = Xml.GetChildStringAttribute(node, "VehicleModelSet", "ref") ?? string.Empty;
                 if (!string.IsNullOrEmpty(VehicleModelSet) && (VehicleModelSet != "NULL"))
                 {
                     VehicleModelSetHash = JenkHash.GenHash(VehicleModelSet.ToLowerInvariant());
@@ -2339,16 +2338,16 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class ScenarioTypeGroup
     {
-        public string OuterXml { get; set; }
-        public string Name { get; set; }
-        public string NameLower { get; set; }
+        public string OuterXml { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string NameLower { get; set; } = string.Empty;
         public MetaHash NameHash { get; set; }
 
 
         public void Load(XmlNode node)
         {
             OuterXml = node.OuterXml;
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameLower = Name.ToLowerInvariant();
             NameHash = JenkHash.GenHash(NameLower);
         }
@@ -2363,21 +2362,21 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class AmbientModelSet
     {
-        public string Name { get; set; }
-        public string NameLower { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string NameLower { get; set; } = string.Empty;
         public MetaHash NameHash { get; set; }
-        public AmbientModel[] Models { get; set; }
+        public AmbientModel[] Models { get; set; } = [];
 
 
         public void Load(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameLower = Name.ToLowerInvariant();
             NameHash = JenkHash.GenHash(NameLower);
 
             var models = node.SelectNodes("Models/Item");
             var modellist = new List<AmbientModel>();
-            foreach (XmlNode item in models)
+            foreach (XmlNode item in models?.Cast<XmlNode>() ?? [])
             {
                 AmbientModel model = new();
                 model.Load(item);
@@ -2393,18 +2392,18 @@ namespace CodeWalker.World
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class AmbientModel
     {
-        public string Name { get; set; }
-        public string NameLower { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string NameLower { get; set; } = string.Empty;
         public float Probability { get; set; }
-        public string VariationsType { get; set; }
-        public AmbientModelVariation Variations { get; set; }
+        public string VariationsType { get; set; } = string.Empty;
+        public AmbientModelVariation? Variations { get; set; }
 
         public void Load(XmlNode node)
         {
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameLower = Name.ToLowerInvariant();
             Probability = Xml.GetChildFloatAttribute(node, "Probability", "value");
-            VariationsType = Xml.GetChildStringAttribute(node, "Variations", "type");
+            VariationsType = Xml.GetChildStringAttribute(node, "Variations", "type") ?? string.Empty;
             var vars = node.SelectSingleNode("Variations");
             switch (VariationsType)
             {
@@ -2426,7 +2425,7 @@ namespace CodeWalker.World
     }
     [TypeConverter(typeof(ExpandableObjectConverter))] public class AmbientModelVariation
     {
-        public string Type { get; set; }
+        public string Type { get; set; } = string.Empty;
 
 
         public void Load(XmlNode node)
@@ -2442,16 +2441,16 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class ConditionalAnimsGroup
     {
-        public string OuterXml { get; set; }
-        public string Name { get; set; }
-        public string NameLower { get; set; }
+        public string OuterXml { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string NameLower { get; set; } = string.Empty;
         public List<string> BaseAnimClipSets { get; set; } = new List<string>();
 
 
         public void Load(XmlNode node)
         {
             OuterXml = node.OuterXml;
-            Name = Xml.GetChildInnerText(node, "Name");
+            Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameLower = Name.ToLowerInvariant();
 
             // Parse ConditionalAnims to extract base animations

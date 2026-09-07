@@ -10,7 +10,7 @@ namespace CodeWalker.GameFiles
 {
     public class YdrFile : GameFile, PackedFile
     {
-        public Drawable Drawable { get; set; }
+        public Drawable? Drawable { get; set; }
 
         public YdrFile() : base(null, GameFileType.Ydr)
         {
@@ -62,7 +62,7 @@ namespace CodeWalker.GameFiles
             try
 #endif
             {
-                Drawable = rd.ReadBlock<Drawable>();
+                Drawable = rd.ReadRequiredBlock<Drawable>();
                 Drawable.Owner = this;
                 //MemoryUsage += Drawable.MemoryUsage; //uses decompressed filesize now...
             }
@@ -85,7 +85,7 @@ namespace CodeWalker.GameFiles
                 Drawable?.EnsureGen9();
             }
 
-            byte[] data = ResourceBuilder.Build(Drawable, GetVersion(gen9), true, gen9);
+            byte[] data = ResourceBuilder.Build(Drawable ?? throw new InvalidOperationException("No resource loaded."), GetVersion(gen9), true, gen9);
 
             return data;
         }

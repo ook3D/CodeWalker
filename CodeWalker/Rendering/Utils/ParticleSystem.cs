@@ -30,7 +30,7 @@ namespace CodeWalker.Rendering
     public static class ParticleKeyframeEval
     {
         // Evaluate a keyframe prop at normalized time t (linear interp on KeyframeTime.X, clamped both ends).
-        public static Vector4 Query(ParticleKeyframeProp prop, float t, Vector4 def)
+        public static Vector4 Query(ParticleKeyframeProp? prop, float t, Vector4 def)
         {
             var vals = prop?.Values?.data_items;
             if ((vals == null) || (vals.Length == 0)) return def;
@@ -51,7 +51,7 @@ namespace CodeWalker.Rendering
         }
 
         // Emitter-rule KFPs pack (min,max) into value .X/.Y; pick a value in that band using rand01.
-        public static float QueryRanged(ParticleKeyframeProp prop, float t, float defMin, float defMax, float rand01)
+        public static float QueryRanged(ParticleKeyframeProp? prop, float t, float defMin, float defMax, float rand01)
         {
             var v = Query(prop, t, new Vector4(defMin, defMax, 0f, 0f));
             return v.X + (v.Y - v.X) * rand01;
@@ -89,7 +89,7 @@ namespace CodeWalker.Rendering
         public bool IsSpawnedChild { get; private set; }
         bool loop = true;
         bool finished;
-        readonly GameFileCache gfc;
+        readonly GameFileCache? gfc;
         const int MaxChildEffects = 96;
 
         private readonly Random rnd = new Random(0x50544658); //"PTFX"
@@ -100,13 +100,13 @@ namespace CodeWalker.Rendering
             Owner = owner;
             this.gfc = gfc;
 
-            float dmax = Math.Max(rule?.DurationMax ?? 0f, rule?.DurationMin ?? 0f);
+            float dmax = Math.Max(rule.DurationMax, rule.DurationMin);
             Duration = (dmax > 0.01f) ? dmax : 4.0f; //fall back to a sane loop length
             PlaybackRateScalar = RandPlaybackRate();
             zoomRand = (float)rnd.NextDouble();
 
-            var emitters = rule?.EventEmitters?.data_items;
-            int count = Math.Min(rule?.EventEmittersCount ?? 0, emitters?.Length ?? 0);
+            var emitters = rule.EventEmitters?.data_items ?? [];
+            int count = Math.Min(rule.EventEmittersCount, emitters.Length);
             for (int i = 0; i < count; i++)
             {
                 var ee = emitters[i];
@@ -294,41 +294,41 @@ namespace CodeWalker.Rendering
         const uint H_AccnScalar = 0xa83b53f0;
         const uint H_DampeningScalar = 0xdd18b4f2;
 
-        public ParticleEventEmitter Event;
-        public ParticleEffectRule EffectRule;
-        public ParticleEmitterRule EmitterRule;
-        public ParticleRule ParticleRule;
-        public Texture SpriteTexture;
+        public required ParticleEventEmitter Event;
+        public required ParticleEffectRule EffectRule;
+        public ParticleEmitterRule? EmitterRule;
+        public required ParticleRule ParticleRule;
+        public Texture? SpriteTexture;
         public ParticleBlendMode BlendMode;
         public ParticleDrawMode DrawMode;
         public bool Visible = true; //editor toggle: hide this emitter in the preview (still simulated)
         public bool IsGlow;          //big additive "glow" light sprite - scaled by Renderer.ParticleGlowScale in the preview
         public List<Particle> Particles = new List<Particle>();
-        public ParticleDrawable[] Drawables;
+        public ParticleDrawable[] Drawables = [];
 
-        ParticleBehaviourSize sizeBeh;
-        ParticleBehaviourColour colourBeh;
-        ParticleBehaviourRotation rotBeh;
-        ParticleBehaviourAcceleration accelBeh;
-        ParticleBehaviourDampening dampBeh;
-        ParticleBehaviourVelocity velBeh;
-        ParticleBehaviourAnimateTexture animBeh;
+        ParticleBehaviourSize? sizeBeh;
+        ParticleBehaviourColour? colourBeh;
+        ParticleBehaviourRotation? rotBeh;
+        ParticleBehaviourAcceleration? accelBeh;
+        ParticleBehaviourDampening? dampBeh;
+        ParticleBehaviourVelocity? velBeh;
+        ParticleBehaviourAnimateTexture? animBeh;
 
-        ParticleKeyframeProp kfSpawnRate, kfParticleLife, kfSpeedScalar, kfSizeScalar, kfAccnScalar, kfDampScalar;
+        ParticleKeyframeProp? kfSpawnRate, kfParticleLife, kfSpeedScalar, kfSizeScalar, kfAccnScalar, kfDampScalar;
 
         Vector4 colourTintMin, colourTintMax;
         float emitterZoom = 1f;
         float effectPlaybackRate = 1f; //captured from the owning effect inst each Update, applied per spawned particle
         float effectZoom = 1f;         //effect-rule zoom (ZoomScalar/ZoomLevel), multiplies particle size each frame
-        ParticleEffectInst ownerEffect; //owning effect inst, for EffectSpawner child spawning + world origin
+        ParticleEffectInst? ownerEffect; //owning effect inst, for EffectSpawner child spawning + world origin
         Vector3 effectOrigin;           //world position of the owning effect (children spawn relative to it)
-        ParticleEffectSpawner atRatioSpawner;   //EffectSpawnerAtRatio (if it names a child effect)
-        ParticleEffectRule atRatioChildRule;    //resolved child effect rule to spawn at the trigger ratio
+        ParticleEffectSpawner? atRatioSpawner;   //EffectSpawnerAtRatio (if it names a child effect)
+        ParticleEffectRule? atRatioChildRule;    //resolved child effect rule to spawn at the trigger ratio
         int atlasCols = 1, atlasRows = 1, atlasFrames = 1;
         int texFrameMin, texFrameMax;
         uint spriteTexHash;
-        string spriteTexName;
-        GameFileCache gameFileCache; //optional, for resolving textures not embedded in the ypt
+        string? spriteTexName;
+        GameFileCache? gameFileCache; //optional, for resolving textures not embedded in the ypt
         bool rotAccumulate;
         int maxParticles = DefaultMaxParticles;
         const float DegToRad = (float)(Math.PI / 180.0);
@@ -346,17 +346,19 @@ namespace CodeWalker.Rendering
         bool oneShotDone;
         float spawnAccum;
 
-        public static ParticleEmitterInst TryCreate(ParticleEventEmitter ee, ParticleEffectRule effect, YptFile owner, GameFileCache? gfc = null, Random? rnd = null)
+        public static ParticleEmitterInst? TryCreate(ParticleEventEmitter ee, ParticleEffectRule effect, YptFile owner, GameFileCache? gfc = null, Random? rnd = null)
         {
-            var prule = ee?.ParticleRule;
+            var prule = ee.ParticleRule;
             if (prule == null) return null;
             if (prule.DrawType == 2) return null; //trails not simulated yet
 
-            var inst = new ParticleEmitterInst();
-            inst.Event = ee;
-            inst.EffectRule = effect;
-            inst.EmitterRule = ee.EmitterRule;
-            inst.ParticleRule = prule;
+            var inst = new ParticleEmitterInst
+            {
+                Event = ee,
+                EffectRule = effect,
+                EmitterRule = ee.EmitterRule,
+                ParticleRule = prule
+            };
             inst.gameFileCache = gfc;
             inst.DrawMode = (ParticleDrawMode)prule.DrawType;
 
@@ -401,7 +403,7 @@ namespace CodeWalker.Rendering
 
         // Resolve the child effect rule an EffectSpawner points at: prefer the resolved pointer, else look it up
         // by name in the ypt's effect-rule dictionary (binary loads don't run AssignChildren).
-        static ParticleEffectRule ResolveSpawnerRule(ParticleEffectSpawner? spawner, YptFile owner)
+        static ParticleEffectRule? ResolveSpawnerRule(ParticleEffectSpawner? spawner, YptFile owner)
         {
             if (spawner == null) return null;
             if (spawner.EffectRule != null) return spawner.EffectRule;
@@ -417,7 +419,7 @@ namespace CodeWalker.Rendering
         }
 
         // a raw random multiplier (1.0 = 1x); 0/unset -> 1x so it never zero-scales the emitter
-        static float RandScalarRaw(float min, float max, Random rnd)
+        static float RandScalarRaw(float min, float max, Random? rnd)
         {
             if (max <= 0.0001f) return 1f;
             if (max < min) max = min;
@@ -798,7 +800,7 @@ namespace CodeWalker.Rendering
 
                 // EffectSpawnerAtRatio: when this particle's life ratio crosses the trigger ratio, spawn the child
                 // effect at the particle's current world position (rmptfx ptxu_Age sets PTXPOINT_FLAG_SPAWN_EFFECT).
-                if ((atRatioChildRule != null) && (ownerEffect != null) && (pdt > 0f))
+                if ((atRatioChildRule != null) && (atRatioSpawner != null) && (ownerEffect != null) && (pdt > 0f))
                 {
                     float prevNt = (p.Life > 0f) ? ((p.Age - pdt) / p.Life) : 0f;
                     float trig = atRatioSpawner.TriggerInfo;

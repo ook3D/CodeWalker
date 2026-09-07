@@ -154,11 +154,11 @@ namespace CodeWalker.Tools
                             {
                                 extract = false;
                             }
-                            if (extract)
+                            if (extract && fentry != null)
                             {
                                 UpdateExtractStatus(entry.Path);
 
-                                byte[] data = entry.File.ExtractFile(fentry);
+                                var data = entry.File?.ExtractFile(fentry) ?? throw new IOException("Could not extract " + entry.Path);
 
                                 if (compress)
                                 {

@@ -196,14 +196,19 @@ namespace CodeWalker.GameFiles
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class PsoFile
     {
-        public PsoDataSection DataSection { get; set; }
-        public PsoDataMapSection DataMapSection { get; set; }
-        public PsoSchemaSection SchemaSection { get; set; }
-        public PsoSTRFSection STRFSection { get; set; }
-        public PsoSTRSSection STRSSection { get; set; }
-        public PsoPSIGSection PSIGSection { get; set; }
-        public PsoSTRESection STRESection { get; set; }
-        public PsoCHKSSection CHKSSection { get; set; }
+        public PsoDataSection? DataSection { get; set; }
+        public PsoDataMapSection? DataMapSection { get; set; }
+        public PsoSchemaSection? SchemaSection { get; set; }
+        public PsoSTRFSection? STRFSection { get; set; }
+        public PsoSTRSSection? STRSSection { get; set; }
+        public PsoPSIGSection? PSIGSection { get; set; }
+        public PsoSTRESection? STRESection { get; set; }
+        public PsoCHKSSection? CHKSSection { get; set; }
+
+        internal PsoDataSection RequiredDataSection => DataSection
+            ?? throw new InvalidDataException("The PSO data section is missing.");
+        internal PsoDataMapSection RequiredDataMapSection => DataMapSection
+            ?? throw new InvalidDataException("The PSO data map section is missing.");
 
 
         public void Load(byte[] data)
@@ -306,7 +311,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public PsoDataMappingEntry GetBlock(int id)
+        public PsoDataMappingEntry? GetBlock(int id)
         {
             if (DataMapSection == null) return null;
             if (DataMapSection.Entries == null) return null;
@@ -350,7 +355,7 @@ namespace CodeWalker.GameFiles
     {
         public uint Ident { get; set; } = 0x5053494E;
         public int Length { get; private set; }
-        public byte[] Data { get; set; }
+        public byte[] Data { get; set; } = [];
 
         public void Read(DataReader reader)
         {
@@ -385,7 +390,7 @@ namespace CodeWalker.GameFiles
         public int RootId { get; set; }
         public short EntriesCount { get; private set; }
         public short Unknown_Eh { get; set; } = 0x7070;
-        public PsoDataMappingEntry[] Entries { get; set; }
+        public PsoDataMappingEntry[] Entries { get; set; } = [];
 
         public void Read(DataReader reader)
         {
@@ -471,8 +476,8 @@ namespace CodeWalker.GameFiles
         public int Length { get; set; }
         public uint Count { get; set; }
 
-        public PsoElementIndexInfo[] EntriesIdx { get; set; }
-        public PsoElementInfo[] Entries { get; set; }
+        public PsoElementIndexInfo[] EntriesIdx { get; set; } = [];
+        public PsoElementInfo[] Entries { get; set; } = [];
 
         public void Read(DataReader reader)
         {
@@ -571,7 +576,7 @@ namespace CodeWalker.GameFiles
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public abstract class PsoElementInfo
     {
-        public PsoElementIndexInfo IndexInfo { get; set; }
+        public PsoElementIndexInfo IndexInfo { get; set; } = new();
 
         public abstract void Read(DataReader reader);
 
@@ -585,7 +590,7 @@ namespace CodeWalker.GameFiles
         public byte Unk { get; set; }
         public int StructureLength { get; set; }
         public uint Unk_Ch { get; set; } = 0x00000000;
-        public PsoStructureEntryInfo[] Entries { get; set; }
+        public PsoStructureEntryInfo[] Entries { get; set; } = [];
 
 
         public PsoStructureInfo()
@@ -601,7 +606,7 @@ namespace CodeWalker.GameFiles
             Unk = unk;
             StructureLength = length;
             Unk_Ch = 0;
-            Entries = entries;
+            Entries = entries ?? [];
         }
 
         public override void Read(DataReader reader)
@@ -646,7 +651,7 @@ namespace CodeWalker.GameFiles
             return IndexInfo.ToString() + " - " + Type.ToString() + ": " + EntriesCount.ToString();
         }
 
-        public PsoStructureEntryInfo FindEntry(MetaName name)
+        public PsoStructureEntryInfo? FindEntry(MetaName name)
         {
             if (Entries != null)
             {
@@ -657,7 +662,7 @@ namespace CodeWalker.GameFiles
             }
             return null;
         }
-        public PsoStructureEntryInfo GetEntry(int id)
+        public PsoStructureEntryInfo? GetEntry(int id)
         {
             if ((Entries != null) && (id >= 0) && (id < Entries.Length))
             {
@@ -720,7 +725,7 @@ namespace CodeWalker.GameFiles
     {
         public byte Type { get; private set; } = 1;
         public int EntriesCount { get; private set; }
-        public PsoEnumEntryInfo[] Entries { get; set; }
+        public PsoEnumEntryInfo[] Entries { get; set; } = [];
 
 
         public PsoEnumInfo()
@@ -732,7 +737,7 @@ namespace CodeWalker.GameFiles
             IndexInfo.Offset = 0; //todo: fix?
 
             EntriesCount = entries?.Length ?? 0;
-            Entries = entries;
+            Entries = entries ?? [];
         }
 
         public override void Read(DataReader reader)
@@ -765,7 +770,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public PsoEnumEntryInfo FindEntry(int val)
+        public PsoEnumEntryInfo? FindEntry(int val)
         {
             if (Entries == null) return null;
             for (int i = 0; i < Entries.Length; i++)
@@ -779,7 +784,7 @@ namespace CodeWalker.GameFiles
             return null;
         }
 
-        public PsoEnumEntryInfo FindEntryByName(MetaName name)
+        public PsoEnumEntryInfo? FindEntryByName(MetaName name)
         {
             if (Entries == null) return null;
             for (int i = 0; i < Entries.Length; i++)
@@ -838,7 +843,7 @@ namespace CodeWalker.GameFiles
     {
         public int Ident { get; private set; } = 0x53545246;
         public int Length { get; set; }
-        public string[] Strings { get; set; }
+        public string[] Strings { get; set; } = [];
 
         public void Read(DataReader reader)
         {
@@ -891,7 +896,7 @@ namespace CodeWalker.GameFiles
     {
         public int Ident { get; private set; } = 0x53545253;
         public int Length { get; set; }
-        public string[] Strings { get; set; }
+        public string[] Strings { get; set; } = [];
 
 
         public void Read(DataReader reader)
@@ -946,9 +951,9 @@ namespace CodeWalker.GameFiles
     {
         public int Ident { get; private set; } = 0x53545245;
         public int Length { get; set; }
-        public byte[] Data { get; set; }            //the raw (AES encrypted) section bytes
-        public byte[] DecryptedData { get; set; }   //the decrypted blob
-        public string[] Strings { get; set; }       //the decrypted debug strings
+        public byte[] Data { get; set; } = [];            //the raw (AES encrypted) section bytes
+        public byte[] DecryptedData { get; set; } = [];   //the decrypted blob
+        public string[] Strings { get; set; } = [];       //the decrypted debug strings
 
         public static readonly byte[] StringKey = new byte[32]
         {
@@ -1028,7 +1033,7 @@ namespace CodeWalker.GameFiles
     {
         public int Ident { get; private set; } = 0x50534947;
         public int Length { get; set; }
-        public byte[] Data { get; set; }
+        public byte[] Data { get; set; } = [];
 
         public void Read(DataReader reader)
         {
@@ -1043,7 +1048,7 @@ namespace CodeWalker.GameFiles
 
         public void Write(DataWriter writer)
         {
-            Length = (Data?.Length ?? 0) + 8;
+            Length = Data.Length + 8;
 
             writer.Write(Ident);
             writer.Write(Length);

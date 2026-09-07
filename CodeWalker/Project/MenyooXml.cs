@@ -10,9 +10,9 @@ namespace CodeWalker.Project
 {
     public class MenyooXml
     {
-        public string Name { get; set; }
-        public string FileName { get; set; }
-        public string FilePath { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
 
 
 
@@ -25,7 +25,7 @@ namespace CodeWalker.Project
             XmlDocument doc = new();
             doc.LoadXml(xmlstr);
 
-            XmlElement? root = doc.DocumentElement;
+            var root = doc.DocumentElement ?? throw new XmlException("Missing placements root.");
 
 
             //see:
@@ -60,7 +60,7 @@ namespace CodeWalker.Project
 
             var placements = root.SelectNodes("Placement");
 
-            foreach (XmlNode node in placements)
+            foreach (XmlNode node in placements?.Cast<XmlNode>() ?? [])
             {
                 MenyooXmlPlacement pl = new();
                 pl.Init(node);
@@ -85,10 +85,10 @@ namespace CodeWalker.Project
         public int Type { get; set; }
         public bool Dynamic { get; set; }
         public bool FrozenPos { get; set; }
-        public string HashName { get; set; }
+        public string HashName { get; set; } = string.Empty;
         public int InitialHandle { get; set; }
-        public List<MenyooXmlProperty> ObjectProperties { get; set; }
-        public List<MenyooXmlProperty> VehicleProperties { get; set; }
+        public List<MenyooXmlProperty> ObjectProperties { get; set; } = [];
+        public List<MenyooXmlProperty> VehicleProperties { get; set; } = [];
         public int OpacityLevel { get; set; }
         public float LodDistance { get; set; }
         public bool IsVisible { get; set; }
@@ -123,14 +123,14 @@ namespace CodeWalker.Project
 
             XmlElement? enode = node as XmlElement;
 
-            var hashstr = Xml.GetChildInnerText(node, "ModelHash").ToLowerInvariant();
+            var hashstr = (Xml.GetChildInnerText(node, "ModelHash") ?? string.Empty).ToLowerInvariant();
             if (hashstr.StartsWith("0x")) hashstr = hashstr.Substring(2);
             ModelHash = Convert.ToUInt32(hashstr, 16);
 
             Type = Xml.GetChildIntInnerText(node, "Type");
             Dynamic = Xml.GetChildBoolInnerText(node, "Dynamic");
             FrozenPos = Xml.GetChildBoolInnerText(node, "FrozenPos");
-            HashName = Xml.GetChildInnerText(node, "HashName");
+            HashName = Xml.GetChildInnerText(node, "HashName") ?? string.Empty;
             InitialHandle = Xml.GetChildIntInnerText(node, "InitialHandle");
 
             if (enode != null)
@@ -200,8 +200,8 @@ namespace CodeWalker.Project
 
     public class MenyooXmlProperty
     {
-        public string Name { get; set; }
-        public string Value { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
         public override string ToString()
         {
             return Name + ": " + Value;

@@ -161,7 +161,7 @@ namespace CodeWalker.Tools
                             if (bytd && entry.NameLower.EndsWith(".ytd"))
                             {
                                 UpdateExtractStatus(entry.Path);
-                                YtdFile ytd = rpfman.GetFile<YtdFile>(entry);
+                                var ytd = rpfman.GetFile<YtdFile>(entry);
                                 if (ytd == null) throw new Exception("Couldn't load file.");
                                 if (ytd.TextureDict == null) throw new Exception("Couldn't load texture dictionary.");
                                 if (ytd.TextureDict.Textures == null) throw new Exception("Couldn't load texture dictionary texture array.");
@@ -174,7 +174,7 @@ namespace CodeWalker.Tools
                             else if (bydr && entry.NameLower.EndsWith(".ydr"))
                             {
                                 UpdateExtractStatus(entry.Path);
-                                YdrFile ydr = rpfman.GetFile<YdrFile>(entry);
+                                var ydr = rpfman.GetFile<YdrFile>(entry);
                                 if (ydr == null) throw new Exception("Couldn't load file.");
                                 if (ydr.Drawable == null) throw new Exception("Couldn't load drawable.");
                                 if (ydr.Drawable.ShaderGroup != null)
@@ -192,7 +192,7 @@ namespace CodeWalker.Tools
                             else if (bydd && entry.NameLower.EndsWith(".ydd"))
                             {
                                 UpdateExtractStatus(entry.Path);
-                                YddFile ydd = rpfman.GetFile<YddFile>(entry);
+                                var ydd = rpfman.GetFile<YddFile>(entry);
                                 if (ydd == null) throw new Exception("Couldn't load file.");
                                 //if (ydd.DrawableDict == null) throw new Exception("Couldn't load drawable dictionary.");
                                 //if (ydd.DrawableDict.Drawables == null) throw new Exception("Drawable dictionary had no items...");
@@ -216,7 +216,7 @@ namespace CodeWalker.Tools
                             else if (byft && entry.NameLower.EndsWith(".yft"))
                             {
                                 UpdateExtractStatus(entry.Path);
-                                YftFile yft = rpfman.GetFile<YftFile>(entry);
+                                var yft = rpfman.GetFile<YftFile>(entry);
                                 if (yft == null) throw new Exception("Couldn't load file.");
                                 if (yft.Fragment == null) throw new Exception("Couldn't load fragment.");
                                 if (yft.Fragment.Drawable != null)

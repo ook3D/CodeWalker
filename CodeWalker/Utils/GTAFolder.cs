@@ -1,4 +1,5 @@
-﻿using System;
+﻿using System.Diagnostics.CodeAnalysis;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -67,7 +68,7 @@ namespace CodeWalker
             return File.Exists(folder + @"\gta5_enhanced.exe");
         }
 
-        public static bool ValidateGTAFolder(string folder, bool gen9, out string failReason)
+        public static bool ValidateGTAFolder([NotNullWhen(true)] string? folder, bool gen9, out string failReason)
         {
             failReason = "";
 
@@ -103,7 +104,7 @@ namespace CodeWalker
             return true;
         }
 
-        public static bool ValidateGTAFolder(string folder, bool gen9) => ValidateGTAFolder(folder, gen9, out string reason);
+        public static bool ValidateGTAFolder([NotNullWhen(true)] string? folder, bool gen9) => ValidateGTAFolder(folder, gen9, out string reason);
 
         public static bool IsCurrentGTAFolderValid() => ValidateGTAFolder(CurrentGTAFolder, IsGen9);
 
@@ -121,7 +122,7 @@ namespace CodeWalker
 
             if (autoDetect)
             {
-                string autoFolder = AutoDetectFolder(out string source);
+                string? autoFolder = AutoDetectFolder(out string? source);
                 if (autoFolder != null && MessageBox.Show($"Auto-detected game folder \"{autoFolder}\" from {source}.\n\nContinue with auto-detected folder?", "Auto-detected game folder", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) == DialogResult.Yes)
                 {
                     f.SelectedFolder = autoFolder;
@@ -229,7 +230,7 @@ namespace CodeWalker
             return matches.Count > 0;
         }
 
-        public static string AutoDetectFolder(out string source)
+        public static string? AutoDetectFolder(out string? source)
         {
             source = null;
 
@@ -243,11 +244,11 @@ namespace CodeWalker
             return null;
         }
 
-        public static string AutoDetectFolder() => AutoDetectFolder(out string _);
+        public static string? AutoDetectFolder() => AutoDetectFolder(out string? _);
 
         public static void UpdateSettings()
         {
-            if (string.IsNullOrEmpty(Settings.Default.Key) && (GTA5Keys.PC_AES_KEY != null))
+            if (string.IsNullOrEmpty(Settings.Default.Key) && (GTA5Keys.PC_AES_KEY.Length != 0))
             {
                 Settings.Default.Key = Convert.ToBase64String(GTA5Keys.PC_AES_KEY);
                 Settings.Default.Save();

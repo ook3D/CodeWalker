@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYnvPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YnvFile Ynv { get; set; }
+        public YnvFile? Ynv { get; set; }
 
         private bool populatingui = false;
         private bool waschanged = false;
@@ -37,7 +37,7 @@ namespace CodeWalker.Project.Panels
 
         public void UpdateFormTitleYnvChanged()
         {
-            bool changed = Ynv.HasChanged;
+            bool changed = Ynv?.HasChanged ?? false;
             if (!waschanged && changed)
             {
                 UpdateFormTitle();
@@ -51,9 +51,9 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = Ynv.RpfFileEntry?.Name ?? Ynv.Name;
+            string fn = Ynv?.RpfFileEntry?.Name ?? Ynv?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fn)) fn = "untitled.ynv";
-            Text = fn + (Ynv.HasChanged ? "*" : "");
+            Text = fn + (Ynv?.HasChanged == true ? "*" : "");
         }
 
 
@@ -86,8 +86,8 @@ namespace CodeWalker.Project.Panels
                 var nv = Ynv.Nav;
                 populatingui = true;
                 ////YnvPanel.Enabled = true;
-                YnvRpfPathTextBox.Text = Ynv.RpfFileEntry.Path;
-                YnvProjectPathTextBox.Text = (Ynv != null) ? ProjectForm.CurrentProjectFile.GetRelativePath(Ynv.FilePath) : Ynv.FilePath;
+                YnvRpfPathTextBox.Text = Ynv.RpfFileEntry?.Path ?? string.Empty;
+                YnvProjectPathTextBox.Text = ProjectForm.CurrentProjectFile?.GetRelativePath(Ynv.FilePath) ?? Ynv.FilePath;
                 YnvAreaIDXUpDown.Value = Ynv.CellX;
                 YnvAreaIDYUpDown.Value = Ynv.CellY;
                 YnvAreaIDInfoLabel.Text = "ID: " + Ynv.AreaID.ToString();

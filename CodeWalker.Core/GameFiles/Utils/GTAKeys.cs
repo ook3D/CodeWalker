@@ -44,27 +44,27 @@ namespace CodeWalker.GameFiles
         public static string ToS = "(c)2017";
 
         // aes decryption/encryption key...
-        public static byte[] PC_AES_KEY; // 32
+        public static byte[] PC_AES_KEY = []; // 32
 
         // ng decryption/encryption expanded keys...      
-        public static byte[][] PC_NG_KEYS; // 101, 272
+        public static byte[][] PC_NG_KEYS = []; // 101, 272
 
         // ng decryption tables...       
-        public static uint[][][] PC_NG_DECRYPT_TABLES; // 17, 16, 256
+        public static uint[][][] PC_NG_DECRYPT_TABLES = []; // 17, 16, 256
 
         // ng encryption tables...
         // -> some of these tables can be calculated from decryption tables
-        public static uint[][][] PC_NG_ENCRYPT_TABLES; // 17, 16, 256
+        public static uint[][][] PC_NG_ENCRYPT_TABLES = []; // 17, 16, 256
 
         // ng encryption look-up-tables
         // -> some of these look-up-tables can be calculated from decryption tables
-        public static GTA5NGLUT[][] PC_NG_ENCRYPT_LUTs; // 17, 16
+        public static GTA5NGLUT[][] PC_NG_ENCRYPT_LUTs = []; // 17, 16
 
         // hash lookup-table...
-        public static byte[] PC_LUT; // 256
+        public static byte[] PC_LUT = []; // 256
 
 
-        public static uint[] PC_AWC_KEY; // 16
+        public static uint[] PC_AWC_KEY = []; // 16
 
 
 
@@ -114,7 +114,7 @@ namespace CodeWalker.GameFiles
 
         public static bool NGEncryptTablesReady
         {
-            get { return (PC_NG_ENCRYPT_TABLES != null) && (PC_NG_ENCRYPT_LUTs != null); }
+            get { return (PC_NG_ENCRYPT_TABLES.Length != 0) && (PC_NG_ENCRYPT_LUTs.Length != 0); }
         }
 
         //cached NG encryption tables live next to the exe, same as Settings.xml
@@ -136,7 +136,7 @@ namespace CodeWalker.GameFiles
             lock (NGEncryptTablesLock)
             {
                 if (NGEncryptTablesReady) return;
-                if (PC_NG_DECRYPT_TABLES == null)
+                if (PC_NG_DECRYPT_TABLES.Length == 0)
                 {
                     throw new Exception("Unable to build NG encryption tables - keys not loaded.");
                 }
@@ -162,8 +162,8 @@ namespace CodeWalker.GameFiles
             {
                 //truncated or corrupt cache - fall through and rebuild it
             }
-            PC_NG_ENCRYPT_TABLES = null;
-            PC_NG_ENCRYPT_LUTs = null;
+            PC_NG_ENCRYPT_TABLES = [];
+            PC_NG_ENCRYPT_LUTs = [];
             return false;
         }
 
@@ -172,7 +172,7 @@ namespace CodeWalker.GameFiles
             try
             {
                 updateStatus("Saving NG encryption tables...");
-                Directory.CreateDirectory(Path.GetDirectoryName(NGEncryptTablesPath));
+                Directory.CreateDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Keys"));
                 CryptoIO.WriteNgTables(NGEncryptTablesPath, PC_NG_ENCRYPT_TABLES);
                 CryptoIO.WriteLuts(NGEncryptLutsPath, PC_NG_ENCRYPT_LUTs);
             }
@@ -238,7 +238,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static void GenerateV2(byte[] exeData, Action<string> updateStatus)
+        public static void GenerateV2(byte[] exeData, Action<string>? updateStatus)
         {
             var exeStr = new MemoryStream(exeData);
 
@@ -330,7 +330,7 @@ namespace CodeWalker.GameFiles
 
         }
 
-        private static void UseMagicData(string path, bool gen9, string key)
+        private static void UseMagicData(string path, bool gen9, string? key)
         {
 
             if (string.IsNullOrEmpty(key))

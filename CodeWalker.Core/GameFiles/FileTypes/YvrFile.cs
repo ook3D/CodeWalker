@@ -10,7 +10,7 @@ namespace CodeWalker.GameFiles
 {
     public class YvrFile : GameFile, PackedFile
     {
-        public VehicleRecordList Records { get; set; }
+        public VehicleRecordList? Records { get; set; }
 
         public YvrFile() : base(null, GameFileType.Yvr)
         {
@@ -53,7 +53,8 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
-            byte[] data = ResourceBuilder.Build(Records, 1); //yvr is type/version 1...
+            byte[] data = ResourceBuilder.Build(Records
+                ?? throw new InvalidOperationException("Vehicle records must be loaded before saving."), 1); //yvr is type/version 1...
 
             return data;
         }

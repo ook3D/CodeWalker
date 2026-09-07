@@ -15,8 +15,8 @@ namespace CodeWalker.Forms
     public partial class YwrForm : Form
     {
 
-        private YwrFile ywr;
-        private string fileName;
+        private YwrFile? ywr;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -26,7 +26,7 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
 
 
@@ -44,20 +44,23 @@ namespace CodeWalker.Forms
         }
 
 
-        public void LoadYwr(YwrFile ywr)
+        public void LoadYwr(YwrFile? ywr)
         {
             this.ywr = ywr;
-            fileName = ywr?.Name;
+            fileName = ywr?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fileName))
             {
-                fileName = ywr?.RpfFileEntry?.Name;
+                fileName = ywr?.RpfFileEntry?.Name ?? string.Empty;
             }
 
             UpdateFormTitle();
 
+            ExportButton.Enabled = false;
+            CopyClipboardButton.Enabled = false;
+            LoadListView();
+
             if ((ywr != null) && (ywr.Waypoints != null) && (ywr.Waypoints.Entries != null))
             {
-                LoadListView();
                 ExportButton.Enabled = true;
                 CopyClipboardButton.Enabled = true;
             }
@@ -70,7 +73,7 @@ namespace CodeWalker.Forms
         {
             var sb = new StringBuilder();
             sb.AppendLine("PositionX, PositionY, PositionZ, Unk0, Unk1, Unk2, Unk3");
-            foreach (var entry in ywr.Waypoints.Entries)
+            foreach (var entry in ywr?.Waypoints?.Entries ?? [])
             {
                 sb.Append(FloatUtil.ToString(entry.Position.X));
                 sb.Append(", ");
@@ -90,15 +93,15 @@ namespace CodeWalker.Forms
         {
             MainListView.BeginUpdate();
             MainListView.Items.Clear();
-            foreach (var entry in ywr.Waypoints.Entries)
+            foreach (var entry in ywr?.Waypoints?.Entries ?? [])
             {
-                string[]? row =
+                string[] row =
                 {
                     FloatUtil.ToString(entry.Position.X),
                     FloatUtil.ToString(entry.Position.Y),
                     FloatUtil.ToString(entry.Position.Z),
-                    entry.Flags0.ToString(),
-                    entry.Flags1.ToString(),
+                    entry.Flags0.ToString() ?? string.Empty,
+                    entry.Flags1.ToString() ?? string.Empty,
                 };
                 MainListView.Items.Add(new ListViewItem(row));
             }

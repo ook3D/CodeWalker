@@ -259,7 +259,7 @@ namespace CodeWalker.Rendering
             SkyLocalVars.Vars.noisePhase = Vector4.Zero;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             SkyLocalVars.Update(context);
             SkyLocalVars.SetVSCBuffer(context, 0);

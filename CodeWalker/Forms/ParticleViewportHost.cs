@@ -20,14 +20,14 @@ namespace CodeWalker.Forms
         public Form Form { get { return this; } }
         public Lock RenderSyncRoot { get { return Renderer.RenderSyncRoot; } }
 
-        public Renderer Renderer = null;
+        public readonly Renderer Renderer;
         public GameFileCache GameFileCache { get; } = GameFileCacheFactory.Create();
 
-        public event EventHandler CacheReady;
+        public event EventHandler? CacheReady;
         public bool IsCacheReady { get; private set; }
 
         //raised when the user presses space while the viewport has focus (toggles play/pause in the editor)
-        public event EventHandler PlayPauseRequested;
+        public event EventHandler? PlayPauseRequested;
 
         volatile bool formopen = false;
         volatile bool running = false;
@@ -46,9 +46,9 @@ namespace CodeWalker.Forms
         System.Drawing.Point MouseLastPoint;
 
         //preview state
-        YptFile ypt = null;
-        ParticleEffectInst particleEffect = null;
-        volatile ParticleEffectRule selectedEffectRule = null;
+        YptFile? ypt;
+        ParticleEffectInst? particleEffect;
+        volatile ParticleEffectRule? selectedEffectRule;
         volatile bool particleEffectDirty = false;
         volatile bool particleRestart = false;
         volatile bool reframeCamera = false;
@@ -62,8 +62,8 @@ namespace CodeWalker.Forms
         public float CurrentTime { get; private set; }
         public float Duration { get; private set; }
         public int ParticleCount { get; private set; }
-        public string lastRenderError;
-        public string RenderStats => Renderer?.ParticleRenderStats;
+        public string lastRenderError = string.Empty;
+        public string RenderStats => Renderer.ParticleRenderStats;
 
 
         public ParticleViewportHost()

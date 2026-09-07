@@ -20,10 +20,10 @@ namespace CodeWalker.Project.Panels
     public partial class GenerateNavMeshPanel : ProjectPanel
     {
         public ProjectForm ProjectForm { get; set; }
-        public ProjectFile CurrentProjectFile { get; set; }
+        public ProjectFile? CurrentProjectFile { get; set; }
 
         private BackgroundWorker backgroundWorker;
-        private CancellationTokenSource cancellationTokenSource;
+        private CancellationTokenSource? cancellationTokenSource;
         private bool isGenerating = false;
 
         public GenerateNavMeshPanel(ProjectForm projectForm)
@@ -32,7 +32,7 @@ namespace CodeWalker.Project.Panels
             InitializeComponent();
             Tag = "GenerateNavMeshPanel";
 
-            if (ProjectForm?.WorldForm == null)
+            if (ProjectForm.WorldForm == null)
             {
                 //could happen in some other startup mode - world form is required for this..
                 GenerateButton.Enabled = false;
@@ -61,14 +61,14 @@ namespace CodeWalker.Project.Panels
                 return;
             }
 
-            var space = ProjectForm?.WorldForm?.Space;
+            var space = ProjectForm.WorldForm?.Space;
             if (space == null)
             {
                 MessageBox.Show("Unable to generate - World View not available!");
                 return;
             }
 
-            var gameFileCache = ProjectForm?.WorldForm?.GameFileCache;
+            var gameFileCache = ProjectForm.WorldForm?.GameFileCache;
             if (gameFileCache == null)
             {
                 MessageBox.Show("Unable to generate - Game file cache not available!");
@@ -192,9 +192,9 @@ namespace CodeWalker.Project.Panels
 
         private void BackgroundWorker_DoWork(object? sender, DoWorkEventArgs e)
         {
-            var context = (GenerationContext?)e.Argument;
-            var worker = (BackgroundWorker?)sender;
-            var token = cancellationTokenSource.Token;
+            var context = e.Argument as GenerationContext ?? throw new InvalidOperationException("Missing generation context.");
+            var worker = sender as BackgroundWorker ?? throw new InvalidOperationException("Missing generation worker.");
+            var token = cancellationTokenSource?.Token ?? throw new InvalidOperationException("Generation has not started.");
 
             try
             {
@@ -285,7 +285,7 @@ namespace CodeWalker.Project.Panels
                     
                     foreach (var boundsitem in boundslist)
                     {
-                        YbnFile ybn = context.GameFileCache.GetYbn(boundsitem.Name);
+                        var ybn = context.GameFileCache.GetYbn(boundsitem.Name);
                         if (ybn?.Loaded == true && ybn.Bounds != null)
                         {
                             bmin.Z = Math.Min(bmin.Z, ybn.Bounds.BoxMin.Z);
@@ -751,12 +751,12 @@ namespace CodeWalker.Project.Panels
         /// </summary>
         private class GenerationContext
         {
-            public Space Space { get; set; }
-            public GameFileCache GameFileCache { get; set; }
+            public required Space Space { get; set; }
+            public required GameFileCache GameFileCache { get; set; }
             public Vector2 Min { get; set; }
             public Vector2 Max { get; set; }
-            public NavGenParams GenParams { get; set; }
-            public string ProjectFolder { get; set; }
+            public required NavGenParams GenParams { get; set; }
+            public required string ProjectFolder { get; set; }
         }
 
         /// <summary>
@@ -765,9 +765,9 @@ namespace CodeWalker.Project.Panels
         private class GenerationResult
         {
             public bool Success { get; set; }
-            public string Message { get; set; }
-            public string Summary { get; set; }
-            public string OutputFolder { get; set; }
+            public string Message { get; set; } = string.Empty;
+            public string Summary { get; set; } = string.Empty;
+            public string OutputFolder { get; set; } = string.Empty;
         }
     }
 }

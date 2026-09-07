@@ -12,16 +12,16 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YcdFile : GameFile, PackedFile
     {
-        public ClipDictionary ClipDictionary { get; set; }
+        public ClipDictionary? ClipDictionary { get; set; }
 
-        public Dictionary<MetaHash, ClipMapEntry> ClipMap { get; set; }
-        public Dictionary<MetaHash, AnimationMapEntry> AnimMap { get; set; }
-        public Dictionary<MetaHash, ClipMapEntry> CutsceneMap { get; set; } //used for ycd's that are indexed in cutscenes, since name hashes all appended with -n
+        public Dictionary<MetaHash, ClipMapEntry> ClipMap { get; set; } = new();
+        public Dictionary<MetaHash, AnimationMapEntry> AnimMap { get; set; } = new();
+        public Dictionary<MetaHash, ClipMapEntry> CutsceneMap { get; set; } = new(); //used for ycd's that are indexed in cutscenes, since name hashes all appended with -n
 
-        public ClipMapEntry[] ClipMapEntries { get; set; }
-        public AnimationMapEntry[] AnimMapEntries { get; set; }
+        public ClipMapEntry[] ClipMapEntries { get; set; } = [];
+        public AnimationMapEntry[] AnimMapEntries { get; set; } = [];
 
-        public string LoadException { get; set; }
+        public string LoadException { get; set; } = string.Empty;
 
         public YcdFile() : base(null, GameFileType.Ycd)
         {
@@ -87,7 +87,8 @@ namespace CodeWalker.GameFiles
 
             foreach (var cme in ClipMapEntries)
             {
-                var sn = cme?.Clip?.ShortName ?? "";
+                if (cme == null) continue;
+                var sn = cme.Clip?.ShortName ?? "";
                 if (sn.EndsWith(replstr))
                 {
                     sn = sn.Substring(0, sn.Length - replstr.Length);
@@ -112,7 +113,7 @@ namespace CodeWalker.GameFiles
             //    BuildStructs();
             //}
 
-            byte[] data = ResourceBuilder.Build(ClipDictionary, 46); //ycd is 46...
+            byte[] data = ResourceBuilder.Build(ClipDictionary ?? throw new InvalidOperationException("The clip dictionary has not been loaded."), 46); //ycd is 46...
 
             return data;
         }
@@ -344,7 +345,7 @@ namespace CodeWalker.GameFiles
         {
             YcdFile ycd = new();
             ycd.ClipDictionary = new ClipDictionary();
-            ycd.ClipDictionary.ReadXml(doc.DocumentElement);
+            ycd.ClipDictionary.ReadXml(doc.DocumentElement ?? throw new XmlException("The clip dictionary XML is missing its root element."));
             ycd.InitDictionaries();
             //ycd.BuildStructsOnSave = false; //structs don't need to be rebuilt here!
             return ycd;

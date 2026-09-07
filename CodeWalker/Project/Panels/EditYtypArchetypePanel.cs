@@ -19,7 +19,7 @@ namespace CodeWalker.Project.Panels
             ProjectForm = owner;
         }
 
-        public Archetype CurrentArchetype { get; set; }
+        public Archetype? CurrentArchetype { get; set; }
 
         private void EditYtypArchetypePanel_Load(object sender, EventArgs e)
         {
@@ -91,7 +91,8 @@ namespace CodeWalker.Project.Panels
 
         private void ArchetypeFlagsTextBox_TextChanged(object sender, EventArgs e)
         {
-            if (populatingui) return;
+            if (CurrentArchetype == null) return;
+            if (populatingui || CurrentArchetype == null) return;
             if (CurrentArchetype == null) return;
             uint flags = 0;
             uint.TryParse(ArchetypeFlagsTextBox.Text, out flags);
@@ -114,7 +115,7 @@ namespace CodeWalker.Project.Panels
 
         private void ArchetypeFlagsCheckedListBox_ItemCheck(object sender, ItemCheckEventArgs e)
         {
-            if (populatingui) return;
+            if (populatingui || CurrentArchetype == null) return;
             if (CurrentArchetype == null) return;
             uint flags = 0;
             for (int i = 0; i < EntityFlagsCheckedListBox.Items.Count; i++)
@@ -149,6 +150,7 @@ namespace CodeWalker.Project.Panels
 
         private void ArchetypeNameTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             if (ProjectForm == null) return;
 
             var hash = 0u;
@@ -172,6 +174,7 @@ namespace CodeWalker.Project.Panels
 
         private void AssetNameTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             if (ProjectForm == null) return;
 
             var hash = 0u;
@@ -189,6 +192,7 @@ namespace CodeWalker.Project.Panels
 
         private void TextureDictTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             if (ProjectForm == null) return;
 
             lock (ProjectForm.ProjectSyncRoot)
@@ -225,6 +229,7 @@ namespace CodeWalker.Project.Panels
 
         private void ClipDictionaryTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             if (ProjectForm == null) return;
 
             var hash = 0u;
@@ -242,6 +247,7 @@ namespace CodeWalker.Project.Panels
 
         private void DrawableDictionaryTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             if (ProjectForm == null) return;
 
             lock (ProjectForm.ProjectSyncRoot)
@@ -270,6 +276,7 @@ namespace CodeWalker.Project.Panels
 
         private void PhysicsDictionaryTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             if (ProjectForm == null) return;
 
             lock (ProjectForm.ProjectSyncRoot)
@@ -306,6 +313,7 @@ namespace CodeWalker.Project.Panels
 
         private void LodDistNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             var loddist = (float)LodDistNumericUpDown.Value;
             if (!MathUtil.NearEqual(loddist, CurrentArchetype._BaseArchetypeDef.lodDist))
             {
@@ -316,6 +324,7 @@ namespace CodeWalker.Project.Panels
 
         private void HDTextureDistNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             var hddist = (float)HDTextureDistNumericUpDown.Value;
             if (!MathUtil.NearEqual(hddist, CurrentArchetype._BaseArchetypeDef.hdTextureDist))
             {
@@ -326,6 +335,7 @@ namespace CodeWalker.Project.Panels
 
         private void SpecialAttributeNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             var att = (uint)SpecialAttributeNumericUpDown.Value;
             if (CurrentArchetype._BaseArchetypeDef.specialAttribute != att)
             {
@@ -336,6 +346,7 @@ namespace CodeWalker.Project.Panels
 
         private void BBMinTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             Vector3 min = FloatUtil.ParseVector3String(BBMinTextBox.Text);
             if (CurrentArchetype._BaseArchetypeDef.bbMin != min)
             {
@@ -346,6 +357,7 @@ namespace CodeWalker.Project.Panels
 
         private void BBMaxTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             Vector3 max = FloatUtil.ParseVector3String(BBMaxTextBox.Text);
 
             if (CurrentArchetype._BaseArchetypeDef.bbMax != max)
@@ -357,6 +369,7 @@ namespace CodeWalker.Project.Panels
 
         private void BSCenterTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             Vector3 c = FloatUtil.ParseVector3String(BSCenterTextBox.Text);
 
             if (CurrentArchetype._BaseArchetypeDef.bsCentre != c)
@@ -368,6 +381,7 @@ namespace CodeWalker.Project.Panels
 
         private void BSRadiusTextBox_TextChanged(object sender, EventArgs e)
         {
+            if (CurrentArchetype == null) return;
             if (FloatUtil.TryParse(BSRadiusTextBox.Text, out float f))
             {
                 if (!MathUtil.NearEqual(CurrentArchetype._BaseArchetypeDef.bsRadius, f))
@@ -399,7 +413,8 @@ namespace CodeWalker.Project.Panels
 
         private void TimeFlagsTextBox_TextChanged(object sender, EventArgs e)
         {
-            if (populatingui) return;
+            if (CurrentArchetype == null) return;
+            if (populatingui || CurrentArchetype == null) return;
             if (CurrentArchetype == null) return;
             if (CurrentArchetype is TimeArchetype TimeArchetype)
             {
@@ -426,7 +441,7 @@ namespace CodeWalker.Project.Panels
 
         private void TimeFlagsCheckedListBox_ItemCheck(object sender, ItemCheckEventArgs e)
         {
-            if (populatingui) return;
+            if (populatingui || CurrentArchetype == null) return;
             if (CurrentArchetype == null) return;
             if (CurrentArchetype is TimeArchetype TimeArchetype)
             {

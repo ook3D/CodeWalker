@@ -79,7 +79,7 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<TreesLodShaderVSWindVars> VSWindVars;
         GpuVarsBuffer<TreesLodShaderPSSceneVars> PSSceneVars;
         GpuVarsBuffer<TreesLodShaderPSEntityVars> PSEntityVars;
-        SamplerState texsampler;
+        SamplerState? texsampler;
 
         private Dictionary<VertexType, InputLayout> layouts = new Dictionary<VertexType, InputLayout>();
 
@@ -146,7 +146,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Update(context);
@@ -198,20 +198,13 @@ namespace CodeWalker.Rendering
             if (geom.VertexType != VertexType.PNCCTTTT)
             { }
 
-            var shader = geom.DrawableGeom.Shader;
-            if (shader.Name.Hash == 1874959840)
+            var shader = geom.DrawableGeom?.Shader;
+            if (shader?.Name.Hash == 1874959840)
             {
 
-                int nparams = 0;
-                MetaName[]? hashes = null;
-                ShaderParameter[]? sparams = null;
-
-                if (shader.ParametersList != null)
-                {
-                    nparams = shader.ParametersList.Hashes.Length;
-                    hashes = shader.ParametersList.Hashes;
-                    sparams = shader.ParametersList.Parameters;
-                }
+                var hashes = shader.ParametersList?.Hashes ?? [];
+                var sparams = shader.ParametersList?.Parameters ?? [];
+                int nparams = Math.Min(hashes.Length, sparams.Length);
 
                 // Start with values parsed from material during Renderable init
                 // (these are properly populated from the material's umGlobalParams/WindGlobalParams)
@@ -220,16 +213,17 @@ namespace CodeWalker.Rendering
 
                 for (int i = 0; i < nparams; i++)
                 {
-                    var h = (ShaderParamNames)shader.ParametersList.Hashes[i];
+                    var h = (ShaderParamNames)hashes[i];
+                    if (sparams[i]?.Data is not Vector4 value) continue;
                     switch (h)
                     {
-                        case ShaderParamNames.AlphaTest: VSGeomVars.Vars.AlphaTest = (Vector4)sparams[i].Data; break;
-                        case ShaderParamNames.AlphaScale: VSGeomVars.Vars.AlphaScale = (Vector4)sparams[i].Data; break;
-                        case ShaderParamNames.UseTreeNormals: VSGeomVars.Vars.UseTreeNormals = (Vector4)sparams[i].Data; break;
-                        case ShaderParamNames.treeLod2Normal: VSGeomVars.Vars.treeLod2Normal = (Vector4)sparams[i].Data; break;
-                        case ShaderParamNames.treeLod2Params: VSGeomVars.Vars.treeLod2Params = (Vector4)sparams[i].Data; break;
-                        case ShaderParamNames.umGlobalParams: VSWindVars.Vars.umGlobalParams = (Vector4)sparams[i].Data; break;
-                        case ShaderParamNames.WindGlobalParams: VSWindVars.Vars.WindGlobalParams = (Vector4)sparams[i].Data; break;
+                        case ShaderParamNames.AlphaTest: VSGeomVars.Vars.AlphaTest = value; break;
+                        case ShaderParamNames.AlphaScale: VSGeomVars.Vars.AlphaScale = value; break;
+                        case ShaderParamNames.UseTreeNormals: VSGeomVars.Vars.UseTreeNormals = value; break;
+                        case ShaderParamNames.treeLod2Normal: VSGeomVars.Vars.treeLod2Normal = value; break;
+                        case ShaderParamNames.treeLod2Params: VSGeomVars.Vars.treeLod2Params = value; break;
+                        case ShaderParamNames.umGlobalParams: VSWindVars.Vars.umGlobalParams = value; break;
+                        case ShaderParamNames.WindGlobalParams: VSWindVars.Vars.WindGlobalParams = value; break;
                     }
                 }
 
@@ -307,7 +301,7 @@ namespace CodeWalker.Rendering
             PSEntityVars.Update(context);
             PSEntityVars.SetPSCBuffer(context, 1);
 
-            if (usediff)
+            if (usediff && texture != null)
             {
                 context.PixelShader.SetSampler(0, texsampler);
                 //context.PixelShader.SetShaderResource(0, difftex.ShaderResourceView);

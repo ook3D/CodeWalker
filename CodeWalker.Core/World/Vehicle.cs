@@ -16,11 +16,11 @@ namespace CodeWalker.World
         public MetaHash NameHash { get; set; } = 0;//base vehicle name hash
         public MetaHash ModelHash { get; set; } = 0;//vehicle model name hash, can be _hi
 
-        public VehicleInitData InitData { get; set; } = null;
-        public YftFile Yft { get; set; } = null;
+        public VehicleInitData? InitData { get; set; }
+        public YftFile? Yft { get; set; }
 
-        public YcdFile ConvRoofDict { get; set; } = null;
-        public ClipMapEntry ConvRoofClip { get; set; } = null;
+        public YcdFile? ConvRoofDict { get; set; }
+        public ClipMapEntry? ConvRoofClip { get; set; }
 
         public string DisplayMake { get; set; } = string.Empty;//make display name
         public string DisplayName { get; set; } = string.Empty;//model display name
@@ -61,7 +61,7 @@ namespace CodeWalker.World
                 if (!string.IsNullOrEmpty(vid.animConvRoofDictName) && (vid.animConvRoofDictName.ToLowerInvariant() != "null"))
                 {
                     var ycdhash = JenkHash.GenHash(vid.animConvRoofDictName.ToLowerInvariant());
-                    var cliphash = JenkHash.GenHash(vid.animConvRoofName?.ToLowerInvariant());
+                    var cliphash = JenkHash.GenHash(vid.animConvRoofName.ToLowerInvariant());
                     ConvRoofDict = gfc.GetYcd(ycdhash);
                     while ((ConvRoofDict != null) && (!ConvRoofDict.Loaded))
                     {

@@ -11,24 +11,24 @@ namespace CodeWalker.World
     public class PopZones : BasePathData
     {
         public volatile bool Inited = false;
-        public GameFileCache GameFileCache;
+        public GameFileCache? GameFileCache;
 
         public Dictionary<string, PopZone> Groups = new();
 
         public Vector4[] GetNodePositions()
         {
-            return null;
+            return [];
         }
         public EditorVertex[] GetPathVertices()
         {
-            return null;
+            return [];
         }
         public EditorVertex[] GetTriangleVertices()
         {
             return TriangleVerts;
         }
 
-        public EditorVertex[] TriangleVerts;
+        public EditorVertex[] TriangleVerts = [];
 
 
 
@@ -38,7 +38,8 @@ namespace CodeWalker.World
 
             GameFileCache = gameFileCache;
 
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan
+                ?? throw new InvalidOperationException("An RPF manager is required to load population zones.");
 
             string filename = "common.rpf\\data\\levels\\gta5\\popzone.ipl";
             if (gameFileCache.EnableDlc)
@@ -147,7 +148,7 @@ namespace CodeWalker.World
             }
             else
             {
-                TriangleVerts = null;
+                TriangleVerts = [];
             }
 
         }
@@ -159,8 +160,8 @@ namespace CodeWalker.World
 
     public class PopZone
     {
-        public string NameLabel { get; set; }
-        public string Name { get; set; } //lookup from gxt2 with label..?
+        public string NameLabel { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty; //lookup from gxt2 with label..?
         public List<PopZoneBox> Boxes { get; set; } = [];
 
         public override string ToString()
@@ -172,9 +173,9 @@ namespace CodeWalker.World
 
     public class PopZoneBox
     {
-        public string ID { get; set; }
+        public string ID { get; set; } = string.Empty;
         public BoundingBox Box { get; set; }
-        public string NameLabel { get; set; }
+        public string NameLabel { get; set; } = string.Empty;
         public float UnkVal { get; set; }
 
 

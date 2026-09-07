@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using SharpDX;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
@@ -40,8 +41,8 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<OutlineMaskVSVars> VSVars;
         GpuVarsBuffer<OutlineBlurPSVars> PSBlurVars;
 
-        GpuTexture MaskTex;
-        GpuTexture BlurTex;
+        GpuTexture? MaskTex;
+        GpuTexture? BlurTex;
         UnitQuad FullscreenQuad;
 
         int BufferWidth;
@@ -82,6 +83,7 @@ namespace CodeWalker.Rendering
         }
 
 
+        [MemberNotNull(nameof(MaskTex), nameof(BlurTex))]
         private void EnsureBuffers(int w, int h)
         {
             if (BufferWidth == w && BufferHeight == h && MaskTex != null && BlurTex != null)
