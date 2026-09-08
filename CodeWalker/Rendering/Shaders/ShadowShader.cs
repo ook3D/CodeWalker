@@ -378,7 +378,7 @@ namespace CodeWalker.Rendering
             }
 
 
-            if (geom.BoneTransforms != null)
+            if (geom.BoneTransforms is { Length: > 0 })
             {
                 SetBoneMatrices(context, geom.BoneTransforms);
                 defaultBoneMatricesBound = false;

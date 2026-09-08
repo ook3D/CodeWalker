@@ -55,13 +55,13 @@ namespace CodeWalker.World
                     Yft = gfc.GetYft(ModelHash);
                 }
 
-                DisplayMake = GlobalText.TryGetString(JenkHash.GenHash(vid.vehicleMakeName.ToLowerInvariant()));
-                DisplayName = GlobalText.TryGetString(JenkHash.GenHash(vid.gameName.ToLowerInvariant()));
+                DisplayMake = GlobalText.TryGetString(JenkHash.GenHashLowerInvariant(vid.vehicleMakeName));
+                DisplayName = GlobalText.TryGetString(JenkHash.GenHashLowerInvariant(vid.gameName));
 
                 if (!string.IsNullOrEmpty(vid.animConvRoofDictName) && (vid.animConvRoofDictName.ToLowerInvariant() != "null"))
                 {
-                    var ycdhash = JenkHash.GenHash(vid.animConvRoofDictName.ToLowerInvariant());
-                    var cliphash = JenkHash.GenHash(vid.animConvRoofName.ToLowerInvariant());
+                    var ycdhash = JenkHash.GenHashLowerInvariant(vid.animConvRoofDictName);
+                    var cliphash = JenkHash.GenHashLowerInvariant(vid.animConvRoofName);
                     ConvRoofDict = gfc.GetYcd(ycdhash);
                     while ((ConvRoofDict != null) && (!ConvRoofDict.Loaded))
                     {

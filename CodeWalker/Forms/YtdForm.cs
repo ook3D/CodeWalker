@@ -310,7 +310,7 @@ namespace CodeWalker.Forms
             var tex = CurrentTexture;
 
             tex.Name = name;
-            tex.NameHash = JenkHash.GenHash(name.ToLowerInvariant());
+            tex.NameHash = JenkHash.GenHashLowerInvariant(name);
 
             var textures = new List<Texture>();
             textures.AddRange(TexDict.Textures.data_items);
@@ -393,7 +393,7 @@ namespace CodeWalker.Forms
                     }
 
                     tex.Name = Path.GetFileNameWithoutExtension(fn);
-                    tex.NameHash = JenkHash.GenHash(tex.Name.ToLowerInvariant());
+                    tex.NameHash = JenkHash.GenHashLowerInvariant(tex.Name);
                     JenkIndex.Ensure(tex.Name.ToLowerInvariant());
 
                     textures.Add(tex);
@@ -479,7 +479,7 @@ namespace CodeWalker.Forms
                     }
 
                     tex.Name = Path.GetFileNameWithoutExtension(fn);
-                    tex.NameHash = JenkHash.GenHash(tex.Name.ToLowerInvariant());
+                    tex.NameHash = JenkHash.GenHashLowerInvariant(tex.Name);
                     JenkIndex.Ensure(tex.Name.ToLowerInvariant());
 
                     textures.Add(tex);

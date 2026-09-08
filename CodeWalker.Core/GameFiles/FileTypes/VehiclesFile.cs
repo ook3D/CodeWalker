@@ -315,7 +315,7 @@ namespace CodeWalker.GameFiles
             if (cnode == null) return [];
             var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
             if (items == null) return [];
-            getStringArrayList.Clear();
+            List<string> getStringArrayList = new();
             foreach (XmlNode inode in items)
             {
                 var istr = inode.InnerText;
@@ -332,7 +332,7 @@ namespace CodeWalker.GameFiles
             var ldastr = Xml.GetChildInnerText(node, childName);
             var ldarr = ldastr?.Split(delimiter);
             if (ldarr == null) return [];
-            getStringArrayList.Clear();
+            List<string> getStringArrayList = new();
             foreach (var ldstr in ldarr)
             {
                 var ldt = ldstr?.Trim();
@@ -349,7 +349,7 @@ namespace CodeWalker.GameFiles
             var ldastr = Xml.GetChildInnerText(node, childName);
             var ldarr = ldastr?.Split(delimiter);
             if (ldarr == null) return [];
-            getFloatArrayList.Clear();
+            List<float> getFloatArrayList = new();
             foreach (var ldstr in ldarr)
             {
                 var ldt = ldstr?.Trim();
@@ -366,8 +366,6 @@ namespace CodeWalker.GameFiles
             return getFloatArrayList.ToArray();
         }
 
-        private static List<string> getStringArrayList = new(); //kinda hacky..
-        private static List<float> getFloatArrayList = new(); //kinda hacky..
 
 
         public override string ToString()

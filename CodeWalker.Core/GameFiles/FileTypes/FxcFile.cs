@@ -1172,7 +1172,7 @@ namespace CodeWalker.GameFiles
         public ushort SlotHS { get; set; }
         public string Name { get; set; } = string.Empty;
 
-        public uint NameHash { get { return JenkHash.GenHash(Name.ToLowerInvariant()); } }
+        public uint NameHash { get { return JenkHash.GenHashLowerInvariant(Name); } }
         public List<FxcVariable>? VariablesList;
         public FxcVariable[] Variables { get; set; } = [];
 

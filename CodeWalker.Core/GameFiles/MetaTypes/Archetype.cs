@@ -105,7 +105,7 @@ public class TimeArchetype : Archetype
 
     public override bool IsActive(float hour)
     {
-        if (ActiveHours == null) return true;
+        if (ActiveHours == null || ActiveHours.Length == 0) return true;
         int h = ((int)hour) % 24;
         if ((h < 0) || (h > 23)) return true;
         return ActiveHours[h];
@@ -114,9 +114,12 @@ public class TimeArchetype : Archetype
 
     public void UpdateActiveHours()
     {
-        if (ActiveHours == null)
+        if (ActiveHours == null || ActiveHours.Length != 24)
         {
             ActiveHours = new bool[24];
+        }
+        if (ActiveHoursText == null || ActiveHoursText.Length != 24)
+        {
             ActiveHoursText = new string[24];
         }
         for (int i = 0; i < 24; i++)

@@ -802,7 +802,7 @@ namespace CodeWalker.GameFiles
             {
             }
 
-            protected override void WriteToStream(byte[] value, bool ignoreEndianess = false)
+            protected override void WriteToStream(ReadOnlySpan<byte> value, bool ignoreEndianess = false)
             {
                 position += value.Length;
                 length = Math.Max(length, position);

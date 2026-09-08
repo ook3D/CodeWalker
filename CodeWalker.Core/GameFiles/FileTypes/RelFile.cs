@@ -436,7 +436,7 @@ namespace CodeWalker.GameFiles
         }
         private RelData ReadRelData(BinaryReader br, RelIndexString s)
         {
-            return ReadRelData(br, s.Name, JenkHash.GenHash(s.Name.ToLowerInvariant()), s.Offset, s.Length);
+            return ReadRelData(br, s.Name, JenkHash.GenHashLowerInvariant(s.Name), s.Offset, s.Length);
         }
         private RelData ReadRelData(BinaryReader br, string? name, MetaHash hash, uint offset, uint length)
         {

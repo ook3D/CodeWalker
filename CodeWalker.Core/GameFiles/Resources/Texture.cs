@@ -341,7 +341,7 @@ namespace CodeWalker.GameFiles
                 Name = reader.ReadStringAt(NamePointer) ?? string.Empty;
                 if (!string.IsNullOrEmpty(Name))
                 {
-                    NameHash = JenkHash.GenHash(Name.ToLowerInvariant());
+                    NameHash = JenkHash.GenHashLowerInvariant(Name);
                 }
 
                 switch (G9_Flags)
@@ -482,7 +482,7 @@ namespace CodeWalker.GameFiles
 
                 if (!string.IsNullOrEmpty(Name))
                 {
-                    NameHash = JenkHash.GenHash(Name.ToLowerInvariant());
+                    NameHash = JenkHash.GenHashLowerInvariant(Name);
                 }
 
 
@@ -662,7 +662,7 @@ namespace CodeWalker.GameFiles
         public virtual void ReadXml(XmlNode node, string ddsfolder)
         {
             Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
-            NameHash = JenkHash.GenHash(Name.ToLowerInvariant());
+            NameHash = JenkHash.GenHashLowerInvariant(Name);
             Unknown_32h = (ushort)Xml.GetChildUIntAttribute(node, "Unk32", "value");
             Usage = Xml.GetChildEnumInnerText<TextureUsage>(node, "Usage");
             UsageFlags = Xml.GetChildEnumInnerText<TextureUsageFlags>(node, "UsageFlags");

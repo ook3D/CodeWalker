@@ -83,6 +83,10 @@ namespace CodeWalker.Rendering
         }
         public void Update(DeviceContext context, T[] data)
         {
+            // SharpDX indexes data[0] even for a zero-length write. Do not discard
+            // the current GPU contents when there is nothing to upload.
+            if (data.Length == 0) return;
+
             var dataBox = context.MapSubresource(Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
             try
             {
@@ -193,6 +197,8 @@ namespace CodeWalker.Rendering
 
         public void Update(DeviceContext context)
         {
+            if (CurrentCount == 0) return;
+
             for (int i = 0; i < CurrentCount; i++)
             {
                 DataArray[i] = Data[i];
@@ -209,6 +215,8 @@ namespace CodeWalker.Rendering
         }
         public void Update(DeviceContext context, T[] data)
         {
+            if (data.Length == 0) return;
+
             var dataBox = context.MapSubresource(Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
             try
             {

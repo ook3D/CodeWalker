@@ -63,8 +63,10 @@ namespace CodeWalker.Rendering
 
     public class Renderable : RenderableCacheItem<DrawableBase>
     {
-        public YtdFile[] SDtxds = [];
-        public YtdFile[] HDtxds = [];
+        // Null means the hierarchy has not been resolved; empty means it was
+        // resolved and no external texture dictionaries were found.
+        public YtdFile[]? SDtxds;
+        public YtdFile[]? HDtxds;
         public bool AllTexturesLoaded = false;
 
         public RenderableModel[] HDModels = [];
@@ -423,7 +425,7 @@ namespace CodeWalker.Rendering
                 {
                     var geom = model.Geometries[g];
                     var boneids = geom?.DrawableGeom?.BoneIds;
-                    if (boneids == null || geom == null || bones == null) continue;
+                    if (boneids == null || boneids.Length == 0 || geom == null || bones == null) continue;
                     if (boneids.Length != bones.Length)
                     {
                         var idc = boneids.Length;

@@ -1,6 +1,7 @@
-﻿using SharpDX.Direct3D11;
+using SharpDX.Direct3D11;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -184,17 +185,30 @@ namespace CodeWalker.Rendering
             return itemsStillPending;
         }
 
+        private int firstUnloadCache;
+
         public void RenderThreadSync()
         {
             if (currentDevice == null) return;
-            renderables.RenderThreadSync(currentDevice);
-            textures.RenderThreadSync(currentDevice);
-            boundcomps.RenderThreadSync(currentDevice);
-            instbatches.RenderThreadSync(currentDevice);
-            lodlights.RenderThreadSync(currentDevice);
-            distlodlights.RenderThreadSync(currentDevice);
-            pathbatches.RenderThreadSync(currentDevice);
-            waterquads.RenderThreadSync(currentDevice);
+            // Resource disposal runs on the render thread. Spread streaming cleanup
+            // over frames, with a shared 2 ms soft budget and at most 64 items per cache.
+            // Rotate priority so a geometry backlog cannot starve texture cleanup.
+            long deadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 500;
+            for (int i = 0; i < 8; i++)
+            {
+                switch ((firstUnloadCache + i) % 8)
+                {
+                    case 0: renderables.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 1: textures.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 2: boundcomps.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 3: instbatches.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 4: lodlights.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 5: distlodlights.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 6: pathbatches.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 7: waterquads.RenderThreadSync(currentDevice, 64, deadline); break;
+                }
+            }
+            firstUnloadCache = (firstUnloadCache + 1) % 8;
         }
 
         public Renderable GetRenderable(DrawableBase drawable)
@@ -276,6 +290,7 @@ namespace CodeWalker.Rendering
     {
         private ConcurrentQueue<TVal> itemsToLoad = new ConcurrentQueue<TVal>();
         private ConcurrentQueue<TVal> itemsToUnload = new ConcurrentQueue<TVal>();
+        private readonly ConcurrentQueue<TVal> failedLoads = new();
         private ConcurrentQueue<TKey> keysToInvalidate = new ConcurrentQueue<TKey>();
         private LinkedList<TVal> loadeditems = new LinkedList<TVal>();//only use from content thread!
         private Dictionary<TKey, TVal> cacheitems = new Dictionary<TKey, TVal>();//only use from render thread!
@@ -322,6 +337,9 @@ namespace CodeWalker.Rendering
                 rnd.Unload();
             }
             loadeditems.Clear();
+            // These items have already left loadeditems but still own GPU resources.
+            while (itemsToUnload.TryDequeue(out var pending)) pending.Unload();
+            while (failedLoads.TryDequeue(out var failed)) failed.Unload();
             cacheitems.Clear();
             itemsToUnload = new ConcurrentQueue<TVal>();
             keysToInvalidate = new ConcurrentQueue<TKey>();
@@ -346,9 +364,13 @@ namespace CodeWalker.Rendering
                         loadeditems.AddLast(item);
                         Interlocked.Add(ref CacheUse, item.DataSize);
                     }
-                    catch //(Exception ex)
+                    catch (Exception ex)
                     {
-                        //todo: error handling...
+                        // Keep cleanup on the render thread: it may still be resolving
+                        // textures on this item. A failed upload must not remain queued forever.
+                        item.IsLoaded = false;
+                        failedLoads.Enqueue(item);
+                        CodeWalker.GameFiles.LodDiag.Report("GPU upload failed for " + item.Key + ": " + ex.Message);
                     }
                 }
                 else
@@ -383,9 +405,21 @@ namespace CodeWalker.Rendering
 
         }
 
-        public void RenderThreadSync(Device device)
+        public void RenderThreadSync(Device device) => RenderThreadSync(device, int.MaxValue);
+
+        public void RenderThreadSync(Device device, int maxUnloads, long unloadDeadline = long.MaxValue)
         {
             LastFrameTime = DateTime.UtcNow.ToBinary();
+            while (failedLoads.TryDequeue(out var failed))
+            {
+                if (cacheitems.TryGetValue(failed.Key, out var cached) && ReferenceEquals(cached, failed))
+                {
+                    cacheitems.Remove(failed.Key);
+                }
+                failed.Unload();
+                failed.LoadQueued = false;
+                // Failed uploads were never added to loadeditems or CacheUse.
+            }
             TVal? item;
             TKey? key;
             while (keysToInvalidate.TryDequeue(out key))
@@ -399,7 +433,8 @@ namespace CodeWalker.Rendering
                     Interlocked.Add(ref CacheUse, item.DataSize);
                 }
             }
-            while (itemsToUnload.TryDequeue(out item))
+            int unloaded = 0;
+            while (unloaded < maxUnloads && Stopwatch.GetTimestamp() < unloadDeadline && itemsToUnload.TryDequeue(out item))
             {
                 if (item.Key != null)
                 {
@@ -408,6 +443,7 @@ namespace CodeWalker.Rendering
                 item.Unload();
                 item.LoadQueued = false;
                 Interlocked.Add(ref CacheUse, -item.DataSize);
+                unloaded++;
             }
 
         }

@@ -68,6 +68,43 @@ namespace CodeWalker.GameFiles
             return h;
         }
 
+        /// <summary>Hashes invariant-lowercase text without allocating a lowercase string.</summary>
+        public static uint GenHashLowerInvariant(ReadOnlySpan<char> text)
+        {
+            uint h = 0;
+            foreach (char c in text)
+            {
+                // Unicode casing must operate on the complete span, including surrogate pairs.
+                if (c > 0x7F) return GenHashLowerUnicode(text);
+                uint value = c >= 'A' && c <= 'Z' ? (uint)(c + ('a' - 'A')) : c;
+                h += value;
+                h += h << 10;
+                h ^= h >> 6;
+            }
+            h += h << 3;
+            h ^= h >> 11;
+            h += h << 15;
+            return h;
+        }
+
+        private static uint GenHashLowerUnicode(ReadOnlySpan<char> text)
+        {
+            char[]? rented = null;
+            Span<char> buffer = text.Length <= 256
+                ? stackalloc char[text.Length]
+                : (rented = ArrayPool<char>.Shared.Rent(text.Length)).AsSpan(0, text.Length);
+            try
+            {
+                int written = text.ToLowerInvariant(buffer);
+                if (written < 0) throw new InvalidOperationException("Invariant casing exceeded the source length.");
+                return GenHash((ReadOnlySpan<char>)buffer[..written]);
+            }
+            finally
+            {
+                if (rented != null) ArrayPool<char>.Shared.Return(rented);
+            }
+        }
+
         public static uint GenHash(byte[] data)
         {
             ArgumentNullException.ThrowIfNull(data);

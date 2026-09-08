@@ -54,7 +54,7 @@ namespace CodeWalker.Rendering
                     cr.Frames[f] = new Vector4(ParseF(text[fields[0]]), ParseF(text[fields[2]]),
                         ParseF(text[fields[1]]), ParseF(text[fields[3]]));
                 }
-                destination[JenkHash.GenHash(name.ToString().ToLowerInvariant())] = cr;
+                destination[JenkHash.GenHashLowerInvariant(name)] = cr;
             }
         }
 

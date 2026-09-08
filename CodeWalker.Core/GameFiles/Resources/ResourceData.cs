@@ -288,181 +288,112 @@ namespace CodeWalker.GameFiles
             if (cache) arrayPool[(long)position] = result;
             return result;
         }
-        public ushort[]? ReadUshortsAt(ulong position, uint count, bool cache = true)
+        public ushort[]? ReadUshortsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<ushort>(position, count, cache);
+
+        public short[]? ReadShortsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<short>(position, count, cache);
+
+        public uint[]? ReadUintsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<uint>(position, count, cache);
+
+        public ulong[]? ReadUlongsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<ulong>(position, count, cache);
+
+        public float[]? ReadFloatsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<float>(position, count, cache);
+
+        private T[]? ReadPrimitiveArrayAt<T>(ulong position, uint count, bool cache) where T : unmanaged
         {
-            if ((position <= 0) || (count == 0)) return null;
+            if (position == 0 || count == 0) return null;
 
-            var result = new ushort[count];
-            var length = count * 2;
-            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result2 = new ushort[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result2[i] = ReadUInt16();
-            //}
-            //Position = posbackup;
-
+            // Validate the byte length before allocating; no temporary byte array is needed.
+            _ = checked((int)count * System.Runtime.CompilerServices.Unsafe.SizeOf<T>());
+            var result = GC.AllocateUninitializedArray<T>((int)count);
+            long positionBackup = Position;
+            try
+            {
+                Position = checked((long)position);
+                // Match the existing raw array layout: ReadBytesAt did not swap bytes.
+                ReadFromStream(MemoryMarshal.AsBytes(result.AsSpan()), true);
+            }
+            finally
+            {
+                Position = positionBackup;
+            }
             if (cache) arrayPool[(long)position] = result;
-
             return result;
         }
-        public short[]? ReadShortsAt(ulong position, uint count, bool cache = true)
+        public T[]? ReadStructsAt<T>(ulong position, uint count, bool cache = true) where T : struct
         {
-            if ((position <= 0) || (count == 0)) return null;
-            var result = new short[count];
-            var length = count * 2;
-            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
+            if (position == 0 || count == 0) return null;
+            long positionBackup = Position;
+            T[] result;
+            try
+            {
+                Position = checked((long)position);
+                result = ReadStructs<T>(count);
+            }
+            finally
+            {
+                Position = positionBackup;
+            }
             if (cache) arrayPool[(long)position] = result;
-
             return result;
         }
-        public uint[]? ReadUintsAt(ulong position, uint count, bool cache = true)
+
+        public T[] ReadStructs<T>(uint count) where T : struct
         {
-            if ((position <= 0) || (count == 0)) return null;
+            if (count == 0) return [];
+            if (ResourceStructLayout<T>.CanCopyBytes)
+            {
+                _ = checked((int)count * System.Runtime.CompilerServices.Unsafe.SizeOf<T>());
+                var result = GC.AllocateUninitializedArray<T>((int)count);
+                ReadFromStream(MemoryMarshal.AsBytes(result.AsSpan()), true);
+                return result;
+            }
 
-            var result = new uint[count];
-            var length = count * 4;
-            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result = new uint[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = ReadUInt32();
-            //}
-            //Position = posbackup;
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public ulong[]? ReadUlongsAt(ulong position, uint count, bool cache = true)
-        {
-            if ((position <= 0) || (count == 0)) return null;
-
-            var result = new ulong[count];
-            var length = count * 8;
-            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result = new ulong[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = ReadUInt64();
-            //}
-            //Position = posbackup;
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public float[]? ReadFloatsAt(ulong position, uint count, bool cache = true)
-        {
-            if ((position <= 0) || (count == 0)) return null;
-
-            var result = new float[count];
-            var length = count * 4;
-            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result = new float[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = ReadSingle();
-            //}
-            //Position = posbackup;
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public T[]? ReadStructsAt<T>(ulong position, uint count, bool cache = true)
-        {
-            if ((position <= 0) || (count == 0)) return null;
-
-            uint structsize = (uint)Marshal.SizeOf(typeof(T));
-            var length = count * structsize;
-            byte[] data = ReadBytesAt(position, length, false) ?? throw new InvalidDataException("The resource array has no data.");
-
-            //var result2 = new T[count];
-            //Buffer.BlockCopy(data, 0, result2, 0, (int)length); //error: "object must be an array of primitives" :(
-
-            //var result = new T[count];
-            //GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            //var h = handle.AddrOfPinnedObject();
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = Marshal.PtrToStructure<T>(h + (int)(i * structsize));
-            //}
-            //handle.Free();
-
-            var result = new T[count];
-            GCHandle handle = GCHandle.Alloc(result, GCHandleType.Pinned);
-            var h = handle.AddrOfPinnedObject();
-            Marshal.Copy(data, 0, h, (int)length);
-            handle.Free();
-
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public T[] ReadStructs<T>(uint count)
-        {
-            uint structsize = (uint)Marshal.SizeOf(typeof(T));
-            var result = new T[count];
-            var length = count * structsize;
-            byte[] data = ReadBytes((int)length);
-
-            //GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            //var h = handle.AddrOfPinnedObject();
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = Marshal.PtrToStructure<T>(h + (int)(i * structsize));
-            //}
-            //handle.Free();
-
-            GCHandle handle = GCHandle.Alloc(result, GCHandleType.Pinned);
-            var h = handle.AddrOfPinnedObject();
-            Marshal.Copy(data, 0, h, (int)length);
-            handle.Free();
-
-
-            return result;
+            // Marshal each element when its wire representation differs from managed memory.
+            _ = checked((int)count * Marshal.SizeOf<T>());
+            var converted = new T[(int)count];
+            for (int i = 0; i < converted.Length; i++) converted[i] = ReadStruct<T>();
+            return converted;
         }
 
         public T ReadStruct<T>() where T : struct
         {
-            uint structsize = (uint)Marshal.SizeOf(typeof(T));
-            var length = structsize;
-            byte[] data = ReadBytes((int)length);
+            if (ResourceStructLayout<T>.CanCopyBytes)
+            {
+                T result = default;
+                ReadFromStream(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref result, 1)), true);
+                return result;
+            }
+
+            byte[] data = ReadBytes(Marshal.SizeOf<T>());
             GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            var h = handle.AddrOfPinnedObject();
-            var result = Marshal.PtrToStructure<T>(h);
-            handle.Free();
-            return result;
+            try
+            {
+                return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+            }
+            finally
+            {
+                handle.Free();
+            }
         }
 
         public T ReadStructAt<T>(long position) where T : struct
         {
-            if ((position <= 0)) return default(T);
-            var posbackup = Position;
-            Position = (long)position;
-            var result = ReadStruct<T>();
-            Position = posbackup;
-            return result;
+            if (position <= 0) return default;
+            long positionBackup = Position;
+            try
+            {
+                Position = position;
+                return ReadStruct<T>();
+            }
+            finally
+            {
+                Position = positionBackup;
+            }
         }
 
         public string? ReadStringAt(ulong position)
@@ -528,53 +459,34 @@ namespace CodeWalker.GameFiles
         /// Writes data to the underlying stream. This is the only method that directly accesses
         /// the data in the underlying stream.
         /// </summary>
-        protected override void WriteToStream(byte[] value, bool ignoreEndianess = true)
+        protected override void WriteToStream(ReadOnlySpan<byte> value, bool ignoreEndianess = false)
         {
+            Stream stream;
+            long addressBase;
             if ((Position & SYSTEM_BASE) == SYSTEM_BASE)
             {
-                // write to system stream...
-
-                systemStream.Position = Position & ~SYSTEM_BASE;
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    var buf = (byte[])value.Clone();
-                    Array.Reverse(buf);
-                    systemStream.Write(buf, 0, buf.Length);
-                }
-                else
-                {
-                    systemStream.Write(value, 0, value.Length);
-                }
-
-                Position = systemStream.Position | 0x50000000;
-                return;
-
+                stream = systemStream;
+                addressBase = SYSTEM_BASE;
             }
-            if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
+            else if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
             {
-                // write to graphic stream...
-
-                graphicsStream.Position = Position & ~GRAPHICS_BASE;
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    var buf = (byte[])value.Clone();
-                    Array.Reverse(buf);
-                    graphicsStream.Write(buf, 0, buf.Length);
-                }
-                else
-                {
-                    graphicsStream.Write(value, 0, value.Length);
-                }
-
-                Position = graphicsStream.Position | 0x60000000;
-                return;
+                stream = graphicsStream;
+                addressBase = GRAPHICS_BASE;
+            }
+            else
+            {
+                throw new InvalidDataException($"Illegal resource position: 0x{Position:X}.");
             }
 
-            throw new Exception("illegal position!");
+            stream.Position = Position & ~addressBase;
+            try
+            {
+                WriteToStream(stream, value, ignoreEndianess);
+            }
+            finally
+            {
+                Position = stream.Position | addressBase;
+            }
         }
 
         /// <summary>
@@ -590,23 +502,40 @@ namespace CodeWalker.GameFiles
 
         public void WriteStruct<T>(T val) where T : struct
         {
-            int size = Marshal.SizeOf(typeof(T));
-            byte[] arr = new byte[size];
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(val, ptr, true);
-            Marshal.Copy(ptr, arr, 0, size);
-            Marshal.FreeHGlobal(ptr);
-            Write(arr);
-        }
-        public void WriteStructs<T>(T[]? val) where T : struct
-        {
-            if (val == null) return;
-            foreach (var v in val)
+            if (ResourceStructLayout<T>.CanCopyBytes)
             {
-                WriteStruct(v);
+                Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref val, 1)));
+                return;
+            }
+
+            int size = Marshal.SizeOf<T>();
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            bool initialized = false;
+            try
+            {
+                Marshal.StructureToPtr(val, ptr, false);
+                initialized = true;
+                byte[] bytes = new byte[size];
+                Marshal.Copy(ptr, bytes, 0, size);
+                Write(bytes);
+            }
+            finally
+            {
+                if (initialized) Marshal.DestroyStructure<T>(ptr);
+                Marshal.FreeHGlobal(ptr);
             }
         }
 
+        public void WriteStructs<T>(T[]? val) where T : struct
+        {
+            if (val == null || val.Length == 0) return;
+            if (ResourceStructLayout<T>.CanCopyBytes)
+            {
+                Write(MemoryMarshal.AsBytes(val.AsSpan()));
+                return;
+            }
+            foreach (var value in val) WriteStruct(value);
+        }
 
 
         /// <summary>

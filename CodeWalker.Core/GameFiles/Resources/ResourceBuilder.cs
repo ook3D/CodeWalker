@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -783,73 +784,70 @@ namespace CodeWalker.GameFiles
 
 
 
-            var sysDataSize = (int)systemPageFlags.Size;
-            var sysData = new byte[sysDataSize];
-            systemStream.Flush();
-            systemStream.Position = 0;
-            systemStream.Read(sysData, 0, Math.Min(sysDataSize, (int)systemStream.Length));
-
-
-            var gfxDataSize = (int)graphicsPageFlags.Size;
-            var gfxData = new byte[gfxDataSize];
-            graphicsStream.Flush();
-            graphicsStream.Position = 0;
-            graphicsStream.Read(gfxData, 0, Math.Min(gfxDataSize, (int)graphicsStream.Length));
-
-
-
+            int sysDataSize = checked((int)systemPageFlags.Size);
+            int gfxDataSize = checked((int)graphicsPageFlags.Size);
             uint uv = (uint)version;
-            uint sv = (uv >> 4) & 0xF;
-            uint gv = (uv >> 0) & 0xF;
-            uint sf = systemPageFlags.Value + (sv << 28);
-            uint gf = graphicsPageFlags.Value + (gv << 28);
+            uint sf = systemPageFlags.Value + (((uv >> 4) & 0xF) << 28);
+            uint gf = graphicsPageFlags.Value + ((uv & 0xF) << 28);
 
+            if (!compress)
+            {
+                // The final array also supplies the zero-filled page tails and alignment gaps.
+                var data = new byte[checked(16 + sysDataSize + gfxDataSize)];
+                WriteResourceHeader(data, version, sf, gf);
+                GetSectionData(systemStream, sysDataSize).CopyTo(data.AsSpan(16, sysDataSize));
+                GetSectionData(graphicsStream, gfxDataSize).CopyTo(data.AsSpan(16 + sysDataSize, gfxDataSize));
+                return data;
+            }
 
-            var tdatasize = sysDataSize + gfxDataSize;
-            var tdata = new byte[tdatasize];
-            Buffer.BlockCopy(sysData, 0, tdata, 0, sysDataSize);
-            Buffer.BlockCopy(gfxData, 0, tdata, sysDataSize, gfxDataSize);
-
-
-            var cdata = compress ? Compress(tdata) : tdata;
-
-
-            var dataSize = 16 + cdata.Length;
-            var data = new byte[dataSize];
-
-            byte[] h1 = BitConverter.GetBytes((uint)0x37435352);
-            byte[] h2 = BitConverter.GetBytes((int)version);
-            byte[] h3 = BitConverter.GetBytes(sf);
-            byte[] h4 = BitConverter.GetBytes(gf);
-            Buffer.BlockCopy(h1, 0, data, 0, 4);
-            Buffer.BlockCopy(h2, 0, data, 4, 4);
-            Buffer.BlockCopy(h3, 0, data, 8, 4);
-            Buffer.BlockCopy(h4, 0, data, 12, 4);
-            Buffer.BlockCopy(cdata, 0, data, 16, cdata.Length);
-
-            return data;
+            using var output = new MemoryStream();
+            Span<byte> header = stackalloc byte[16];
+            WriteResourceHeader(header, version, sf, gf);
+            output.Write(header);
+            using (var compressor = new DeflateStream(output, CompressionMode.Compress, leaveOpen: true))
+            {
+                WritePaddedSection(compressor, systemStream, sysDataSize);
+                WritePaddedSection(compressor, graphicsStream, gfxDataSize);
+            }
+            return output.ToArray();
         }
 
+        private static ReadOnlySpan<byte> GetSectionData(MemoryStream stream, int pageSize) =>
+            stream.GetBuffer().AsSpan(0, (int)Math.Min(stream.Length, pageSize));
 
+        private static void WritePaddedSection(Stream destination, MemoryStream source, int pageSize)
+        {
+            var data = GetSectionData(source, pageSize);
+            destination.Write(data);
+            int remaining = pageSize - data.Length;
+            if (remaining == 0) return;
 
+            Span<byte> zeros = stackalloc byte[4096];
+            zeros.Clear();
+            while (remaining > 0)
+            {
+                int count = Math.Min(remaining, zeros.Length);
+                destination.Write(zeros[..count]);
+                remaining -= count;
+            }
+        }
 
-
+        private static void WriteResourceHeader(Span<byte> destination, int version, uint systemFlags, uint graphicsFlags)
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(destination, RESOURCE_IDENT);
+            BinaryPrimitives.WriteInt32LittleEndian(destination[4..], version);
+            BinaryPrimitives.WriteUInt32LittleEndian(destination[8..], systemFlags);
+            BinaryPrimitives.WriteUInt32LittleEndian(destination[12..], graphicsFlags);
+        }
 
         [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(data))]
         public static byte[]? AddResourceHeader(RpfResourceFileEntry entry, byte[]? data)
         {
             if (data == null) return null;
-            byte[] newdata = new byte[data.Length + 16];
-            byte[] h1 = BitConverter.GetBytes((uint)0x37435352);
-            byte[] h2 = BitConverter.GetBytes(entry.Version);
-            byte[] h3 = BitConverter.GetBytes(entry.SystemFlags);
-            byte[] h4 = BitConverter.GetBytes(entry.GraphicsFlags);
-            Buffer.BlockCopy(h1, 0, newdata, 0, 4);
-            Buffer.BlockCopy(h2, 0, newdata, 4, 4);
-            Buffer.BlockCopy(h3, 0, newdata, 8, 4);
-            Buffer.BlockCopy(h4, 0, newdata, 12, 4);
-            Buffer.BlockCopy(data, 0, newdata, 16, data.Length);
-            return newdata;
+            var result = GC.AllocateUninitializedArray<byte>(checked(data.Length + 16));
+            WriteResourceHeader(result, entry.Version, entry.SystemFlags, entry.GraphicsFlags);
+            data.CopyTo(result.AsSpan(16));
+            return result;
         }
 
 

@@ -12,14 +12,10 @@ public static class MetaNames
 {
     public static bool TryGetString(uint h, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? str)
     {
-        if (Enum.IsDefined(typeof(MetaName), h))
-        {
-            str = ((MetaName)h).ToString();
-            if (str.StartsWith("@")) str = str.Substring(1); //mainly to handle the @null entry
-            return true;
-        }
-        str = null;
-        return false;
+        str = Enum.GetName((MetaName)h);
+        if (str == null) return false;
+        if (str.StartsWith('@')) str = str[1..]; //mainly to handle the @null entry
+        return true;
     }
 }
 

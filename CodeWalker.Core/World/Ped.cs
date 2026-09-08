@@ -49,7 +49,7 @@ namespace CodeWalker.World
 
         public void Init(string name, GameFileCache gfc)
         {
-            var hash = JenkHash.GenHash(name.ToLowerInvariant());
+            var hash = JenkHash.GenHashLowerInvariant(name);
             Init(hash, gfc);
             Name = name;
         }
@@ -61,7 +61,7 @@ namespace CodeWalker.World
 
         public async Task InitAsync(string name, GameFileCache gfc)
         {
-            var hash = JenkHash.GenHash(name.ToLowerInvariant());
+            var hash = JenkHash.GenHashLowerInvariant(name);
             await InitAsync(hash, gfc);
             Name = name;
         }
@@ -96,8 +96,8 @@ namespace CodeWalker.World
                 return;
             }
 
-            var ycdhash = JenkHash.GenHash(initdata.ClipDictionaryName.ToLowerInvariant());
-            var yedhash = JenkHash.GenHash(initdata.ExpressionDictionaryName.ToLowerInvariant());
+            var ycdhash = JenkHash.GenHashLowerInvariant(initdata.ClipDictionaryName);
+            var yedhash = JenkHash.GenHashLowerInvariant(initdata.ExpressionDictionaryName);
 
             NameHash = pedhash;
             InitData = initdata;
@@ -140,7 +140,7 @@ namespace CodeWalker.World
             Ycd?.ClipMap?.TryGetValue(cliphash, out cme);
             AnimClip = cme;
 
-            var exprhash = JenkHash.GenHash(initdata.ExpressionName.ToLowerInvariant());
+            var exprhash = JenkHash.GenHashLowerInvariant(initdata.ExpressionName);
             Expression? expr = null;
             Yed?.ExprMap?.TryGetValue(exprhash, out expr);
             Expression = expr;
@@ -207,8 +207,8 @@ namespace CodeWalker.World
                 return;
             }
 
-            MetaHash namehash = JenkHash.GenHash(name.ToLowerInvariant());
-            MetaHash texhash = JenkHash.GenHash(tex?.ToLowerInvariant() ?? string.Empty);
+            MetaHash namehash = JenkHash.GenHashLowerInvariant(name);
+            MetaHash texhash = JenkHash.GenHashLowerInvariant(tex);
 
             // Start loading all required files in parallel
             YddFile? yddFile = null;

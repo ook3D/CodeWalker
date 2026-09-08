@@ -649,7 +649,7 @@ namespace CodeWalker.GameFiles
                         // cache loader
                         if (changeSet.useCacheLoader)
                         {
-                            var cacheHash = JenkHash.GenHash(changeSet.changeSetName.ToLowerInvariant());
+                            var cacheHash = JenkHash.GenHashLowerInvariant(changeSet.changeSetName);
                             var cacheFileName = dlcName + "_" + cacheHash.ToString() + "_cache_y.dat";
                             var cachePath = dlcFile.Path + "\\x64\\data\\cacheloaderdata_dlc\\" + cacheFileName;
                             var patchedPath = GetDlcPatchedPath(cachePath);
@@ -1502,8 +1502,8 @@ namespace CodeWalker.GameFiles
             {
                 foreach (var kvp in from)
                 {
-                    uint chash = JenkHash.GenHash(kvp.Key.ToLowerInvariant());
-                    uint phash = JenkHash.GenHash(kvp.Value.ToLowerInvariant());
+                    uint chash = JenkHash.GenHashLowerInvariant(kvp.Key);
+                    uint phash = JenkHash.GenHashLowerInvariant(kvp.Value);
                     parentTxds.TryAdd(chash, phash);
                 }
             });
@@ -1932,7 +1932,7 @@ namespace CodeWalker.GameFiles
                 foreach (var initData in vf.InitDatas)
                 {
                     if (initData == null || string.IsNullOrEmpty(initData.modelName)) continue;
-                    var hash = JenkHash.GenHash(initData.modelName.ToLowerInvariant());
+                    var hash = JenkHash.GenHashLowerInvariant(initData.modelName);
                     allVehicles[hash] = initData;
                 }
             }
@@ -2070,7 +2070,7 @@ namespace CodeWalker.GameFiles
                     foreach (var init in list)
                     {
                         if (init == null || string.IsNullOrEmpty(init.Name)) continue;
-                        var hash = JenkHash.GenHash(init.Name.ToLowerInvariant());
+                        var hash = JenkHash.GenHashLowerInvariant(init.Name);
                         allPeds[hash] = init;
                     }
                 }
@@ -6070,7 +6070,7 @@ namespace CodeWalker.GameFiles
                 {
                     var old = Xml.GetStringAttribute(p, "name");
                     var gen9 = Xml.GetStringAttribute(p, "gen9") ?? string.Empty;
-                    var phash = new MetaHash(JenkHash.GenHash(gen9.ToLowerInvariant()));
+                    var phash = new MetaHash(JenkHash.GenHashLowerInvariant(gen9));
                     pdict[phash] = (gen9, old ?? string.Empty);
                 }
 

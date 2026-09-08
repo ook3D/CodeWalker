@@ -1187,7 +1187,7 @@ namespace CodeWalker.Forms
             if (gameFileCache == null) return;
             if (!gameFileCache.IsInited) return;//what to do here? wait for it..?
 
-            var ycdhash = JenkHash.GenHash(name.ToLowerInvariant());
+            var ycdhash = JenkHash.GenHashLowerInvariant(name);
             var ycd = gameFileCache.GetYcd(ycdhash);
             while ((ycd != null) && (!ycd.Loaded))
             {

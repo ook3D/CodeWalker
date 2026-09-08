@@ -730,7 +730,7 @@ namespace CodeWalker
         public void LoadPed()
         {
             var pedname = PedNameComboBox.Text;
-            var pedhash = JenkHash.GenHash(pedname.ToLowerInvariant());
+            var pedhash = JenkHash.GenHashLowerInvariant(pedname);
             var pedchange = SelectedPed.NameHash != pedhash;
 
             for (int i = 0; i < 12; i++)
@@ -839,7 +839,7 @@ namespace CodeWalker
 
         private void LoadClipDict(string name)
         {
-            var ycdhash = JenkHash.GenHash(name.ToLowerInvariant());
+            var ycdhash = JenkHash.GenHashLowerInvariant(name);
             var ycd = GameFileCache.GetYcd(ycdhash);
 
             // Start async loading on background thread

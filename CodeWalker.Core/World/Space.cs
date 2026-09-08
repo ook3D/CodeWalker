@@ -1,4 +1,4 @@
-﻿using CodeWalker.GameFiles;
+using CodeWalker.GameFiles;
 using SharpDX;
 using System;
 using System.Collections.Generic;
@@ -145,7 +145,7 @@ namespace CodeWalker.World
                         {
                             localYmapTimes[mapgroup.Name] = mapgroup.HoursOnOff;
                         }
-                        if (mapgroup.WeatherTypes != null)
+                        if (mapgroup.WeatherTypes is { Length: > 0 })
                         {
                             localYmapWeatherTypes[mapgroup.Name] = mapgroup.WeatherTypes;
                         }
@@ -330,32 +330,13 @@ namespace CodeWalker.World
                         if (entry.NameLower.EndsWith(".ymap", StringComparison.Ordinal))
                         {
                             var h = new MetaHash(entry.ShortNameHash);
-                            if (!nodedict.ContainsKey(h))
+                            // Use the same winning file as GetYmap. A replacement's bounds and
+                            // parent can differ from the game's cached metadata.
+                            if (GameFileCache.YmapDict.TryGetValue(entry.ShortNameHash, out var selected)
+                                && ReferenceEquals(selected, entry)
+                                && (isextra || !nodedict.ContainsKey(h)))
                             {
                                 uncachedEntries.Add((entry, true, isextra));
-                            }
-                            else if (isextra)
-                            {
-                                var node = nodedict[h];
-
-                                //same rule as the uncached branch below, but these have a cache .dat node so the
-                                //parent name is already known - no need to load the ymap to find out.
-                                if ((node.ParentName.Hash != 0) && GameFileCache.DisabledYmaps.Contains(entry.ShortNameHash)
-                                    && !GameFileCache.YmapDict.ContainsKey(node.ParentName))
-                                {
-                                    LodDiag.Report(entry.Path + ": skipped - the active DLC replaced this map variant and its LOD parent '" + node.ParentName.ToString() + "' isn't loaded.");
-                                    nodedict.Remove(h);
-                                    continue;
-                                }
-
-                                //the cached hierarchy (children, parent) still comes from the game's cache .dat,
-                                //so this file's entity list has to match the ymap it replaced. Only worth
-                                //reporting for ymaps that are actually part of a hierarchy - occlusion, grass
-                                //and other standalone ymaps get replaced all the time and can't break anything.
-                                if ((node.Children?.Length > 0) || (node.ParentName.Hash != 0))
-                                {
-                                    LodDiag.Report(entry.Path + " replaces a cached map node (" + (node.Children?.Length ?? 0).ToString() + " LOD children, parent '" + node.ParentName.ToString() + "') - its entity order must match the original or LOD links will be wrong.");
-                                }
                             }
 
                             if (isextra && !extraymaps.TryAdd(entry.ShortNameHash, entry))
@@ -398,6 +379,7 @@ namespace CodeWalker.World
                                     && !GameFileCache.YmapDict.ContainsKey(pymap))
                                 {
                                     LodDiag.Report(entry.Path + ": skipped - the active DLC replaced this map variant and its LOD parent '" + pymap.ToString() + "' isn't loaded.");
+                                    nodedict.Remove(entry.ShortNameHash);
                                     continue;
                                 }
 
@@ -448,6 +430,24 @@ namespace CodeWalker.World
 
             MapDataStore = new SpaceMapDataStore();
 
+            // Rebuild links from the final node set, including replacement and uncached
+            // maps. Cached child arrays may still point at superseded nodes.
+            var children = new Dictionary<MetaHash, List<MapDataStoreNode>>();
+            foreach (var node in nodedict.Values)
+            {
+                if (node.ParentName.Hash == 0 || node.ParentName == node.Name) continue;
+                if (!nodedict.ContainsKey(node.ParentName)) continue;
+                if (!children.TryGetValue(node.ParentName, out var list))
+                {
+                    children[node.ParentName] = list = new List<MapDataStoreNode>();
+                }
+                list.Add(node);
+            }
+            foreach (var node in nodedict.Values)
+            {
+                node.Children = children.TryGetValue(node.Name, out var list) ? list.ToArray() : [];
+            }
+            GameFileCache.YmapHierarchyDict = nodedict.ToDictionary(kvp => kvp.Key.Hash, kvp => kvp.Value);
             MapDataStore.Init(nodedict.Values.ToList());
 
         }
@@ -1299,10 +1299,11 @@ namespace CodeWalker.World
             }
 
             // Process valid items
+            var processedHashes = new HashSet<MetaHash>(); // Reuse cycle detection storage within this frame.
             foreach (var item in validItems)
             {
                 var hash = item.Name;
-                var processedHashes = new HashSet<MetaHash>(); // Prevent infinite loops
+                processedHashes.Clear(); // Each map starts a separate parent-chain traversal.
                 
                 var ymap = GameFileCache.GetYmap(hash);
                 while (ymap != null && ymap.Loaded && !processedHashes.Contains(hash))
