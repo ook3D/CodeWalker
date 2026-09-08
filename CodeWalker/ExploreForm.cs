@@ -929,10 +929,9 @@ namespace CodeWalker
                 }
             }
 
-            if (AllRpfs == null)
-            {
-                AllRpfs = allRpfs;
-            }
+            // The list is initialized before scanning. Collect every root's archives
+            // so the model viewer's preloaded cache can resolve time.xml and other assets.
+            AllRpfs.AddRange(allRpfs);
 
         }
         private void RecurseMainTreeViewRPF(MainTreeFolder f, List<RpfFile> allRpfs, string? rootpath = null)
@@ -1446,6 +1445,12 @@ namespace CodeWalker
             Cursor = Cursors.WaitCursor;
 
                 var resultcount = RootFolder?.Search(terms, this) ?? 0;
+                // Extra folders (including FiveM resources) are separate tree roots.
+                foreach (var extraRoot in ExtraRootFolders)
+                {
+                    if (!Searching) break;
+                    resultcount += extraRoot.Search(terms, this);
+                }
 
                 if (Searching)
                 {
