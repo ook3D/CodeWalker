@@ -319,7 +319,10 @@ namespace CodeWalker
                         var str = sb2.ToString();
                         if (str.Contains("."))
                         {
-                            if (str.Split('.', 'e', 'E')[1].Length > 6)
+                            var parts = str.AsSpan().SplitAny(".eE");
+                            parts.MoveNext();
+                            parts.MoveNext();
+                            if (str.AsSpan()[parts.Current].Length > 6)
                             {
                                 double d;
                                 if (!double.TryParse(str, out d))
@@ -1707,7 +1710,17 @@ namespace CodeWalker
         /// </summary>
         /// <param name="name"></param>
         /// <returns>The child node, or null</returns>
-        public FbxNode? this[string name] { get { return Nodes.Find(n => n != null && n.Name == name); } }
+        public FbxNode? this[string name]
+        {
+            get
+            {
+                foreach (var node in Nodes)
+                {
+                    if (node != null && node.Name == name) return node;
+                }
+                return null;
+            }
+        }
 
         /// <summary>
         /// Gets a child node, using a '/' separated path
@@ -1716,13 +1729,25 @@ namespace CodeWalker
         /// <returns>The child node, or null</returns>
         public FbxNode? GetRelative(string path)
         {
-            var tokens = path.Split('/');
+            // Preserve the previous null-path failure rather than treating null
+            // as an empty span (which would return the current node).
+            if (path == null) throw new NullReferenceException();
+            var text = path.AsSpan();
             FbxNodeList? n = this;
-            foreach (var t in tokens)
+            foreach (var range in text.Split('/'))
             {
-                if (t == "")
-                    continue;
-                n = n[t];
+                var name = text[range];
+                if (name.IsEmpty) continue;
+                FbxNode? match = null;
+                foreach (var child in n.Nodes)
+                {
+                    if (child != null && name.SequenceEqual(child.Name.AsSpan()))
+                    {
+                        match = child;
+                        break;
+                    }
+                }
+                n = match;
                 if (n == null)
                     break;
             }

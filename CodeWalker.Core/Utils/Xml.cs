@@ -1,9 +1,9 @@
 ﻿using SharpDX;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -227,15 +227,24 @@ namespace CodeWalker
         {
             if (node == null) return [];
             var data = new List<byte>();
-            var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-            for (int i = 0; i < split.Length; i++)
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                if (!string.IsNullOrEmpty(split[i]))
+                var token = text[range];
+                if (token.IsEmpty) continue;
+
+                // Serialized bytes normally contain one or two hex digits. Parse
+                // those without allocating strings; retain Convert's base, sign,
+                // prefix and exception behavior for every other input.
+                if (fromBase == 16 && token.Length <= 2 &&
+                    char.IsAsciiHexDigit(token[0]) &&
+                    (token.Length == 1 || char.IsAsciiHexDigit(token[1])))
                 {
-                    var str = split[i];
-                    if (string.IsNullOrEmpty(str)) continue;
-                    var val = Convert.ToByte(str, fromBase);
-                    data.Add(val);
+                    data.Add(byte.Parse(token, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture));
+                }
+                else
+                {
+                    data.Add(Convert.ToByte(token.ToString(), fromBase));
                 }
             }
             return data.ToArray();

@@ -163,18 +163,17 @@ namespace CodeWalker.GameFiles
             if (node == null) return null;
             byte r, g, b, a;
             var items = new List<BoundMaterialColour>();
-            var split = node.InnerText.Split('\n');// Regex.Split(node.InnerText, @"[\s\r\n\t]");
-            for (int i = 0; i < split.Length; i++)
+            var text = node.InnerText.AsSpan();
+            foreach (var rowRange in text.Split('\n'))
             {
-                var s = split[i]?.Trim();
-                if (string.IsNullOrEmpty(s)) continue;
-                var split2 = s.Split(',');// Regex.Split(s, @"[\s\t]");
+                var row = text[rowRange].Trim();
+                if (row.IsEmpty) continue;
                 int c = 0;
                 r = 0; g = 0; b = 0; a = 0;
-                for (int n = 0; n < split2.Length; n++)
+                foreach (var componentRange in row.Split(','))
                 {
-                    var ts = split2[n]?.Trim();
-                    if (string.IsNullOrEmpty(ts)) continue;
+                    var ts = row[componentRange].Trim();
+                    if (ts.IsEmpty) continue;
                     byte v = 0;
                     byte.TryParse(ts, out v);
                     switch (c)

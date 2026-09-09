@@ -1,6 +1,7 @@
 ﻿using SharpDX;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -883,105 +884,66 @@ namespace CodeWalker.GameFiles
         private static int[] TraverseSIntArrayRaw(XmlNode node)
         {
             var data = new List<int>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToInt32(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = int.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static uint[] TraverseUIntArrayRaw(XmlNode node)
         {
             var data = new List<uint>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToUInt32(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = uint.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static byte[] TraverseUByteArrayRaw(XmlNode node)
         {
             var data = new List<byte>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToByte(split[i]);
-                        data.Add(val);
-                    }
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = byte.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(value);
             }
-
             return data.ToArray();
         }
         private static ushort[] TraverseUShortArrayRaw(XmlNode node)
         {
             var data = new List<ushort>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToUInt16(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = ushort.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static float[] TraverseFloatArrayRaw(XmlNode node)
         {
             var data = new List<float>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = FloatUtil.Parse(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = FloatUtil.Parse(token);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static Vector4[] TraverseVector3ArrayRaw(XmlNode node)

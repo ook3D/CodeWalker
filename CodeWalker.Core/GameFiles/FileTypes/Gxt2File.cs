@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -71,35 +72,28 @@ namespace CodeWalker.GameFiles
         {
             TextEntries ??= [];
             EntryCount = (uint)TextEntries.Length;
-            uint offset = 16 + (EntryCount * 8);
-            List<byte[]> datas = new();
-
-            var ms = new MemoryStream();
-            var bw = new BinaryWriter(ms);
-
-            bw.Write(1196971058); //"GXT2"
-            bw.Write(EntryCount);
-            foreach (var e in TextEntries)
+            int dataOffset = checked(16 + TextEntries.Length * 8);
+            int size = dataOffset;
+            foreach (var entry in TextEntries)
             {
-                e.Offset = offset;
-                var d = Encoding.UTF8.GetBytes(e.Text + "\0");
-                datas.Add(d);
-                offset += (uint)d.Length;
-                bw.Write(e.Hash);
-                bw.Write(e.Offset);
-            }
-            bw.Write(1196971058); //"GXT2"
-            bw.Write(offset);
-            foreach (var d in datas)
-            {
-                bw.Write(d);
+                size = checked(size + Encoding.UTF8.GetByteCount(entry.Text.AsSpan()) + 1);
             }
 
-            bw.Flush();
-            ms.Position = 0;
-            var data = new byte[ms.Length];
-            ms.Read(data, 0, (int)ms.Length);
-
+            var data = new byte[size];
+            BinaryPrimitives.WriteUInt32LittleEndian(data, 1196971058); // GXT2
+            BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(4), EntryCount);
+            int tableOffset = 8;
+            foreach (var entry in TextEntries)
+            {
+                entry.Offset = (uint)dataOffset;
+                BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset), entry.Hash);
+                BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset + 4), entry.Offset);
+                tableOffset += 8;
+                dataOffset += Encoding.UTF8.GetBytes(entry.Text.AsSpan(), data.AsSpan(dataOffset));
+                dataOffset++; // The output buffer already contains the null terminator.
+            }
+            BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset), 1196971058);
+            BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset + 4), (uint)size);
             return data;
         }
 
@@ -112,7 +106,7 @@ namespace CodeWalker.GameFiles
                 foreach (var entry in TextEntries)
                 {
                     sb.Append("0x");
-                    sb.Append(entry.Hash.ToString("X").PadLeft(8, '0'));
+                    sb.Append(entry.Hash.ToString("X8"));
                     sb.Append(" = ");
                     sb.Append(entry.Text);
                     sb.AppendLine();
@@ -123,17 +117,17 @@ namespace CodeWalker.GameFiles
         public static Gxt2File FromText(string? text)
         {
             var gxt = new Gxt2File();
-            var lines = text?.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries) ?? new string[0];
+            var span = text.AsSpan();
             var entries = new List<Gxt2Entry>();
-            foreach (var line in lines)
+            foreach (var range in span.Split('\n'))
             {
-                var tline = line.Trim();
+                var tline = span[range].Trim();
                 if (tline.Length < 13) continue;
-                if (uint.TryParse(tline.Substring(2, 8), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint hash))
+                if (uint.TryParse(tline.Slice(2, 8), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint hash))
                 {
                     var entry = new Gxt2Entry();
                     entry.Hash = hash;
-                    entry.Text = (tline.Length > 13) ? tline.Substring(13) : "";
+                    entry.Text = (tline.Length > 13) ? tline[13..].ToString() : "";
                     entries.Add(entry);
                 }
                 else

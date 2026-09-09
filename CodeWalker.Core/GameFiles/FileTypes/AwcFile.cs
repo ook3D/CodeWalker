@@ -2308,22 +2308,26 @@ namespace CodeWalker.GameFiles
             }
             public void ReadLine(string s)
             {
-                var split = s.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
-                var list = new List<string>();
-                foreach (var str in split)
+                if (s == null) throw new NullReferenceException();
+                ReadLine(s.AsSpan());
+            }
+            public void ReadLine(ReadOnlySpan<char> text)
+            {
+                Span<Range> fields = stackalloc Range[4];
+                int count = 0;
+                foreach (var range in text.Split(' '))
                 {
-                    var tstr = str.Trim();
-                    if (!string.IsNullOrEmpty(tstr))
-                    {
-                        list.Add(tstr);
-                    }
+                    if (text[range].Trim().IsEmpty) continue;
+                    fields[count++] = range;
+                    if (count == fields.Length) break;
                 }
-                if (list.Count >= 4)
+                // Parse only complete records, preserving existing values otherwise.
+                if (count == fields.Length)
                 {
-                    uint.TryParse(list[0], out uint u1);
-                    FloatUtil.TryParse(list[1], out float f1);
-                    ushort.TryParse(list[2], out ushort s1);
-                    ushort.TryParse(list[3], out ushort s2);
+                    uint.TryParse(text[fields[0]].Trim(), out uint u1);
+                    FloatUtil.TryParse(text[fields[1]].Trim(), out float f1);
+                    ushort.TryParse(text[fields[2]].Trim(), out ushort s1);
+                    ushort.TryParse(text[fields[3]].Trim(), out ushort s2);
                     UnkUint1 = u1;
                     UnkFloat1 = f1;
                     UnkUshort1 = s1;
@@ -2411,13 +2415,11 @@ namespace CodeWalker.GameFiles
             if (ggnode != null)
             {
                 var gglist = new List<GranularGrain>();
-                var ggstr = ggnode.InnerText.Trim();
-                var ggstrs = ggstr.Split('\n');
-                foreach (var ggrstr in ggstrs)
+                var text = ggnode.InnerText.AsSpan().Trim();
+                foreach (var range in text.Split('\n'))
                 {
-                    var rstr = ggrstr.Trim();
                     var ggr = new GranularGrain();
-                    ggr.ReadLine(rstr);
+                    ggr.ReadLine(text[range].Trim());
                     gglist.Add(ggr);
                 }
                 GranularGrains = gglist.ToArray();

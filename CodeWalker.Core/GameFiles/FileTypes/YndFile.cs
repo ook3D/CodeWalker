@@ -1671,25 +1671,26 @@ namespace CodeWalker.GameFiles
 
         public void SetData(string text)
         {
-            var rsplit = new[] { '\n' };
-            var csplit = new[] { ' ' };
-            string[] rowstrs = text.Split(rsplit, StringSplitOptions.RemoveEmptyEntries);
-            for (int y = 0; y < rowstrs.Length; y++)
+            if (text == null) throw new NullReferenceException();
+            var input = text.AsSpan();
+            int y = 0;
+            foreach (var rowRange in input.Split('\n'))
             {
-                string[] colstrs = rowstrs[y].Trim().Split(csplit, StringSplitOptions.RemoveEmptyEntries);
-                int cx = colstrs.Length;
-                byte[] vals = new byte[cx];
-                for (int x = 0; x < cx; x++)
+                var row = input[rowRange];
+                // Empty lines are skipped, but whitespace-only lines clear a row.
+                if (row.IsEmpty) continue;
+                if (Rows == null || y >= Rows.Length) break;
+                var values = new byte[CountX];
+                var columns = row.Trim();
+                int x = 0;
+                foreach (var columnRange in columns.Split(' '))
                 {
-                    byte.TryParse(colstrs[x], out vals[x]);
+                    var column = columns[columnRange];
+                    if (column.IsEmpty) continue;
+                    if (x >= values.Length) break;
+                    byte.TryParse(column, out values[x++]);
                 }
-                int minx = Math.Min(cx, CountX);
-                if ((Rows != null) && (y < Rows.Length))
-                {
-                    var nrow = new byte[CountX];
-                    Buffer.BlockCopy(vals, 0, nrow, 0, minx);
-                    Rows[y].Values = nrow;
-                }
+                Rows[y++].Values = values;
             }
         }
 

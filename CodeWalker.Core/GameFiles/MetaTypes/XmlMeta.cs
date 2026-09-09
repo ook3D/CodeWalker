@@ -882,86 +882,52 @@ namespace CodeWalker.GameFiles
         private static Array_uint TraverseRawUIntArray(XmlNode node, MetaBuilder mb)
         {
             var data = new List<uint>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if(!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToUInt32(split[i]);
-                        data.Add(val);
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                data.Add(uint.Parse(token, CultureInfo.CurrentCulture));
             }
-
             return mb.AddUintArrayPtr(data.ToArray());
         }
 
         private static Array_ushort TraverseRawUShortArray(XmlNode node, MetaBuilder mb)
         {
             var data = new List<ushort>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToUInt16(split[i]);
-                        data.Add(val);
-                    }
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                data.Add(ushort.Parse(token, CultureInfo.CurrentCulture));
             }
-
             return mb.AddUshortArrayPtr(data.ToArray());
         }
 
         private static Array_byte TraverseRawUByteArray(XmlNode node, MetaBuilder mb)
         {
             var data = new List<byte>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToByte(split[i]);
-                        data.Add(val);
-                    }
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                data.Add(byte.Parse(token, CultureInfo.CurrentCulture));
             }
-
             return mb.AddByteArrayPtr(data.ToArray());
         }
 
         private static Array_float TraverseRawFloatArray(XmlNode node, MetaBuilder mb)
         {
             var data = new List<float>();
-
-            if(node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    var ts = split[i]?.Trim();
-                    if (!string.IsNullOrEmpty(ts))
-                    {
-                        var val = FloatUtil.Parse(ts);// Convert.ToSingle(split[i]);
-                        data.Add(val);
-                    }
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                data.Add(FloatUtil.Parse(token));
             }
-
             return mb.AddFloatArrayPtr(data.ToArray());
         }
 

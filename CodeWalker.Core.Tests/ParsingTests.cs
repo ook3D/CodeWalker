@@ -9,6 +9,47 @@ namespace CodeWalker.Core.Tests;
 public class ParsingTests
 {
     [Theory]
+    [InlineData(2)]
+    [InlineData(8)]
+    [InlineData(10)]
+    [InlineData(16)]
+    [InlineData(3)]
+    public void RawByteArraysMatchPreviousParser(int fromBase)
+    {
+        var whitespace = new string(Enumerable.Range(0, 65536).Select(i => (char)i).Where(char.IsWhiteSpace).ToArray());
+        var cases = new List<string>
+        {
+            "", whitespace, "00" + whitespace + "01", "0xFF +0x01", "0Xff", "+1", "-0", "-1",
+            "100", "256", "000000FF", "FFFFFFFFFFFFFFFFFFFFFFFF", "0x", "+", "-", "GG", "1\u200b2", "F\0"
+        };
+        cases.AddRange(Enumerable.Range(0, 256).Select(i => i.ToString("X2", CultureInfo.InvariantCulture)));
+        cases.AddRange(Enumerable.Range(0, 256).Select(i => i.ToString("x", CultureInfo.InvariantCulture)));
+        if (fromBase != 3)
+        {
+            cases.Add(string.Join(whitespace, Enumerable.Range(0, 256).Select(i => Convert.ToString(i, fromBase))));
+        }
+        foreach (var text in cases)
+        {
+            byte[]? expected = null;
+            var error = Record.Exception(() => expected = Regex.Split(text, @"[\s\r\n\t]")
+                .Where(s => s.Length != 0).Select(s => Convert.ToByte(s, fromBase)).ToArray());
+            if (error == null)
+            {
+                Assert.Equal(expected, Xml.GetRawByteArray(Node(text), fromBase));
+            }
+            else
+            {
+                var actual = Record.Exception(() => Xml.GetRawByteArray(Node(text), fromBase));
+                Assert.NotNull(actual);
+                Assert.Equal(error.GetType(), actual.GetType());
+                Assert.Equal(error.Message, actual.Message);
+            }
+        }
+        Assert.Empty(Xml.GetRawByteArray(null, fromBase));
+        Assert.Null(Xml.GetChildRawByteArrayNullable(Node(""), "Missing", fromBase));
+    }
+
+    [Theory]
     [InlineData("en-US")]
     [InlineData("fr-FR")]
     [InlineData("ar-SA")]

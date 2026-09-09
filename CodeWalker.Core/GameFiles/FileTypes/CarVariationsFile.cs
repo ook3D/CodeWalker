@@ -172,12 +172,11 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("indices");
             if (cnode != null)
             {
-                var astr = cnode.InnerText;
-                var arrr = astr.Split(new[] { '\n', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                var text = cnode.InnerText.AsSpan();
                 var alist = new List<byte>();
-                foreach (var item in arrr)
+                foreach (var range in text.SplitAny("\n \t"))
                 {
-                    var titem = item.Trim();
+                    var titem = text[range].Trim();
                     byte v;
                     if (byte.TryParse(titem, out v))
                     {
@@ -189,23 +188,22 @@ namespace CodeWalker.GameFiles
             cnode = node.SelectSingleNode("liveries");
             if (cnode != null)
             {
-                var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
-                if (items.Length > 0)
+                var items = cnode.SelectNodes("Item");
+                if (items is { Count: > 0 })
                 {
-                    liveries = new bool[items.Length];
-                    for (int i = 0; i < items.Length; i++)
+                    liveries = new bool[items.Count];
+                    for (int i = 0; i < items.Count; i++)
                     {
                         liveries[i] = Xml.GetBoolAttribute(items[i], "value");
                     }
                 }
                 else
                 {
-                    var astr = cnode.InnerText;
-                    var arrr = astr.Split(new[] { '\n', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    var text = cnode.InnerText.AsSpan();
                     var alist = new List<bool>();
-                    foreach (var item in arrr)
+                    foreach (var range in text.SplitAny("\n \t"))
                     {
-                        var titem = item.Trim();
+                        var titem = text[range].Trim();
                         byte v;
                         if (byte.TryParse(titem, out v))
                         {

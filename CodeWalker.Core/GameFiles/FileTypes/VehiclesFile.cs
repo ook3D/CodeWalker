@@ -313,7 +313,7 @@ namespace CodeWalker.GameFiles
         {
             var cnode = node.SelectSingleNode(childName);
             if (cnode == null) return [];
-            var items = cnode.SelectNodes("Item")?.Cast<XmlNode>().ToArray() ?? [];
+            var items = cnode.SelectNodes("Item");
             if (items == null) return [];
             List<string> getStringArrayList = new();
             foreach (XmlNode inode in items)
@@ -329,16 +329,15 @@ namespace CodeWalker.GameFiles
         }
         private string[] GetStringArray(XmlNode node, string childName, char delimiter)
         {
-            var ldastr = Xml.GetChildInnerText(node, childName);
-            var ldarr = ldastr?.Split(delimiter);
-            if (ldarr == null) return [];
+            var text = Xml.GetChildInnerText(node, childName).AsSpan();
+            if (text.IsEmpty) return [];
             List<string> getStringArrayList = new();
-            foreach (var ldstr in ldarr)
+            foreach (var range in text.Split(delimiter))
             {
-                var ldt = ldstr?.Trim();
-                if (!string.IsNullOrEmpty(ldt))
+                var ldt = text[range].Trim();
+                if (!ldt.IsEmpty)
                 {
-                    getStringArrayList.Add(ldt);
+                    getStringArrayList.Add(ldt.ToString());
                 }
             }
             if (getStringArrayList.Count == 0) return [];
@@ -346,14 +345,13 @@ namespace CodeWalker.GameFiles
         }
         private float[] GetFloatArray(XmlNode node, string childName, char delimiter)
         {
-            var ldastr = Xml.GetChildInnerText(node, childName);
-            var ldarr = ldastr?.Split(delimiter);
-            if (ldarr == null) return [];
+            var text = Xml.GetChildInnerText(node, childName).AsSpan();
+            if (text.IsEmpty) return [];
             List<float> getFloatArrayList = new();
-            foreach (var ldstr in ldarr)
+            foreach (var range in text.Split(delimiter))
             {
-                var ldt = ldstr?.Trim();
-                if (!string.IsNullOrEmpty(ldt))
+                var ldt = text[range].Trim();
+                if (!ldt.IsEmpty)
                 {
                     float f;
                     if (FloatUtil.TryParse(ldt, out f))

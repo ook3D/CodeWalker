@@ -49,7 +49,6 @@ namespace CodeWalker.GameFiles
             uint structcount = 0;
             uint modlen;
             bool indates = false;
-            List<string> lines = new();
             var dates = new List<CacheFileDate>();
             var allMapNodes = new List<MapDataStoreNode>();
             var allCInteriorProxies = new List<CInteriorProxy>();
@@ -63,7 +62,6 @@ namespace CodeWalker.GameFiles
                 {
                     lastn = i;
                     string line = sb.ToString();
-                    lines.Add(line);
                     switch (line)
                     {
                         case "<fileDates>":
@@ -390,10 +388,13 @@ namespace CodeWalker.GameFiles
         { }
         public CacheFileDate(string line)
         {
-            string[] p = line.Split(' ');
-            if (p.Length > 0 && uint.TryParse(p[0], out uint hash)) FileName = new MetaHash(hash);
-            if (p.Length > 1 && long.TryParse(p[1], out long ts)) TimeStamp = ts;
-            if (p.Length > 2 && uint.TryParse(p[2], out uint fid)) FileID = fid;
+            if (line == null) throw new NullReferenceException();
+            var text = line.AsSpan();
+            var parts = text.Split(' ');
+            // Empty fields are positional; do not skip them or trim the line.
+            if (parts.MoveNext() && uint.TryParse(text[parts.Current], out uint hash)) FileName = new MetaHash(hash);
+            if (parts.MoveNext() && long.TryParse(text[parts.Current], out long ts)) TimeStamp = ts;
+            if (parts.MoveNext() && uint.TryParse(text[parts.Current], out uint fid)) FileID = fid;
         }
 
         public string ToCacheFileString()
