@@ -82,9 +82,15 @@ namespace CodeWalker.Rendering
         public bool HasTransforms;
 
         public bool HasAnims = false;
-        public double CurrentAnimTime = 0;
+        public double CurrentAnimTime = double.NaN;
+        private ClipMapEntry? LastAnimationClip;
+        private Expression? LastAnimationExpression;
         public YcdFile? ClipDict;
         public ClipMapEntry? ClipMapEntry;
+        public ClipMapEntry? FaceClip;
+        private ClipMapEntry? LastFaceClip;
+        private readonly ExpressionEvaluator FacialEvaluator = new();
+        public string? FacialExpressionError => FacialEvaluator.LastError;
         public Expression? Expression;
         public Dictionary<ushort, RenderableModel> ModelBoneLinks = new();
 
@@ -460,7 +466,12 @@ namespace CodeWalker.Rendering
                 realTime = ClipMapEntry.PlayTime;
             }
 
-            if (CurrentAnimTime == realTime) return;//already updated this!
+            if (CurrentAnimTime == realTime && ReferenceEquals(LastAnimationClip, ClipMapEntry) &&
+                ReferenceEquals(LastAnimationExpression, Expression) && ReferenceEquals(LastFaceClip, FaceClip)) return;
+            bool hadAnimation = LastAnimationClip != null;
+            LastFaceClip = FaceClip;
+            LastAnimationClip = ClipMapEntry;
+            LastAnimationExpression = Expression;
             CurrentAnimTime = realTime;
 
             EnableRootMotion = ClipMapEntry?.EnableRootMotion ?? false;
@@ -470,6 +481,7 @@ namespace CodeWalker.Rendering
                 UpdateAnim(ClipMapEntry); //animate skeleton/models
             }
 
+            if (ClipMapEntry == null && hadAnimation) Skeleton?.ResetBoneTransforms();
             UpdateBoneTransforms();
 
             foreach (var model in HDModels)
@@ -488,6 +500,15 @@ namespace CodeWalker.Rendering
         }
         private void UpdateAnim(ClipMapEntry cme)
         {
+            // Channels absent from the new clip must not retain a previous facial pose.
+            if (Skeleton?.BonesSorted is { } poseBones)
+                foreach (var bone in poseBones)
+                {
+                    bone.AnimTranslation = bone.Translation;
+                    bone.AnimRotation = bone.Rotation;
+                    bone.AnimScale = bone.Scale;
+                }
+            FacialEvaluator.Frame.Clear();
             RootMotionPosition = Vector3.Zero;
             RootMotionRotation = Quaternion.Identity;
 
@@ -506,6 +527,14 @@ namespace CodeWalker.Rendering
                     UpdateAnim(canim.Animation, canim.GetPlaybackTime(CurrentAnimTime));
                 }
             }
+
+            if (FaceClip?.Clip is ClipAnimation face && face.Animation != null)
+                UpdateAnim(face.Animation, face.GetPlaybackTime(CurrentAnimTime), true);
+            else if (FaceClip?.Clip is ClipAnimationList faces && faces.Animations != null)
+                foreach (var part in faces.Animations)
+                    if (part.Animation != null) UpdateAnim(part.Animation, part.GetPlaybackTime(CurrentAnimTime), true);
+            if (Expression != null && Skeleton != null)
+                FacialEvaluator.Evaluate(Expression, Skeleton, (float)CurrentAnimTime);
 
             var bonesmap = Skeleton?.BonesMap;
             var bones = Skeleton?.BonesSorted;
@@ -559,7 +588,7 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private void UpdateAnim(Animation? anim, float t)
+        private void UpdateAnim(Animation? anim, float t, bool faceOnly = false)
         { 
             if (anim == null)
             { return; }
@@ -572,7 +601,6 @@ namespace CodeWalker.Rendering
 
             var frame = anim.GetFramePosition(t);
 
-            var dwbl = this.Key;
             var skel = Skeleton;
             var bones = skel?.BonesSorted;//.Bones?.Items;//
             if (bones == null)
@@ -586,22 +614,18 @@ namespace CodeWalker.Rendering
                 var boneiditem = anim.BoneIds.data_items[i];
                 var boneid = boneiditem.BoneId;
                 var track = boneiditem.Track;
+                if (faceOnly && track is 5 or 6) continue;
 
-                if (Expression?.BoneTracksDict != null)
+                // These are inputs to a YED expression program, not skeletal transforms.
+                // The track table lists inputs/outputs; adjacency does not define a direct binding.
+                // Applying guessed rotations/translations here distorts eyes and mouths.
+                if (Expression != null)
                 {
-                    var exprbt = new ExpressionTrack() { BoneId = boneid, Track = track, Flags = boneiditem.Unk0 };
-                    var exprbtmap = exprbt;
-
-                    if ((track == 24) || (track == 25) || (track == 26))
-                    {
-                        if (Expression.BoneTracksDict.TryGetValue(exprbt, out exprbtmap))
-                        {
-                            boneid = exprbtmap.BoneId;
-                        }
-                        else
-                        { }
-                    }
+                    var sample = track is 1 or 6 or 8 or 26 || boneiditem.Unk0 == 1
+                        ? anim.EvaluateQuaternion(frame, i, interpolate).ToVector4() : anim.EvaluateVector4(frame, i, interpolate);
+                    FacialEvaluator.Frame[(boneid, track)] = sample;
                 }
+                if (track is 24 or 25 or 26 or 37) continue;
 
                 Bone? bone = null;
                 skel?.BonesMap?.TryGetValue(boneid, out bone);
@@ -638,21 +662,6 @@ namespace CodeWalker.Rendering
                     case 7://vector3... (camera position?)
                         break;
                     case 8://quaternion... (camera rotation?)
-                        break;
-                    case 24://face stuff
-                        v = anim.EvaluateVector4(frame, i, interpolate); //single float
-                        var fv = new Vector3(0, v.X * 0.005f, 0);//not sure about this
-                        bone.AnimTranslation = bone.Translation + bone.AnimRotation.Multiply(fv);//not sure about this
-                        break;
-                    case 25://face stuff
-                        v = anim.EvaluateVector4(frame, i, interpolate); //vector3 roll/pitch/yaw
-                        var mult = -0.314159265f;
-                        q = Quaternion.RotationYawPitchRoll(v.Z * mult, v.Y * mult, v.X * mult);
-                        bone.AnimRotation = bone.Rotation * q;
-                        break;
-                    case 26://face stuff
-                        q = anim.EvaluateQuaternion(frame, i, interpolate);
-                        bone.AnimRotation = bone.Rotation * q;//is this right?
                         break;
                     case 27:
                     case 50:
@@ -841,6 +850,7 @@ namespace CodeWalker.Rendering
         public float wetnessMultiplier { get; set; } = 0.0f;
         public float bumpiness { get; set; } = 1.0f;
         public Vector4 detailSettings { get; set; } = Vector4.Zero;
+        public bool UsePedSpecular { get; private set; }
         public Vector3 specMapIntMask { get; set; } = Vector3.UnitX;
         public float specularIntensityMult { get; set; } = 0.0f;
         public float specularFalloffMult { get; set; } = 100.0f;
@@ -963,6 +973,8 @@ namespace CodeWalker.Rendering
 
                 var shaderName = shader.Name;
                 var shaderFile = shader.FileName;
+                UsePedSpecular = PedMaterial.UsesPackedSpecular(shaderFile.Hash);
+                if (UsePedSpecular) specularIntensityMult = 0.125f;
                 switch (shaderFile.Hash)
                 {
                     case 2245870123: //trees_normal_diffspec_tnt.sps

@@ -43,7 +43,7 @@ cbuffer PSGeomVars : register(b2)
     uint EnableHeightMap;
     float heightScale;
     float heightBias;
-    float Pad0;
+    uint UsePedSpecular;
 }
 
 
@@ -96,6 +96,12 @@ void SampleBasicMaterial(VS_OUTPUT input, float2 texcoord, out float3 normal,
 
     material = ReadSpecularMaterial(specularSample, EnableSpecMap != 0,
         specMapIntMask, specularIntensityMult, specularFalloffMult, specularFresnel);
+    if (UsePedSpecular != 0 && EnableSpecMap != 0)
+    {
+        // Ped R/G encode intensity/exponent; alpha is a detail mask, not shininess.
+        material.Intensity = max(specularSample.r * specularSample.r * specularIntensityMult, 0);
+        material.Exponent = max(specularSample.g * specularSample.g * specularFalloffMult, 0);
+    }
 }
 
 

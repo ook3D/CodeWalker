@@ -328,8 +328,24 @@ namespace CodeWalker.Rendering
             RenderSkeletons();
         }
 
+        public CodeWalker.World.CutsceneDepthOfField? CutsceneDepthOfField { get; set; }
+
+        public void RenderCutsceneLight(RenderableLight light, Vector3 position, Quaternion rotation)
+        {
+            if (renderlights && shaders.deferred)
+            {
+                var instance = new RenderableLightInst { Light = light, EntityPosition = position, EntityRotation = rotation };
+                shaders.Enqueue(ref instance);
+            }
+        }
+
         public void RenderFinalPass()
         {
+            if (shaders.HDR != null)
+            {
+                shaders.HDR.DepthOfField = CutsceneDepthOfField;
+                shaders.HDR.DepthProjection = new Vector2(camera.ProjMatrix.M33, camera.ProjMatrix.M43);
+            }
             shaders.RenderFinalPass(context);
         }
 
@@ -3311,7 +3327,7 @@ namespace CodeWalker.Rendering
             return res;
         }
 
-        public bool RenderDrawable(DrawableBase? drawable, Archetype? arche, YmapEntityDef? entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null)
+        public bool RenderDrawable(DrawableBase? drawable, Archetype? arche, YmapEntityDef? entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null, ClipMapEntry? faceClip = null)
         {
             //enqueue a single drawable for rendering.
 
@@ -3337,7 +3353,10 @@ namespace CodeWalker.Rendering
             }
 
             rndbl.Cloth = cloth;
+            // The conditional-opcode correction has been checked against choice_int's merged clips.
             rndbl.Expression = expr;
+            // Separate face overlays still require their own asset-level validation.
+            rndbl.FaceClip = null;
 
             return RenderRenderable(rndbl, arche, entity);
         }
@@ -3878,26 +3897,14 @@ namespace CodeWalker.Rendering
             {
                 if (drawable.Skeleton == null)
                 {
-                    drawable.Skeleton = skel;//force the drawable to use this skeleton.
+                    // Each component needs its own skinning matrices: later body updates
+                    // must not overwrite a facial component before the queued draw.
+                    drawable.Skeleton = skel.Clone();
+                    drawable.Skeleton.BindAnimationSkeleton(skel);
                 }
                 else if (drawable.Skeleton != skel)
                 {
-                    var dskel = drawable.Skeleton; //put the bones of the fragment into the drawable. drawable's bones in this case seem messed up!
-                    if (skel.Bones?.Items != null && dskel.Bones?.Items != null)
-                    {
-                        for (int b = 0; b < skel.Bones.Items.Length; b++)
-                        {
-                            var srcbone = skel.Bones.Items[b];
-                            var dstbone = srcbone;
-                            if (dskel.BonesMap.TryGetValue(srcbone.Tag, out dstbone))
-                            {
-                                if (srcbone == dstbone) break; //bone reassignment already done!
-                                dskel.Bones.Items[dstbone.Index] = srcbone;
-                                dskel.BonesMap[srcbone.Tag] = srcbone;
-                            }
-                        }
-                        dskel.BonesSorted = skel.BonesSorted;//this is pretty hacky. TODO: try and fix all this! animate only the frag skeleton!
-                    }
+                    drawable.Skeleton.BindAnimationSkeleton(skel);
                 }
             }
 
@@ -3908,7 +3915,7 @@ namespace CodeWalker.Rendering
 
             if (drawFlag)
             {
-                RenderDrawable(drawable, null, ped.RenderEntity, 0, td, texture, ac, cloth, expr);
+                RenderDrawable(drawable, null, ped.RenderEntity, 0, td, texture, ac, cloth, expr, ped.FaceAnimClip);
             }
 
 

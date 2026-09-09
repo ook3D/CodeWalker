@@ -4439,8 +4439,10 @@ namespace CodeWalker
                 followedEntity.Orientation = rot;
                 followedEntity.OrientationInv = Quaternion.Invert(rot);
             }
-            camera.TargetRotation = Vector3.Zero;
-            camera.TargetDistance = 0.01f;
+            camera.TargetRotation = camera.CurrentRotation = Vector3.Zero;
+            camera.TargetDistance = camera.CurrentDistance = 0.01f;
+            camera.ZoomVelocity = 0;
+            camera.SetAuthoredPose(pos, rot);
         }
         public void SetCameraClipPlanes(float znear, float zfar)
         {
@@ -8973,6 +8975,15 @@ namespace CodeWalker
 
 
 
+
+        internal void SetCutsceneSubtitle(string? text)
+        {
+            // Called on the UI thread by the cutscene tool. Its playback clock
+            // owns expiry, so pausing must not start a wall-clock countdown.
+            SubtitleTimer.Enabled = false;
+            SubtitleLabel.Text = text ?? string.Empty;
+            SubtitleLabel.Visible = !string.IsNullOrEmpty(text);
+        }
 
         public void ShowSubtitle(string text, float duration)
         {

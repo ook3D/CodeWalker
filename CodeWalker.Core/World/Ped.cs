@@ -29,6 +29,7 @@ namespace CodeWalker.World
         public RpfFileEntry[] TextureFiles { get; set; } = [];
         public RpfFileEntry[] ClothFiles { get; set; } = [];
         public ClipMapEntry? AnimClip { get; set; }
+        public ClipMapEntry? FaceAnimClip { get; set; }
         public Expression? Expression { get; set; }
         public string?[] DrawableNames { get; set; } = new string?[12];
         public Drawable?[] Drawables { get; set; } = new Drawable?[12];
@@ -81,6 +82,7 @@ namespace CodeWalker.World
             Yft = null;
             Ymt = null;
             AnimClip = null;
+            FaceAnimClip = null;
             for (int i = 0; i < 12; i++)
             {
                 Drawables[i] = null;
@@ -301,7 +303,13 @@ namespace CodeWalker.World
                 Yed.ExprMap.TryGetValue(namehash, out e);
             }
 
-            if (d != null) Drawables[index] = d.ShallowCopy() as Drawable;
+            if (d != null)
+            {
+                var component = d.ShallowCopy() as Drawable;
+                // Binding a pose must not mutate a cached drawable or another actor's palette.
+                if (component != null) component.Skeleton = (d.Skeleton ?? Skeleton)?.Clone();
+                Drawables[index] = component;
+            }
             if (t != null) Textures[index] = t;
             if (c != null) Clothes[index] = c;
             if (e != null) Expressions[index] = e;

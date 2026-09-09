@@ -114,11 +114,16 @@ namespace CodeWalker.Rendering
         public Vector4 BrightFilmic1;
         public Vector4 DarkFilmic0;
         public Vector4 DarkFilmic1;
+        public Vector4 DofPlanes;
+        public Vector4 DofParams;
+        public Vector4 DofDepth;
     }
 
 
     public class PostProcessor
     {
+        public CodeWalker.World.CutsceneDepthOfField? DepthOfField { get; set; }
+        public Vector2 DepthProjection { get; set; }
         public CodeWalker.World.Weather? ReferenceWeather { get; set; }
         ComputeShader? ReduceTo1DCS;
         ComputeShader? ReduceTo0DCS;
@@ -620,7 +625,13 @@ namespace CodeWalker.Rendering
 
             var srv = SceneColourSRV;
 
-            context.PixelShader.SetShaderResources(0, srv, LumBlendResult.SRV, EnableBloom ? Bloom?.SRV : null);
+            var depth = DefScene?.SceneColour?.DepthSRV ?? Primary?.DepthSRV;
+            context.PixelShader.SetShaderResources(0, srv, LumBlendResult.SRV, EnableBloom ? Bloom?.SRV : null, depth);
+            var dof = DepthOfField;
+            bool useDof = dof?.IsValid == true && depth != null;
+            FinalPSVars.Vars.DofPlanes = useDof ? dof!.Planes : Vector4.Zero;
+            FinalPSVars.Vars.DofParams = useDof ? new Vector4(dof!.Strength, dof.BlurRadius / Width, dof.BlurRadius / Height, 1) : Vector4.Zero;
+            FinalPSVars.Vars.DofDepth = new Vector4(DepthProjection, 0, 0);
 
             if (CS_FULL_PIXEL_REDUCTION)
             {
@@ -668,7 +679,7 @@ namespace CodeWalker.Rendering
 
             context.VertexShader.Set(null);
             context.PixelShader.Set(null);
-            context.PixelShader.SetShaderResources(0, null, null, null);
+            context.PixelShader.SetShaderResources(0, null, null, null, null);
             context.PixelShader.SetSamplers(0, null, null);
         }
 

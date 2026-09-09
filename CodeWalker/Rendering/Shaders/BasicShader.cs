@@ -79,7 +79,7 @@ namespace CodeWalker.Rendering
         public uint EnableHeightMap;
         public float heightScale;
         public float heightBias;
-        public float Pad0;
+        public uint UsePedSpecular;
     }
     public struct BasicShaderInstGlobalMatrix
     {
@@ -819,7 +819,7 @@ namespace CodeWalker.Rendering
             }
             PSGeomVars.Vars.heightScale = hs;
             PSGeomVars.Vars.heightBias = hb;
-            PSGeomVars.Vars.Pad0 = 0.0f;
+            PSGeomVars.Vars.UsePedSpecular = geom.UsePedSpecular ? 1u : 0u;
             PSGeomVars.Update(context);
             PSGeomVars.SetPSCBuffer(context, 2);
 
@@ -965,6 +965,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.specularFresnel = 1.0f;
             PSGeomVars.Vars.wetnessMultiplier = 0.0f;
             PSGeomVars.Vars.SpecOnly = 0;
+            PSGeomVars.Vars.UsePedSpecular = 0;
             PSGeomVars.Vars.TextureAlphaMask = Vector4.Zero;
             PSGeomVars.Update(context);
             PSGeomVars.SetPSCBuffer(context, 2);

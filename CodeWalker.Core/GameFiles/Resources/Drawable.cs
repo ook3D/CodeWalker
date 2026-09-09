@@ -1977,6 +1977,19 @@ namespace CodeWalker.GameFiles
 
 
 
+        /// <summary>Uses a complete actor pose while retaining this drawable's bone palette order.</summary>
+        public void BindAnimationSkeleton(Skeleton actor)
+        {
+            if (ReferenceEquals(this, actor) || Bones?.Items == null || actor.Bones?.Items == null) return;
+            // A component palette can omit ancestors (for example a hand omits the arm).
+            // Animation lookup and hierarchy evaluation must both use the complete actor skeleton.
+            for (int i = 0; i < Bones.Items.Length; i++)
+                if (actor.BonesMap.TryGetValue(Bones.Items[i].Tag, out var bone))
+                    Bones.Items[i] = bone;
+            BonesMap = actor.BonesMap;
+            BonesSorted = actor.BonesSorted;
+        }
+
         public Skeleton Clone()
         {
             var skel = new Skeleton();
