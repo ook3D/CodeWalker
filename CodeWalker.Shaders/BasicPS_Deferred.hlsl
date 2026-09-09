@@ -51,6 +51,7 @@ PS_OUTPUT main(VS_OUTPUT input)
 
         if (IsDistMap) c = float4(c.rgb * 2, (c.r + c.g + c.b) - 1);
         if (IsDecal == 4) c.a = c.r;
+        c.a = HairFlags.w != 0 ? 1 : HairCoverage(c.a, texc0);
         if (AlphaMode == 3) c.a = 1;
         if (AlphaMode == 4) c.a = MaterialAlphaCoverage(c.a, HardAlphaBlend);
         if (AlphaMode == 1) ClipMaterialCoverage(c.a * AlphaScale, HardAlphaBlend);
@@ -107,6 +108,8 @@ PS_OUTPUT main(VS_OUTPUT input)
         MaterialSpecular material;
         float normalAlpha;
         SampleBasicMaterial(input, texc0, norm, material, normalAlpha);
+        float3 hairColour = ApplyHairMaterial(input, texc0, material);
+        if (HairFlags.x != 0) c.rgb = sqrt(max(c.rgb * c.rgb + hairColour, 0));
         spec = EncodeSpecular(material);
 
     }

@@ -316,7 +316,7 @@ namespace CodeWalker.Rendering
             Viewport.Y = 0.0f;
 
 
-            GBuffers = new GpuMultiTexture(device, uw, uh, 4, Format.R8G8B8A8_UNorm, true, Format.D32_Float, MSAASampleCount);
+            GBuffers = new GpuMultiTexture(device, uw, uh, 4, Format.R8G8B8A8_UNorm, true, Format.D32_Float_S8X24_UInt, MSAASampleCount);
             WindowSizeVramUsage += GBuffers.VramUsage;
 
             SceneColour = new GpuTexture(device, uw, uh, Format.R32G32B32A32_Float, 1, 0, true, Format.D32_Float);

@@ -55,6 +55,7 @@ namespace CodeWalker.Rendering
         public uint RenderSamplerCoord; //which texcoord to use in single texture mode
         public Color4 InteriorAmbientUp;
         public Color4 InteriorAmbientDown;
+        public Vector4 HairViewDirection;
     }
     public struct BasicShaderPSGeomVars
     {
@@ -83,6 +84,10 @@ namespace CodeWalker.Rendering
         public float heightBias;
         public uint UsePedSpecular;
         public Vector4 InteriorFlags;
+        public Vector4 HairFlags;
+        public Vector4 HairSpecular;
+        public Vector4 HairColour;
+        public Vector4 HairNoiseUV;
     }
     public struct BasicShaderInstGlobalMatrix
     {
@@ -554,6 +559,7 @@ namespace CodeWalker.Rendering
             PSSceneVars.Vars.GlobalLights = lights.Params;
             PSSceneVars.Vars.InteriorAmbientUp = lights.InteriorAmbientUp;
             PSSceneVars.Vars.InteriorAmbientDown = lights.InteriorAmbientDown;
+            PSSceneVars.Vars.HairViewDirection = new Vector4(-camera.ViewDirection, 0);
             PSSceneVars.Vars.EnableShadows = (shadowmap != null) ? 1u : 0u;
             PSSceneVars.Vars.RenderMode = rendermode;
             PSSceneVars.Vars.RenderModeIndex = rendermodeind;
@@ -620,6 +626,7 @@ namespace CodeWalker.Rendering
             RenderableTexture? spectex = null;
             RenderableTexture? detltex = null;
             RenderableTexture? heighttex = null;
+            RenderableTexture? hairNoise = null;
             bool isdistmap = false;
 
             float tntpalind = 0.0f;
@@ -650,6 +657,9 @@ namespace CodeWalker.Rendering
                             case ShaderParamNames.BumpSampler:
                             case ShaderParamNames.PlateBgBumpSampler:
                                 bumptex = itex;
+                                break;
+                            case ShaderParamNames.AnisoNoiseSpecSampler:
+                                hairNoise = itex;
                                 break;
                             case ShaderParamNames.SpecSampler:
                                 spectex = itex;
@@ -793,6 +803,12 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.IsDistMap = isdistmap ? 1u : 0u;
             PSGeomVars.Vars.bumpiness = geom.bumpiness;
             PSGeomVars.Vars.AlphaScale = isdistmap ? 1.0f : AlphaScale;
+            PSGeomVars.Vars.HairFlags = new Vector4(PedMaterial.UsesAnisotropicHair(shaderFile.Hash) ? 1 : 0,
+                hairNoise?.ShaderResourceView != null ? 1 : 0, geom.HairAlphaBias, geom.isHair && geom.HairOrder == 1 ? 1 : 0);
+            PSGeomVars.Vars.HairSpecular = geom.HairSpecular;
+            PSGeomVars.Vars.HairColour = geom.HairColour;
+            PSGeomVars.Vars.HairNoiseUV = geom.HairNoiseUV;
+            context.PixelShader.SetShaderResource(8, hairNoise?.ShaderResourceView);
             PSGeomVars.Vars.HardAlphaBlend = geom.HardAlphaBlend;
             PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode(shaderFile.Hash, (geom.DrawableGeom?.Shader?.RenderBucket ?? 0));
             if (PSGeomVars.Vars.AlphaMode == 3) PSGeomVars.Vars.IsDecal = 0;
@@ -962,6 +978,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.IsDistMap = 0;
             PSGeomVars.Vars.bumpiness = 0;
             PSGeomVars.Vars.AlphaScale = 1;
+            PSGeomVars.Vars.HairFlags = Vector4.Zero;
             PSGeomVars.Vars.HardAlphaBlend = 0;
             PSGeomVars.Vars.AlphaMode = 0;
             PSGeomVars.Vars.detailSettings = Vector4.Zero;
@@ -1052,6 +1069,7 @@ namespace CodeWalker.Rendering
             context.PixelShader.SetShaderResource(3, null);
             context.PixelShader.SetShaderResource(4, null);
             context.PixelShader.SetShaderResource(5, null);
+            context.PixelShader.SetShaderResource(8, null);
             context.VertexShader.SetShaderResource(0, null);
             context.VertexShader.SetShaderResource(1, null);
             context.VertexShader.SetShaderResource(2, null);

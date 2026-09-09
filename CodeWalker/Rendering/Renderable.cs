@@ -883,6 +883,11 @@ namespace CodeWalker.Rendering
         public bool HDTextureEnable = true;
         public bool globalAnimUVEnable = false;
         public ClipMapEntry? ClipMapEntryUV;
+        public Vector4 HairSpecular = new Vector4(16, 32, 0.1f, 0.15f);
+        public Vector4 HairColour = new Vector4(0.1f);
+        public Vector4 HairNoiseUV = new Vector4(2, 1, 3, 1);
+        public float HairAlphaBias = 1;
+        public int HairOrder;
         public bool isHair = false;
         public bool disableRendering = false;
         public bool IsGrassFur = false;
@@ -1060,6 +1065,21 @@ namespace CodeWalker.Rendering
                         if (param.Data is not Vector4 vector) continue;
                         switch (pName)
                         {
+                            case ShaderParamNames.anisotropicSpecularExponent:
+                                HairSpecular.X = vector.X; HairSpecular.Y = vector.Y;
+                                break;
+                            case ShaderParamNames.anisotropicSpecularIntensity:
+                                HairSpecular.Z = vector.X; HairSpecular.W = vector.Y;
+                                break;
+                            case ShaderParamNames.anisotropicSpecularColour:
+                                HairColour = vector;
+                                break;
+                            case ShaderParamNames.specularNoiseMapUVScaleFactor:
+                                HairNoiseUV = vector;
+                                break;
+                            case ShaderParamNames.AnisotropicAlphaBias:
+                                HairAlphaBias = vector.X;
+                                break;
                             case ShaderParamNames.HardAlphaBlend:
                                 HardAlphaBlend = (vector).X;
                                 break;
@@ -1183,8 +1203,9 @@ namespace CodeWalker.Rendering
                                 if (IsGrassFur) FurThresholds2 = vector;
                                 break;
                             case ShaderParamNames.orderNumber:
-                                //stops drawing hair geoms that apparently shouldn't be rendered... any better way to do this?
-                                if (isHair && ((vector).X > 0.0f)) disableRendering = true;
+                                // Spiked hair uses order 0 for colour and order 1 for its normal cap.
+                                HairOrder = (int)vector.X;
+                                if (isHair && HairOrder > 1 && HairOrder != 8) disableRendering = true;
                                 break;
                         }
 

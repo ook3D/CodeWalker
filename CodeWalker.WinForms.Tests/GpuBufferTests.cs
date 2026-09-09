@@ -56,6 +56,25 @@ public class GpuBufferTests
         }
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void HairStencilBufferRetainsFloatDepthSampling(int samples)
+    {
+        using var device = new Device(DriverType.Warp, DeviceCreationFlags.None);
+        var buffers = new GpuMultiTexture(device, 8, 8, 4, SharpDX.DXGI.Format.R8G8B8A8_UNorm,
+            true, SharpDX.DXGI.Format.D32_Float_S8X24_UInt, samples);
+        try
+        {
+            buffers.SetRenderTargets(device.ImmediateContext);
+            buffers.Clear(device.ImmediateContext, new SharpDX.Color4(0));
+            device.ImmediateContext.ClearDepthStencilView(buffers.DSV, DepthStencilClearFlags.Stencil, 0, 0);
+            Assert.Equal(SharpDX.DXGI.Format.R32_Float_X8X24_Typeless, buffers.DepthSRV!.Description.Format);
+            Assert.Equal(SharpDX.DXGI.Format.D32_Float_S8X24_UInt, buffers.DSV!.Description.Format);
+        }
+        finally { buffers.Dispose(); }
+    }
+
     private static Vector4[] ReadBuffer(Device device, Buffer source, int count)
     {
         using var staging = new Buffer(device, new BufferDescription

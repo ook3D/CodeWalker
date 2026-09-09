@@ -7,6 +7,7 @@ Texture2D<float4> Detailmap : register(t4);
 Texture2D<float4> Colourmap2 : register(t5);
 Texture2D<float4> TintPalette : register(t6);
 Texture2D<float4> Heightmap : register(t7);
+Texture2D<float4> HairNoise : register(t8);
 SamplerState TextureSS : register(s0);
 
 
@@ -19,6 +20,7 @@ cbuffer PSSceneVars : register(b0)
     uint RenderSamplerCoord;
     float4 InteriorAmbientUp;
     float4 InteriorAmbientDown;
+    float4 HairViewDirection;
 }
 cbuffer PSGeomVars : register(b2)
 {
@@ -47,6 +49,10 @@ cbuffer PSGeomVars : register(b2)
     float heightBias;
     uint UsePedSpecular;
     float4 InteriorFlags;
+    float4 HairFlags;
+    float4 HairSpecular;
+    float4 HairColour;
+    float4 HairNoiseUV;
 }
 
 
@@ -74,6 +80,36 @@ struct PS_OUTPUT
     float4 Specular : SV_Target2;
     float4 Irradiance : SV_Target3;
 };
+
+// Hair noise modulates coverage independently of its specular-map blue mask.
+float HairCoverage(float alpha, float2 uv)
+{
+    if (HairFlags.x == 0 || HairFlags.y == 0) return alpha;
+    float noiseAlpha = HairNoise.Sample(TextureSS, uv * HairNoiseUV.xy * 0.5).a;
+    return alpha * saturate(noiseAlpha * 2 + HairFlags.z);
+}
+
+// ped_common.fxh: two shifted strand lobes, enabled by the specular blue mask.
+// Apply before encoding the G-buffer so forward and deferred agree.
+float3 ApplyHairMaterial(VS_OUTPUT input, float2 uv, inout MaterialSpecular material)
+{
+    if (HairFlags.x == 0 || HairFlags.y == 0 || EnableSpecMap == 0) return 0;
+    if (Specmap.Sample(TextureSS, uv).b >= 1.0 / 32.0) return 0;
+    float4 noise0 = HairNoise.Sample(TextureSS, uv * HairNoiseUV.xy * 0.5);
+    float2 shifts = (HairNoise.Sample(TextureSS, uv * HairNoiseUV.zw * 0.5).rg * 2 - 1) * 0.1;
+    float3 normal = LightingDirection(input.Normal);
+    float3 binormal = LightingDirection(input.Bitangent.xyz);
+    float3 light = LightingDirection(-input.CamRelPos);
+    float3 view = LightingDirection(HairViewDirection.xyz);
+    float3 strand0 = LightingDirection(binormal + normal * shifts.x);
+    float3 strand1 = LightingDirection(binormal + normal * shifts.y);
+    float2 lt = clamp(float2(dot(light, strand0), dot(light, strand1)), -1, 1);
+    float2 vt = clamp(float2(dot(view, strand0), dot(view, strand1)), -1, 1);
+    float2 lobes = abs(sqrt(saturate(1 - lt * lt)) * sqrt(saturate(1 - vt * vt)) - lt * vt);
+    lobes = pow(saturate(lobes), max(HairSpecular.xy + float2(8, 16), 0));
+    material.Intensity *= dot(lobes, HairSpecular.zw) * noise0.r;
+    return HairColour.rgb * lobes.y * 0.5;
+}
 
 // Shared by the forward and deferred paths. Keep the original specular alpha
 // for detail normals: only R/G are squared when decoding the specular material.

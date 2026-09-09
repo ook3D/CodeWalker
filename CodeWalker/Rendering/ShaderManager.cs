@@ -27,6 +27,9 @@ namespace CodeWalker.Rendering
         RasterizerState rsWireframeDblSided;
         BlendState bsDefault;
         BlendState bsAlpha;
+        BlendState bsHairNormals;
+        DepthStencilState dsHairMark;
+        DepthStencilState dsHairNormals;
         BlendState bsAdd;
         BlendState bsParticleComposite;
         BlendState bsParticleScreen;
@@ -243,6 +246,27 @@ namespace CodeWalker.Rendering
                 StencilWriteMask = 0
             };
             dsEnabled = new DepthStencilState(device, dsd);
+            var hairDepth = dsd;
+            hairDepth.IsStencilEnabled = true;
+            hairDepth.StencilReadMask = 1;
+            hairDepth.StencilWriteMask = 1;
+            hairDepth.FrontFace = hairDepth.BackFace = new DepthStencilOperationDescription
+            {
+                Comparison = Comparison.Always, PassOperation = StencilOperation.Replace,
+                FailOperation = StencilOperation.Keep, DepthFailOperation = StencilOperation.Keep
+            };
+            dsHairMark = new DepthStencilState(device, hairDepth);
+            hairDepth.DepthWriteMask = DepthWriteMask.Zero;
+            hairDepth.FrontFace = hairDepth.BackFace = new DepthStencilOperationDescription
+            {
+                Comparison = Comparison.Equal, PassOperation = StencilOperation.Zero,
+                FailOperation = StencilOperation.Keep, DepthFailOperation = StencilOperation.Keep
+            };
+            dsHairNormals = new DepthStencilState(device, hairDepth);
+            var hairBlend = new BlendStateDescription { IndependentBlendEnable = true };
+            hairBlend.RenderTarget[1].RenderTargetWriteMask = ColorWriteMaskFlags.Red | ColorWriteMaskFlags.Green | ColorWriteMaskFlags.Blue;
+            hairBlend.RenderTarget[3].RenderTargetWriteMask = ColorWriteMaskFlags.Red | ColorWriteMaskFlags.Green;
+            bsHairNormals = new BlendState(device, hairBlend);
             dsd.DepthWriteMask = DepthWriteMask.Zero;
             dsDisableWrite = new DepthStencilState(device, dsd);
             dsd.DepthComparison = Comparison.LessEqual;
@@ -267,6 +291,9 @@ namespace CodeWalker.Rendering
             dsDisableAll.Dispose();
             bsDefault.Dispose();
             bsAlpha.Dispose();
+            bsHairNormals.Dispose();
+            dsHairMark.Dispose();
+            dsHairNormals.Dispose();
             bsAdd.Dispose();
             bsParticleComposite.Dispose();
             bsParticleScreen.Dispose();
@@ -482,6 +509,7 @@ namespace CodeWalker.Rendering
                     shadowbatches.AddRange(bucket.TerrainBatches);
                     shadowbatches.AddRange(bucket.CableBatches);
                     shadowbatches.AddRange(bucket.CutoutBatches);
+                    shadowbatches.AddRange(bucket.HairBatches);
                     shadowbatches.AddRange(bucket.TreesBatches);
                     shadowbatches.AddRange(bucket.ClothBatches);
                     foreach (var batch in bucket.ForwardAlphaBatches)
@@ -569,6 +597,8 @@ namespace CodeWalker.Rendering
                 }
             }
 
+
+            RenderHair(context);
 
             if (RenderInstBatches.Count > 0) //grass pass
             {
@@ -782,6 +812,12 @@ namespace CodeWalker.Rendering
             //find the casters within range
             shadowcasters.Clear();
             shadowcastercount = 0;
+            hairShadowProxies.Clear();
+            foreach (var batch in shadowbatches)
+                foreach (var geometry in batch.Geometries)
+                    if (geometry.Geom.isHair && geometry.Geom.HairOrder == 8)
+                        hairShadowProxies.Add(geometry.Inst.Renderable);
+
             for (int b = 0; b < shadowbatches.Count; b++)
             {
                 //shadowcasters.AddRange(shadowbatches[b].Geometries);
@@ -789,7 +825,7 @@ namespace CodeWalker.Rendering
                 for (int g = 0; g < sbgeoms.Count; g++)
                 {
                     var sbgeom = sbgeoms[g];
-                    if (sbgeom.Inst.CastShadow)
+                    if (sbgeom.Inst.CastShadow && (!sbgeom.Geom.isHair || PedMaterial.CastsHairShadow(sbgeom.Geom.HairOrder, hairShadowProxies.Contains(sbgeom.Inst.Renderable))))
                     {
                         float idist = sbgeom.Inst.Distance - sbgeom.Inst.Radius;
                         if (idist <= maxdist)
@@ -845,6 +881,59 @@ namespace CodeWalker.Rendering
             context.Rasterizer.State = rsSolid;
         }
 
+
+        private readonly List<RenderableGeometryInst> hairGeometry = new();
+        private readonly HashSet<(Renderable, Vector3, Quaternion, Vector3)> renderedHairInstances = new();
+        private readonly HashSet<Renderable> hairShadowProxies = new();
+        private readonly List<RenderableGeometryInst> hairDraw = new();
+
+        private static bool SameHairInstance(RenderableInst a, RenderableInst b) =>
+            a.Renderable == b.Renderable && a.Position == b.Position && a.Orientation == b.Orientation && a.Scale == b.Scale;
+
+        private void RenderHair(DeviceContext context)
+        {
+            hairGeometry.Clear();
+            renderedHairInstances.Clear();
+            foreach (var bucket in RenderBuckets)
+                foreach (var batch in bucket.HairBatches)
+                    hairGeometry.AddRange(batch.Geometries);
+            if (hairGeometry.Count == 0) return;
+            Basic.SetShader(context);
+            Basic.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
+            // Ordered hair includes opposite-facing surfaces. Culling is essential:
+            // an inward-facing cap must not consume the stencil before its outer face.
+            context.Rasterizer.State = wireframe ? rsWireframe : rsSolid;
+            var depth = DefScene?.GBuffers?.DSV;
+            foreach (var strands in hairGeometry)
+            {
+                if (strands.Geom.HairOrder > 0) continue;
+                var key = (strands.Inst.Renderable, strands.Inst.Position, strands.Inst.Orientation, strands.Inst.Scale);
+                if (!renderedHairInstances.Add(key)) continue;
+                // Each cap may affect only the surviving strand pixels of this instance.
+                // Clear stencil (not depth) so different peds cannot mask one another.
+                if (depth != null) context.ClearDepthStencilView(depth, DepthStencilClearFlags.Stencil, 0, 0);
+                context.OutputMerger.SetDepthStencilState(depth != null ? dsHairMark : dsEnabled, 1);
+                context.OutputMerger.BlendState = bsDefault;
+                hairDraw.Clear();
+                foreach (var layer in hairGeometry)
+                {
+                    if (layer.Geom.HairOrder <= 0 && SameHairInstance(layer.Inst, strands.Inst)) hairDraw.Add(layer);
+                }
+                RenderGeometryBatch(context, hairDraw, Basic);
+                if (depth == null) continue; // No normal cap in the forward/special pass.
+                hairDraw.Clear();
+                foreach (var cap in hairGeometry)
+                {
+                    if (cap.Geom.HairOrder == 1 && SameHairInstance(cap.Inst, strands.Inst)) hairDraw.Add(cap);
+                }
+                context.OutputMerger.SetDepthStencilState(dsHairNormals, 1);
+                context.OutputMerger.BlendState = bsHairNormals;
+                RenderGeometryBatch(context, hairDraw, Basic);
+            }
+            Basic.UnbindResources(context);
+            context.OutputMerger.DepthStencilState = dsEnabled;
+            context.OutputMerger.BlendState = bsDefault;
+        }
 
         private readonly List<RenderableGeometryInst> forwardAlpha = new List<RenderableGeometryInst>();
 
@@ -1226,6 +1315,7 @@ namespace CodeWalker.Rendering
         public List<ShaderBatch> WaterBatches = new List<ShaderBatch>();
         public List<ShaderBatch> Water2Batches = new List<ShaderBatch>();
         public List<ShaderBatch> AlphaBatches = new List<ShaderBatch>();
+        public List<ShaderBatch> HairBatches = new List<ShaderBatch>();
         public List<ShaderBatch> ForwardAlphaBatches = new List<ShaderBatch>();
         public List<ShaderBatch> GlassBatches = new List<ShaderBatch>();
         public List<ShaderBatch> CutoutBatches = new List<ShaderBatch>();
@@ -1258,6 +1348,7 @@ namespace CodeWalker.Rendering
             Water2Batches.Clear();
             AlphaBatches.Clear();
             ForwardAlphaBatches.Clear();
+            HairBatches.Clear();
             GlassBatches.Clear();
             CutoutBatches.Clear();
             GrassFurBatches.Clear();
@@ -1587,6 +1678,8 @@ namespace CodeWalker.Rendering
                     }
                     else if ((material?.RenderBucket ?? 0) == 2) b = DecalBatches;
                 }
+
+                if (kvp.Key.ShaderFile.Hash == 100720695) b = HairBatches;
 
                 if (b != null)
                 {

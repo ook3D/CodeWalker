@@ -1,4 +1,4 @@
-using CodeWalker.GameFiles;
+﻿using CodeWalker.GameFiles;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -33,6 +33,17 @@ public static class PedMaterial
         "ped_wrinkle_cs.sps",
         "ped_wrinkle_enveff.sps",
     }.Select(JenkHash.GenHash).ToHashSet();
+
+    private static readonly HashSet<uint> HairShaders = new string[]
+    {
+        "ped_hair_cutout_alpha.sps", "ped_hair_cutout_alpha_cloth.sps",
+        "ped_hair_spiked.sps", "ped_hair_spiked_mask.sps", "ped_hair_spiked_enveff.sps"
+    }.Select(JenkHash.GenHash).ToHashSet();
+
+    // ShaderHairSort selects the dedicated proxy when present, otherwise strands.
+    public static bool CastsHairShadow(int order, bool hasProxy) => order == (hasProxy ? 8 : 0);
+
+    public static bool UsesAnisotropicHair(uint shaderFileHash) => HairShaders.Contains(shaderFileHash);
 
     public static bool UsesPackedSpecular(uint shaderFileHash) => PackedSpecularShaders.Contains(shaderFileHash);
 }
