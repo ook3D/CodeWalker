@@ -404,10 +404,10 @@ namespace CodeWalker.Project
         public string GetRelativePath(string? filepath)
         {
             if (filepath == null) return string.Empty;
-            if (Filepath == null) return filepath;
+            if (string.IsNullOrEmpty(Filepath)) return filepath;
 
             Uri? fromUri;
-            if (!Uri.TryCreate(Filepath, UriKind.RelativeOrAbsolute, out fromUri))
+            if (!Uri.TryCreate(Filepath, UriKind.Absolute, out fromUri))
             {
                 return filepath;
             }

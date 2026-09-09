@@ -53,6 +53,8 @@ namespace CodeWalker.Rendering
         public uint RenderMode;//0=default, 1=normals, 2=tangents, 3=colours, 4=texcoords, 5=diffuse, 6=normalmap, 7=spec, 8=direct
         public uint RenderModeIndex; //colour/texcoord index
         public uint RenderSamplerCoord; //which texcoord to use in single texture mode
+        public Color4 InteriorAmbientUp;
+        public Color4 InteriorAmbientDown;
     }
     public struct BasicShaderPSGeomVars
     {
@@ -80,6 +82,7 @@ namespace CodeWalker.Rendering
         public float heightScale;
         public float heightBias;
         public uint UsePedSpecular;
+        public Vector4 InteriorFlags;
     }
     public struct BasicShaderInstGlobalMatrix
     {
@@ -549,6 +552,8 @@ namespace CodeWalker.Rendering
             VSSceneVars.SetVSCBuffer(context, 0);
 
             PSSceneVars.Vars.GlobalLights = lights.Params;
+            PSSceneVars.Vars.InteriorAmbientUp = lights.InteriorAmbientUp;
+            PSSceneVars.Vars.InteriorAmbientDown = lights.InteriorAmbientDown;
             PSSceneVars.Vars.EnableShadows = (shadowmap != null) ? 1u : 0u;
             PSSceneVars.Vars.RenderMode = rendermode;
             PSSceneVars.Vars.RenderModeIndex = rendermodeind;
@@ -571,6 +576,7 @@ namespace CodeWalker.Rendering
 
         public override void SetEntityVars(DeviceContext context, ref RenderableInst rend)
         {
+            PSGeomVars.Vars.InteriorFlags = new Vector4(rend.IsInterior ? 1 : 0, 0, 0, 0);
             VSEntityVars.Vars.CamRel = new Vector4(rend.CamRel, 0.0f);
             VSEntityVars.Vars.Orientation = rend.Orientation;
             VSEntityVars.Vars.Scale = rend.Scale;
@@ -966,6 +972,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.wetnessMultiplier = 0.0f;
             PSGeomVars.Vars.SpecOnly = 0;
             PSGeomVars.Vars.UsePedSpecular = 0;
+            PSGeomVars.Vars.InteriorFlags = Vector4.Zero;
             PSGeomVars.Vars.TextureAlphaMask = Vector4.Zero;
             PSGeomVars.Update(context);
             PSGeomVars.SetPSCBuffer(context, 2);

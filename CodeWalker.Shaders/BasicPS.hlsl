@@ -4,6 +4,7 @@
 
 float4 main(VS_OUTPUT input) : SV_TARGET
 {
+    ShaderGlobalLightParams materialLights = BasicMaterialLights();
     // Calculate parallax offset if height mapping is enabled
     float2 parallaxTexOffset = float2(0, 0);
     float parallaxSelfShadow = 1.0;
@@ -20,9 +21,9 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
         // Parallax self-shadow, transform light dir to tangent space and trace
         float3 tanLightDir;
-        tanLightDir.x = dot(tang0, GlobalLights.LightDir.xyz);
-        tanLightDir.y = dot(bitang0, GlobalLights.LightDir.xyz);
-        tanLightDir.z = dot(norm0, GlobalLights.LightDir.xyz);
+        tanLightDir.x = dot(tang0, materialLights.LightDir.xyz);
+        tanLightDir.y = dot(bitang0, materialLights.LightDir.xyz);
+        tanLightDir.z = dot(norm0, materialLights.LightDir.xyz);
         float shadowAmount = TraceSelfShadow(Heightmap, TextureSS,
             input.Texcoord0 + parallaxTexOffset,
             tanLightDir, 1.0, heightScale);
@@ -118,8 +119,8 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         float normalAlpha;
         SampleBasicMaterial(input, texc0, norm, material, normalAlpha);
         float3 viewDir = LightingDirection(-input.CamRelPos);
-        float specularLight = MaterialSpecularLight(material, norm, GlobalLights.LightDir, viewDir);
-        spec = GlobalLights.LightDirColour.rgb * specularLight;
+        float specularLight = MaterialSpecularLight(material, norm, materialLights.LightDir, viewDir);
+        spec = materialLights.LightDirColour.rgb * specularLight;
         diffuseScale = MaterialDiffuseScale(material, norm, viewDir);
         if (SpecOnly == 1)
         {
@@ -132,7 +133,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     if (RenderMode == 0) c.rgb = MaterialDiffuseColour(c.rgb);
     float4 fc = c;
 
-    c.rgb = FullLighting(c.rgb * diffuseScale, spec, norm, input.Colour0, GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
+    c.rgb = FullLighting(c.rgb * diffuseScale, spec, norm, input.Colour0, materialLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
 
 
     if (IsEmissive==1)

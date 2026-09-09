@@ -9,7 +9,7 @@ namespace CodeWalker.Rendering
     internal static class WorldLighting
     {
         internal readonly record struct Frame(ShaderGlobalLightParams Parameters,
-            Vector3 Sun, Vector3 Moon, Vector3 MoonAxis, float SkyIntensity);
+            Vector3 Sun, Vector3 Moon, Vector3 MoonAxis, float SkyIntensity, Color4 InteriorUp, Color4 InteriorDown);
 
         internal static Frame Evaluate(Timecycle time, WeatherValues values, float hour,
             bool hdr, bool swapHemisphere, double cycleDays = 0)
@@ -72,7 +72,9 @@ namespace CodeWalker.Rendering
             parameters.LightDirAmbColour.Alpha = Math.Clamp(values.lightDirAmbBounce, 0, 1);
             parameters.LightNaturalAmbDown.Alpha = values.lightAmbDownWrap;
             parameters.LightArtificialAmbDown.Alpha = values.lightAmbDownWrap;
-            return new Frame(parameters, sun, moon, Vector3.Normalize(moonAxis), hdr ? values.skyHdr : 1);
+            return new Frame(parameters, sun, moon, Vector3.Normalize(moonAxis), hdr ? values.skyHdr : 1,
+                Limit(Colour(values.lightArtificialIntUp), 0.5f),
+                new Color4(Limit(Colour(values.lightArtificialIntDown), 0.5f).ToVector3(), values.lightAmbDownWrap));
         }
     }
 }

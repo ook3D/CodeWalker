@@ -20,6 +20,8 @@ cbuffer PSLightVars : register(b0)
     uint IsLOD; //useful or not?
     uint SampleCount;//for MSAA
     float SampleMult;//for MSAA
+    float4 InteriorAmbientUp;
+    float4 InteriorAmbientDown;
 }
 
 cbuffer PSLightInstVars : register(b2)
@@ -116,8 +118,15 @@ float3 DeferredDirectionalLight(float3 camRel, float3 norm, float4 diffuse, floa
     float4 ambient = float4(DecodeAmbient(irradiance.rg), 0, 0);
     float4 lightspacepos;
     float shadowdepth = ShadowmapSceneDepth(camRel, lightspacepos);
-    float3 c = FullLighting(diffuse.rgb * diffuseScale, spec, norm, ambient, GlobalLights, EnableShadows, shadowdepth, lightspacepos);
-    c += diffuse.rgb * irradiance.b; //emissive multiplier
+    bool interior = irradiance.b > 0.5;
+    ShaderGlobalLightParams materialLights = GlobalLights;
+    if (interior)
+    {
+        materialLights.LightArtificialAmbUp = InteriorAmbientUp;
+        materialLights.LightArtificialAmbDown = InteriorAmbientDown;
+    }
+    float3 c = FullLighting(diffuse.rgb * diffuseScale, spec, norm, ambient, materialLights, EnableShadows, shadowdepth, lightspacepos);
+    c += diffuse.rgb * saturate(irradiance.b * 3 - (interior ? 2 : 0)); //emissive multiplier
     return c;
 }
 

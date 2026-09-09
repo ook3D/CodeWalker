@@ -17,6 +17,8 @@ cbuffer PSSceneVars : register(b0)
     uint RenderMode;//0=default, 1=normals, 2=tangents, 3=colours, 4=texcoords, 5=diffuse, 6=normalmap, 7=spec, 8=direct
     uint RenderModeIndex;
     uint RenderSamplerCoord;
+    float4 InteriorAmbientUp;
+    float4 InteriorAmbientDown;
 }
 cbuffer PSGeomVars : register(b2)
 {
@@ -44,6 +46,7 @@ cbuffer PSGeomVars : register(b2)
     float heightScale;
     float heightBias;
     uint UsePedSpecular;
+    float4 InteriorFlags;
 }
 
 
@@ -106,3 +109,14 @@ void SampleBasicMaterial(VS_OUTPUT input, float2 texcoord, out float3 normal,
 
 
 
+
+ShaderGlobalLightParams BasicMaterialLights()
+{
+    ShaderGlobalLightParams lights = GlobalLights;
+    if (InteriorFlags.x > 0)
+    {
+        lights.LightArtificialAmbUp = InteriorAmbientUp;
+        lights.LightArtificialAmbDown = InteriorAmbientDown;
+    }
+    return lights;
+}

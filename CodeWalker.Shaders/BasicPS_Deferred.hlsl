@@ -129,7 +129,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     output.Normal = float4(saturate(norm * 0.5 + 0.5), a.y);
     output.Specular = float4(spec, a.z);
     float2 irr = EncodeAmbient(input.Colour0.rg);
-    output.Irradiance = float4(irr, emiss, a.w);
+    output.Irradiance = float4(irr, (saturate(emiss) + 2 * InteriorFlags.x) / 3, a.w);
 
     return output;
 }

@@ -84,8 +84,10 @@ namespace CodeWalker.World
                     var pos = Cutscene.CameraObject.Position;
                     var rot = Cutscene.CameraObject.Rotation;
 
-                    WorldForm.SetCameraTransform(pos, rot);
                     var camera = WorldForm.Renderer.camera;
+                    // Cutscene poses are temporary. Keep the editor follow/orbit state intact
+                    // so SaveSettings never persists an authored cutscene orientation.
+                    camera.SetAuthoredPose(pos, rot);
                     SavedCameraFieldOfView ??= camera.FieldOfView;
                     var fov = Cutscene.CameraFieldOfViewDegrees is float degrees
                         ? degrees * (MathF.PI / 180.0f) : SavedCameraFieldOfView.Value;
@@ -392,6 +394,7 @@ namespace CodeWalker.World
         private void RestoreCameraFieldOfView()
         {
             WorldForm.Renderer.CutsceneDepthOfField = null;
+            WorldForm.Renderer.camera.ClearAuthoredPose();
             if (SavedCameraFieldOfView is not float fov) return;
             WorldForm.Renderer.camera.FieldOfView = fov;
             WorldForm.Renderer.camera.UpdateProj = true;

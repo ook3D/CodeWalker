@@ -1,4 +1,4 @@
-using SharpDX;
+﻿using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -70,6 +70,11 @@ public class Camera(float smoothness, float sensitivity, float fov)
         public void SetAuthoredPose(Vector3 position, Quaternion rotation)
         {
             lock (syncRoot) AuthoredPose = (position, Quaternion.Normalize(rotation));
+        }
+
+        public void ClearAuthoredPose()
+        {
+            lock (syncRoot) AuthoredPose = null;
         }
 
         public void Update(float elapsed)

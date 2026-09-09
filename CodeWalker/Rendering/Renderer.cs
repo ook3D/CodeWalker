@@ -280,9 +280,12 @@ namespace CodeWalker.Rendering
         }
 
 
+        private readonly InteriorLighting interiorLighting = new();
+
         public void BeginRender(DeviceContext ctx)
         {
             context = ctx;
+            interiorLighting.Reset();
 
             dxman.ClearRenderTarget(context);
 
@@ -323,6 +326,11 @@ namespace CodeWalker.Rendering
 
         public void RenderQueued()
         {
+            // Start from weather every frame so leaving a room cannot retain its lighting.
+            UpdateGlobalLights();
+            if (!controllightdir && renderartificialambientlight)
+                interiorLighting.Apply(globalLights, weather.CurrentValues, weather.TimecycleMods?.Dict, shaders.hdr);
+            shaders.SetGlobalLightParams(globalLights);
             shaders.RenderQueued(context, camera, currentWindVec);
 
             RenderSkeletons();
@@ -510,6 +518,8 @@ namespace CodeWalker.Rendering
 
             if (controllightdir)
             {
+                globalLights.InteriorAmbientUp = Color4.Black;
+                globalLights.InteriorAmbientDown = Color4.Black;
                 float cryd = (float)Math.Cos(lightdiry);
                 lightdir.X = -(float)Math.Sin(-lightdirx) * cryd;
                 lightdir.Y = -(float)Math.Cos(-lightdirx) * cryd;
@@ -530,6 +540,8 @@ namespace CodeWalker.Rendering
             else
             {
                 var frame = WorldLighting.Evaluate(timecycle, weather.CurrentValues, timeofday, hdr, swaphemisphere);
+                globalLights.InteriorAmbientUp = renderartificialambientlight ? frame.InteriorUp : Color4.Black;
+                globalLights.InteriorAmbientDown = renderartificialambientlight ? frame.InteriorDown : Color4.Black;
                 lightdir = frame.Parameters.LightDir;
                 lightdircolour = frame.Parameters.LightDirColour;
                 lightdirambcolour = frame.Parameters.LightDirAmbColour;
@@ -2411,6 +2423,7 @@ namespace CodeWalker.Rendering
         }
         private void RenderWorldAddInteriorEntities(YmapEntityDef ent)
         {
+            interiorLighting.Consider(ent, camera.Position);
             var cancull = !camera.IsMapView && !camera.IsOrthographic;//only frustum cull interior entities in perspective view
             if (ent?.MloInstance?.Entities != null)
             {
@@ -3229,6 +3242,7 @@ namespace CodeWalker.Rendering
         public bool RenderArchetype(Archetype? arche, YmapEntityDef? entity, Renderable? rndbl = null, bool cull = true, ClipMapEntry? animClip = null)
         {
             //enqueue a single archetype for rendering.
+            interiorLighting.Consider(entity?.MloParent ?? entity, camera.Position);
 
             if (arche == null) return false;
 
@@ -3389,8 +3403,6 @@ namespace CodeWalker.Rendering
             Vector3 bscen = (arche != null) ? arche.BSCenter : rndbl.Key.BoundingCenter;
             float radius = (arche != null) ? arche.BSRadius : rndbl.Key.BoundingSphereRadius;
             float distance = 0;// (camrel + bscen).Length();
-            bool interiorent = false;
-            bool castshadow = true;
 
             if (entity != null)
             {
@@ -3403,8 +3415,6 @@ namespace CodeWalker.Rendering
                 bscen = entity.BSCenter;
                 camrel += position;
                 distance = entity.Distance;
-                castshadow = (entity.MloParent == null);//don't cast sun/moon shadows if this is an interior entity - optimisation!
-                interiorent = (entity.MloParent != null);
             }
             else
             {
@@ -3516,7 +3526,9 @@ namespace CodeWalker.Rendering
                 rginst.Inst.BSCenter = bscen;
                 rginst.Inst.Radius = radius;
                 rginst.Inst.Distance = distance;
-                rginst.Inst.CastShadow = castshadow;
+                // MLO walls and ceilings must occlude exterior sun/moon light too.
+                rginst.Inst.CastShadow = true;
+                rginst.Inst.IsInterior = entity?.MloParent != null;
 
 
                 RenderableModel[] models = isselected ? rndbl.AllModels : rndbl.HDModels;

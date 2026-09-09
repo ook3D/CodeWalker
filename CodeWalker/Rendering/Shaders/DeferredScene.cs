@@ -39,6 +39,8 @@ namespace CodeWalker.Rendering
         public uint IsLOD; //useful or not?
         public uint SampleCount;//for MSAA
         public float SampleMult;//for MSAA
+        public Color4 InteriorAmbientUp;
+        public Color4 InteriorAmbientDown;
     }
     public struct DeferredLightInstVars
     {
@@ -383,6 +385,8 @@ namespace CodeWalker.Rendering
             LightVSVars.SetVSCBuffer(context, 0);
 
             LightPSVars.Vars.GlobalLights = globalLights.Params;
+            LightPSVars.Vars.InteriorAmbientUp = globalLights.InteriorAmbientUp;
+            LightPSVars.Vars.InteriorAmbientDown = globalLights.InteriorAmbientDown;
             LightPSVars.Vars.ViewProjInv = Matrix.Transpose(camera.ViewProjInvMatrix);
             LightPSVars.Vars.CameraPos = Vector4.Zero;
             LightPSVars.Vars.EnableShadows = (globalShadows != null) ? 1u : 0u;

@@ -1768,9 +1768,9 @@ namespace CodeWalker.Project
                             break;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    errorFiles.Add(file);
+                    errorFiles.Add($"{file}: {ex.Message}");
                 }
             }
 

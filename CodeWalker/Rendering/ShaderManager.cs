@@ -1,4 +1,4 @@
-using CodeWalker.GameFiles;
+﻿using CodeWalker.GameFiles;
 using CodeWalker.Properties;
 using CodeWalker.World;
 using SharpDX;
@@ -323,6 +323,8 @@ namespace CodeWalker.Rendering
             GlobalLights.SpecularEnabled = lights.SpecularEnabled;
             GlobalLights.Weather = lights.Weather;
             GlobalLights.Params = lights.Params;
+            GlobalLights.InteriorAmbientUp = lights.InteriorAmbientUp;
+            GlobalLights.InteriorAmbientDown = lights.InteriorAmbientDown;
         }
 
         public void BeginFrame(DeviceContext context, double currentRealTime, float elapsedTime)
@@ -1614,6 +1616,8 @@ namespace CodeWalker.Rendering
 
     public class ShaderGlobalLights
     {
+        public Color4 InteriorAmbientUp;
+        public Color4 InteriorAmbientDown;
         public Weather? Weather;
         public ShaderGlobalLightParams Params;
         public Vector3 CurrentSunDir;
