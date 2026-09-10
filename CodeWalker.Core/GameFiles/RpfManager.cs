@@ -134,10 +134,12 @@ namespace CodeWalker.GameFiles
             IsInited = true;
         }
 
-        public void Init(List<RpfFile> allRpfs, bool gen9)
+        public void Init(List<RpfFile> allRpfs, bool gen9, Action<string>? updateStatus = null, Action<string>? errorLog = null)
         {
             //fast init used by RPF explorer's File cache
-            AllRpfs = allRpfs;
+            UpdateStatus = updateStatus ?? (_ => { });
+            ErrorLog = errorLog ?? (_ => { });
+            AllRpfs = new(allRpfs);
             IsGen9 = gen9;
 
             BaseRpfs = new();
@@ -149,7 +151,9 @@ namespace CodeWalker.GameFiles
             EntryDict = new();
             ModRpfDict = new();
             ModEntryDict = new();
-            foreach (var rpf in allRpfs)
+            ExtraRpfs = new();
+            EscrowedFileCount = 0;
+            foreach (var rpf in AllRpfs)
             {
                 RpfDict[rpf.Path] = rpf;
                 if (rpf.AllEntries == null) continue;
@@ -158,6 +162,11 @@ namespace CodeWalker.GameFiles
                     EntryDict[entry.Path] = entry;
                 }
             }
+
+            //The explorer supplies its already-scanned archives, but FiveM resources are loose files
+            //and therefore aren't in that list. Include the configured resource folders here as well,
+            //so model previews can resolve external YTDs and other companion assets.
+            ScanExtraFolders(UpdateStatus);
 
             BuildBaseJenkIndex();
 

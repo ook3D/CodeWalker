@@ -289,10 +289,15 @@ namespace CodeWalker.GameFiles
             EnableDlc = true;
             EnableMods = false;
 
-            RpfMan = new RpfManager();
-            ArchiveManager.Init(allRpfs, GTAGen9);
+            RpfMan = new RpfManager
+            {
+                ExtraFolders = (ExtraFolders ?? string.Empty).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                               .Select(f => f.Trim()).Where(f => f.Length > 0)
+                               .Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            };
+            ArchiveManager.Init(allRpfs, GTAGen9, UpdateStatus, ErrorLog);
 
-            AllRpfs = [.. allRpfs];
+            AllRpfs = [.. ArchiveManager.AllRpfs];
             BaseRpfs = AllRpfs;
             DlcRpfs = [];
 
