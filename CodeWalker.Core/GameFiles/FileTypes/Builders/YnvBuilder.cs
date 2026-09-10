@@ -4,6 +4,7 @@ using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 using CodeWalker;
@@ -13,49 +14,50 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
     public class YnvBuilder
     {
         /*
-         * 
+         *
          * YnvBuilder by dexyfex
-         * 
+         *
          * This class allows for conversion of navmesh data in a generic format into .ynv files.
          * The usage is to call AddPoly() with an array of vertex positions for each polygon.
          * Polygons should be wound in an anticlockwise direction.
          * The returned YnvPoly object needs to have its Edges array set by the importer.
-         * YnvPoly.Edges is an array of YnvEdge, with one edge for each vertex in the poly. 
+         * YnvPoly.Edges is an array of YnvEdge, with one edge for each vertex in the poly.
          * The first edge should join the first and second vertices, and the last edge should
          * join the last and first vertices.
-         * The YnvEdge Poly1 and Poly2 both need to be set to the same value, which is the 
+         * The YnvEdge Poly1 and Poly2 both need to be set to the same value, which is the
          * corresponding YnvPoly object that was returned by AddPoly.
          * Flags values on the polygons and edges also need to be set by the importer.
-         * 
+         *
          * Once the polygons and edges have all been added, the Build() method should be called,
          * which will return a list of YnvFile objects. Call the Save() method on each of those
          * to get the byte array for the .ynv file. The correct filename is given by the
          * YnvFile.Name property.
          * Note that the .ynv building process will split polygons that cross .ynv area borders,
          * and assign all the new polygons into the correct .ynvs.
-         * 
+         *
          */
 
 
 
         public List<YnvPoly> PolyList = new();
         public string VehicleName = string.Empty;
-        private SpaceNavGrid NavGrid = null;
-        private List<YnvFile> YnvFiles = null;
-        
+        private SpaceNavGrid? NavGrid;
+        private SpaceNavGrid Grid => NavGrid ?? throw new InvalidOperationException("The navigation grid has not been initialized.");
+        private List<YnvFile> YnvFiles = [];
+
         // Navmesh generation fields
-        private NavOctree collisionOctree = null;
+        private NavOctree? collisionOctree;
         private List<NavGenTri> collisionTriangles = new();
-        private CPlacedNodeMultiMap heightSampleGrid = null;
+        private CPlacedNodeMultiMap? heightSampleGrid;
         private NavGenParams genParams = new();
         private List<NavSurfaceTri> surfaceTriangles = new();
         private List<NavSurfacePoly> surfacePolygons = new();
-        
-        // Logging
-        private System.IO.StreamWriter logWriter = null;
-        private string logFilePath = null;
 
-        public YnvPoly AddPoly(Vector3[] verts)
+        // Logging
+        private System.IO.StreamWriter? logWriter;
+        private string? logFilePath;
+
+        public YnvPoly? AddPoly(Vector3[]? verts)
         {
             if ((verts == null) || (verts.Length < 3))
             { return null; }
@@ -127,12 +129,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 if (verts.Length < 3)
                 { continue; }//not enough verts for a triangle!
 
-                Vector2I gprev = NavGrid.GetCellPos(verts[0]);
+                Vector2I gprev = Grid.GetCellPos(verts[0]);
                 int split1 = 0;
                 int split2 = 0;
                 for (int i = 1; i < verts.Length; i++)
                 {
-                    Vector2I g = NavGrid.GetCellPos(verts[i]);
+                    Vector2I g = Grid.GetCellPos(verts[i]);
                     int g1 = xaxis ? g.X : g.Y;
                     int g2 = xaxis ? gprev.X : gprev.Y;
                     if (g1 != g2) //this poly is crossing a border
@@ -183,10 +185,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
 
                         //save this information for the edge splitting pass
-                        var polysplit = new YnvPolySplit();
-                        polysplit.Orig = poly;
-                        polysplit.New1 = poly1;
-                        polysplit.New2 = poly2;
+                        var polysplit = new YnvPolySplit { Orig = poly, New1 = poly1, New2 = poly2 };
                         polysplit.Split1 = split1;
                         polysplit.Split2 = split2end;
                         polysplits[poly] = polysplit;
@@ -214,10 +213,10 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 var poly2 = polysplit.New2;
                 var edges = poly.Edges;
                 var verts = poly.Vertices;
-                var ec = edges?.Length ?? 0;
+                var ec = edges.Length;
                 if (ec <= 0)
                 { continue; }//shouldnt happen - no edges?
-                if (ec != poly.Vertices?.Length)
+                if (ec != poly.Vertices.Length)
                 { continue; }//shouldnt happen
 
                 var split1beg = polysplit.Split1 - 1;
@@ -228,7 +227,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 edges1.Clear();
                 edges2.Clear();
 
-                var se1 = edges[split1beg]; //the two original edges that got split 
+                var se1 = edges[split1beg]; //the two original edges that got split
                 var se2 = edges[split2beg];
                 var sp1 = TryGetSplit(polysplits, se1.Poly1);//could use Poly2, but they should be the same..
                 var sp2 = TryGetSplit(polysplits, se2.Poly1);
@@ -269,7 +268,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
             foreach (var poly in newpolys) //fix any untouched edges that joined to split polys
             {
-                if (poly.Edges?.Length != poly.Vertices?.Length)
+                if (poly.Edges.Length != poly.Vertices.Length)
                 { continue; }//shouldnt happen (no edges?)
                 for (int i = 0; i < poly.Edges.Length; i++)
                 {
@@ -283,7 +282,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     { continue; }//probably this edge joins to nothing
 
 
-                    YnvPolySplit polysplit;
+                    YnvPolySplit? polysplit;
                     if (polysplits.TryGetValue(edge.Poly1, out polysplit))
                     {
                         var newpoly = polysplit.GetNearest(vert);
@@ -302,8 +301,8 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         private Vector3 GetSplitPos(Vector3 a, Vector3 b, bool xaxis)
         {
-            Vector3 ca = NavGrid.GetCellRel(a);
-            Vector3 cb = NavGrid.GetCellRel(b);
+            Vector3 ca = Grid.GetCellRel(a);
+            Vector3 cb = Grid.GetCellRel(b);
             float fa = xaxis ? ca.X : ca.Y;
             float fb = xaxis ? cb.X : cb.Y;
             float f = 0;
@@ -341,9 +340,9 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         private class YnvPolySplit
         {
-            public YnvPoly Orig;
-            public YnvPoly New1;
-            public YnvPoly New2;
+            public required YnvPoly Orig;
+            public required YnvPoly New1;
+            public required YnvPoly New2;
             public int Split1;
             public int Split2;
             public YnvPoly GetNearest(Vector3 v)
@@ -364,16 +363,16 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 if (len2 == 0.0f) return New2;
                 return (len1 <= len2) ? New1 : New2;
             }
-            public YnvPoly GetOther(YnvPoly p)
+            public YnvPoly GetOther(YnvPoly? p)
             {
                 if (p == New1) return New2;
                 return New1;
             }
         }
-        private YnvPolySplit TryGetSplit(Dictionary<YnvPoly, YnvPolySplit> polysplits, YnvPoly poly)
+        private YnvPolySplit? TryGetSplit(Dictionary<YnvPoly, YnvPolySplit> polysplits, YnvPoly? poly)
         {
             if (poly == null) return null;
-            YnvPolySplit r = null;
+            YnvPolySplit? r = null;
             polysplits.TryGetValue(poly, out r);
             return r;
         }
@@ -386,7 +385,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             {
                 poly.CalculatePosition();
                 var pos = poly.Position;
-                var cell = NavGrid.GetCell(pos);
+                var cell = Grid.GetCell(pos) ?? throw new InvalidOperationException("Polygon lies outside the navigation grid.");
 
                 var ynv = cell.Ynv;
                 if (ynv == null)
@@ -395,12 +394,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     ynv.Name = "navmesh[" + cell.FileX.ToString() + "][" + cell.FileY.ToString() + "]";
                     ynv.Nav = new NavMesh();
                     ynv.Nav.SetDefaults(false);
-                    ynv.Nav.AABBSize = new Vector3(NavGrid.CellSize, NavGrid.CellSize, 0.0f);
+                    ynv.Nav.AABBSize = new Vector3(Grid.CellSize, Grid.CellSize, 0.0f);
                     ynv.Nav.SectorTree = new NavMeshSector();
                     // R* sets initial Z bounds from exporter cutoffs: min=-500, max=1000
                     // These get refined in FinalizeYnvs to match actual content
-                    var cellMin = NavGrid.GetCellMin(cell);
-                    var cellMax = NavGrid.GetCellMax(cell);
+                    var cellMin = Grid.GetCellMin(cell);
+                    var cellMax = Grid.GetCellMax(cell);
                     ynv.Nav.SectorTree.AABBMin = new Vector4(cellMin.X, cellMin.Y, genParams.ExporterMinZCutoff, 0.0f);
                     ynv.Nav.SectorTree.AABBMax = new Vector4(cellMax.X, cellMax.Y, genParams.ExporterMaxZCutoff, 0.0f);
                     ynv.AreaID = cell.X + cell.Y * 100;
@@ -528,7 +527,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     }
                 }
                 var yn = ynv.Nav;
-                var ys = yn.SectorTree;
+                var ys = yn.SectorTree ?? throw new InvalidOperationException("The navigation sector tree has not been initialized.");
                 yn.AABBSize = new Vector3(yn.AABBSize.X, yn.AABBSize.Y, zmax - zmin);
                 ys.AABBMin = new Vector4(ys.AABBMin.X, ys.AABBMin.Y, zmin, 0.0f);
                 ys.AABBMax = new Vector4(ys.AABBMax.X, ys.AABBMax.Y, zmax, 0.0f);
@@ -613,12 +612,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         }
 
-        public bool LoadCollisionGeometry(GameFileCache gameFileCache, SpaceBoundsStore boundsStore, Vector2 min, Vector2 max, Action<string> statusCallback = null)
+        public bool LoadCollisionGeometry(GameFileCache gameFileCache, SpaceBoundsStore boundsStore, Vector2 min, Vector2 max, Action<string>? statusCallback = null)
         {
             Log("", statusCallback);
             Log("PHASE 1: LOADING COLLISION GEOMETRY", statusCallback);
             Log("=".PadRight(80, '='), statusCallback);
-            
+
             if (gameFileCache == null || boundsStore == null)
             {
                 Log("Error: GameFileCache or BoundsStore is null", statusCallback);
@@ -665,15 +664,15 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
             // Load YBN files and extract triangles
             statusCallback?.Invoke($"Found {boundslist.Count} YBN files in area");
-            
+
             foreach (var boundsitem in boundslist)
             {
                 try
                 {
                     string ybnName = boundsitem.Name.ToString();
                     statusCallback?.Invoke($"Processing YBN: {ybnName} at [{boundsitem.Min.X:F1}, {boundsitem.Min.Y:F1}, {boundsitem.Min.Z:F1}] to [{boundsitem.Max.X:F1}, {boundsitem.Max.Y:F1}, {boundsitem.Max.Z:F1}]");
-                    
-                    YbnFile ybn = gameFileCache.GetYbn(boundsitem.Name);
+
+                    YbnFile? ybn = gameFileCache.GetYbn(boundsitem.Name);
                     if (ybn == null)
                     {
                         statusCallback?.Invoke($"Warning: Could not load YBN {ybnName}");
@@ -682,20 +681,20 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                         continue;
                     }
 
-                    if (!ybn.Loaded)
+                    if (ybn?.Loaded != true)
                     {
                         statusCallback?.Invoke($"Loading YBN: {boundsitem.Name}...");
                         int waitCount = 0;
                         const int maxWaitCount = 500; // 10 second timeout (500 * 20ms)
-                        
-                        while (!ybn.Loaded && waitCount < maxWaitCount)
+
+                        while (ybn?.Loaded != true && waitCount < maxWaitCount)
                         {
                             System.Threading.Thread.Sleep(20);
                             waitCount++;
                             ybn = gameFileCache.GetYbn(boundsitem.Name); // Try to queue it again
                         }
 
-                        if (!ybn.Loaded)
+                        if (ybn?.Loaded != true)
                         {
                             statusCallback?.Invoke($"Timeout: YBN {boundsitem.Name} failed to load within 10 seconds");
                             failedFiles.Add(ybnName);
@@ -713,19 +712,19 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                             // We need to apply the bounds transform (rotation/scale) and then translate to BoxCenter
                             var boxCenter = ybn.Bounds.BoxCenter;
                             var worldTransform = ybn.Bounds.Transform * Matrix.Translation(boxCenter);
-                            
+
                             var tris = ExtractTrianglesFromBounds(ybn.Bounds, worldTransform);
-                            
+
                             if (tris.Count > 0)
                             {
                                 var firstTri = tris[0];
                                 Log($"  First tri after transform: [{firstTri.Vertices[0].X:F1}, {firstTri.Vertices[0].Y:F1}, {firstTri.Vertices[0].Z:F1}]");
                             }
-                            
+
                             collisionTriangles.AddRange(tris);
                             triangleCount += tris.Count;
                             loadedCount++;
-                            
+
                             Log($"  -> Extracted {tris.Count} triangles from {ybnName}", statusCallback);
 
                             // Update Z bounds using world-space bounds
@@ -739,7 +738,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                             failedCount++;
                         }
                     }
-                    else if (!ybn.Loaded)
+                    else if (ybn?.Loaded != true)
                     {
                         statusCallback?.Invoke($"  -> YBN {ybnName} not loaded yet");
                     }
@@ -784,27 +783,27 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             {
                 Log($"Building octree with bounds: [{bmin.X:F1}, {bmin.Y:F1}, {bmin.Z:F1}] to [{bmax.X:F1}, {bmax.Y:F1}, {bmax.Z:F1}]", statusCallback);
                 BuildOctree(bmin, bmax);
-                
+
                 if (collisionOctree == null)
                 {
                     Log("Error: Octree construction failed", statusCallback);
                     return false;
                 }
-                
+
                 Log($"Octree built successfully with {collisionTriangles.Count} triangles", statusCallback);
-                
+
                 // Test a single ray cast to verify octree is working
                 var testOrigin = new Vector3((bmin.X + bmax.X) * 0.5f, (bmin.Y + bmax.Y) * 0.5f, bmax.Z + 10.0f);
                 var testDir = new Vector3(0, 0, -1);
                 Log($"Test ray: origin=[{testOrigin.X:F1}, {testOrigin.Y:F1}, {testOrigin.Z:F1}], dir=[{testDir.X}, {testDir.Y}, {testDir.Z}], maxDist=1000", statusCallback);
-                
+
                 var testResult = collisionOctree.RayIntersect(testOrigin, testDir, 1000.0f);
                 Log($"Test ray result: Hit={testResult.Hit}, Distance={testResult.Distance:F2}", statusCallback);
-                
+
                 if (!testResult.Hit)
                 {
                     Log("WARNING: Test ray cast missed! This indicates the octree may not contain geometry in the expected location.", statusCallback);
-                    
+
                     // Try to find where the geometry actually is
                     if (collisionTriangles.Count > 0)
                     {
@@ -873,7 +872,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 if (poly is BoundPolygonTriangle triPoly)
                 {
                     var tri = new NavGenTri();
-                    
+
                     // Use the polygons Vertex properties which already return world-space positions
                     tri.Vertices[0] = triPoly.Vertex1;
                     tri.Vertices[1] = triPoly.Vertex2;
@@ -986,7 +985,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             genParams = parameters ?? new NavGenParams();
         }
 
-        public void InitializeLogFile(string logPath = null)
+        public void InitializeLogFile(string? logPath = null)
         {
             try
             {
@@ -1001,14 +1000,14 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
                 logFilePath = logPath;
                 var directory = System.IO.Path.GetDirectoryName(logPath);
-                if (!System.IO.Directory.Exists(directory))
+                if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
                 {
                     System.IO.Directory.CreateDirectory(directory);
                 }
 
                 logWriter = new System.IO.StreamWriter(logPath, false);
                 logWriter.AutoFlush = true;
-                
+
                 Log($"NavMesh Generation Log - {DateTime.Now}");
                 Log($"Log file: {logPath}");
                 Log("=".PadRight(80, '='));
@@ -1030,7 +1029,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             }
         }
 
-        private void Log(string message, Action<string> statusCallback = null)
+        private void Log(string message, Action<string>? statusCallback = null)
         {
             if (logWriter != null)
             {
@@ -1041,7 +1040,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             statusCallback?.Invoke(message);
         }
 
-        public int PerformHeightSampling(Vector2 min, Vector2 max, float minZ, float maxZ, Action<string> statusCallback = null)
+        public int PerformHeightSampling(Vector2 min, Vector2 max, float minZ, float maxZ, Action<string>? statusCallback = null)
         {
             Log("", statusCallback);
             Log("PHASE 2: HEIGHT SAMPLING", statusCallback);
@@ -1112,33 +1111,33 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     {
                         rayOrigin.Z = currentZ;
                         float rayDistance = currentZ - minZ + 10.0f; // Add extra distance to ensure we reach minZ
-                        
+
                         totalRayCasts++;
                         var result = RayIntersect(rayOrigin, rayDirection, rayDistance);
 
                         if (result.Hit && result.Triangle != null)
                         {
                             totalHits++;
-                            
+
                             // Filter out surfaces that are too close to previous sample (likely same surface)
                             if (lastSampleZ != float.MaxValue && Math.Abs(result.Position.Z - lastSampleZ) < 0.1f)
                             {
                                 currentZ = result.Position.Z - genParams.MinZDistBetweenSamples;
                                 continue;
                             }
-                            
+
                             // Filter out steep surfaces (likely walls, not walkable ground)
                             var upVector = new Vector3(0, 0, 1);
                             float normalDot = Vector3.Dot(result.Triangle.Normal, upVector);
                             float surfaceAngle = (float)Math.Acos(Math.Clamp(normalDot, -1f, 1f)) * 180f / (float)Math.PI;
-                            
+
                             // Skip surfaces steeper than 60 degrees (likely walls)
                             if (surfaceAngle > 60.0f)
                             {
                                 currentZ = result.Position.Z - genParams.MinZDistBetweenSamples;
                                 continue;
                             }
-                            
+
                             // Check if we already have a sample at this Z level (within tolerance)
                             var existingNode = heightSampleGrid.GetNode(result.Position, genParams.MinZDistBetweenSamples, samplingDensity * 0.1f);
 
@@ -1205,7 +1204,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                         float hitRate = totalRayCasts > 0 ? (totalHits * 100.0f / totalRayCasts) : 0;
                         statusCallback?.Invoke($"Height sampling: {progress:F1}% ({totalSamples} samples, {totalHits}/{totalRayCasts} hits = {hitRate:F1}%)");
                     }
-                    
+
                     // Log first few cells for debugging
                     if (processedCells <= 5)
                     {
@@ -1220,7 +1219,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return totalSamples;
         }
 
-        public CPlacedNodeMultiMap GetHeightSampleGrid()
+        public CPlacedNodeMultiMap? GetHeightSampleGrid()
         {
             return heightSampleGrid;
         }
@@ -1235,7 +1234,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return surfacePolygons;
         }
 
-        public List<NavSurfacePoly> ConvertTrianglesToPolygons(Action<string> statusCallback = null)
+        public List<NavSurfacePoly> ConvertTrianglesToPolygons(Action<string>? statusCallback = null)
         {
             if (surfaceTriangles == null || surfaceTriangles.Count == 0)
             {
@@ -1281,7 +1280,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return polygons;
         }
 
-        public int PerformTriangulation(Action<string> statusCallback = null)
+        public int PerformTriangulation(Action<string>? statusCallback = null)
         {
             if (heightSampleGrid == null)
             {
@@ -1348,6 +1347,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         private void TryCreateTriangle(NavGenNode node, int dx1, int dy1, int dx2, int dy2, List<NavSurfaceTri> triangles)
         {
+            if (heightSampleGrid == null) return;
             // Find adjacent nodes
             var adj1 = heightSampleGrid.GetAdjacentNode(node, dx1, dy1, genParams.TriangulationMaxHeightDiff);
             var adj2 = heightSampleGrid.GetAdjacentNode(node, dx2, dy2, genParams.TriangulationMaxHeightDiff);
@@ -1550,7 +1550,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return actualHeightDiff <= threshold;
         }
 
-        private bool HasClearHeightAboveTriangle(NavGenNode[] nodes, float clearHeight)
+        private bool HasClearHeightAboveTriangle(NavGenNode[]? nodes, float clearHeight)
         {
             if (nodes == null || nodes.Length < 3)
                 return false;
@@ -1716,11 +1716,11 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             }
         }
 
-        public int PerformEdgeCollapseOptimization(Action<string> statusCallback = null)
+        public int PerformEdgeCollapseOptimization(Action<string>? statusCallback = null)
         {
             return PerformEdgeCollapseOptimization(surfaceTriangles, statusCallback);
         }
-        public int PerformAdaptiveOptimization(int targetVertexCount, Action<string> statusCallback = null)
+        public int PerformAdaptiveOptimization(int targetVertexCount, Action<string>? statusCallback = null)
         {
             if (surfaceTriangles == null || surfaceTriangles.Count == 0)
             {
@@ -1783,7 +1783,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
             return currentVertexCount;
         }
-        private int EstimateVertexCount(List<NavSurfaceTri> triangles)
+        private int EstimateVertexCount(List<NavSurfaceTri>? triangles)
         {
             if (triangles == null) return 0;
 
@@ -1801,7 +1801,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return uniqueNodes.Count;
         }
 
-        public int PerformEdgeCollapseOptimization(List<NavSurfaceTri> triangles, Action<string> statusCallback = null)
+        public int PerformEdgeCollapseOptimization(List<NavSurfaceTri> triangles, Action<string>? statusCallback = null)
         {
             if (triangles == null || triangles.Count == 0)
             {
@@ -1844,6 +1844,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             {
                 // Get lowest cost edge
                 var edge = edgeQueue.Min;
+                if (edge == null) break;
                 edgeQueue.Remove(edge);
 
                 if (edge.IsRemoved)
@@ -1913,8 +1914,8 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                         continue;
 
                     // Create edge key (order independent)
-                    var edgeKey = node1.GetHashCode() < node2.GetHashCode() 
-                        ? (node1, node2) 
+                    var edgeKey = node1.GetHashCode() < node2.GetHashCode()
+                        ? (node1, node2)
                         : (node2, node1);
 
                     if (!edgeDict.ContainsKey(edgeKey))
@@ -1947,7 +1948,8 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         private void CalculateEdgeCost(NavTriEdge edge)
         {
-            if (edge == null || edge.Node1 == null || edge.Node2 == null)
+            if (edge == null) return;
+            if (edge.Node1 == null || edge.Node2 == null)
             {
                 edge.CostNode1ToNode2 = float.MaxValue;
                 edge.CostNode2ToNode1 = float.MaxValue;
@@ -1962,7 +1964,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             edge.CostNode2ToNode1 = CalculateQuadricError(edge.Node1, edge.Node2.BasePosition, edge);
         }
 
-        private float CalculateQuadricError(NavGenNode nodeToMove, Vector3 targetPosition, NavTriEdge edge)
+        private float CalculateQuadricError(NavGenNode? nodeToMove, Vector3 targetPosition, NavTriEdge edge)
         {
             if (nodeToMove == null || nodeToMove.SurroundingTriangles == null)
                 return float.MaxValue;
@@ -2031,7 +2033,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return totalError;
         }
 
-        private bool ValidateEdgeCollapse(NavTriEdge edge)
+        private bool ValidateEdgeCollapse(NavTriEdge? edge)
         {
             if (edge == null || edge.IsRemoved)
                 return false;
@@ -2116,7 +2118,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return Vector3.Cross(edge1, edge2).Length() * 0.5f;
         }
 
-        private bool CollapseEdge(NavTriEdge edge)
+        private bool CollapseEdge(NavTriEdge? edge)
         {
             if (edge == null || edge.IsRemoved)
                 return false;
@@ -2232,7 +2234,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         private class EdgeCostComparer : IComparer<NavTriEdge>
         {
-            public int Compare(NavTriEdge x, NavTriEdge y)
+            public int Compare(NavTriEdge? x, NavTriEdge? y)
             {
                 if (x == null && y == null) return 0;
                 if (x == null) return -1;
@@ -2247,12 +2249,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             }
         }
 
-        public List<NavSurfacePoly> PerformPolygonMerging(Action<string> statusCallback = null)
+        public List<NavSurfacePoly> PerformPolygonMerging(Action<string>? statusCallback = null)
         {
             return PerformPolygonMerging(surfaceTriangles, statusCallback);
         }
 
-        public int DecimatePolygons(int targetVertexCount, Action<string> statusCallback = null)
+        public int DecimatePolygons(int targetVertexCount, Action<string>? statusCallback = null)
         {
             if (surfacePolygons == null || surfacePolygons.Count == 0)
             {
@@ -2305,7 +2307,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return removedCount;
         }
 
-        public List<NavSurfacePoly> PerformPolygonMerging(List<NavSurfaceTri> triangles, Action<string> statusCallback = null)
+        public List<NavSurfacePoly> PerformPolygonMerging(List<NavSurfaceTri> triangles, Action<string>? statusCallback = null)
         {
             if (triangles == null || triangles.Count == 0)
             {
@@ -2352,14 +2354,14 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 poly.CalculateNormalAndPlane();
                 polygons.Add(poly);
                 triangleToPolygon[tri] = poly;
-                
+
                 // Build edge-to-polygon mapping for fast adjacency lookup
                 for (int i = 0; i < 3; i++)
                 {
                     var v1 = tri.Nodes[i];
                     var v2 = tri.Nodes[(i + 1) % 3];
                     var edgeKey = v1.GetHashCode() < v2.GetHashCode() ? (v1, v2) : (v2, v1);
-                    
+
                     // Store the polygon for this edge (will be overwritten if shared)
                     edgeToPolygon[edgeKey] = poly;
                 }
@@ -2377,7 +2379,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             int maxMergeAttempts = 10; // Increased from 3 to allow more aggressive merging
 
             Log($"Starting merge loop with {totalPolygons} polygons", statusCallback);
-            
+
             // Reset debug counters
             debugMergeAttempts = 0;
             debugMaterialFail = 0;
@@ -2409,7 +2411,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                         var edgeKey = v1.GetHashCode() < v2.GetHashCode() ? (v1, v2) : (v2, v1);
 
                         // Fast lookup of adjacent polygon
-                        NavSurfacePoly adjacentPoly = null;
+                        NavSurfacePoly? adjacentPoly = null;
                         if (edgeToPolygon.TryGetValue(edgeKey, out var edgePoly))
                         {
                             if (edgePoly != poly && !edgePoly.IsRemoved)
@@ -2421,7 +2423,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                         if (adjacentPoly != null)
                         {
                             debugMergeAttempts++;
-                            
+
                             // Test if merge is valid with detailed logging
                             bool canMerge = true;
 
@@ -2460,14 +2462,14 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                                     canMerge = false;
                                 }
                             }
-                            
+
                             if (canMerge)
                             {
                                 MergePolygons(poly, adjacentPoly, v1, v2);
                                 adjacentPoly.IsRemoved = true;
                                 mergeCount++;
                                 merged = true;
-                                
+
                                 // Update edge-to-polygon mapping for the merged polygons edges
                                 for (int j = 0; j < poly.Vertices.Count; j++)
                                 {
@@ -2476,13 +2478,13 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                                     var ek = ev1.GetHashCode() < ev2.GetHashCode() ? (ev1, ev2) : (ev2, ev1);
                                     edgeToPolygon[ek] = poly;
                                 }
-                                
+
                                 break; // Start over with new polygon shape
                             }
                         }
                     }
                 }
-                
+
                 if (processedCount == 100 && mergeCount == 0)
                 {
                     Log($"DEBUG: After 100 polygons, 0 merges. Attempts: {debugMergeAttempts}, Material: {debugMaterialFail}, Water: {debugWaterFail}, Vertex: {debugVertexCountFail}, Coplanar: {debugCoplanarFail}, Convex: {debugConvexFail}", statusCallback);
@@ -2494,7 +2496,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     statusCallback?.Invoke($"Polygon merging: {progress:F1}% ({mergeCount} merges performed)");
                 }
             }
-            
+
             Log($"Merge loop complete: processed {processedCount} polygons, performed {mergeCount} merges", statusCallback);
             Log($"Merge statistics:", statusCallback);
             Log($"  Total merge attempts: {debugMergeAttempts}", statusCallback);
@@ -2550,7 +2552,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return edgeDict;
         }
 
-        private NavSurfacePoly FindAdjacentPolygon(NavSurfacePoly poly, NavGenNode v1, NavGenNode v2, 
+        private NavSurfacePoly? FindAdjacentPolygon(NavSurfacePoly poly, NavGenNode v1, NavGenNode v2,
             List<NavSurfacePoly> polygons, EdgeDictionary edgeDict)
         {
             // Look up edge in dictionary
@@ -2624,7 +2626,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
             return true;
         }
-        
+
         private static int debugMergeAttempts = 0;
         private static int debugMaterialFail = 0;
         private static int debugWaterFail = 0;
@@ -2700,7 +2702,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return true;
         }
 
-        private List<NavGenNode> CreateMergedVertexList(NavSurfacePoly poly1, NavSurfacePoly poly2, 
+        private List<NavGenNode>? CreateMergedVertexList(NavSurfacePoly poly1, NavSurfacePoly poly2,
             NavGenNode sharedV1, NavGenNode sharedV2)
         {
             var mergedVertices = new List<NavGenNode>();
@@ -2755,12 +2757,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             poly1.CalculateNormalAndPlane();
         }
 
-        public int RemoveColinearEdges(Action<string> statusCallback = null)
+        public int RemoveColinearEdges(Action<string>? statusCallback = null)
         {
             return RemoveColinearEdges(surfacePolygons, statusCallback);
         }
 
-        public int RemoveColinearEdges(List<NavSurfacePoly> polygons, Action<string> statusCallback = null)
+        public int RemoveColinearEdges(List<NavSurfacePoly> polygons, Action<string>? statusCallback = null)
         {
             if (polygons == null || polygons.Count == 0)
             {
@@ -2918,12 +2920,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return removedCount;
         }
 
-        public int FillJaggedEdges(Action<string> statusCallback = null)
+        public int FillJaggedEdges(Action<string>? statusCallback = null)
         {
             return FillJaggedEdges(surfaceTriangles, statusCallback);
         }
 
-        public int FillJaggedEdges(List<NavSurfaceTri> triangles, Action<string> statusCallback = null)
+        public int FillJaggedEdges(List<NavSurfaceTri> triangles, Action<string>? statusCallback = null)
         {
             if (triangles == null || triangles.Count == 0)
             {
@@ -3012,12 +3014,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         private class EdgeGap
         {
-            public BoundaryEdge Edge1 { get; set; }
-            public BoundaryEdge Edge2 { get; set; }
+            public required BoundaryEdge Edge1 { get; set; }
+            public required BoundaryEdge Edge2 { get; set; }
             public float Distance { get; set; }
-            public NavGenNode SharedNode1 { get; set; } // Node from Edge1 closest to Edge2
-            public NavGenNode SharedNode2 { get; set; } // Node from Edge2 closest to Edge1
-            public NavGenNode ThirdNode { get; set; }   // Third node to form triangle
+            public required NavGenNode SharedNode1 { get; set; } // Node from Edge1 closest to Edge2
+            public required NavGenNode SharedNode2 { get; set; } // Node from Edge2 closest to Edge1
+            public required NavGenNode ThirdNode { get; set; }   // Third node to form triangle
         }
 
         private List<BoundaryEdge> IdentifyBoundaryEdges(List<NavSurfaceTri> triangles)
@@ -3099,8 +3101,8 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
                     // Find the closest nodes between the two edges
                     float minDist = float.MaxValue;
-                    NavGenNode closestNode1 = null;
-                    NavGenNode closestNode2 = null;
+                    NavGenNode? closestNode1 = null;
+                    NavGenNode? closestNode2 = null;
 
                     foreach (var n1 in new[] { edge1.Node1, edge1.Node2 })
                     {
@@ -3120,9 +3122,11 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     if (minDist > genParams.MaxTriangleSideLength)
                         continue;
 
+                    if (closestNode1 == null || closestNode2 == null) continue;
+
                     // Find the third node to form a triangle
                     // Try both remaining nodes from each edge
-                    NavGenNode thirdNode = null;
+                    NavGenNode? thirdNode = null;
                     float bestThirdNodeDist = float.MaxValue;
 
                     foreach (var n in new[] { edge1.Node1, edge1.Node2, edge2.Node1, edge2.Node2 })
@@ -3134,7 +3138,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                         float dist2 = (n.BasePosition - closestNode2.BasePosition).Length();
 
                         // Check if this node forms a reasonable triangle
-                        if (dist1 <= genParams.MaxTriangleSideLength && 
+                        if (dist1 <= genParams.MaxTriangleSideLength &&
                             dist2 <= genParams.MaxTriangleSideLength)
                         {
                             float avgDist = (dist1 + dist2) * 0.5f;
@@ -3169,7 +3173,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return gaps;
         }
 
-        private NavSurfaceTri TryCreateGapFillingTriangle(EdgeGap gap, List<NavSurfaceTri> existingTriangles)
+        private NavSurfaceTri? TryCreateGapFillingTriangle(EdgeGap gap, List<NavSurfaceTri> existingTriangles)
         {
             if (gap.SharedNode1 == null || gap.SharedNode2 == null || gap.ThirdNode == null)
                 return null;
@@ -3296,8 +3300,8 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 }
 
                 // Check if triangles are on very different Z levels (no intersection possible)
-                var existingCenter = (existingTri.Nodes[0].BasePosition + 
-                                     existingTri.Nodes[1].BasePosition + 
+                var existingCenter = (existingTri.Nodes[0].BasePosition +
+                                     existingTri.Nodes[1].BasePosition +
                                      existingTri.Nodes[2].BasePosition) / 3.0f;
 
                 float zDiff = Math.Abs(center.Z - existingCenter.Z);
@@ -3308,8 +3312,8 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 }
 
                 // Check if the new triangles center is inside the existing triangle
-                if (PointInTriangle2D(center, existingTri.Nodes[0].BasePosition, 
-                                     existingTri.Nodes[1].BasePosition, 
+                if (PointInTriangle2D(center, existingTri.Nodes[0].BasePosition,
+                                     existingTri.Nodes[1].BasePosition,
                                      existingTri.Nodes[2].BasePosition))
                 {
                     // Check Z distance to see if they actually overlap
@@ -3409,12 +3413,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             }
         }
 
-        public int SmoothBoundaryEdges(Action<string> statusCallback = null)
+        public int SmoothBoundaryEdges(Action<string>? statusCallback = null)
         {
             return SmoothBoundaryEdges(surfaceTriangles, statusCallback);
         }
 
-        public int SmoothBoundaryEdges(List<NavSurfaceTri> triangles, Action<string> statusCallback = null)
+        public int SmoothBoundaryEdges(List<NavSurfaceTri> triangles, Action<string>? statusCallback = null)
         {
             if (triangles == null || triangles.Count == 0)
             {
@@ -3666,7 +3670,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return vertexMoves;
         }
 
-        private bool ValidateVertexMove(NavGenNode vertex, Vector3 newPosition, List<NavSurfaceTri> allTriangles)
+        private bool ValidateVertexMove(NavGenNode? vertex, Vector3 newPosition, List<NavSurfaceTri> allTriangles)
         {
             if (vertex == null || vertex.SurroundingTriangles == null)
                 return false;
@@ -3799,12 +3803,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return (float)Math.Acos(Math.Clamp(dotProduct, -1f, 1f));
         }
 
-        public int RemoveSmallPatches(Action<string> statusCallback = null)
+        public int RemoveSmallPatches(Action<string>? statusCallback = null)
         {
             return RemoveSmallPatches(surfacePolygons, statusCallback);
         }
 
-        public int RemoveSmallPatches(List<NavSurfacePoly> polygons, Action<string> statusCallback = null)
+        public int RemoveSmallPatches(List<NavSurfacePoly> polygons, Action<string>? statusCallback = null)
         {
             if (polygons == null || polygons.Count == 0)
             {
@@ -4027,12 +4031,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             }
         }
 
-        public List<NavSurfacePoly> SplitPolygonsIntoGridCells(Action<string> statusCallback = null)
+        public List<NavSurfacePoly> SplitPolygonsIntoGridCells(Action<string>? statusCallback = null)
         {
             return SplitPolygonsIntoGridCells(surfacePolygons, statusCallback);
         }
 
-        public List<NavSurfacePoly> SplitPolygonsIntoGridCells(List<NavSurfacePoly> polygons, Action<string> statusCallback = null)
+        public List<NavSurfacePoly> SplitPolygonsIntoGridCells(List<NavSurfacePoly> polygons, Action<string>? statusCallback = null)
         {
             if (polygons == null || polygons.Count == 0)
             {
@@ -4044,21 +4048,21 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             {
                 NavGrid = new SpaceNavGrid();
                 // Apply R* grid parameters: WorldMin=(-6000,-6000), CellSize=150 (SectorWidth * SectorsPerNavMesh)
-                NavGrid.CellSize = genParams.NavGridCellSize;
-                NavGrid.CellSizeInv = 1.0f / NavGrid.CellSize;
-                NavGrid.CornerX = genParams.WorldMinX;
-                NavGrid.CornerY = genParams.WorldMinY;
+                Grid.CellSize = genParams.NavGridCellSize;
+                Grid.CellSizeInv = 1.0f / Grid.CellSize;
+                Grid.CornerX = genParams.WorldMinX;
+                Grid.CornerY = genParams.WorldMinY;
                 // Recalculate cell counts based on world extent (15000 / 150 = 100)
                 float worldExtent = 15000.0f; // -6000 to 9000
-                NavGrid.CellCountX = Math.Max(1, (int)(worldExtent / NavGrid.CellSize));
-                NavGrid.CellCountY = Math.Max(1, (int)(worldExtent / NavGrid.CellSize));
+                Grid.CellCountX = Math.Max(1, (int)(worldExtent / Grid.CellSize));
+                Grid.CellCountY = Math.Max(1, (int)(worldExtent / Grid.CellSize));
                 // Reinitialize cells array with correct dimensions
-                NavGrid.Cells = new SpaceNavGridCell[NavGrid.CellCountX, NavGrid.CellCountY];
-                for (int x = 0; x < NavGrid.CellCountX; x++)
+                Grid.Cells = new SpaceNavGridCell[Grid.CellCountX, Grid.CellCountY];
+                for (int x = 0; x < Grid.CellCountX; x++)
                 {
-                    for (int y = 0; y < NavGrid.CellCountY; y++)
+                    for (int y = 0; y < Grid.CellCountY; y++)
                     {
-                        NavGrid.Cells[x, y] = new SpaceNavGridCell(x, y);
+                        Grid.Cells[x, y] = new SpaceNavGridCell(x, y);
                     }
                 }
             }
@@ -4093,13 +4097,13 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     continue;
 
                 // Check if polygon crosses a grid boundary
-                Vector2I firstCellPos = NavGrid.GetCellPos(poly.Vertices[0].BasePosition);
+                Vector2I firstCellPos = Grid.GetCellPos(poly.Vertices[0].BasePosition);
                 int split1 = 0;
                 int split2 = 0;
 
                 for (int i = 1; i < poly.Vertices.Count; i++)
                 {
-                    Vector2I cellPos = NavGrid.GetCellPos(poly.Vertices[i].BasePosition);
+                    Vector2I cellPos = Grid.GetCellPos(poly.Vertices[i].BasePosition);
                     int coord1 = xaxis ? cellPos.X : cellPos.Y;
                     int coord2 = xaxis ? firstCellPos.X : firstCellPos.Y;
 
@@ -4231,12 +4235,12 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return newPolygons;
         }
 
-        public List<YnvFile> ConvertToYnvFiles(Action<string> statusCallback = null)
+        public List<YnvFile> ConvertToYnvFiles(Action<string>? statusCallback = null)
         {
             return ConvertToYnvFiles(surfacePolygons, statusCallback);
         }
 
-        public List<YnvFile> ConvertToYnvFiles(List<NavSurfacePoly> polygons, Action<string> statusCallback = null)
+        public List<YnvFile> ConvertToYnvFiles(List<NavSurfacePoly> polygons, Action<string>? statusCallback = null)
         {
             if (polygons == null || polygons.Count == 0)
             {
@@ -4247,19 +4251,19 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             if (NavGrid == null)
             {
                 NavGrid = new SpaceNavGrid();
-                NavGrid.CellSize = genParams.NavGridCellSize;
-                NavGrid.CellSizeInv = 1.0f / NavGrid.CellSize;
-                NavGrid.CornerX = genParams.WorldMinX;
-                NavGrid.CornerY = genParams.WorldMinY;
+                Grid.CellSize = genParams.NavGridCellSize;
+                Grid.CellSizeInv = 1.0f / Grid.CellSize;
+                Grid.CornerX = genParams.WorldMinX;
+                Grid.CornerY = genParams.WorldMinY;
                 float worldExtent = 15000.0f;
-                NavGrid.CellCountX = Math.Max(1, (int)(worldExtent / NavGrid.CellSize));
-                NavGrid.CellCountY = Math.Max(1, (int)(worldExtent / NavGrid.CellSize));
-                NavGrid.Cells = new SpaceNavGridCell[NavGrid.CellCountX, NavGrid.CellCountY];
-                for (int x = 0; x < NavGrid.CellCountX; x++)
+                Grid.CellCountX = Math.Max(1, (int)(worldExtent / Grid.CellSize));
+                Grid.CellCountY = Math.Max(1, (int)(worldExtent / Grid.CellSize));
+                Grid.Cells = new SpaceNavGridCell[Grid.CellCountX, Grid.CellCountY];
+                for (int x = 0; x < Grid.CellCountX; x++)
                 {
-                    for (int y = 0; y < NavGrid.CellCountY; y++)
+                    for (int y = 0; y < Grid.CellCountY; y++)
                     {
-                        NavGrid.Cells[x, y] = new SpaceNavGridCell(x, y);
+                        Grid.Cells[x, y] = new SpaceNavGridCell(x, y);
                     }
                 }
             }
@@ -4283,7 +4287,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 // Calculate position and determine grid cell
                 ynvPoly.CalculatePosition();
                 var pos = ynvPoly.Position;
-                var cell = NavGrid.GetCell(pos);
+                var cell = Grid.GetCell(pos) ?? throw new InvalidOperationException("Polygon lies outside the navigation grid.");
 
                 // Get or create YNV file for this cell
                 var ynv = cell.Ynv;
@@ -4293,11 +4297,11 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     ynv.Name = "navmesh[" + cell.FileX.ToString() + "][" + cell.FileY.ToString() + "]";
                     ynv.Nav = new NavMesh();
                     ynv.Nav.SetDefaults(false);
-                    ynv.Nav.AABBSize = new Vector3(NavGrid.CellSize, NavGrid.CellSize, 0.0f);
+                    ynv.Nav.AABBSize = new Vector3(Grid.CellSize, Grid.CellSize, 0.0f);
                     ynv.Nav.SectorTree = new NavMeshSector();
                     // R* sets initial Z bounds from exporter cutoffs: min=-500, max=1000
-                    var cellMin = NavGrid.GetCellMin(cell);
-                    var cellMax = NavGrid.GetCellMax(cell);
+                    var cellMin = Grid.GetCellMin(cell);
+                    var cellMax = Grid.GetCellMax(cell);
                     ynv.Nav.SectorTree.AABBMin = new Vector4(cellMin.X, cellMin.Y, genParams.ExporterMinZCutoff, 0.0f);
                     ynv.Nav.SectorTree.AABBMax = new Vector4(cellMax.X, cellMax.Y, genParams.ExporterMaxZCutoff, 0.0f);
                     ynv.AreaID = cell.X + cell.Y * 100;
@@ -4352,7 +4356,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
         /// Links all polygon edges: internal (within each YNV) and cross-cell (between generated YNVs).
         /// Must be called after ConvertToYnvFiles populates YnvFiles but before FinalizeYnvs.
         /// </summary>
-        private void LinkEdges(Action<string> statusCallback = null)
+        private void LinkEdges(Action<string>? statusCallback = null)
         {
             statusCallback?.Invoke("Linking polygon edges...");
 
@@ -4533,7 +4537,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
         /// For boundary edges that face outside the generation area, loads the existing adjacent
         /// YNV and sets up cross-boundary edge references so pathfinding works across the seam.
         /// </summary>
-        public int StitchToExistingNavMeshes(GameFileCache gameFileCache, Action<string> statusCallback = null)
+        public int StitchToExistingNavMeshes(GameFileCache gameFileCache, Action<string>? statusCallback = null)
         {
             if (YnvFiles == null || YnvFiles.Count == 0 || NavGrid == null)
                 return 0;
@@ -4574,7 +4578,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                         continue;
 
                     // Try to load existing adjacent YNV from game files
-                    YnvFile existingYnv = null;
+                    YnvFile? existingYnv = null;
                     try
                     {
                         existingYnv = gameFileCache.GetYnv((uint)neighborAreaID);
@@ -4597,8 +4601,8 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     }
 
                     // Determine which boundary we share
-                    var cellMin = NavGrid.GetCellMin(NavGrid.Cells[cellX, cellY]);
-                    var cellMax = NavGrid.GetCellMax(NavGrid.Cells[cellX, cellY]);
+                    var cellMin = Grid.GetCellMin(Grid.Cells[cellX, cellY]);
+                    var cellMax = Grid.GetCellMax(Grid.Cells[cellX, cellY]);
 
                     float boundaryCoord;
                     bool isXBoundary; // true = shared boundary is a vertical line (X=const), false = horizontal (Y=const)
@@ -4712,7 +4716,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                     float edgeMidZ = (v1.Z + v2.Z) * 0.5f;
 
                     // Find the best matching existing boundary edge
-                    YnvPoly bestMatch = null;
+                    YnvPoly? bestMatch = null;
                     float bestOverlap = 0;
 
                     foreach (var (existPoly, ei, ev1, ev2, existMin, existMax) in existingBoundaryEdges)
@@ -4761,7 +4765,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
         public Vector3 BasePosition { get; set; }
         public List<NavSurfaceTri> SurroundingTriangles { get; set; } = new();
         public List<NavTriEdge> SurroundingEdges { get; set; } = new();
-        public NavGenTri CollisionTriangle { get; set; }
+        public NavGenTri? CollisionTriangle { get; set; }
         public MaterialType Material { get; set; }
         public bool IsWater { get; set; }
         public bool IsRemoved { get; set; }
@@ -4863,10 +4867,10 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
     public class NavTriEdge
     {
-        public NavGenNode Node1 { get; set; }
-        public NavGenNode Node2 { get; set; }
-        public NavSurfaceTri Tri1 { get; set; }
-        public NavSurfaceTri Tri2 { get; set; }
+        public required NavGenNode Node1 { get; set; }
+        public required NavGenNode Node2 { get; set; }
+        public required NavSurfaceTri Tri1 { get; set; }
+        public NavSurfaceTri? Tri2 { get; set; }
         public float CostNode1ToNode2 { get; set; }
         public float CostNode2ToNode1 { get; set; }
         public bool IsRemoved { get; set; }
@@ -4945,7 +4949,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return totalArea;
         }
 
-        public YnvPoly ToYnvPoly()
+        public YnvPoly? ToYnvPoly()
         {
             if (Vertices == null || Vertices.Count < 3)
                 return null;
@@ -5078,12 +5082,13 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
         {
             public Vector3 Min { get; set; }
             public Vector3 Max { get; set; }
-            public List<NavGenTri> Triangles { get; set; }
-            public OctreeNode[] Children { get; set; }
+            public List<NavGenTri> Triangles { get; set; } = [];
+            public OctreeNode[]? Children { get; set; }
+            [MemberNotNullWhen(false, nameof(Children))]
             public bool IsLeaf => Children == null;
         }
 
-        private OctreeNode root;
+        private OctreeNode? root;
         private int maxTrianglesPerLeaf = 10;
         private int maxDepth = 8;
 
@@ -5202,7 +5207,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
         {
             public bool Hit { get; set; }
             public Vector3 Position { get; set; }
-            public NavGenTri Triangle { get; set; }
+            public NavGenTri? Triangle { get; set; }
             public float Distance { get; set; }
         }
 
@@ -5364,7 +5369,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             public List<NavGenNode> Nodes { get; set; } = new();
         }
 
-        private NodeList[,] nodeGrid;
+        private NodeList[,] nodeGrid = new NodeList[0, 0];
         private Vector3 gridMin;
         private Vector3 gridMax;
         private float cellSize;
@@ -5404,7 +5409,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             }
         }
 
-        public NavGenNode GetNode(Vector3 position, float zInterval, float xyEpsilon)
+        public NavGenNode? GetNode(Vector3 position, float zInterval, float xyEpsilon)
         {
             var gridPos = WorldToGrid(position);
             if (!IsValidGridPos(gridPos))
@@ -5427,14 +5432,14 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return null;
         }
 
-        public NavGenNode GetHighestNodeBelow(Vector3 position, float maxZ)
+        public NavGenNode? GetHighestNodeBelow(Vector3 position, float maxZ)
         {
             var gridPos = WorldToGrid(position);
             if (!IsValidGridPos(gridPos))
                 return null;
 
             var nodes = nodeGrid[gridPos.X, gridPos.Y].Nodes;
-            NavGenNode highest = null;
+            NavGenNode? highest = null;
             float highestZ = float.MinValue;
 
             foreach (var node in nodes)
@@ -5458,7 +5463,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
             return new List<NavGenNode>();
         }
 
-        public NavGenNode GetAdjacentNode(NavGenNode node, int dx, int dy, float maxHeightDiff)
+        public NavGenNode? GetAdjacentNode(NavGenNode node, int dx, int dy, float maxHeightDiff)
         {
             var gridPos = WorldToGrid(node.BasePosition);
             var adjGridPos = new Vector2I(gridPos.X + dx, gridPos.Y + dy);
@@ -5467,7 +5472,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 return null;
 
             var nodes = nodeGrid[adjGridPos.X, adjGridPos.Y].Nodes;
-            NavGenNode closest = null;
+            NavGenNode? closest = null;
             float closestDist = float.MaxValue;
 
             foreach (var adjNode in nodes)
@@ -5542,7 +5547,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
                 return V1.Equals(other.V1) && V2.Equals(other.V2);
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 return obj is EdgeKey other && Equals(other);
             }
@@ -5550,7 +5555,7 @@ namespace CodeWalker.Core.GameFiles.FileTypes.Builders
 
         private Dictionary<EdgeKey, NavTriEdge> edges = new();
 
-        public NavTriEdge TryGetEdge(Vector3 v1, Vector3 v2)
+        public NavTriEdge? TryGetEdge(Vector3 v1, Vector3 v2)
         {
             var key = new EdgeKey(v1, v2);
             edges.TryGetValue(key, out var edge);

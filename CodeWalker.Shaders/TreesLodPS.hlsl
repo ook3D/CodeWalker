@@ -20,7 +20,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     float3 norm = input.Normal;
     float lf = saturate(dot(normalize(norm), GlobalLights.LightDir.xyz));
 
-    c.rgb = GlobalLighting(c.rgb, norm, input.Colour, lf, GlobalLights);
+    c.rgb = GlobalLighting(MaterialDiffuseColour(c.rgb), norm, input.Colour, lf, GlobalLights);
     c.a = saturate(c.a);
 
     return c;

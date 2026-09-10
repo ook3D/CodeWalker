@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYbnPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YbnFile Ybn { get; set; }
+        public YbnFile? Ybn { get; set; }
 
         //private bool populatingui = false;
         private bool waschanged = false;
@@ -50,7 +50,7 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = Ybn?.RpfFileEntry?.Name ?? Ybn?.Name;
+            string? fn = Ybn?.RpfFileEntry?.Name ?? Ybn?.Name;
             if (string.IsNullOrEmpty(fn)) fn = "untitled.ybn";
             Text = fn + ((Ybn?.HasChanged??false) ? "*" : "");
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace CodeWalker.Core.Utils;
 
@@ -37,13 +38,17 @@ public static class SimdMath
             var m42 = new System.Numerics.Vector<float>(transform.M42);
             var m43 = new System.Numerics.Vector<float>(transform.M43);
 
+            // Reuse scratch buffers; stackalloc inside the loop grows with input size.
+            Span<float> xValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> yValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> zValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> rxValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> ryValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> rzValues = stackalloc float[System.Numerics.Vector<float>.Count];
+
             for (; i < simdLength; i += System.Numerics.Vector<float>.Count)
             {
                 // Load X, Y, Z components
-                Span<float> xValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> yValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> zValues = stackalloc float[System.Numerics.Vector<float>.Count];
-
                 for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < source.Length; j++)
                 {
                     xValues[j] = source[i + j].X;
@@ -61,10 +66,6 @@ public static class SimdMath
                 var rz = m13 * vx + m23 * vy + m33 * vz + m43;
 
                 // Store results
-                Span<float> rxValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> ryValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> rzValues = stackalloc float[System.Numerics.Vector<float>.Count];
-
                 rx.CopyTo(rxValues);
                 ry.CopyTo(ryValues);
                 rz.CopyTo(rzValues);
@@ -97,49 +98,22 @@ public static class SimdMath
         if (source.Length != destination.Length)
             throw new ArgumentException("Source and destination spans must have the same length");
 
+        // SharpDX.Vector3 stores three consecutive floats. Scalar multiplication does
+        // not need to gather/scatter components into separate SIMD scratch buffers.
+        var values = MemoryMarshal.Cast<SharpDX.Vector3, float>(source);
+        var output = MemoryMarshal.Cast<SharpDX.Vector3, float>(destination);
         int i = 0;
-        int simdLength = source.Length - (source.Length % System.Numerics.Vector<float>.Count);
-
-        if (System.Numerics.Vector.IsHardwareAccelerated && simdLength >= System.Numerics.Vector<float>.Count)
+        if (System.Numerics.Vector.IsHardwareAccelerated)
         {
-            var scalarVec = new System.Numerics.Vector<float>(scalar);
-
-            for (; i < simdLength; i += System.Numerics.Vector<float>.Count)
+            int width = System.Numerics.Vector<float>.Count;
+            var multiplier = new System.Numerics.Vector<float>(scalar);
+            for (; i <= values.Length - width; i += width)
             {
-                Span<float> xValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> yValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> zValues = stackalloc float[System.Numerics.Vector<float>.Count];
-
-                for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < source.Length; j++)
-                {
-                    xValues[j] = source[i + j].X;
-                    yValues[j] = source[i + j].Y;
-                    zValues[j] = source[i + j].Z;
-                }
-
-                var vx = new System.Numerics.Vector<float>(xValues) * scalarVec;
-                var vy = new System.Numerics.Vector<float>(yValues) * scalarVec;
-                var vz = new System.Numerics.Vector<float>(zValues) * scalarVec;
-
-                Span<float> rxValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> ryValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> rzValues = stackalloc float[System.Numerics.Vector<float>.Count];
-
-                vx.CopyTo(rxValues);
-                vy.CopyTo(ryValues);
-                vz.CopyTo(rzValues);
-
-                for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < destination.Length; j++)
-                {
-                    destination[i + j] = new SharpDX.Vector3(rxValues[j], ryValues[j], rzValues[j]);
-                }
+                var batch = new System.Numerics.Vector<float>(values.Slice(i, width));
+                (batch * multiplier).CopyTo(output.Slice(i, width));
             }
         }
-
-        for (; i < source.Length; i++)
-        {
-            destination[i] = source[i] * scalar;
-        }
+        for (; i < values.Length; i++) output[i] = values[i] * scalar;
     }
 
     /// <summary>
@@ -156,15 +130,17 @@ public static class SimdMath
 
         if (System.Numerics.Vector.IsHardwareAccelerated && simdLength >= System.Numerics.Vector<float>.Count)
         {
+            // Reuse scratch buffers; stackalloc inside the loop grows with input size.
+            Span<float> ax = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> ay = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> az = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> bx = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> by = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> bz = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> dotValues = stackalloc float[System.Numerics.Vector<float>.Count];
+
             for (; i < simdLength; i += System.Numerics.Vector<float>.Count)
             {
-                Span<float> ax = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> ay = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> az = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> bx = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> by = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> bz = stackalloc float[System.Numerics.Vector<float>.Count];
-
                 for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < a.Length; j++)
                 {
                     ax[j] = a[i + j].X;
@@ -184,7 +160,6 @@ public static class SimdMath
 
                 var dot = vax * vbx + vay * vby + vaz * vbz;
 
-                Span<float> dotValues = stackalloc float[System.Numerics.Vector<float>.Count];
                 dot.CopyTo(dotValues);
 
                 for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < results.Length; j++)
@@ -219,12 +194,14 @@ public static class SimdMath
             var nz = new System.Numerics.Vector<float>(plane.Normal.Z);
             var d = new System.Numerics.Vector<float>(plane.D);
 
+            // Reuse scratch buffers; stackalloc inside the loop grows with input size.
+            Span<float> px = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> py = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> pz = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> distValues = stackalloc float[System.Numerics.Vector<float>.Count];
+
             for (; i < simdLength; i += System.Numerics.Vector<float>.Count)
             {
-                Span<float> px = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> py = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> pz = stackalloc float[System.Numerics.Vector<float>.Count];
-
                 for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < points.Length; j++)
                 {
                     px[j] = points[i + j].X;
@@ -238,7 +215,6 @@ public static class SimdMath
 
                 var dist = vpx * nx + vpy * ny + vpz * nz + d;
 
-                Span<float> distValues = stackalloc float[System.Numerics.Vector<float>.Count];
                 dist.CopyTo(distValues);
 
                 for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < distances.Length; j++)
@@ -314,17 +290,22 @@ public static class SimdMath
             var blendVec = new System.Numerics.Vector<float>(blend);
             var oneMinusBlend = new System.Numerics.Vector<float>(1.0f - blend);
 
+            // Reuse scratch buffers; stackalloc inside the loop grows with input size.
+            Span<float> r1 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> g1 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> b1 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> a1 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> r2 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> g2 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> b2 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> a2 = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> rrValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> rgValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> rbValues = stackalloc float[System.Numerics.Vector<float>.Count];
+            Span<float> raValues = stackalloc float[System.Numerics.Vector<float>.Count];
+
             for (; i < simdLength; i += System.Numerics.Vector<float>.Count)
             {
-                Span<float> r1 = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> g1 = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> b1 = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> a1 = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> r2 = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> g2 = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> b2 = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> a2 = stackalloc float[System.Numerics.Vector<float>.Count];
-
                 for (int j = 0; j < System.Numerics.Vector<float>.Count && (i + j) < colors1.Length; j++)
                 {
                     r1[j] = colors1[i + j].Red;
@@ -350,11 +331,6 @@ public static class SimdMath
                 var rg = vg1 * oneMinusBlend + vg2 * blendVec;
                 var rb = vb1 * oneMinusBlend + vb2 * blendVec;
                 var ra = va1 * oneMinusBlend + va2 * blendVec;
-
-                Span<float> rrValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> rgValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> rbValues = stackalloc float[System.Numerics.Vector<float>.Count];
-                Span<float> raValues = stackalloc float[System.Numerics.Vector<float>.Count];
 
                 rr.CopyTo(rrValues);
                 rg.CopyTo(rgValues);

@@ -28,7 +28,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     output.Diffuse = c;
     output.Normal = float4(saturate(norm * 0.5 + 0.5), c.a);
     output.Specular = float4(spec, c.a);
-    output.Irradiance = float4(1, 0, 0, c.a);
+    output.Irradiance = float4(EncodeAmbient(input.Colour.rg), 0, c.a);
 
     return output;
 

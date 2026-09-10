@@ -143,7 +143,7 @@ namespace CodeWalker.Rendering
             return srv;
         }
 
-        public static UnorderedAccessView CreateUnorderedAccessView(Device device, Resource resource, Format format, UnorderedAccessViewDimension viewDimension, int firstElement, int numElements, UnorderedAccessViewBufferFlags flags, int mipSlice)
+        public static UnorderedAccessView? CreateUnorderedAccessView(Device device, Resource resource, Format format, UnorderedAccessViewDimension viewDimension, int firstElement, int numElements, UnorderedAccessViewBufferFlags flags, int mipSlice)
         {
             UnorderedAccessViewDescription uavd = new UnorderedAccessViewDescription();
             uavd.Format = format;

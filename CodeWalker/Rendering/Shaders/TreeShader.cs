@@ -158,7 +158,6 @@ namespace CodeWalker.Rendering
         }
 
 
-        private VertexType currentVS = VertexType.Default;
 
         public override void SetShader(DeviceContext context)
         {
@@ -167,14 +166,14 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout layout;
+            InputLayout? layout;
             if (!layouts.TryGetValue(type, out layout))
             {
                 return false;
             }
 
             // Determine which VS to use based on whether type has Colour1
-            VertexShader vs;
+            VertexShader? vs;
             if (!vsDict.TryGetValue(type, out vs))
             {
                 // Check if it's a PNCCT-family type (has two colour channels)
@@ -188,7 +187,7 @@ namespace CodeWalker.Rendering
             return true;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Vars.WindVector = WindVector;
@@ -251,8 +250,8 @@ namespace CodeWalker.Rendering
             VSWindVars.SetVSCBuffer(context, 9);
 
             // PS Geom vars
-            RenderableTexture diffuse = null;
-            RenderableTexture tintpal = null;
+            RenderableTexture? diffuse = null;
+            RenderableTexture? tintpal = null;
 
             PSGeomVars.Vars.EnableTexture = 0;
             PSGeomVars.Vars.EnableTint = 0;
@@ -265,7 +264,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.bumpiness = geom.bumpiness;
             PSGeomVars.Vars.AlphaScale = 1.0f;
             PSGeomVars.Vars.HardAlphaBlend = 0.0f;
-            PSGeomVars.Vars.useTessellation = 0;
+            PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode((geom.DrawableGeom?.Shader?.FileName.Hash ?? 0), (geom.DrawableGeom?.Shader?.RenderBucket ?? 0));
             PSGeomVars.Vars.specMapIntMask = geom.specMapIntMask;
             PSGeomVars.Vars.specularIntensityMult = geom.specularIntensityMult;
             PSGeomVars.Vars.specularFalloffMult = geom.specularFalloffMult;
@@ -291,8 +290,7 @@ namespace CodeWalker.Rendering
                 }
             }
 
-            bool usediff = ((diffuse != null) && (diffuse.Texture2D != null) && (diffuse.ShaderResourceView != null));
-            if (usediff)
+            if (diffuse is { Texture2D: not null, ShaderResourceView: not null })
             {
                 PSGeomVars.Vars.EnableTexture = 1;
                 context.PixelShader.SetSampler(0, texsampler);

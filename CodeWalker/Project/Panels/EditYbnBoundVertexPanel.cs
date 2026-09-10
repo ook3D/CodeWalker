@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYbnBoundVertexPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public BoundVertex CollisionVertex { get; set; }
+        public BoundVertex? CollisionVertex { get; set; }
 
         private bool populatingui = false;
         private bool waschanged = false;

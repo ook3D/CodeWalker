@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditMultiPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public MapSelection[] Items { get; set; }
+        public MapSelection[]? Items { get; set; }
         public MapSelection MultiItem;
 
         private bool populatingui = false;

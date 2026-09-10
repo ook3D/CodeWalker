@@ -46,12 +46,12 @@ namespace CodeWalker.WinForms
         private Quaternion _Value = Quaternion.Identity;
         private bool suppressEvents = false;
 
-        public event EventHandler ValueChanged;
+        public event EventHandler? ValueChanged;
         private void RaiseValueChanged()
         {
             if (suppressEvents) return;
             if (ValueChanged == null) return;
-            ValueChanged(this, null);
+            ValueChanged?.Invoke(this, EventArgs.Empty);
         }
 
 

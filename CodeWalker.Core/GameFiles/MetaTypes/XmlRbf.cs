@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
@@ -21,19 +20,22 @@ namespace CodeWalker.GameFiles
             using (var reader = new XmlNodeReader(doc))
             {
                 reader.MoveToContent();
-                rbf.current = (RbfStructure) Traverse(XDocument.Load(reader).Root);
+                var root = XDocument.Load(reader).Root
+                    ?? throw new XmlException("The RBF document must have a root element.");
+                rbf.current = Traverse(root) as RbfStructure
+                    ?? throw new XmlException("The RBF root must be a structure.");
             }
 
             return rbf;
         }
 
-        private static IRbfType Traverse(XNode node)
+        private static IRbfType? Traverse(XNode node)
         {
             if (node is XElement element)
             {
-                if (element.Attribute("value") != null)
+                if (element.Attribute("value") is { } valueAttribute)
                 {
-                    var val = element.Attribute("value").Value;
+                    var val = valueAttribute.Value;
                     if (!string.IsNullOrEmpty(val))
                     {
                         var rval = CreateValueNode(element.Name.LocalName, val);
@@ -43,11 +45,11 @@ namespace CodeWalker.GameFiles
                         }
                     }
                 }
-                else if ((element.Attributes().Count() == 3) && (element.Attribute("x") != null) && (element.Attribute("y") != null) && (element.Attribute("z") != null))
+                else if ((element.Attributes().Count() == 3) && (element.Attribute("x") is { } xAttribute) && (element.Attribute("y") is { } yAttribute) && (element.Attribute("z") is { } zAttribute))
                 {
-                    FloatUtil.TryParse(element.Attribute("x").Value, out float x);
-                    FloatUtil.TryParse(element.Attribute("y").Value, out float y);
-                    FloatUtil.TryParse(element.Attribute("z").Value, out float z);
+                    FloatUtil.TryParse(xAttribute.Value, out float x);
+                    FloatUtil.TryParse(yAttribute.Value, out float y);
+                    FloatUtil.TryParse(zAttribute.Value, out float z);
                     return new RbfFloat3()
                     {
                         Name = element.Name.LocalName,
@@ -58,10 +60,7 @@ namespace CodeWalker.GameFiles
                 }
                 else if ((element.Elements().Count() == 0) && (element.Attributes().Count() == 0) && (!element.IsEmpty)) //else if (element.Name == "type" || element.Name == "key" || element.Name == "platform")
                 {
-                    var bytearr = Encoding.ASCII.GetBytes(element.Value);
-                    var bytearrnt = new byte[bytearr.Length + 1];
-                    Buffer.BlockCopy(bytearr, 0, bytearrnt, 0, bytearr.Length);
-                    var bytes = new RbfBytes() { Value = bytearrnt };
+                    var bytes = new RbfBytes() { Value = GetNullTerminatedAscii(element.Value) };
                     var struc = new RbfStructure() { Name = element.Name.LocalName };
                     struc.Children.Add(bytes);
                     return struc;
@@ -91,7 +90,7 @@ namespace CodeWalker.GameFiles
             }
             else if (node is XText text)
             {
-                byte[] bytes = null;
+                byte[]? bytes = null;
                 var contentAttr = node.Parent?.Attribute("content");
                 if (contentAttr != null)
                 {
@@ -108,7 +107,7 @@ namespace CodeWalker.GameFiles
                 }
                 else
                 {
-                    bytes = Encoding.ASCII.GetBytes(text.Value).Concat(new byte[] { 0x00 }).ToArray();
+                    bytes = GetNullTerminatedAscii(text.Value);
                 }
                 if (bytes != null)
                 {
@@ -173,37 +172,37 @@ namespace CodeWalker.GameFiles
 
 
 
-        private static byte[] GetByteArray(string text)
+        private static byte[] GetNullTerminatedAscii(string text)
+        {
+            var bytes = new byte[Encoding.ASCII.GetByteCount(text) + 1];
+            Encoding.ASCII.GetBytes(text.AsSpan(), bytes.AsSpan());
+            return bytes;
+        }
+
+        private static byte[]? GetByteArray(string? text)
         {
             if (string.IsNullOrEmpty(text)) return null;
             var data = new List<byte>();
-            var split = Regex.Split(text, @"[\s\r\n\t]");
-            for (int i = 0; i < split.Length; i++)
+            var span = text.AsSpan();
+            foreach (var range in span.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                if (!string.IsNullOrEmpty(split[i]))
-                {
-                    var str = split[i];
-                    if (string.IsNullOrEmpty(str)) continue;
-                    var val = Convert.ToByte(str);
-                    data.Add(val);
-                }
+                var token = span[range];
+                if (token.IsEmpty) continue;
+                data.Add(byte.Parse(token, CultureInfo.CurrentCulture));
             }
             return data.ToArray();
         }
         private static byte[] GetUshortArray(string text)
         {
             var data = new List<byte>();
-            var split = Regex.Split(text, @"[\s\r\n\t]");
-            for (int i = 0; i < split.Length; i++)
+            var span = text.AsSpan();
+            foreach (var range in span.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                if (!string.IsNullOrEmpty(split[i]))
-                {
-                    var str = split[i];
-                    if (string.IsNullOrEmpty(str)) continue;
-                    var val = Convert.ToUInt16(str);
-                    data.Add((byte)((val >> 0) & 0xFF));
-                    data.Add((byte)((val >> 8) & 0xFF));
-                }
+                var token = span[range];
+                if (token.IsEmpty) continue;
+                var val = ushort.Parse(token, CultureInfo.CurrentCulture);
+                data.Add((byte)(val & 0xFF));
+                data.Add((byte)(val >> 8));
             }
             return data.ToArray();
         }

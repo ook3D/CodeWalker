@@ -289,7 +289,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static PsoStructureInfo GetStructureInfo(MetaName name)
+        public static PsoStructureInfo? GetStructureInfo(MetaName name)
         {
             //to generate structinfos
             switch (name)
@@ -14279,7 +14279,7 @@ namespace CodeWalker.GameFiles
                     return null;
             }
         }
-        public static PsoEnumInfo GetEnumInfo(MetaName name)
+        public static PsoEnumInfo? GetEnumInfo(MetaName name)
         {
             //to generate enuminfos
             switch (name)
@@ -15863,36 +15863,36 @@ namespace CodeWalker.GameFiles
 
         public static T GetItem<T>(PsoFile pso, int offset) where T : struct, IPsoSwapEnd
         {
-            return ConvertData<T>(pso.DataSection.Data, offset);
+            return ConvertData<T>(pso.RequiredDataSection.Data, offset);
         }
         public static T GetRootItem<T>(PsoFile pso) where T : struct, IPsoSwapEnd
         {
-            var i = pso.DataMapSection.RootId - 1;
-            var e = pso.DataMapSection.Entries[i];
+            var i = pso.RequiredDataMapSection.RootId - 1;
+            var e = pso.RequiredDataMapSection.Entries[i];
             return GetItem<T>(pso, e.Offset);
         }
         public static PsoDataMappingEntry GetRootEntry(PsoFile pso)
         {
-            var i = pso.DataMapSection.RootId - 1;
-            var e = pso.DataMapSection.Entries[i];
+            var i = pso.RequiredDataMapSection.RootId - 1;
+            var e = pso.RequiredDataMapSection.Entries[i];
             return e;
         }
 
-        public static T[] GetItemArrayRaw<T>(PsoFile pso, Array_Structure arr) where T : struct
+        public static T[]? GetItemArrayRaw<T>(PsoFile pso, Array_Structure arr) where T : struct
         {
             if ((arr.Count1 > 0) && (arr.Pointer > 0))
             {
-                var entry = pso.DataMapSection.Entries[arr.PointerDataIndex];
-                return ConvertDataArrayRaw<T>(pso.DataSection.Data, entry.Offset + (int)arr.PointerDataOffset, arr.Count1);
+                var entry = pso.RequiredDataMapSection.Entries[arr.PointerDataIndex];
+                return ConvertDataArrayRaw<T>(pso.RequiredDataSection.Data, entry.Offset + (int)arr.PointerDataOffset, arr.Count1);
             }
             return null;
         }
-        public static T[] GetItemArray<T>(PsoFile pso, Array_Structure arr) where T : struct, IPsoSwapEnd
+        public static T[]? GetItemArray<T>(PsoFile pso, Array_Structure arr) where T : struct, IPsoSwapEnd
         {
             if ((arr.Count1 > 0) && (arr.Pointer > 0))
             {
-                var entry = pso.DataMapSection.Entries[arr.PointerDataIndex];
-                var res = ConvertDataArrayRaw<T>(pso.DataSection.Data, entry.Offset + (int)arr.PointerDataOffset, arr.Count1);
+                var entry = pso.RequiredDataMapSection.Entries[arr.PointerDataIndex];
+                var res = ConvertDataArrayRaw<T>(pso.RequiredDataSection.Data, entry.Offset + (int)arr.PointerDataOffset, arr.Count1);
                 if (res != null)
                 {
                     for (int i = 0; i < res.Length; i++)
@@ -15906,23 +15906,23 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static uint[] GetUintArrayRaw(PsoFile pso, Array_uint arr)
+        public static uint[]? GetUintArrayRaw(PsoFile pso, Array_uint arr)
         {
-            byte[] data = pso.DataSection.Data;
+            byte[] data = pso.RequiredDataSection.Data;
             var entryid = arr.PointerDataId;
-            if ((entryid == 0) || (entryid > pso.DataMapSection.EntriesCount))
+            if ((entryid == 0) || (entryid > pso.RequiredDataMapSection.EntriesCount))
             {
                 return null;
             }
             var entryoffset = arr.PointerDataOffset;
-            var arrentry = pso.DataMapSection.Entries[(int)entryid - 1];
+            var arrentry = pso.RequiredDataMapSection.Entries[(int)entryid - 1];
             int totoffset = arrentry.Offset + (int)entryoffset;
             uint[] readdata = ConvertDataArrayRaw<uint>(data, totoffset, arr.Count1);
             return readdata;
         }
-        public static uint[] GetUintArray(PsoFile pso, Array_uint arr)
+        public static uint[]? GetUintArray(PsoFile pso, Array_uint arr)
         {
-            uint[] uints = GetUintArrayRaw(pso, arr);
+            var uints = GetUintArrayRaw(pso, arr);
             if (uints == null) return null;
             for (int i = 0; i < uints.Length; i++)
             {
@@ -15931,9 +15931,9 @@ namespace CodeWalker.GameFiles
             return uints;
         }
 
-        public static MetaHash[] GetHashArray(PsoFile pso, Array_uint arr)
+        public static MetaHash[]? GetHashArray(PsoFile pso, Array_uint arr)
         {
-            uint[] uints = GetUintArrayRaw(pso, arr);
+            var uints = GetUintArrayRaw(pso, arr);
             if (uints == null) return null;
             MetaHash[] hashes = new MetaHash[uints.Length];
             for (int n = 0; n < uints.Length; n++)
@@ -15946,23 +15946,23 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static float[] GetFloatArrayRaw(PsoFile pso, Array_float arr)
+        public static float[]? GetFloatArrayRaw(PsoFile pso, Array_float arr)
         {
-            byte[] data = pso.DataSection.Data;
+            byte[] data = pso.RequiredDataSection.Data;
             var entryid = arr.PointerDataId;
-            if ((entryid == 0) || (entryid > pso.DataMapSection.EntriesCount))
+            if ((entryid == 0) || (entryid > pso.RequiredDataMapSection.EntriesCount))
             {
                 return null;
             }
             var entryoffset = arr.PointerDataOffset;
-            var arrentry = pso.DataMapSection.Entries[(int)entryid - 1];
+            var arrentry = pso.RequiredDataMapSection.Entries[(int)entryid - 1];
             int totoffset = arrentry.Offset + (int)entryoffset;
             float[] readdata = ConvertDataArrayRaw<float>(data, totoffset, arr.Count1);
             return readdata;
         }
-        public static float[] GetFloatArray(PsoFile pso, Array_float arr)
+        public static float[]? GetFloatArray(PsoFile pso, Array_float arr)
         {
-            float[] floats = GetFloatArrayRaw(pso, arr);
+            var floats = GetFloatArrayRaw(pso, arr);
             if (floats == null) return null;
             for (int i = 0; i < floats.Length; i++)
             {
@@ -15975,23 +15975,23 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static ushort[] GetUShortArrayRaw(PsoFile pso, Array_Structure arr)
+        public static ushort[]? GetUShortArrayRaw(PsoFile pso, Array_Structure arr)
         {
-            byte[] data = pso.DataSection.Data;
+            byte[] data = pso.RequiredDataSection.Data;
             var entryid = arr.PointerDataId;
-            if ((entryid == 0) || (entryid > pso.DataMapSection.EntriesCount))
+            if ((entryid == 0) || (entryid > pso.RequiredDataMapSection.EntriesCount))
             {
                 return null;
             }
             var entryoffset = arr.PointerDataOffset;
-            var arrentry = pso.DataMapSection.Entries[(int)entryid - 1];
+            var arrentry = pso.RequiredDataMapSection.Entries[(int)entryid - 1];
             int totoffset = arrentry.Offset + (int)entryoffset;
             ushort[] readdata = ConvertDataArrayRaw<ushort>(data, totoffset, arr.Count1);
             return readdata;
         }
-        public static ushort[] GetUShortArray(PsoFile pso, Array_Structure arr)
+        public static ushort[]? GetUShortArray(PsoFile pso, Array_Structure arr)
         {
-            ushort[] ushorts = GetUShortArrayRaw(pso, arr);
+            var ushorts = GetUShortArrayRaw(pso, arr);
             if (ushorts == null) return null;
             for (int i = 0; i < ushorts.Length; i++)
             {
@@ -16005,9 +16005,9 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static T[] GetObjectArray<T, U>(PsoFile pso, Array_Structure arr) where U : struct, IPsoSwapEnd where T : PsoClass<U>, new()
+        public static T[]? GetObjectArray<T, U>(PsoFile pso, Array_Structure arr) where U : struct, IPsoSwapEnd where T : PsoClass<U>, new()
         {
-            U[] items = GetItemArray<U>(pso, arr);
+            var items = GetItemArray<U>(pso, arr);
             if (items == null) return null;
             if (items.Length == 0) return null;
             T[] result = new T[items.Length];
@@ -16021,7 +16021,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static byte[] GetByteArray(PsoFile pso, PsoStructureEntryInfo entry, int offset)
+        public static byte[]? GetByteArray(PsoFile pso, PsoStructureEntryInfo entry, int offset)
         {
             var aCount = (entry.ReferenceKey >> 16) & 0x0000FFFF;
             var aBlockId = (int)entry.ReferenceKey & 0x0000FFFF;
@@ -16038,7 +16038,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static PsoPOINTER[] GetPointerArray(PsoFile pso, Array_StructurePointer array)
+        public static PsoPOINTER[]? GetPointerArray(PsoFile pso, Array_StructurePointer array)
         {
             uint count = array.Count1;
             if (count == 0) return null;
@@ -16047,14 +16047,14 @@ namespace CodeWalker.GameFiles
             int itemsleft = (int)count; //large arrays get split into chunks...
             uint ptrindex = array.PointerDataIndex;
             uint ptroffset = array.PointerDataOffset;
-            var ptrblock = (ptrindex < pso.DataMapSection.EntriesCount) ? pso.DataMapSection.Entries[ptrindex] : null;
+            var ptrblock = (ptrindex < pso.RequiredDataMapSection.EntriesCount) ? pso.RequiredDataMapSection.Entries[ptrindex] : null;
             if ((ptrblock == null) || (ptrblock.NameHash != (MetaName)MetaTypeName.PsoPOINTER))
             { return null; }
 
             var offset = ptrblock.Offset;
             int boffset = (int)(offset + ptroffset);
 
-            var ptrs = ConvertDataArrayRaw<PsoPOINTER>(pso.DataSection.Data, boffset, (int)count);
+            var ptrs = ConvertDataArrayRaw<PsoPOINTER>(pso.RequiredDataSection.Data, boffset, (int)count);
             if (ptrs != null)
             {
                 for (int i = 0; i < ptrs.Length; i++)
@@ -16067,11 +16067,11 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static T[] ConvertDataArray<T>(PsoFile pso, Array_StructurePointer array) where T : struct, IPsoSwapEnd
+        public static T[]? ConvertDataArray<T>(PsoFile pso, Array_StructurePointer array) where T : struct, IPsoSwapEnd
         {
             uint count = array.Count1;
             if (count == 0) return null;
-            PsoPOINTER[] ptrs = GetPointerArray(pso, array);
+            var ptrs = GetPointerArray(pso, array);
             if (ptrs == null) return null;
             if (ptrs.Length < count)
             { return null; }
@@ -16084,16 +16084,16 @@ namespace CodeWalker.GameFiles
                 var sptr = ptrs[i];
                 int blocki = sptr.BlockID - 1;
                 int offset = (int)sptr.ItemOffset;// * 16;//block data size...
-                if (blocki >= pso.DataMapSection.EntriesCount)
+                if (blocki >= pso.RequiredDataMapSection.EntriesCount)
                 { continue; }
-                var block = pso.DataMapSection.Entries[blocki];
+                var block = pso.RequiredDataMapSection.Entries[blocki];
 
                 if ((offset < 0) || (offset >= block.Length))
                 { continue; }
 
                 int boffset = block.Offset + offset;
 
-                items[i] = ConvertData<T>(pso.DataSection.Data, boffset);
+                items[i] = ConvertData<T>(pso.RequiredDataSection.Data, boffset);
             }
 
             return items;
@@ -16101,7 +16101,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static string GetString(PsoFile pso, CharPointer ptr)
+        public static string? GetString(PsoFile pso, CharPointer ptr)
         {
             if (ptr.Count1 == 0) return null;
 
@@ -16139,7 +16139,7 @@ namespace CodeWalker.GameFiles
 
             return s;
         }
-        public static string GetString(PsoFile pso, DataBlockPointer ptr)
+        public static string? GetString(PsoFile pso, DataBlockPointer ptr)
         {
             var blocki = (int)ptr.PointerDataId;// (ptr.Pointer & 0xFFF) - 1;
             var offset = (int)ptr.PointerDataOffset;// (ptr.Pointer >> 12) & 0xFFFFF;

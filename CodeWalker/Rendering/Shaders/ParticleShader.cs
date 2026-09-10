@@ -77,7 +77,7 @@ namespace CodeWalker.Rendering
             context.InputAssembler.InputLayout = layout;
             return true;
         }
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Vars.ViewInv = Matrix.Transpose(camera.ViewInvMatrix);

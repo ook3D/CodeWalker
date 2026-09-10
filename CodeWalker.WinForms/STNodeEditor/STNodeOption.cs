@@ -13,11 +13,11 @@ namespace ST.Library.UI.NodeEditor
 
         public static readonly STNodeOption Empty = new();
 
-        private STNode _Owner;
+        private STNode? _Owner;
         /// <summary>
         /// Get the Node to which the current Option belongs
         /// </summary>
-        public STNode Owner {
+        public STNode? Owner {
             get { return _Owner; }
             internal set {
                 if (value == _Owner) return;
@@ -69,7 +69,7 @@ namespace ST.Library.UI.NodeEditor
             }
         }
 
-        private string _Text;
+        private string _Text = string.Empty;
         /// <summary>
         /// Gets or sets the current Option display text
         /// This property cannot be modified when AutoSize is set
@@ -119,11 +119,11 @@ namespace ST.Library.UI.NodeEditor
             internal set { _TextRectangle = value; }
         }
 
-        private object _Data;
+        private object? _Data;
         /// <summary>
         /// Get or set the data contained in the current Option
         /// </summary>
-        public object Data {
+        public object? Data {
             get { return _Data; }
             set {
                 if (value != null) {
@@ -137,11 +137,11 @@ namespace ST.Library.UI.NodeEditor
             }
         }
 
-        private Type _DataType;
+        private Type? _DataType;
         /// <summary>
         /// Get the current Option data type
         /// </summary>
-        public Type DataType {
+        public Type? DataType {
             get { return _DataType; }
             internal set { _DataType = value; }
         }
@@ -172,7 +172,7 @@ namespace ST.Library.UI.NodeEditor
         /// <summary>
         /// Save the points that have been connected
         /// </summary>
-        protected HashSet<STNodeOption> m_hs_connected;
+        protected HashSet<STNodeOption> m_hs_connected = new();
 
         #region Constructor
 
@@ -187,7 +187,6 @@ namespace ST.Library.UI.NodeEditor
         public STNodeOption(string strText, Type dataType, bool bSingle) {
             if (dataType == null) throw new ArgumentNullException("The specified data type cannot be null");
             this._DotSize = 10;
-            m_hs_connected = new HashSet<STNodeOption>();
             this._DataType = dataType;
             this._Text = strText;
             this._IsSingle = bSingle;
@@ -200,23 +199,23 @@ namespace ST.Library.UI.NodeEditor
         /// <summary>
         /// Occurs when connected
         /// </summary>
-        public event STNodeOptionEventHandler Connected;
+        public event STNodeOptionEventHandler? Connected;
         /// <summary>
         /// Occurs when a connection starts happening
         /// </summary>
-        public event STNodeOptionEventHandler Connecting;
+        public event STNodeOptionEventHandler? Connecting;
         /// <summary>
         /// Occurs when the connection is disconnected
         /// </summary>
-        public event STNodeOptionEventHandler DisConnected;
+        public event STNodeOptionEventHandler? DisConnected;
         /// <summary>
         /// Occurs when the connection starts to drop
         /// </summary>
-        public event STNodeOptionEventHandler DisConnecting;
+        public event STNodeOptionEventHandler? DisConnecting;
         /// <summary>
         /// Occurs when data is passed
         /// </summary>
-        public event STNodeOptionEventHandler DataTransfer;
+        public event STNodeOptionEventHandler? DataTransfer;
 
         #endregion Event
 
@@ -322,10 +321,11 @@ namespace ST.Library.UI.NodeEditor
             if (this._IsInput == op.IsInput) return ConnectionStatus.SameInputOrOutput;
             if (op.Owner == null || this._Owner == null) return ConnectionStatus.NoOwner;
             if (op.Owner == this._Owner) return ConnectionStatus.SameOwner;
-            if (this._Owner.LockOption || op._Owner.LockOption) return ConnectionStatus.Locked;
+            if (this._Owner.LockOption || op.Owner.LockOption) return ConnectionStatus.Locked;
             if (this._IsSingle && m_hs_connected.Count == 1) return ConnectionStatus.SingleOption;
             if (op.IsInput && STNodeEditor.CanFindNodePath(op.Owner, this._Owner)) return ConnectionStatus.Loop;
             if (m_hs_connected.Contains(op)) return ConnectionStatus.Exists;
+            if (this._DataType == null || op._DataType == null) return ConnectionStatus.ErrorType;
             if (this._IsInput && op._DataType != this._DataType && !op._DataType.IsSubclassOf(this._DataType)) return ConnectionStatus.ErrorType;
             return ConnectionStatus.Connected;
         }
@@ -367,7 +367,7 @@ namespace ST.Library.UI.NodeEditor
         /// Get the Option collection that the current Option is connected to
         /// </summary>
         /// <returns>If it is null, it means that there is no owner, otherwise it returns the collection</returns>
-        public List<STNodeOption> GetConnectedOption() {
+        public List<STNodeOption>? GetConnectedOption() {
             if (this._DataType == null) return null;
             if (!this._IsInput)
                 return m_hs_connected.ToList();
@@ -391,7 +391,7 @@ namespace ST.Library.UI.NodeEditor
         /// Post data to all Option connected to the current Option
         /// </summary>
         /// <param name="data">Data to be delivered</param>
-        public void TransferData(object data) {
+        public void TransferData(object? data) {
             if (this._DataType == null) return;
             this.Data = data; //not this._Data
             foreach (var v in m_hs_connected) {
@@ -403,7 +403,7 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="data">Data to be delivered</param>
         /// <param name="bDisposeOld">Whether to release old data</param>
-        public void TransferData(object data, bool bDisposeOld) {
+        public void TransferData(object? data, bool bDisposeOld) {
             if (bDisposeOld && this._Data != null) {
                 if (this._Data is IDisposable) ((IDisposable)this._Data).Dispose();
                 this._Data = null;

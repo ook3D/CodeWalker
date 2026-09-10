@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYnvPortalPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YnvPortal YnvPortal { get; set; }
+        public YnvPortal? YnvPortal { get; set; }
 
         private bool populatingui = false;
 
@@ -35,7 +35,7 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateFormTitle()
         {
-            Text = "Nav Portal " + YnvPortal.Index.ToString();
+            Text = "Nav Portal " + YnvPortal?.Index.ToString();
         }
 
 

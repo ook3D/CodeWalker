@@ -237,7 +237,7 @@ namespace CodeWalker
             if (System.Threading.Thread.CurrentThread.GetApartmentState() != System.Threading.ApartmentState.STA)
                 throw new InvalidOperationException("Folder picker must be called from an STA thread.");
 
-            IFileDialog dialog = null;
+            IFileDialog? dialog = null;
             try
             {
                 dialog = (IFileDialog)new FileOpenDialogRCW();
@@ -270,7 +270,7 @@ namespace CodeWalker
                 hr = dialog.GetResult(out var resultItem);
                 if (hr != 0) Marshal.ThrowExceptionForHR(hr);
 
-                string path = GetDisplayName(resultItem, SIGDN.SIGDN_FILESYSPATH);
+                string? path = GetDisplayName(resultItem, SIGDN.SIGDN_FILESYSPATH);
                 Marshal.ReleaseComObject(resultItem);
 
                 if (!string.IsNullOrEmpty(path))
@@ -286,7 +286,7 @@ namespace CodeWalker
             }
         }
 
-        private static string GetDisplayName(IShellItem item, SIGDN sigdn)
+        private static string? GetDisplayName(IShellItem item, SIGDN sigdn)
         {
             int hr = item.GetDisplayName(sigdn, out var pszName);
             if (hr != 0 || pszName == IntPtr.Zero) return null;
@@ -477,9 +477,8 @@ namespace CodeWalker
                     c.ForeColor = form.ForeColor;
                     c.BackColor = wndback;
                 }
-                else if ((c is TextBox))
+                else if (c is TextBox txtbox)
                 {
-                    var txtbox = c as TextBox;
                     c.ForeColor = txtbox.ReadOnly ? disfore : form.ForeColor;
                     c.BackColor = txtbox.ReadOnly ? disback : txtback;
                 }
@@ -488,11 +487,11 @@ namespace CodeWalker
                     c.ForeColor = form.ForeColor;
                     c.BackColor = btnback;
                 }
-                else if (c is TreeView)
+                else if (c is TreeView treeView)
                 {
                     c.ForeColor = form.ForeColor;
                     c.BackColor = wndback;
-                    (c as TreeView).LineColor = form.ForeColor;
+                    treeView.LineColor = form.ForeColor;
                 }
 
             }
@@ -518,7 +517,7 @@ namespace CodeWalker
     {
         //custom version of MessageBox to center in the parent, and apply theming
         //TODO: handle MessageBoxIcon and MessageBoxOptions
-        private static DialogResult ShowCore(Form owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton, MessageBoxOptions options)
+        private static DialogResult ShowCore(Form? owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton, MessageBoxOptions options)
         {
             if (owner == null) return MessageBox.Show(text, caption, buttons, icon, defaultButton, options);//fallback case
 

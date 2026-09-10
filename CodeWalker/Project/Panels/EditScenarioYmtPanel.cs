@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditScenarioYmtPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YmtFile CurrentScenario { get; set; }
+        public YmtFile? CurrentScenario { get; set; }
 
         private bool populatingui = false;
         private bool waschanged = false;
@@ -37,7 +37,7 @@ namespace CodeWalker.Project.Panels
 
         public void UpdateFormTitleYmtChanged()
         {
-            bool changed = CurrentScenario.HasChanged;
+            bool changed = CurrentScenario?.HasChanged ?? false;
             if (!waschanged && changed)
             {
                 UpdateFormTitle();
@@ -51,9 +51,9 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = CurrentScenario.RpfFileEntry?.Name ?? CurrentScenario.Name;
+            string fn = CurrentScenario?.RpfFileEntry?.Name ?? CurrentScenario?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fn)) fn = "untitled.ymt";
-            Text = fn + (CurrentScenario.HasChanged ? "*" : "");
+            Text = fn + (CurrentScenario?.HasChanged == true ? "*" : "");
         }
 
 

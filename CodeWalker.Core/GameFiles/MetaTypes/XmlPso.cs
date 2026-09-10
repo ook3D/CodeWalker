@@ -1,11 +1,13 @@
 ﻿using SharpDX;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using System.IO;
 
 namespace CodeWalker.GameFiles
 {
@@ -16,7 +18,7 @@ namespace CodeWalker.GameFiles
         {
             PsoBuilder pb = new();
 
-            Traverse(doc.DocumentElement, pb, 0, true);
+            Traverse(doc.DocumentElement ?? throw new XmlException("The metadata document must have a root element."), pb, 0, true);
 
             var pso = pb.GetPso();
 
@@ -49,7 +51,7 @@ namespace CodeWalker.GameFiles
 
                 Array.Clear(data, 0, infos.StructureLength); //shouldn't really be necessary...
 
-                PsoStructureEntryInfo arrEntry = null;
+                PsoStructureEntryInfo? arrEntry = null;
 
 
                 //if (isRoot)
@@ -78,7 +80,7 @@ namespace CodeWalker.GameFiles
                     {
                         case PsoDataType.Array:
                             {
-                                TraverseArray(cnode, pb, entry, arrEntry, arrayResults, data, infos);
+                                TraverseArray(cnode, pb, entry, arrEntry ?? throw new InvalidDataException("Array metadata is missing its element definition."), arrayResults, data, infos);
                                 break;
                             }
                         case PsoDataType.Structure:
@@ -131,37 +133,37 @@ namespace CodeWalker.GameFiles
 
                         case PsoDataType.Bool:
                             {
-                                byte val = (cnode.Attributes["value"].Value == "false") ? (byte)0 : (byte)1;
+                                byte val = ((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")) == "false") ? (byte)0 : (byte)1;
                                 data[entry.DataOffset] = val;
                                 break;
                             }
                         case PsoDataType.SByte:
                             {
-                                var val = Convert.ToSByte(cnode.Attributes["value"].Value);
+                                var val = Convert.ToSByte((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 data[entry.DataOffset] = (byte)val;
                                 break;
                             }
                         case PsoDataType.UByte:
                             {
-                                var val = Convert.ToByte(cnode.Attributes["value"].Value);
+                                var val = Convert.ToByte((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 data[entry.DataOffset] = val;
                                 break;
                             }
                         case PsoDataType.SShort:
                             {
-                                var val = Convert.ToInt16(cnode.Attributes["value"].Value);
+                                var val = Convert.ToInt16((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
                         case PsoDataType.UShort:
                             {
-                                var val = Convert.ToUInt16(cnode.Attributes["value"].Value);
+                                var val = Convert.ToUInt16((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
                         case PsoDataType.SInt:
                             {
-                                var val = Convert.ToInt32(cnode.Attributes["value"].Value);
+                                var val = Convert.ToInt32((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
@@ -173,11 +175,11 @@ namespace CodeWalker.GameFiles
                                         //ErrorXml(sb, cind, ename + ": Unexpected Integer subtype: " + entry.Unk_5h.ToString());
                                         break;
                                     case 0: //signed int (? flags?)
-                                        var sval = Convert.ToInt32(cnode.Attributes["value"].Value);
+                                        var sval = Convert.ToInt32((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                         Write(sval, data, entry.DataOffset);
                                         break;
                                     case 1: //unsigned int
-                                        var ustr = cnode.Attributes["value"].Value;
+                                        var ustr = (cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value."));
                                         uint uval = 0;
                                         if (ustr.StartsWith("0x"))
                                         {
@@ -196,23 +198,23 @@ namespace CodeWalker.GameFiles
                             }
                         case PsoDataType.Float:
                             {
-                                float val = FloatUtil.Parse(cnode.Attributes["value"].Value);
+                                float val = FloatUtil.Parse((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
                         case PsoDataType.Float2:
                             {
-                                float x = FloatUtil.Parse(cnode.Attributes["x"].Value);
-                                float y = FloatUtil.Parse(cnode.Attributes["y"].Value);
+                                float x = FloatUtil.Parse((cnode.Attributes?["x"]?.Value ?? throw new XmlException("Missing required attribute: x.")));
+                                float y = FloatUtil.Parse((cnode.Attributes?["y"]?.Value ?? throw new XmlException("Missing required attribute: y.")));
                                 Write(x, data, entry.DataOffset);
                                 Write(y, data, entry.DataOffset + sizeof(float));
                                 break;
                             }
                         case PsoDataType.Float3:
                             {
-                                float x = FloatUtil.Parse(cnode.Attributes["x"].Value);
-                                float y = FloatUtil.Parse(cnode.Attributes["y"].Value);
-                                float z = FloatUtil.Parse(cnode.Attributes["z"].Value);
+                                float x = FloatUtil.Parse((cnode.Attributes?["x"]?.Value ?? throw new XmlException("Missing required attribute: x.")));
+                                float y = FloatUtil.Parse((cnode.Attributes?["y"]?.Value ?? throw new XmlException("Missing required attribute: y.")));
+                                float z = FloatUtil.Parse((cnode.Attributes?["z"]?.Value ?? throw new XmlException("Missing required attribute: z.")));
                                 Write(x, data, entry.DataOffset);
                                 Write(y, data, entry.DataOffset + sizeof(float));
                                 Write(z, data, entry.DataOffset + sizeof(float) * 2);
@@ -220,10 +222,10 @@ namespace CodeWalker.GameFiles
                             }
                         case PsoDataType.Float4:
                             {
-                                float x = FloatUtil.Parse(cnode.Attributes["x"].Value);
-                                float y = FloatUtil.Parse(cnode.Attributes["y"].Value);
-                                float z = FloatUtil.Parse(cnode.Attributes["z"].Value);
-                                float w = FloatUtil.Parse(cnode.Attributes["w"].Value);
+                                float x = FloatUtil.Parse((cnode.Attributes?["x"]?.Value ?? throw new XmlException("Missing required attribute: x.")));
+                                float y = FloatUtil.Parse((cnode.Attributes?["y"]?.Value ?? throw new XmlException("Missing required attribute: y.")));
+                                float z = FloatUtil.Parse((cnode.Attributes?["z"]?.Value ?? throw new XmlException("Missing required attribute: z.")));
+                                float w = FloatUtil.Parse((cnode.Attributes?["w"]?.Value ?? throw new XmlException("Missing required attribute: w.")));
                                 Write(x, data, entry.DataOffset);
                                 Write(y, data, entry.DataOffset + sizeof(float));
                                 Write(z, data, entry.DataOffset + sizeof(float) * 2);
@@ -263,7 +265,7 @@ namespace CodeWalker.GameFiles
                                 //uint fCount = (entry.ReferenceKey >> 16) & 0x0000FFFF;
                                 uint fEntry = (entry.ReferenceKey & 0xFFF);
                                 var fEnt = (fEntry != 0xFFF) ? infos.GetEntry((int)fEntry) : null;
-                                PsoEnumInfo flagsInfo = null;
+                                PsoEnumInfo? flagsInfo = null;
                                 MetaName fEnum = (MetaName)(fEnt?.ReferenceKey ?? 0);
                                 if ((fEnt != null) && (fEnt.EntryNameHash == (MetaName)MetaTypeName.ARRAYINFO))
                                 {
@@ -304,9 +306,9 @@ namespace CodeWalker.GameFiles
                             }
                         case PsoDataType.Float3a:
                             {
-                                float x = FloatUtil.Parse(cnode.Attributes["x"].Value);
-                                float y = FloatUtil.Parse(cnode.Attributes["y"].Value);
-                                float z = FloatUtil.Parse(cnode.Attributes["z"].Value);
+                                float x = FloatUtil.Parse((cnode.Attributes?["x"]?.Value ?? throw new XmlException("Missing required attribute: x.")));
+                                float y = FloatUtil.Parse((cnode.Attributes?["y"]?.Value ?? throw new XmlException("Missing required attribute: y.")));
+                                float z = FloatUtil.Parse((cnode.Attributes?["z"]?.Value ?? throw new XmlException("Missing required attribute: z.")));
                                 Write(x, data, entry.DataOffset);
                                 Write(y, data, entry.DataOffset + sizeof(float));
                                 Write(z, data, entry.DataOffset + sizeof(float) * 2);
@@ -314,10 +316,10 @@ namespace CodeWalker.GameFiles
                             }
                         case PsoDataType.Float4a:
                             {
-                                float x = FloatUtil.Parse(cnode.Attributes["x"].Value);
-                                float y = FloatUtil.Parse(cnode.Attributes["y"].Value);
-                                float z = FloatUtil.Parse(cnode.Attributes["z"].Value);
-                                //float w = FloatUtil.Parse(cnode.Attributes["w"].Value);
+                                float x = FloatUtil.Parse((cnode.Attributes?["x"]?.Value ?? throw new XmlException("Missing required attribute: x.")));
+                                float y = FloatUtil.Parse((cnode.Attributes?["y"]?.Value ?? throw new XmlException("Missing required attribute: y.")));
+                                float z = FloatUtil.Parse((cnode.Attributes?["z"]?.Value ?? throw new XmlException("Missing required attribute: z.")));
+                                //float w = FloatUtil.Parse((cnode.Attributes?["w"]?.Value ?? throw new XmlException("Missing required attribute: w.")));
                                 Write(x, data, entry.DataOffset);
                                 Write(y, data, entry.DataOffset + sizeof(float));
                                 Write(z, data, entry.DataOffset + sizeof(float) * 2);
@@ -326,13 +328,13 @@ namespace CodeWalker.GameFiles
                             }
                         case PsoDataType.HFloat:
                             {
-                                var val = Convert.ToInt16(cnode.Attributes["value"].Value);
+                                var val = Convert.ToInt16((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(val, data, entry.DataOffset);
                                 break;
                             }
                         case PsoDataType.Long:
                             {
-                                var uval = Convert.ToUInt64(cnode.Attributes["value"].Value);
+                                var uval = Convert.ToUInt64((cnode.Attributes?["value"]?.Value ?? throw new XmlException("Missing required attribute: value.")));
                                 Write(uval, data, entry.DataOffset);
                                 break;
                             }
@@ -362,7 +364,7 @@ namespace CodeWalker.GameFiles
             else
             { }//info not found
 
-            return null;
+            throw new InvalidDataException($"No metadata structure definition exists for {type}.");
         }
 
         private static void TraverseMap(XmlNode node, PsoBuilder pb, PsoStructureEntryInfo entry, PsoStructureInfo infos, byte[] data, PsoArrayResults arrayResults)
@@ -377,8 +379,8 @@ namespace CodeWalker.GameFiles
 
             var xStruct = pb.AddMapNodeStructureInfo((MetaName)mapreftype2.ReferenceKey);
             var xName = xStruct.IndexInfo.NameHash;
-            var kEntry = xStruct?.FindEntry(MetaName.Key);
-            var iEntry = xStruct?.FindEntry(MetaName.Item);
+            var kEntry = xStruct.FindEntry(MetaName.Key) ?? throw new InvalidDataException("Map metadata is missing its key definition.");
+            var iEntry = xStruct.FindEntry(MetaName.Item) ?? throw new InvalidDataException("Map metadata is missing its item definition.");
 
             if (kEntry.Type != PsoDataType.String)
             { }
@@ -390,8 +392,8 @@ namespace CodeWalker.GameFiles
             foreach (XmlNode cnode in node.ChildNodes)
             {
                 if (cnode.NodeType != XmlNodeType.Element) continue;
-                var kattr = cnode.Attributes["key"].Value;
-                var tattr = cnode.Attributes["type"].Value;//CW invention for convenience..!
+                var kattr = (cnode.Attributes?["key"]?.Value ?? throw new XmlException("Missing required attribute: key."));
+                var tattr = (cnode.Attributes?["type"]?.Value ?? throw new XmlException("Missing required attribute: type."));//CW invention for convenience..!
                 var khash = (MetaName)(uint)GetHash(kattr);
                 var thash = (MetaName)(uint)GetHash(tattr);
 
@@ -431,7 +433,7 @@ namespace CodeWalker.GameFiles
             int offset = entry.DataOffset;
             uint aCount = (entry.ReferenceKey >> 16) & 0x0000FFFF;
             uint aPtr = (entry.ReferenceKey) & 0x0000FFFF;
-            byte[] adata = null;
+            byte[]? adata = null;
 
             //how do we know when it's an "embedded" array?
             bool embedded = true;
@@ -634,8 +636,8 @@ namespace CodeWalker.GameFiles
                                 break;
                             case 2: //string array  (array of pointers)
                                 var strs = TraverseStringArrayRaw(node);
-                                var cnt = strs?.Length ?? 0;
-                                var ptrs = (cnt > 0) ? new DataBlockPointer[strs.Length] : null;
+                                var cnt = strs.Length;
+                                var ptrs = new DataBlockPointer[cnt];
                                 for (int i = 0; i < cnt; i++)
                                 {
                                     var str = strs[i];
@@ -650,8 +652,8 @@ namespace CodeWalker.GameFiles
                                 break;
                             case 3: //char array array  (array of CharPointer)
                                 var strs2 = TraverseStringArrayRaw(node);
-                                var cnt2 = strs2?.Length ?? 0;
-                                var ptrs2 = (cnt2 > 0) ? new CharPointer[strs2.Length] : null;
+                                var cnt2 = strs2.Length;
+                                var ptrs2 = new CharPointer[cnt2];
                                 for (int i = 0; i < cnt2; i++)
                                 {
                                     var str = strs2[i];
@@ -678,7 +680,7 @@ namespace CodeWalker.GameFiles
 
                         if (arrEntry.ReferenceKey != 0)
                         {
-                            var _infos = PsoTypes.GetEnumInfo((MetaName)arrEntry.ReferenceKey);
+                            var _infos = PsoTypes.GetEnumInfo((MetaName)arrEntry.ReferenceKey) ?? throw new InvalidDataException("Missing array enumeration definition.");
                             pb.AddEnumInfo(_infos.IndexInfo.NameHash);
 
                             var values = new uint[hashes.Length];
@@ -717,7 +719,7 @@ namespace CodeWalker.GameFiles
                         var rk1 = arrEntry.ReferenceKey & 0x0000FFFF;
                         if (rk0 > 0) //should be count of items
                         {
-                            var subarrEntry = structInfo.GetEntry((int)rk1);
+                            var subarrEntry = structInfo.GetEntry((int)rk1) ?? throw new InvalidDataException("Missing nested array definition.");
                             var subarrType = (MetaName)subarrEntry.ReferenceKey;
 
                             var origOffset = arrEntry.DataOffset;
@@ -849,7 +851,7 @@ namespace CodeWalker.GameFiles
             {
                 if (cnode.NodeType != XmlNodeType.Element) continue;
 
-                var type = (MetaName)(uint)GetHash(cnode.Attributes["type"]?.Value ?? "");
+                var type = (MetaName)(uint)GetHash(cnode.Attributes?["type"]?.Value ?? "");
                 if (type != 0)
                 {
                     var struc = Traverse(cnode, pb, type);
@@ -882,105 +884,66 @@ namespace CodeWalker.GameFiles
         private static int[] TraverseSIntArrayRaw(XmlNode node)
         {
             var data = new List<int>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToInt32(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = int.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static uint[] TraverseUIntArrayRaw(XmlNode node)
         {
             var data = new List<uint>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToUInt32(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = uint.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static byte[] TraverseUByteArrayRaw(XmlNode node)
         {
             var data = new List<byte>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToByte(split[i]);
-                        data.Add(val);
-                    }
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = byte.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(value);
             }
-
             return data.ToArray();
         }
         private static ushort[] TraverseUShortArrayRaw(XmlNode node)
         {
             var data = new List<ushort>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = Convert.ToUInt16(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = ushort.Parse(token, CultureInfo.CurrentCulture);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static float[] TraverseFloatArrayRaw(XmlNode node)
         {
             var data = new List<float>();
-
-            if (node.InnerText != "")
+            var text = node.InnerText.AsSpan();
+            foreach (var range in text.SplitAny(ReadOnlySpan<char>.Empty))
             {
-                var split = Regex.Split(node.InnerText, @"[\s\r\n\t]");
-
-                for (int i = 0; i < split.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(split[i]))
-                    {
-                        var val = FloatUtil.Parse(split[i]);
-                        data.Add(MetaTypes.SwapBytes(val));
-                    }
-
-                }
+                var token = text[range];
+                if (token.IsEmpty) continue;
+                var value = FloatUtil.Parse(token);
+                data.Add(MetaTypes.SwapBytes(value));
             }
-
             return data.ToArray();
         }
         private static Vector4[] TraverseVector3ArrayRaw(XmlNode node)
@@ -1005,7 +968,7 @@ namespace CodeWalker.GameFiles
                 x = 0f; y = 0f; z = 0f;
                 for (int n = 0; n < split2.Length; n++)
                 {
-                    var ts = split2[n]?.Trim();
+                    var ts = split2[n].Trim();
                     if (ts.EndsWith(",")) ts = ts.Substring(0, ts.Length - 1);
                     if (string.IsNullOrEmpty(ts)) continue;
                     var f = FloatUtil.Parse(ts);
@@ -1047,7 +1010,7 @@ namespace CodeWalker.GameFiles
                 x = 0f; y = 0f;
                 for (int n = 0; n < split2.Length; n++)
                 {
-                    var ts = split2[n]?.Trim();
+                    var ts = split2[n].Trim();
                     if (ts.EndsWith(",")) ts = ts.Substring(0, ts.Length - 1);
                     if (string.IsNullOrEmpty(ts)) continue;
                     var f = FloatUtil.Parse(ts);
@@ -1146,7 +1109,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        private static XmlNode GetEntryNode(XmlNodeList nodes, MetaName name)
+        private static XmlNode? GetEntryNode(XmlNodeList nodes, MetaName name)
         {
             foreach (XmlNode node in nodes)
             {

@@ -9,11 +9,11 @@ namespace CodeWalker.ModManager
 {
     public class SimpleKvpFile
     {
-        public string FileName;
-        public string FilePath;
+        public string FileName = string.Empty;
+        public string FilePath = string.Empty;
         public bool FileExists;
         public bool OnlySaveIfFileExists;
-        public Exception FileError;
+        public Exception? FileError;
         public Dictionary<string, string> Items = new();
 
 
@@ -52,7 +52,7 @@ namespace CodeWalker.ModManager
                     var val = tline.Substring(spi + 1).Trim().Replace("<NEWLINE>", "\n");
                     if (string.IsNullOrEmpty(key)) continue;
                     if (string.IsNullOrEmpty(val)) continue;
-                    Items[key] = val;
+                    Items[key] = val ?? string.Empty;
                 }
             }
             catch (Exception ex)
@@ -84,16 +84,16 @@ namespace CodeWalker.ModManager
             }
         }
 
-        public string GetItem(string key)
+        public string? GetItem(string? key)
         {
             if (string.IsNullOrEmpty(key)) return null;
             Items.TryGetValue(key, out var item);
             return item;
         }
-        public void SetItem(string key, string val)
+        public void SetItem(string? key, string? val)
         {
             if (string.IsNullOrEmpty(key)) return;
-            Items[key] = val;
+            Items[key] = val ?? string.Empty;
         }
 
     }

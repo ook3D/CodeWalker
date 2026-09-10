@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,21 +19,21 @@ namespace CodeWalker.Rendering
 {
     public class DXManager
     {
-        private DXForm dxform;
+        private DXForm? dxform;
 
-        public Device device { get; private set; }
-        public DeviceContext context { get; private set; }
-        public SwapChain swapchain { get; private set; }
-        public Texture2D backbuffer { get; private set; }
-        public Texture2D depthbuffer { get; private set; }
-        public RenderTargetView targetview { get; private set; }
-        public DepthStencilView depthview { get; private set; }
+        public Device? device { get; private set; }
+        public DeviceContext? context { get; private set; }
+        public SwapChain? swapchain { get; private set; }
+        public Texture2D? backbuffer { get; private set; }
+        public Texture2D? depthbuffer { get; private set; }
+        public RenderTargetView? targetview { get; private set; }
+        public DepthStencilView? depthview { get; private set; }
 
         // Offscreen render target swap (used by minimap tile export)
-        private Texture2D savedBackbuffer;
-        private Texture2D savedDepthbuffer;
-        private RenderTargetView savedTargetview;
-        private DepthStencilView savedDepthview;
+        private Texture2D? savedBackbuffer;
+        private Texture2D? savedDepthbuffer;
+        private RenderTargetView? savedTargetview;
+        private DepthStencilView? savedDepthview;
         private ViewportF savedViewport;
         private bool exportActive;
 
@@ -109,9 +110,9 @@ namespace CodeWalker.Rendering
                 //#if DEBUG
                 //    flags = DeviceCreationFlags.Debug;
                 //#endif
-                Device dev = null;
-                SwapChain sc = null;
-                Exception exc = null;
+                Device? dev = null;
+                SwapChain? sc = null;
+                Exception? exc = null;
 
                 bool success = false;
                 try
@@ -144,8 +145,8 @@ namespace CodeWalker.Rendering
                     throw new Exception(msg);
                 }
 
-                device = dev;
-                swapchain = sc;
+                device = dev ?? throw new InvalidOperationException("The graphics device was not created.");
+                swapchain = sc ?? throw new InvalidOperationException("The swap chain was not created.");
 
 
                 var factory = swapchain.GetParent<Factory>(); //ignore windows events...
@@ -192,7 +193,7 @@ namespace CodeWalker.Rendering
                 count++;
             }
 
-            dxform.CleanupScene();
+            dxform?.CleanupScene();
 
             if (context != null) context.ClearState();
 
@@ -210,8 +211,16 @@ namespace CodeWalker.Rendering
 
             GC.Collect();
         }
+        [MemberNotNull(nameof(dxform), nameof(device), nameof(context), nameof(swapchain))]
+        private void EnsureInitialized()
+        {
+            if (dxform == null || device == null || context == null || swapchain == null)
+                throw new InvalidOperationException("DirectX has not been initialized.");
+        }
+
         private void CreateRenderBuffers()
         {
+            EnsureInitialized();
             if (targetview != null) targetview.Dispose();
             if (backbuffer != null) backbuffer.Dispose();
             if (depthview != null) depthview.Dispose();
@@ -246,36 +255,33 @@ namespace CodeWalker.Rendering
         }
         private void Resize()
         {
+            EnsureInitialized();
             if (Resizing) return;
-            Monitor.Enter(syncroot);
-
             int width = dxform.Form.ClientSize.Width;
             int height = dxform.Form.ClientSize.Height;
-
-            if (targetview != null) targetview.Dispose();
-            if (backbuffer != null) backbuffer.Dispose();
-
-            swapchain.ResizeBuffers(1, width, height, Format.Unknown, SwapChainFlags.AllowModeSwitch);
-
-            CreateRenderBuffers();
-
-            Monitor.Exit(syncroot);
+            lock (syncroot)
+            {
+                targetview?.Dispose();
+                backbuffer?.Dispose();
+                swapchain.ResizeBuffers(1, width, height, Format.Unknown, SwapChainFlags.AllowModeSwitch);
+                CreateRenderBuffers();
+            }
 
             dxform.BuffersResized(width, height);
         }
 
-        private void Dxform_Load(object sender, EventArgs e)
+        private void Dxform_Load(object? sender, EventArgs e)
         {
             if (autoStartLoop)
             {
                 StartRenderLoop();
             }
         }
-        private void Dxform_FormClosing(object sender, FormClosingEventArgs e)
+        private void Dxform_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (!e.Cancel)
             {
-                if (!dxform.ConfirmQuit())
+                if (dxform != null && !dxform.ConfirmQuit())
                 {
                     e.Cancel = true;
                 }
@@ -285,19 +291,20 @@ namespace CodeWalker.Rendering
                 Cleanup();
             }
         }
-        private void Dxform_ClientSizeChanged(object sender, EventArgs e)
+        private void Dxform_ClientSizeChanged(object? sender, EventArgs e)
         {
             Resize();
         }
-        private void DxForm_ResizeBegin(object sender, EventArgs e)
+        private void DxForm_ResizeBegin(object? sender, EventArgs e)
         {
+            if (dxform == null) return;
             beginSize = dxform.Form.ClientSize;
             Resizing = true;
         }
-        private void DxForm_ResizeEnd(object sender, EventArgs e)
+        private void DxForm_ResizeEnd(object? sender, EventArgs e)
         {
             Resizing = false;
-            if (dxform.Form.ClientSize != beginSize)
+            if (dxform != null && dxform.Form.ClientSize != beginSize)
             {
                 Resize();
             }
@@ -306,6 +313,7 @@ namespace CodeWalker.Rendering
 
         public void Start()
         {
+            EnsureInitialized();
             dxform.InitScene(device);
             StartRenderLoop();
         }
@@ -316,6 +324,7 @@ namespace CodeWalker.Rendering
         }
         private void RenderLoop()
         {
+            EnsureInitialized();
             while (Running)
             {
                 while (Resizing)

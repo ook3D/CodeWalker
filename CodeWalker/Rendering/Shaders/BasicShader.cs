@@ -53,6 +53,9 @@ namespace CodeWalker.Rendering
         public uint RenderMode;//0=default, 1=normals, 2=tangents, 3=colours, 4=texcoords, 5=diffuse, 6=normalmap, 7=spec, 8=direct
         public uint RenderModeIndex; //colour/texcoord index
         public uint RenderSamplerCoord; //which texcoord to use in single texture mode
+        public Color4 InteriorAmbientUp;
+        public Color4 InteriorAmbientDown;
+        public Vector4 HairViewDirection;
     }
     public struct BasicShaderPSGeomVars
     {
@@ -67,7 +70,7 @@ namespace CodeWalker.Rendering
         public float bumpiness;
         public float AlphaScale;
         public float HardAlphaBlend;
-        public float useTessellation;
+        public uint AlphaMode;
         public Vector4 detailSettings;
         public Vector3 specMapIntMask;
         public float specularIntensityMult;
@@ -79,7 +82,12 @@ namespace CodeWalker.Rendering
         public uint EnableHeightMap;
         public float heightScale;
         public float heightBias;
-        public float Pad0;
+        public uint UsePedSpecular;
+        public Vector4 InteriorFlags;
+        public Vector4 HairFlags;
+        public Vector4 HairSpecular;
+        public Vector4 HairColour;
+        public Vector4 HairNoiseUV;
     }
     public struct BasicShaderInstGlobalMatrix
     {
@@ -504,7 +512,7 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout l;
+            InputLayout? l;
             if (layouts.TryGetValue(type, out l))
             {
                 SetVertexShader(context, type);
@@ -514,7 +522,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             uint rendermode = 0;
             uint rendermodeind = 1;
@@ -549,6 +557,9 @@ namespace CodeWalker.Rendering
             VSSceneVars.SetVSCBuffer(context, 0);
 
             PSSceneVars.Vars.GlobalLights = lights.Params;
+            PSSceneVars.Vars.InteriorAmbientUp = lights.InteriorAmbientUp;
+            PSSceneVars.Vars.InteriorAmbientDown = lights.InteriorAmbientDown;
+            PSSceneVars.Vars.HairViewDirection = new Vector4(-camera.ViewDirection, 0);
             PSSceneVars.Vars.EnableShadows = (shadowmap != null) ? 1u : 0u;
             PSSceneVars.Vars.RenderMode = rendermode;
             PSSceneVars.Vars.RenderModeIndex = rendermodeind;
@@ -571,6 +582,7 @@ namespace CodeWalker.Rendering
 
         public override void SetEntityVars(DeviceContext context, ref RenderableInst rend)
         {
+            PSGeomVars.Vars.InteriorFlags = new Vector4(rend.IsInterior ? 1 : 0, 0, 0, 0);
             VSEntityVars.Vars.CamRel = new Vector4(rend.CamRel, 0.0f);
             VSEntityVars.Vars.Orientation = rend.Orientation;
             VSEntityVars.Vars.Scale = rend.Scale;
@@ -584,7 +596,7 @@ namespace CodeWalker.Rendering
 
         public override void SetModelVars(DeviceContext context, RenderableModel model)
         {
-            if ((model.Owner.Skeleton?.BoneTransforms != null) && (model.Owner.Skeleton.BoneTransforms.Length > 0))
+            if ((model.Owner?.Skeleton?.BoneTransforms != null) && (model.Owner.Skeleton.BoneTransforms.Length > 0))
             {
                 SetBoneMatrices(context, model.Owner.Skeleton.BoneTransforms);
                 defaultBoneMatricesBound = false;
@@ -594,7 +606,7 @@ namespace CodeWalker.Rendering
                 SetBoneMatrices(context, defaultBoneMatrices);
                 defaultBoneMatricesBound = true;
             }
-            if (model.Owner.Cloth?.Vertices != null)
+            if (model.Owner?.Cloth?.Vertices != null)
             {
                 SetClothVertices(context, model.Owner.Cloth.Vertices);
             }
@@ -607,13 +619,14 @@ namespace CodeWalker.Rendering
 
         public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
         {
-            RenderableTexture texture = null;
-            RenderableTexture texture2 = null;
-            RenderableTexture tintpal = null;
-            RenderableTexture bumptex = null;
-            RenderableTexture spectex = null;
-            RenderableTexture detltex = null;
-            RenderableTexture heighttex = null;
+            RenderableTexture? texture = null;
+            RenderableTexture? texture2 = null;
+            RenderableTexture? tintpal = null;
+            RenderableTexture? bumptex = null;
+            RenderableTexture? spectex = null;
+            RenderableTexture? detltex = null;
+            RenderableTexture? heighttex = null;
+            RenderableTexture? hairNoise = null;
             bool isdistmap = false;
 
             float tntpalind = 0.0f;
@@ -645,6 +658,9 @@ namespace CodeWalker.Rendering
                             case ShaderParamNames.PlateBgBumpSampler:
                                 bumptex = itex;
                                 break;
+                            case ShaderParamNames.AnisoNoiseSpecSampler:
+                                hairNoise = itex;
+                                break;
                             case ShaderParamNames.SpecSampler:
                                 spectex = itex;
                                 break;
@@ -654,7 +670,7 @@ namespace CodeWalker.Rendering
                             case ShaderParamNames.TintPaletteSampler:
                             case ShaderParamNames.TextureSamplerDiffPal:
                                 tintpal = itex;
-                                if (tintpal.Key != null)
+                                if (tintpal?.Key != null)
                                 {
                                     //this is slightly dodgy but VSEntityVars should have the correct value in it...
                                     tntpalind = (VSEntityVars.Vars.TintPaletteIndex + 0.5f) / tintpal.Key.Height;
@@ -721,8 +737,8 @@ namespace CodeWalker.Rendering
             uint windflag = geom.EnableWind ? 1u : 0u;
             uint emflag = geom.IsEmissive ? 1u : 0u;
             uint pstintflag = tintflag;
-            var shaderName = geom.DrawableGeom.Shader.Name;
-            var shaderFile = geom.DrawableGeom.Shader.FileName;
+            var shaderName = geom.DrawableGeom?.Shader?.Name ?? 0;
+            var shaderFile = geom.DrawableGeom?.Shader?.FileName ?? 0;
             switch (shaderFile.Hash)
             {
                 case 2245870123: //trees_normal_diffspec_tnt.sps
@@ -787,8 +803,18 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.IsDistMap = isdistmap ? 1u : 0u;
             PSGeomVars.Vars.bumpiness = geom.bumpiness;
             PSGeomVars.Vars.AlphaScale = isdistmap ? 1.0f : AlphaScale;
-            PSGeomVars.Vars.HardAlphaBlend = 0.0f; //todo: cutouts flag!
-            PSGeomVars.Vars.useTessellation = 0.0f;
+            PSGeomVars.Vars.HairFlags = new Vector4(PedMaterial.UsesAnisotropicHair(shaderFile.Hash) ? 1 : 0,
+                hairNoise?.ShaderResourceView != null ? 1 : 0, geom.HairAlphaBias, geom.isHair && geom.HairOrder == 1 ? 1 : 0);
+            PSGeomVars.Vars.HairSpecular = geom.HairSpecular;
+            PSGeomVars.Vars.HairColour = geom.HairColour;
+            PSGeomVars.Vars.HairNoiseUV = geom.HairNoiseUV;
+            context.PixelShader.SetShaderResource(8, hairNoise?.ShaderResourceView);
+            PSGeomVars.Vars.HardAlphaBlend = geom.HardAlphaBlend;
+            PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode(shaderFile.Hash, (geom.DrawableGeom?.Shader?.RenderBucket ?? 0));
+            // grass_batch has coverage alpha; COLOR0.a is a tint weight, not opacity.
+            if (VSEntityVars.Vars.IsInstanced != 0 && shaderFile.Hash == 916743331)
+                PSGeomVars.Vars.AlphaMode = 5;
+            if (PSGeomVars.Vars.AlphaMode is 3 or 5) PSGeomVars.Vars.IsDecal = 0;
             PSGeomVars.Vars.detailSettings = geom.detailSettings;
             PSGeomVars.Vars.specMapIntMask = geom.specMapIntMask;
             PSGeomVars.Vars.specularIntensityMult = SpecularEnable ? geom.specularIntensityMult : 0.0f;
@@ -818,7 +844,7 @@ namespace CodeWalker.Rendering
             }
             PSGeomVars.Vars.heightScale = hs;
             PSGeomVars.Vars.heightBias = hb;
-            PSGeomVars.Vars.Pad0 = 0.0f;
+            PSGeomVars.Vars.UsePedSpecular = geom.UsePedSpecular ? 1u : 0u;
             PSGeomVars.Update(context);
             PSGeomVars.SetPSCBuffer(context, 2);
 
@@ -834,41 +860,41 @@ namespace CodeWalker.Rendering
 
             context.VertexShader.SetSampler(0, geom.IsFragment ? texsamplertntyft : texsamplertnt);
             context.PixelShader.SetSampler(0, AnisotropicFilter ? texsampleranis : texsampler);
-            if (usediff)
+            if (usediff && texture != null)
             {
                 texture.SetPSResource(context, 0);
             }
-            if (usebump)
+            if (usebump && bumptex != null)
             {
                 bumptex.SetPSResource(context, 2);
             }
-            if (usespec)
+            if (usespec && spectex != null)
             {
                 spectex.SetPSResource(context, 3);
             }
-            if (usedetl)
+            if (usedetl && detltex != null)
             {
                 detltex.SetPSResource(context, 4);
             }
-            if (usediff2)
+            if (usediff2 && texture2 != null)
             {
                 texture2.SetPSResource(context, 5);
             }
-            if (usetint)
+            if (usetint && tintpal != null)
             {
                 tintpal.SetVSResource(context, 0);
             }
-            if (pstintflag == 2)
+            if (pstintflag == 2 && tintpal != null)
             {
                 tintpal.SetPSResource(context, 6);
             }
-            if (useheight)
+            if (useheight && heighttex != null)
             {
                 heighttex.SetPSResource(context, 7);
             }
 
 
-            if (geom.BoneTransforms != null)
+            if (geom.BoneTransforms is { Length: > 0 })
             {
                 SetBoneMatrices(context, geom.BoneTransforms);
                 defaultBoneMatricesBound = false;
@@ -955,8 +981,9 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.IsDistMap = 0;
             PSGeomVars.Vars.bumpiness = 0;
             PSGeomVars.Vars.AlphaScale = 1;
+            PSGeomVars.Vars.HairFlags = Vector4.Zero;
             PSGeomVars.Vars.HardAlphaBlend = 0;
-            PSGeomVars.Vars.useTessellation = 0;
+            PSGeomVars.Vars.AlphaMode = 0;
             PSGeomVars.Vars.detailSettings = Vector4.Zero;
             PSGeomVars.Vars.specMapIntMask = Vector3.Zero;
             PSGeomVars.Vars.specularIntensityMult = 1.0f;
@@ -964,6 +991,8 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.specularFresnel = 1.0f;
             PSGeomVars.Vars.wetnessMultiplier = 0.0f;
             PSGeomVars.Vars.SpecOnly = 0;
+            PSGeomVars.Vars.UsePedSpecular = 0;
+            PSGeomVars.Vars.InteriorFlags = Vector4.Zero;
             PSGeomVars.Vars.TextureAlphaMask = Vector4.Zero;
             PSGeomVars.Update(context);
             PSGeomVars.SetPSCBuffer(context, 2);
@@ -1043,6 +1072,7 @@ namespace CodeWalker.Rendering
             context.PixelShader.SetShaderResource(3, null);
             context.PixelShader.SetShaderResource(4, null);
             context.PixelShader.SetShaderResource(5, null);
+            context.PixelShader.SetShaderResource(8, null);
             context.VertexShader.SetShaderResource(0, null);
             context.VertexShader.SetShaderResource(1, null);
             context.VertexShader.SetShaderResource(2, null);

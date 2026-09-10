@@ -15,7 +15,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYnvPointPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YnvPoint YnvPoint { get; set; }
+        public YnvPoint? YnvPoint { get; set; }
 
         private bool populatingui = false;
 
@@ -35,7 +35,7 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateFormTitle()
         {
-            Text = "Nav Point " + YnvPoint.Index.ToString();
+            Text = "Nav Point " + YnvPoint?.Index.ToString();
         }
 
 

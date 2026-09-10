@@ -10,7 +10,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditAudioAmbientZonePanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public AudioPlacement CurrentZone { get; set; }
+        public AudioPlacement? CurrentZone { get; set; }
 
         private bool populatingui = false;
 
@@ -21,7 +21,7 @@ namespace CodeWalker.Project.Panels
             InitializeComponent();
         }
 
-        public void SetZone(AudioPlacement zone)
+        public void SetZone(AudioPlacement? zone)
         {
             CurrentZone = zone;
             Tag = zone;
@@ -78,7 +78,7 @@ namespace CodeWalker.Project.Panels
             }
             else
             {
-                AddToProjectButton.Enabled = CurrentZone?.RelFile != null ? !ProjectForm.AudioFileExistsInProject(CurrentZone.RelFile) : false;
+                AddToProjectButton.Enabled = !ProjectForm.AudioFileExistsInProject(CurrentZone.RelFile);
                 DeleteButton.Enabled = !AddToProjectButton.Enabled;
 
                 populatingui = true;
@@ -392,13 +392,14 @@ namespace CodeWalker.Project.Panels
 
         private void GoToButton_Click(object sender, EventArgs e)
         {
-            if (CurrentZone == null) return;
+            if (CurrentZone?.AmbientZone == null) return;
             if (ProjectForm.WorldForm == null) return;
             ProjectForm.WorldForm.GoToPosition(CurrentZone.Position, CurrentZone.AmbientZone.PositioningZoneSize);
         }
 
         private void AddToProjectButton_Click(object sender, EventArgs e)
         {
+            if (CurrentZone == null) return;
             ProjectForm.SetProjectItem(CurrentZone);
             ProjectForm.AddAudioFileToProject(CurrentZone.RelFile);
         }

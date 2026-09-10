@@ -13,9 +13,9 @@ namespace CodeWalker.Forms
 {
     public partial class AwcForm : Form
     {
-        public AwcFile Awc { get; set; }
+        public AwcFile? Awc { get; set; }
 
-        private string fileName;
+        private string fileName = string.Empty;
         public string FileName
         {
             get { return fileName; }
@@ -25,7 +25,7 @@ namespace CodeWalker.Forms
                 UpdateFormTitle();
             }
         }
-        public string FilePath { get; set; }
+        public string FilePath { get; set; } = string.Empty;
 
         private bool LoadingXml = false;
         private bool DelayHighlight = false;
@@ -91,10 +91,10 @@ namespace CodeWalker.Forms
             Awc = awc;
             DetailsPropertyGrid.SelectedObject = awc;
 
-            fileName = awc?.Name;
+            fileName = awc.Name;
             if (string.IsNullOrEmpty(fileName))
             {
-                fileName = awc?.FileEntry?.Name;
+                fileName = awc.FileEntry?.Name ?? string.Empty;
             }
 
             PlayListView.Items.Clear();
@@ -119,7 +119,7 @@ namespace CodeWalker.Forms
                 }
             }
 
-            LabelInfo.Text = awc.Streams.Length.ToString() + " track(s), Length: " + TimeSpan.FromSeconds((float)totalLength).ToString("h\\:mm\\:ss");
+            LabelInfo.Text = (awc.Streams?.Length ?? 0).ToString() + " track(s), Length: " + TimeSpan.FromSeconds((float)totalLength).ToString("h\\:mm\\:ss");
             UpdateFormTitle();
         }
 
@@ -172,9 +172,9 @@ namespace CodeWalker.Forms
             if (PlayListView.SelectedItems.Count == 1)
             {
                 var item = PlayListView.SelectedItems[0];
-                var audio = item.Tag as AwcStream;
-                var stereo = (audio?.ChannelStreams?.Length == 2);
-                if (stereo)
+                if (item.Tag is not AwcStream audio) return;
+                var stereo = (audio.ChannelStreams?.Length == 2);
+                if (audio.ChannelStreams is { Length: 2 })
                 {
                     var name0 = audio.ChannelStreams[0].Name;
                     var left0 = name0.EndsWith("left") || name0.EndsWith(".l");
@@ -186,7 +186,7 @@ namespace CodeWalker.Forms
                     Player.SetOutputMatrix(1, f1, f0);
                     Player.Play();
                 }
-                else if ((audio?.FormatChunk != null) || (audio?.StreamFormat != null))
+                else if ((audio.FormatChunk != null) || (audio.StreamFormat != null))
                 {
                     Player.LoadAudio(audio);
                     Player.SetVolume(VolumeTrackBar.Value / 100.0f);
@@ -374,8 +374,8 @@ namespace CodeWalker.Forms
             if (PlayListView.SelectedItems.Count == 1)
             {
                 var item = PlayListView.SelectedItems[0];
-                var audio = item.Tag as AwcStream;
-                var stereo = (audio?.ChannelStreams?.Length == 2);
+                if (item.Tag is not AwcStream audio) return;
+                var stereo = (audio.ChannelStreams?.Length == 2);
 
                 if (stereo)
                 {
@@ -384,7 +384,7 @@ namespace CodeWalker.Forms
                 }
 
                 var ext = ".wav";
-                if (audio?.MidiChunk != null)
+                if (audio.MidiChunk != null)
                 {
                     ext = ".midi";
                 }
@@ -392,11 +392,11 @@ namespace CodeWalker.Forms
                 saveFileDialog.FileName = audio.Name + ext;
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    if (audio?.MidiChunk != null)
+                    if (audio.MidiChunk != null)
                     {
                         File.WriteAllBytes(saveFileDialog.FileName, audio.MidiChunk.Data);
                     }
-                    else if ((audio?.FormatChunk != null) || (audio?.StreamFormat != null))
+                    else if ((audio.FormatChunk != null) || (audio.StreamFormat != null))
                     {
                         Stream wavStream = audio.GetWavStream();
                         FileStream stream = File.Create(saveFileDialog.FileName);
@@ -415,8 +415,8 @@ namespace CodeWalker.Forms
             if (PlayListView.SelectedItems.Count == 1)
             {
                 var item = PlayListView.SelectedItems[0];
-                var audio = item.Tag as AwcStream;
-                if (audio?.MidiChunk != null)
+                if (item.Tag is not AwcStream audio) return;
+                if (audio.MidiChunk != null)
                 {
                     ExportAsWav.Text = "Export as .midi";
                 }

@@ -10,8 +10,8 @@ namespace CodeWalker.World
 {
     public class Entity
     {
-        public Space Space;
-        public YmapEntityDef EntityDef;
+        public Space? Space;
+        public YmapEntityDef? EntityDef;
 
         public float Radius;
         public Vector3 Center;
@@ -91,7 +91,8 @@ namespace CodeWalker.World
             Vector3 targetvel = controlvel + new Vector3(0, 0, curvel.Z);
             Vector3 newvel = curvel + (targetvel - curvel) * velspd * elapsed;
             Velocity = newvel;
-            var coll = Space.FindFirstCollision(this, elapsed);
+            var space = Space ?? throw new InvalidOperationException("Pedestrian has not been added to a space.");
+            var coll = space.FindFirstCollision(this, elapsed);
             if (coll.Hit)
             {
                 Vector3 collpos = coll.PrePos; //last known ok position
@@ -108,7 +109,7 @@ namespace CodeWalker.World
                     Vector3 raydir = new(0.0f, 0.0f, -1.0f);
                     Vector3 rayoff = new(0.0f, 0.0f, 0.0f);
                     Ray ray = new(targetpos + Center + rayoff, raydir);
-                    var rayhit = Space.RayIntersect(ray, 1.0f);
+                    var rayhit = space.RayIntersect(ray, 1.0f);
                     if (rayhit.Hit)
                     {
                         if (rayhit.HitDist > 0)
@@ -164,12 +165,12 @@ namespace CodeWalker.World
 
                 var raydir = new Vector3(0.0f, 0.0f, -1.0f);
                 var ray = new Ray(Position, raydir);
-                var rayhit = Space.RayIntersect(ray, float.MaxValue);
+                var rayhit = space.RayIntersect(ray, float.MaxValue);
                 if (!rayhit.Hit && rayhit.TestComplete)
                 {
                     //must be under the map? try to find the ground...
                     ray.Position = Position + new Vector3(0.0f, 0.0f, 1000.0f);
-                    rayhit = Space.RayIntersect(ray, float.MaxValue);
+                    rayhit = space.RayIntersect(ray, float.MaxValue);
                     if (rayhit.Hit)
                     {
                         Position = rayhit.Position + new Vector3(0.0f, 0.0f, Radius) - Center;

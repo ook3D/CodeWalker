@@ -44,27 +44,27 @@ namespace CodeWalker.GameFiles
         public static string ToS = "(c)2017";
 
         // aes decryption/encryption key...
-        public static byte[] PC_AES_KEY; // 32
+        public static byte[] PC_AES_KEY = []; // 32
 
         // ng decryption/encryption expanded keys...      
-        public static byte[][] PC_NG_KEYS; // 101, 272
+        public static byte[][] PC_NG_KEYS = []; // 101, 272
 
         // ng decryption tables...       
-        public static uint[][][] PC_NG_DECRYPT_TABLES; // 17, 16, 256
+        public static uint[][][] PC_NG_DECRYPT_TABLES = []; // 17, 16, 256
 
         // ng encryption tables...
         // -> some of these tables can be calculated from decryption tables
-        public static uint[][][] PC_NG_ENCRYPT_TABLES; // 17, 16, 256
+        public static uint[][][] PC_NG_ENCRYPT_TABLES = []; // 17, 16, 256
 
         // ng encryption look-up-tables
         // -> some of these look-up-tables can be calculated from decryption tables
-        public static GTA5NGLUT[][] PC_NG_ENCRYPT_LUTs; // 17, 16
+        public static GTA5NGLUT[][] PC_NG_ENCRYPT_LUTs = []; // 17, 16
 
         // hash lookup-table...
-        public static byte[] PC_LUT; // 256
+        public static byte[] PC_LUT = []; // 256
 
 
-        public static uint[] PC_AWC_KEY; // 16
+        public static uint[] PC_AWC_KEY = []; // 16
 
 
 
@@ -110,11 +110,11 @@ namespace CodeWalker.GameFiles
         }
 
 
-        private static readonly object NGEncryptTablesLock = new object();
+        private static readonly System.Threading.Lock NGEncryptTablesLock = new();
 
         public static bool NGEncryptTablesReady
         {
-            get { return (PC_NG_ENCRYPT_TABLES != null) && (PC_NG_ENCRYPT_LUTs != null); }
+            get { return (PC_NG_ENCRYPT_TABLES.Length != 0) && (PC_NG_ENCRYPT_LUTs.Length != 0); }
         }
 
         //cached NG encryption tables live next to the exe, same as Settings.xml
@@ -130,13 +130,13 @@ namespace CodeWalker.GameFiles
         //the NG encryption tables are derived from the decryption tables, which takes ~1 minute,
         //so they're only built when something actually needs to write an NG-encrypted archive,
         //and the result is cached to disk (~51MB) so it's only ever paid once.
-        public static void EnsureNGEncryptTables(Action<string> updateStatus = null)
+        public static void EnsureNGEncryptTables(Action<string>? updateStatus = null)
         {
             if (NGEncryptTablesReady) return;
             lock (NGEncryptTablesLock)
             {
                 if (NGEncryptTablesReady) return;
-                if (PC_NG_DECRYPT_TABLES == null)
+                if (PC_NG_DECRYPT_TABLES.Length == 0)
                 {
                     throw new Exception("Unable to build NG encryption tables - keys not loaded.");
                 }
@@ -162,8 +162,8 @@ namespace CodeWalker.GameFiles
             {
                 //truncated or corrupt cache - fall through and rebuild it
             }
-            PC_NG_ENCRYPT_TABLES = null;
-            PC_NG_ENCRYPT_LUTs = null;
+            PC_NG_ENCRYPT_TABLES = [];
+            PC_NG_ENCRYPT_LUTs = [];
             return false;
         }
 
@@ -172,7 +172,7 @@ namespace CodeWalker.GameFiles
             try
             {
                 updateStatus("Saving NG encryption tables...");
-                Directory.CreateDirectory(Path.GetDirectoryName(NGEncryptTablesPath));
+                Directory.CreateDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Keys"));
                 CryptoIO.WriteNgTables(NGEncryptTablesPath, PC_NG_ENCRYPT_TABLES);
                 CryptoIO.WriteLuts(NGEncryptLutsPath, PC_NG_ENCRYPT_LUTs);
             }
@@ -238,7 +238,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public static void GenerateV2(byte[] exeData, Action<string> updateStatus)
+        public static void GenerateV2(byte[] exeData, Action<string>? updateStatus)
         {
             var exeStr = new MemoryStream(exeData);
 
@@ -250,7 +250,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static void LoadFromPath(string path = ".\\Keys", bool gen9 = false, string key = null)
+        public static void LoadFromPath(string path = ".\\Keys", bool gen9 = false, string? key = null)
         {
             //PC_AES_KEY = File.ReadAllBytes(path + "\\gtav_aes_key.dat");
             //PC_NG_KEYS = CryptoIO.ReadNgKeys(path + "\\gtav_ng_key.dat");
@@ -291,7 +291,7 @@ namespace CodeWalker.GameFiles
             Buffer.BlockCopy(b3, 0, b, bp, b3.Length); bp += b3.Length; // 256
             Buffer.BlockCopy(b4, 0, b, bp, b4.Length); bp += b4.Length; // 16
 
-            byte[] db = null;
+            byte[]? db = null;
             using (MemoryStream dms = new())
             {
                 using (DeflateStream ds = new(dms, CompressionMode.Compress))
@@ -330,7 +330,7 @@ namespace CodeWalker.GameFiles
 
         }
 
-        private static void UseMagicData(string path, bool gen9, string key)
+        private static void UseMagicData(string path, bool gen9, string? key)
         {
 
             if (string.IsNullOrEmpty(key))
@@ -365,7 +365,7 @@ namespace CodeWalker.GameFiles
 
             db = GTACrypto.DecryptAESData(db, PC_AES_KEY);
 
-            byte[] b = null;
+            byte[]? b = null;
             using (MemoryStream dms = new(db))
             {
                 using (DeflateStream ds = new(dms, CompressionMode.Decompress))
@@ -838,18 +838,18 @@ namespace CodeWalker.GameFiles
 
             Parallel.For(0, (stream.Length / BLOCK_LENGTH), (long k) => {
 
-                var hashProvider = new SHA1CryptoServiceProvider();
+                using var hashProvider = SHA1.Create();
                 var buffer = new byte[length];
                 for (long i = 0; i < (BLOCK_LENGTH / ALIGN_LENGTH); i++)
                 {
                     var position = k * BLOCK_LENGTH + i * ALIGN_LENGTH;
-                    if (position >= stream.Length)
+                    if (position > stream.Length - length)
                         continue;
 
                     lock (stream)
                     {
                         stream.Position = position;
-                        stream.Read(buffer, 0, length);
+                        stream.ReadExactly(buffer, 0, length);
                     }
 
                     var hash = hashProvider.ComputeHash(buffer);

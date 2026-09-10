@@ -27,6 +27,7 @@
 using SharpDX;
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -98,6 +99,9 @@ namespace CodeWalker.GameFiles
         /// <summary>
         /// Initializes a new data reader for the specified stream.
         /// </summary>
+        // Derived resource streams provide their own read/write routing.
+        protected DataReader(Endianess endianess) : this(Stream.Null, endianess) { }
+
         public DataReader(Stream stream, Endianess endianess = Endianess.LittleEndian)
         {
             this.baseStream = stream;
@@ -105,21 +109,35 @@ namespace CodeWalker.GameFiles
         }
 
         /// <summary>
-        /// Reads data from the underlying stream. This is the only method that directly accesses
-        /// the data in the underlying stream.
+        /// Reads data through the span-based stream hook. Existing scalar readers use this
+        /// overload so subclasses can continue to customize array reads.
         /// </summary>
         protected virtual byte[] ReadFromStream(int count, bool ignoreEndianess = false)
         {
             var buffer = new byte[count];
-            baseStream.Read(buffer, 0, count);
-
-            // handle endianess
-            if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-            {
-                Array.Reverse(buffer);
-            }
-
+            ReadFromStream(buffer.AsSpan(), ignoreEndianess);
             return buffer;
+        }
+
+        /// <summary>Fills a buffer, throwing EndOfStreamException for truncated data.</summary>
+        protected virtual void ReadFromStream(Span<byte> buffer, bool ignoreEndianess = false)
+        {
+            baseStream.ReadExactly(buffer);
+            if (!ignoreEndianess && Endianess == Endianess.BigEndian)
+            {
+                buffer.Reverse();
+            }
+        }
+
+        /// <summary>Asynchronously fills a buffer using the reader's stream routing.</summary>
+        protected virtual async ValueTask ReadFromStreamAsync(Memory<byte> buffer,
+            bool ignoreEndianess, CancellationToken cancellationToken)
+        {
+            await baseStream.ReadExactlyAsync(buffer, cancellationToken).ConfigureAwait(false);
+            if (!ignoreEndianess && Endianess == Endianess.BigEndian)
+            {
+                buffer.Span.Reverse();
+            }
         }
 
         /// <summary>
@@ -262,71 +280,43 @@ namespace CodeWalker.GameFiles
         // Span-based reading methods for better performance
         public short ReadInt16(Span<byte> buffer)
         {
-            baseStream.Read(buffer.Slice(0, 2));
-            if (Endianess == Endianess.BigEndian)
-            {
-                buffer.Slice(0, 2).Reverse();
-            }
+            ReadFromStream(buffer[..2]);
             return BitConverter.ToInt16(buffer);
         }
 
         public int ReadInt32(Span<byte> buffer)
         {
-            baseStream.Read(buffer.Slice(0, 4));
-            if (Endianess == Endianess.BigEndian)
-            {
-                buffer.Slice(0, 4).Reverse();
-            }
+            ReadFromStream(buffer[..4]);
             return BitConverter.ToInt32(buffer);
         }
 
         public uint ReadUInt32(Span<byte> buffer)
         {
-            baseStream.Read(buffer.Slice(0, 4));
-            if (Endianess == Endianess.BigEndian)
-            {
-                buffer.Slice(0, 4).Reverse();
-            }
+            ReadFromStream(buffer[..4]);
             return BitConverter.ToUInt32(buffer);
         }
 
         public long ReadInt64(Span<byte> buffer)
         {
-            baseStream.Read(buffer.Slice(0, 8));
-            if (Endianess == Endianess.BigEndian)
-            {
-                buffer.Slice(0, 8).Reverse();
-            }
+            ReadFromStream(buffer[..8]);
             return BitConverter.ToInt64(buffer);
         }
 
         public ulong ReadUInt64(Span<byte> buffer)
         {
-            baseStream.Read(buffer.Slice(0, 8));
-            if (Endianess == Endianess.BigEndian)
-            {
-                buffer.Slice(0, 8).Reverse();
-            }
+            ReadFromStream(buffer[..8]);
             return BitConverter.ToUInt64(buffer);
         }
 
         public float ReadSingle(Span<byte> buffer)
         {
-            baseStream.Read(buffer.Slice(0, 4));
-            if (Endianess == Endianess.BigEndian)
-            {
-                buffer.Slice(0, 4).Reverse();
-            }
+            ReadFromStream(buffer[..4]);
             return BitConverter.ToSingle(buffer);
         }
 
         public double ReadDouble(Span<byte> buffer)
         {
-            baseStream.Read(buffer.Slice(0, 8));
-            if (Endianess == Endianess.BigEndian)
-            {
-                buffer.Slice(0, 8).Reverse();
-            }
+            ReadFromStream(buffer[..8]);
             return BitConverter.ToDouble(buffer);
         }
 
@@ -336,11 +326,7 @@ namespace CodeWalker.GameFiles
             byte[] buffer = ArrayPool<byte>.Shared.Rent(2);
             try
             {
-                await baseStream.ReadAsync(buffer.AsMemory(0, 2), cancellationToken).ConfigureAwait(false);
-                if (Endianess == Endianess.BigEndian)
-                {
-                    Array.Reverse(buffer, 0, 2);
-                }
+                await ReadFromStreamAsync(buffer.AsMemory(0, 2), false, cancellationToken).ConfigureAwait(false);
                 return BitConverter.ToInt16(buffer, 0);
             }
             finally
@@ -354,11 +340,7 @@ namespace CodeWalker.GameFiles
             byte[] buffer = ArrayPool<byte>.Shared.Rent(4);
             try
             {
-                await baseStream.ReadAsync(buffer.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
-                if (Endianess == Endianess.BigEndian)
-                {
-                    Array.Reverse(buffer, 0, 4);
-                }
+                await ReadFromStreamAsync(buffer.AsMemory(0, 4), false, cancellationToken).ConfigureAwait(false);
                 return BitConverter.ToInt32(buffer, 0);
             }
             finally
@@ -372,11 +354,7 @@ namespace CodeWalker.GameFiles
             byte[] buffer = ArrayPool<byte>.Shared.Rent(4);
             try
             {
-                await baseStream.ReadAsync(buffer.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
-                if (Endianess == Endianess.BigEndian)
-                {
-                    Array.Reverse(buffer, 0, 4);
-                }
+                await ReadFromStreamAsync(buffer.AsMemory(0, 4), false, cancellationToken).ConfigureAwait(false);
                 return BitConverter.ToUInt32(buffer, 0);
             }
             finally
@@ -390,11 +368,7 @@ namespace CodeWalker.GameFiles
             byte[] buffer = ArrayPool<byte>.Shared.Rent(8);
             try
             {
-                await baseStream.ReadAsync(buffer.AsMemory(0, 8), cancellationToken).ConfigureAwait(false);
-                if (Endianess == Endianess.BigEndian)
-                {
-                    Array.Reverse(buffer, 0, 8);
-                }
+                await ReadFromStreamAsync(buffer.AsMemory(0, 8), false, cancellationToken).ConfigureAwait(false);
                 return BitConverter.ToInt64(buffer, 0);
             }
             finally
@@ -408,11 +382,7 @@ namespace CodeWalker.GameFiles
             byte[] buffer = ArrayPool<byte>.Shared.Rent(8);
             try
             {
-                await baseStream.ReadAsync(buffer.AsMemory(0, 8), cancellationToken).ConfigureAwait(false);
-                if (Endianess == Endianess.BigEndian)
-                {
-                    Array.Reverse(buffer, 0, 8);
-                }
+                await ReadFromStreamAsync(buffer.AsMemory(0, 8), false, cancellationToken).ConfigureAwait(false);
                 return BitConverter.ToUInt64(buffer, 0);
             }
             finally
@@ -426,11 +396,7 @@ namespace CodeWalker.GameFiles
             byte[] buffer = ArrayPool<byte>.Shared.Rent(4);
             try
             {
-                await baseStream.ReadAsync(buffer.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
-                if (Endianess == Endianess.BigEndian)
-                {
-                    Array.Reverse(buffer, 0, 4);
-                }
+                await ReadFromStreamAsync(buffer.AsMemory(0, 4), false, cancellationToken).ConfigureAwait(false);
                 return BitConverter.ToSingle(buffer, 0);
             }
             finally
@@ -444,11 +410,7 @@ namespace CodeWalker.GameFiles
             byte[] buffer = ArrayPool<byte>.Shared.Rent(8);
             try
             {
-                await baseStream.ReadAsync(buffer.AsMemory(0, 8), cancellationToken).ConfigureAwait(false);
-                if (Endianess == Endianess.BigEndian)
-                {
-                    Array.Reverse(buffer, 0, 8);
-                }
+                await ReadFromStreamAsync(buffer.AsMemory(0, 8), false, cancellationToken).ConfigureAwait(false);
                 return BitConverter.ToDouble(buffer, 0);
             }
             finally
@@ -460,7 +422,7 @@ namespace CodeWalker.GameFiles
         public async Task<byte[]> ReadBytesAsync(int count, CancellationToken cancellationToken = default)
         {
             byte[] buffer = new byte[count];
-            await baseStream.ReadAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+            await ReadFromStreamAsync(buffer.AsMemory(), true, cancellationToken).ConfigureAwait(false);
             return buffer;
         }
 
@@ -533,6 +495,9 @@ namespace CodeWalker.GameFiles
         /// <summary>
         /// Initializes a new data writer for the specified stream.
         /// </summary>
+        // Derived resource streams provide their own read/write routing.
+        protected DataWriter(Endianess endianess) : this(Stream.Null, endianess) { }
+
         public DataWriter(Stream stream, Endianess endianess = Endianess.LittleEndian)
         {
             this.baseStream = stream;
@@ -545,15 +510,37 @@ namespace CodeWalker.GameFiles
         /// </summary>
         protected virtual void WriteToStream(byte[] value, bool ignoreEndianess = false)
         {
-            if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
+            ArgumentNullException.ThrowIfNull(value);
+            WriteToStream(value.AsSpan(), ignoreEndianess);
+        }
+
+        protected virtual void WriteToStream(ReadOnlySpan<byte> value, bool ignoreEndianess = false)
+        {
+            WriteToStream(baseStream, value, ignoreEndianess);
+        }
+
+        // Shared by ordinary streams and the system/graphics resource routes.
+        protected void WriteToStream(Stream stream, ReadOnlySpan<byte> value, bool ignoreEndianess)
+        {
+            if (ignoreEndianess || Endianess != Endianess.BigEndian)
             {
-                var buffer = (byte[])value.Clone();
-                Array.Reverse(buffer);
-                baseStream.Write(buffer, 0, buffer.Length);
+                stream.Write(value);
+                return;
             }
-            else
+
+            byte[]? rented = null;
+            Span<byte> buffer = value.Length <= 256
+                ? stackalloc byte[value.Length]
+                : (rented = ArrayPool<byte>.Shared.Rent(value.Length)).AsSpan(0, value.Length);
+            try
             {
-                baseStream.Write(value, 0, value.Length);
+                value.CopyTo(buffer);
+                buffer.Reverse();
+                stream.Write(buffer);
+            }
+            finally
+            {
+                if (rented != null) ArrayPool<byte>.Shared.Return(rented);
             }
         }
 
@@ -562,7 +549,9 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(byte value)
         {
-            WriteToStream(new byte[] { value });
+            Span<byte> buffer = stackalloc byte[1];
+            buffer[0] = value;
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -573,12 +562,21 @@ namespace CodeWalker.GameFiles
             WriteToStream(value, true);
         }
 
+        /// <summary>Writes bytes without endian conversion or an intermediate array.</summary>
+        public void Write(ReadOnlySpan<byte> value)
+        {
+            WriteToStream(value, true);
+        }
+
         /// <summary>
         /// Writes a signed 16-bit value.
         /// </summary>
         public void Write(short value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[2];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteInt16BigEndian(buffer, value);
+            else BinaryPrimitives.WriteInt16LittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -586,7 +584,10 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(int value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[4];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteInt32BigEndian(buffer, value);
+            else BinaryPrimitives.WriteInt32LittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -594,7 +595,10 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(long value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[8];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteInt64BigEndian(buffer, value);
+            else BinaryPrimitives.WriteInt64LittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -602,7 +606,10 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(ushort value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[2];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteUInt16BigEndian(buffer, value);
+            else BinaryPrimitives.WriteUInt16LittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -610,7 +617,10 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(uint value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[4];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteUInt32BigEndian(buffer, value);
+            else BinaryPrimitives.WriteUInt32LittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -618,7 +628,10 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(ulong value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[8];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteUInt64BigEndian(buffer, value);
+            else BinaryPrimitives.WriteUInt64LittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -626,7 +639,10 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(float value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[4];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteSingleBigEndian(buffer, value);
+            else BinaryPrimitives.WriteSingleLittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -634,7 +650,10 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(double value)
         {
-            WriteToStream(BitConverter.GetBytes(value));
+            Span<byte> buffer = stackalloc byte[8];
+            if (Endianess == Endianess.BigEndian) BinaryPrimitives.WriteDoubleBigEndian(buffer, value);
+            else BinaryPrimitives.WriteDoubleLittleEndian(buffer, value);
+            WriteToStream(buffer, true);
         }
 
         /// <summary>
@@ -642,9 +661,19 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public void Write(string value)
         {
-            foreach (var c in value)
-                Write((byte)c);
-            Write((byte)0);
+            ArgumentNullException.ThrowIfNull(value);
+            // Resource strings use the low byte of each UTF-16 character, not UTF-8.
+            Span<byte> buffer = stackalloc byte[256];
+            var remaining = value.AsSpan();
+            while (remaining.Length >= buffer.Length)
+            {
+                for (int i = 0; i < buffer.Length; i++) buffer[i] = (byte)remaining[i];
+                WriteToStream(buffer, true);
+                remaining = remaining[buffer.Length..];
+            }
+            for (int i = 0; i < remaining.Length; i++) buffer[i] = (byte)remaining[i];
+            buffer[remaining.Length] = 0;
+            WriteToStream(buffer[..(remaining.Length + 1)], true);
         }
 
 

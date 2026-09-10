@@ -20,7 +20,8 @@ namespace CodeWalker.World
         {
             Dict.Clear();
 
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan
+                ?? throw new InvalidOperationException("The game file cache must have an RPF manager before loading timecycle modifiers.");
 
             LoadXml(rpfman.GetFileXml("common.rpf\\data\\timecycle\\timecycle_mods_1.xml"));
             LoadXml(rpfman.GetFileXml("common.rpf\\data\\timecycle\\timecycle_mods_2.xml"));
@@ -50,15 +51,16 @@ namespace CodeWalker.World
             gameFileCache.TimeCycleModsDict = Dict;
         }
 
-        private void LoadXml(XmlDocument doc)
+        private void LoadXml(XmlDocument? doc)
         {
-            var root = doc.DocumentElement;
+            var root = doc?.DocumentElement;
             if (root == null)
             { return; }
 
             float version = Xml.GetFloatAttribute(root, "version");
 
             var modnodes = root.SelectNodes("modifier");
+            if (modnodes == null) return;
             foreach (XmlNode modnode in modnodes)
             {
                 if (!(modnode is XmlElement)) continue; 
@@ -76,19 +78,20 @@ namespace CodeWalker.World
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class TimecycleMod
     {
-        public string name { get; set; }
+        public string name { get; set; } = string.Empty;
         public uint nameHash { get; set; }
         public int numMods { get; set; }
         public int userFlags { get; set; }
 
-        public TimecycleModValue[] Values { get; set; }
-        public Dictionary<string, TimecycleModValue> Dict { get; set; }
+        public TimecycleModValue[] Values { get; set; } = [];
+        public Dictionary<string, TimecycleModValue> Dict { get; set; } = new();
 
         public void Init(XmlNode node)
         {
             Dict = new Dictionary<string, TimecycleModValue>();
 
-            name = Xml.GetStringAttribute(node, "name");
+            name = Xml.GetStringAttribute(node, "name")
+                ?? throw new XmlException("A timecycle modifier must have a name attribute.");
             numMods = Xml.GetIntAttribute(node, "numMods");
             userFlags = Xml.GetIntAttribute(node, "userFlags");
 
@@ -120,7 +123,7 @@ namespace CodeWalker.World
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class TimecycleModValue
     {
-        public string name { get; set; }
+        public string name { get; set; } = string.Empty;
         public float value1 { get; set; }
         public float value2 { get; set; }
 

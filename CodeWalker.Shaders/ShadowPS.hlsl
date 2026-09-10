@@ -1,3 +1,4 @@
+#include "MaterialAlpha.hlsli"
 Texture2D<float4> Colourmap : register(t0);
 SamplerState TextureSS : register(s0);
 
@@ -7,6 +8,8 @@ cbuffer PSGeomVars : register(b0)
     uint EnableTint;
     uint IsDecal;
     uint Pad3;
+    float4 WindOverrideParams;
+    float4 AlphaParams;
 }
 
 
@@ -26,7 +29,9 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     {
         float4 c = Colourmap.Sample(TextureSS, input.Texcoord);
         if (EnableTint == 2) { c.a = 1; }
-        if ((IsDecal == 0) && (c.a <= 0.33)) discard;
+        if (AlphaParams.x == 3) c.a = 1;
+        if ((AlphaParams.x == 1) || (AlphaParams.x == 4)) ClipMaterialCoverage(c.a, AlphaParams.y);
+        else if ((IsDecal == 0) && (c.a <= 0.33)) discard;
         if ((IsDecal == 1) && (c.a <= 0.0)) discard;
     }
 	return float4(1.0f, 1.0f, 1.0f, 1.0f);

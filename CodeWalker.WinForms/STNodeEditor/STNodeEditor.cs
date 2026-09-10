@@ -197,12 +197,12 @@ namespace ST.Library.UI.NodeEditor
             }
         }
 
-        private STNode _ActiveNode;
+        private STNode? _ActiveNode;
         /// <summary>
         /// Get the active Node selected in the current canvas
         /// </summary>
         [Browsable(false)]
-        public STNode ActiveNode {
+        public STNode? ActiveNode {
             get { return _ActiveNode; }
             //set {
             //    if (value == _ActiveSelectedNode) return;
@@ -214,12 +214,12 @@ namespace ST.Library.UI.NodeEditor
             //}
         }
 
-        private STNode _HoverNode;
+        private STNode? _HoverNode;
         /// <summary>
         /// Get the Node that the mouse hovers over in the current canvas
         /// </summary>
         [Browsable(false)]
-        public STNode HoverNode {
+        public STNode? HoverNode {
             get { return _HoverNode; }
         }
         //========================================color================================
@@ -430,11 +430,11 @@ namespace ST.Library.UI.NodeEditor
         /// <summary>
         /// Used to save the starting point of the mouse click during the connection process. Option When MouseUP determines whether to connect this node
         /// </summary>
-        protected STNodeOption m_option_down;
+        protected STNodeOption? m_option_down;
         /// <summary>
         /// STNode under the current mouse click
         /// </summary>
-        protected STNode m_node_down;
+        protected STNode? m_node_down;
         /// <summary>
         /// Whether the current mouse is in the control
         /// </summary>
@@ -466,10 +466,10 @@ namespace ST.Library.UI.NodeEditor
 
         private RectangleF m_rect_select = new();
         //Node border preset pattern
-        private Image m_img_border;
-        private Image m_img_border_hover;
-        private Image m_img_border_selected;
-        private Image m_img_border_active;
+        private Image? m_img_border;
+        private Image? m_img_border_hover;
+        private Image? m_img_border_selected;
+        private Image? m_img_border_active;
         //Used for the animation effect when the mouse scrolls or the touchpad moves the canvas. This value is the real coordinate address that needs to be moved to view ->MoveCanvasThread()
         private float m_real_canvas_x;
         private float m_real_canvas_y;
@@ -494,7 +494,7 @@ namespace ST.Library.UI.NodeEditor
         private volatile bool m_threads_running = true; //signals background threads to stop on dispose
         private Pen m_p_line = new(Color.Cyan, 2f); // used to draw connected lines
         private Pen m_p_line_hover = new(Color.Cyan, 4f); //Used to draw the line when the mouse is hovered
-        private GraphicsPath m_gp_hover; //The path of the current mouse hover
+        private GraphicsPath? m_gp_hover; //The path of the current mouse hover
         private StringFormat m_sf = new(); //The text format is used to set the text format when Mark draws
         //Save the node relationship corresponding to each connection line
         private Dictionary<GraphicsPath, ConnectionInfo> m_dic_gp_info = new();
@@ -505,7 +505,7 @@ namespace ST.Library.UI.NodeEditor
 
         private int m_time_alert;
         private int m_alpha_alert;
-        private string m_str_alert;
+        private string? m_str_alert;
         private Color m_forecolor_alert;
         private Color m_backcolor_alert;
         private DateTime m_dt_alert;
@@ -519,57 +519,57 @@ namespace ST.Library.UI.NodeEditor
         /// Occurs when the active node changes
         /// </summary>
         [Description("Occurs when the active node changes")]
-        public event EventHandler ActiveChanged;
+        public event EventHandler? ActiveChanged;
         /// <summary>
         /// Occurs when the selected node changes
         /// </summary>
         [Description("Occurs when the selected node changes")]
-        public event EventHandler SelectedChanged;
+        public event EventHandler? SelectedChanged;
         /// <summary>
         /// Occurs when the hovered node changes
         /// </summary>
         [Description("Occurs when the hovered node changes")]
-        public event EventHandler HoverChanged;
+        public event EventHandler? HoverChanged;
         /// <summary>
         /// Occurs when a node is added
         /// </summary>
         [Description("Occurs when a node is added")]
-        public event STNodeEditorEventHandler NodeAdded;
+        public event STNodeEditorEventHandler? NodeAdded;
         /// <summary>
         /// Occurs when the node is removed
         /// </summary>
         [Description("Occurs when a node is removed")]
-        public event STNodeEditorEventHandler NodeRemoved;
+        public event STNodeEditorEventHandler? NodeRemoved;
         /// <summary>
         /// Occurs when the origin of the canvas is moved
         /// </summary>
         [Description("Occurs when moving the origin of the canvas")]
-        public event EventHandler CanvasMoved;
+        public event EventHandler? CanvasMoved;
         /// <summary>
         /// Occurs when the canvas is zoomed
         /// </summary>
         [Description("Occurs when zooming the canvas")]
-        public event EventHandler CanvasScaled;
+        public event EventHandler? CanvasScaled;
         /// <summary>
         /// Occurs when connecting node options
         /// </summary>
         [Description("Occurs when connecting node options")]
-        public event STNodeEditorOptionEventHandler OptionConnected;
+        public event STNodeEditorOptionEventHandler? OptionConnected;
         /// <summary>
         /// Occurs when connecting node options
         /// </summary>
         [Description("Occurs when connecting node options")]
-        public event STNodeEditorOptionEventHandler OptionConnecting;
+        public event STNodeEditorOptionEventHandler? OptionConnecting;
         /// <summary>
         /// Occurs when the node option is disconnected
         /// </summary>
         [Description("Occurs when the node option is disconnected")]
-        public event STNodeEditorOptionEventHandler OptionDisConnected;
+        public event STNodeEditorOptionEventHandler? OptionDisConnected;
         /// <summary>
         /// Occurs when disconnecting node options
         /// </summary>
         [Description("Occurs when disconnecting node options")]
-        public event STNodeEditorOptionEventHandler OptionDisConnecting;
+        public event STNodeEditorOptionEventHandler? OptionDisConnecting;
 
         protected virtual internal void OnSelectedChanged(EventArgs e) {
             this.SelectedChanged?.Invoke(this, e);
@@ -666,7 +666,7 @@ namespace ST.Library.UI.NodeEditor
             this.OnDrawConnectedLine(m_drawing_tools);
             this.OnDrawNode(m_drawing_tools, this.ControlToCanvas(this.ClientRectangle));
 
-            if (m_ca == CanvasAction.ConnectOption) { //If connecting
+            if (m_ca == CanvasAction.ConnectOption && m_option_down != null) { //If connecting
                 m_drawing_tools.Pen.Color = this._HighLineColor;
                 g.SmoothingMode = SmoothingMode.HighQuality;
                 if (m_option_down.IsInput)
@@ -679,7 +679,7 @@ namespace ST.Library.UI.NodeEditor
 
             switch (m_ca) {
                 case CanvasAction.MoveNode: //Draw alignment guides during movement
-                    if (this._ShowMagnet && this._ActiveNode != null) this.OnDrawMagnet(m_drawing_tools, m_mi);
+                    if (this._ShowMagnet) this.OnDrawMagnet(m_drawing_tools, m_mi);
                     break;
                 case CanvasAction.SelectRectangle: //Draw rectangle selection
                     this.OnDrawSelectedRectangle(m_drawing_tools, this.CanvasToControl(m_rect_select));
@@ -751,7 +751,7 @@ namespace ST.Library.UI.NodeEditor
                                 m_dic_pt_selected.Add(n, n.Location);
                         }
                         m_ca = CanvasAction.MoveNode; //If the title of the node is under the point, the node can be moved
-                        if (this._ShowMagnet && this._ActiveNode != null) this.BuildMagnetLocation(); //The coordinates needed to build the magnet will be useful if you need to move the selected node
+                        if (this._ShowMagnet) this.BuildMagnetLocation(); //The coordinates needed to build the magnet will be useful if you need to move the selected node
                     }
                 } else
                     m_node_down = nfi.Node;
@@ -820,7 +820,7 @@ namespace ST.Library.UI.NodeEditor
                     (int)m_pt_in_canvas.Y - this._HoverNode.Top, e.Delta));
                 m_gp_hover = null;
             } else {
-                GraphicsPath gp = null;
+                GraphicsPath? gp = null;
                 foreach (var v in m_dic_gp_info) { //Determine whether the mouse hovers over the connection path
                     if (v.Key.IsOutlineVisible(m_pt_in_canvas, m_p_line_hover)) {
                         gp = v.Key;
@@ -844,7 +844,7 @@ namespace ST.Library.UI.NodeEditor
                     break;
                 case CanvasAction.ConnectOption: //If it is connecting, end the connection
                     if (e.Location == m_pt_down_in_control) break;
-                    if (nfi.NodeOption != null) {
+                    if (nfi.NodeOption != null && m_option_down != null) {
                         if (m_option_down.IsInput)
                             nfi.NodeOption.ConnectOption(m_option_down);
                         else
@@ -952,7 +952,7 @@ namespace ST.Library.UI.NodeEditor
         protected override void OnDragEnter(DragEventArgs drgevent) {
             base.OnDragEnter(drgevent);
             if (this.DesignMode) return;
-            if (drgevent.Data.GetDataPresent("STNodeType"))
+            if (drgevent.Data?.GetDataPresent("STNodeType") == true)
                 drgevent.Effect = DragDropEffects.Copy;
             else
                 drgevent.Effect = DragDropEffects.None;
@@ -962,12 +962,12 @@ namespace ST.Library.UI.NodeEditor
         protected override void OnDragDrop(DragEventArgs drgevent) {
             base.OnDragDrop(drgevent);
             if (this.DesignMode) return;
-            if (drgevent.Data.GetDataPresent("STNodeType")) {
-                object data = drgevent.Data.GetData("STNodeType");
+            if (drgevent.Data?.GetDataPresent("STNodeType") == true) {
+                object? data = drgevent.Data.GetData("STNodeType");
                 if (!(data is Type)) return;
                 var t = (Type)data;
                 if (!t.IsSubclassOf(typeof(STNode))) return;
-                STNode node = (STNode)Activator.CreateInstance((t));
+                STNode node = STNodeFactory.Create(t);
                 Point pt = new(drgevent.X, drgevent.Y);
                 pt = this.PointToClient(pt);
                 pt = this.ControlToCanvas(pt);
@@ -1023,11 +1023,12 @@ namespace ST.Library.UI.NodeEditor
         /// <param name="dt">Drawing tool</param>
         /// <param name="node">Target node</param>
         protected virtual void OnDrawNodeBorder(DrawingTools dt, STNode node) {
-            Image img_border = null;
+            Image? img_border = null;
             if (this._ActiveNode == node) img_border = m_img_border_active;
             else if (node.IsSelected) img_border = m_img_border_selected;
             else if (this._HoverNode == node) img_border = m_img_border_hover;
             else img_border = m_img_border;
+            if (img_border == null) return;
             this.RenderBorder(dt.Graphics, node.Rectangle, img_border);
             if (!string.IsNullOrEmpty(node.Mark)) this.RenderBorder(dt.Graphics, node.MarkRectangle, img_border);
         }
@@ -1049,7 +1050,7 @@ namespace ST.Library.UI.NodeEditor
                         if (op.DataType == t)
                             m_p_line.Color = this._UnknownTypeColor;
                         else
-                            m_p_line.Color = this._TypeColor.TryGetValue(op.DataType, out Color typeColor) ? typeColor : this._UnknownTypeColor;//value can not be null
+                            m_p_line.Color = op.DataType != null && this._TypeColor.TryGetValue(op.DataType, out Color typeColor) ? typeColor : this._UnknownTypeColor;//value can not be null
                     }
                     foreach (var v in op.ConnectedOption) {
                         this.DrawBezier(g, m_p_line_hover, op.DotLeft + op.DotSize, op.DotTop + op.DotSize / 2,
@@ -1075,6 +1076,7 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="dt">Drawing tool</param>
         protected virtual void OnDrawMark(DrawingTools dt) {
+            if (string.IsNullOrEmpty(m_find.Mark) || m_find.MarkLines is not { Length: > 0 }) return;
             Graphics g = dt.Graphics;
             SizeF sz = g.MeasureString(m_find.Mark, this.Font); //Confirm the required size of the text
             Rectangle rect = new(m_pt_in_control.X + 15,
@@ -1268,6 +1270,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         internal void OnDrawAlert(Graphics g) {
+            if (string.IsNullOrEmpty(m_str_alert)) return;
             m_rect_alert = this.GetAlertRectangle(g, m_str_alert, m_al);
             Color clr_fore = Color.FromArgb((int)((float)m_alpha_alert / 255 * m_forecolor_alert.A), m_forecolor_alert);
             Color clr_back = Color.FromArgb((int)((float)m_alpha_alert / 255 * m_backcolor_alert.A), m_backcolor_alert);
@@ -1366,7 +1369,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         private ConnectionStatus DisConnectionHover() {
-            if (!m_dic_gp_info.TryGetValue(m_gp_hover, out ConnectionInfo ci)) return ConnectionStatus.DisConnected;
+            if (m_gp_hover == null || !m_dic_gp_info.TryGetValue(m_gp_hover, out ConnectionInfo ci)) return ConnectionStatus.DisConnected;
             var ret = ci.Output.DisConnectOption(ci.Input);
             //this.OnOptionDisConnected(new STNodeOptionEventArgs(ci.Output, ci.Input, ret));
             if (ret == ConnectionStatus.DisConnected) {
@@ -1398,7 +1401,7 @@ namespace ST.Library.UI.NodeEditor
                     v.Left = m_dic_pt_selected[v].X + nX;
                     v.Top = m_dic_pt_selected[v].Y + nY;
                 }
-                if (this._ShowMagnet) {
+                if (this._ShowMagnet && this._ActiveNode != null) {
                     MagnetInfo mi = this.CheckMagnet(this._ActiveNode);
                     if (mi.XMatched) {
                         foreach (STNode v in m_hs_node_selected) v.Left -= mi.OffsetX;
@@ -1551,7 +1554,7 @@ namespace ST.Library.UI.NodeEditor
         /// <param name="pt">Coordinates in canvas</param>
         /// <returns>Data found</returns>
         public NodeFindInfo FindNodeFromPoint(PointF pt) {
-            m_find.Node = null; m_find.NodeOption = null; m_find.Mark = null;
+            m_find = default;
             for (int i = this._Nodes.Count - 1; i >= 0; i--) {
                 if (!string.IsNullOrEmpty(this._Nodes[i].Mark) && this.PointInRectangle(this._Nodes[i].MarkRectangle, pt.X, pt.Y)) {
                     m_find.Mark = this._Nodes[i].Mark;
@@ -1769,7 +1772,7 @@ namespace ST.Library.UI.NodeEditor
             foreach (STNodeOption op_1 in nodeStart.OutputOptions) {
                 foreach(STNodeOption op_2 in op_1.ConnectedOption) {
                     if (op_2.Owner == nodeFind) return true;
-                    if (hs.Add(op_2.Owner)) {
+                    if (op_2.Owner != null && hs.Add(op_2.Owner)) {
                         if (STNodeEditor.CanFindNodePath(op_2.Owner, nodeFind)) return true;
                     }
                 }
@@ -2026,8 +2029,8 @@ namespace ST.Library.UI.NodeEditor
                 nIndex += nLen;
                 dic.Add(strKey, byValue);
             }
-            if (!m_dic_type.TryGetValue(strGUID, out Type t)) throw new TypeLoadException("Cannot find the assembly where the type {" + strModel.Split('|')[1] + "} is located to ensure that the assembly {" + strModel.Split('|')[0] + "} has been loaded correctly by the editor. The assembly can be loaded by calling LoadAssembly()");
-            STNode node = (STNode)Activator.CreateInstance(t);
+            if (!m_dic_type.TryGetValue(strGUID, out Type? t)) throw new TypeLoadException("Cannot find the assembly where the type {" + strModel.Split('|')[1] + "} is located to ensure that the assembly {" + strModel.Split('|')[0] + "} has been loaded correctly by the editor. The assembly can be loaded by calling LoadAssembly()");
+            STNode node = STNodeFactory.Create(t);
             node.OnLoadNode(dic);
             return node;
         }
@@ -2074,9 +2077,9 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="node">The node that needs to be set as active</param>
         /// <returns>The active node before setting</returns>
-        public STNode SetActiveNode(STNode node) {
+        public STNode? SetActiveNode(STNode? node) {
             if (node != null && !this._Nodes.Contains(node)) return this._ActiveNode;
-            STNode ret = this._ActiveNode;
+            STNode? ret = this._ActiveNode;
             if (this._ActiveNode != node) { //Reset active selection node
                 if (node != null) {
                     this._Nodes.MoveToEnd(node);

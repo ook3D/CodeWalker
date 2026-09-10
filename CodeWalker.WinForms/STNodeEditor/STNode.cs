@@ -41,11 +41,11 @@ namespace ST.Library.UI.NodeEditor
 {
     public abstract class STNode
     {
-        private STNodeEditor _Owner;
+        private STNodeEditor? _Owner;
         /// <summary>
         /// Get the current Node owner
         /// </summary>
-        public STNodeEditor Owner {
+        public STNodeEditor? Owner {
             get { return _Owner; }
             internal set {
                 if (value == _Owner) return;
@@ -149,11 +149,11 @@ namespace ST.Library.UI.NodeEditor
             }
         }
 
-        private string _Mark;
+        private string? _Mark;
         /// <summary>
         /// Get or set Node tag information
         /// </summary>
-        public string Mark {
+        public string? Mark {
             get { return _Mark; }
             set {
                 _Mark = value;
@@ -165,11 +165,11 @@ namespace ST.Library.UI.NodeEditor
             }
         }
 
-        private string[] _MarkLines;//Store line data separately without splitting it every time you draw
+        private string[]? _MarkLines;//Store line data separately without splitting it every time you draw
         /// <summary>
         /// Get Node tag information row data
         /// </summary>
-        public string[] MarkLines {
+        public string[]? MarkLines {
             get { return _MarkLines; }
         }
 
@@ -420,20 +420,20 @@ namespace ST.Library.UI.NodeEditor
             }
         }
 
-        private ContextMenuStrip _ContextMenuStrip;
+        private ContextMenuStrip? _ContextMenuStrip;
         /// <summary>
         /// Gets or sets the current Node context menu
         /// </summary>
-        public ContextMenuStrip ContextMenuStrip {
+        public ContextMenuStrip? ContextMenuStrip {
             get { return _ContextMenuStrip; }
             set { _ContextMenuStrip = value; }
         }
 
-        private object _Tag;
+        private object? _Tag;
         /// <summary>
         /// Get or set user-defined saved data
         /// </summary>
-        public object Tag {
+        public object? Tag {
             get { return _Tag; }
             set { _Tag = value; }
         }
@@ -487,15 +487,15 @@ namespace ST.Library.UI.NodeEditor
         /// <summary>
         /// Active controls in the current Node
         /// </summary>
-        protected STNodeControl m_ctrl_active;
+        protected STNodeControl? m_ctrl_active;
         /// <summary>
         /// The hover control in the current Node
         /// </summary>
-        protected STNodeControl m_ctrl_hover;
+        protected STNodeControl? m_ctrl_hover;
         /// <summary>
         /// The control under the mouse click in the current Node
         /// </summary>
-        protected STNodeControl m_ctrl_down;
+        protected STNodeControl? m_ctrl_down;
 
         protected internal void BuildSize(bool bBuildNode, bool bBuildMark, bool bRedraw) {
             if (this._Owner == null) return;
@@ -531,15 +531,12 @@ namespace ST.Library.UI.NodeEditor
             foreach (var p in t.GetProperties()) {
                 var attrs = p.GetCustomAttributes(true);
                 foreach (var a in attrs) {
-                    if (!(a is STNodePropertyAttribute)) continue;
-                    var attr = a as STNodePropertyAttribute;
-                    object obj = Activator.CreateInstance(attr.DescriptorType);
-                    if (!(obj is STNodePropertyDescriptor))
+                    if (a is not STNodePropertyAttribute attr) continue;
+                    if (Activator.CreateInstance(attr.DescriptorType) is not STNodePropertyDescriptor desc)
                         throw new InvalidOperationException("[STNodePropertyAttribute.Type] parameter value must be the type of [STNodePropertyDescriptor] or its subclass");
-                    var desc = (STNodePropertyDescriptor)Activator.CreateInstance(attr.DescriptorType);
                     desc.Node = this;
                     desc.PropertyInfo = p;
-                    byte[] byData = desc.GetBytesFromValue();
+                    byte[]? byData = desc.GetBytesFromValue();
                     if (byData == null) continue;
                     dic.Add(p.Name, byData);
                 }
@@ -676,7 +673,7 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="dt">Drawing tool</param>
         protected internal virtual void OnDrawMark(DrawingTools dt) {
-            if (string.IsNullOrEmpty(this._Mark)) return;
+            if (string.IsNullOrEmpty(this._Mark) || this._MarkLines is not { Length: > 0 }) return;
             Graphics g = dt.Graphics;
             SolidBrush brush = dt.SolidBrush;
             m_sf.LineAlignment = StringAlignment.Center;
@@ -705,6 +702,7 @@ namespace ST.Library.UI.NodeEditor
         /// <param name="dt">Drawing tool</param>
         /// <param name="op">Specified options</param>
         protected virtual void OnDrawOptionDot(DrawingTools dt, STNodeOption op) {
+            if (Owner == null || op.DataType == null) return;
             Graphics g = dt.Graphics;
             Pen pen = dt.Pen;
             SolidBrush brush = dt.SolidBrush;
@@ -819,32 +817,29 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="dic">Save data</param>
         protected internal virtual void OnLoadNode(Dictionary<string, byte[]> dic) {
-            if (dic.TryGetValue("AutoSize", out byte[] autoSizeData)) this._AutoSize = autoSizeData[0] == 1;
-            if (dic.TryGetValue("LockOption", out byte[] lockOptionData)) this._LockOption = lockOptionData[0] == 1;
-            if (dic.TryGetValue("LockLocation", out byte[] lockLocationData)) this._LockLocation = lockLocationData[0] == 1;
-            if (dic.TryGetValue("Guid", out byte[] guidData)) this._Guid = new Guid(guidData);
-            if (dic.TryGetValue("Left", out byte[] leftData)) this._Left = BitConverter.ToInt32(leftData, 0);
-            if (dic.TryGetValue("Top", out byte[] topData)) this._Top = BitConverter.ToInt32(topData, 0);
-            if (dic.TryGetValue("Width", out byte[] widthData) && !this._AutoSize) this._Width = BitConverter.ToInt32(widthData, 0);
-            if (dic.TryGetValue("Height", out byte[] heightData) && !this._AutoSize) this._Height = BitConverter.ToInt32(heightData, 0);
-            if (dic.TryGetValue("Mark", out byte[] markData)) this.Mark = Encoding.UTF8.GetString(markData);
+            if (dic.TryGetValue("AutoSize", out byte[]? autoSizeData)) this._AutoSize = autoSizeData[0] == 1;
+            if (dic.TryGetValue("LockOption", out byte[]? lockOptionData)) this._LockOption = lockOptionData[0] == 1;
+            if (dic.TryGetValue("LockLocation", out byte[]? lockLocationData)) this._LockLocation = lockLocationData[0] == 1;
+            if (dic.TryGetValue("Guid", out byte[]? guidData)) this._Guid = new Guid(guidData);
+            if (dic.TryGetValue("Left", out byte[]? leftData)) this._Left = BitConverter.ToInt32(leftData, 0);
+            if (dic.TryGetValue("Top", out byte[]? topData)) this._Top = BitConverter.ToInt32(topData, 0);
+            if (dic.TryGetValue("Width", out byte[]? widthData) && !this._AutoSize) this._Width = BitConverter.ToInt32(widthData, 0);
+            if (dic.TryGetValue("Height", out byte[]? heightData) && !this._AutoSize) this._Height = BitConverter.ToInt32(heightData, 0);
+            if (dic.TryGetValue("Mark", out byte[]? markData)) this.Mark = Encoding.UTF8.GetString(markData);
             Type t = this.GetType();
             foreach (var p in t.GetProperties()) {
                 var attrs = p.GetCustomAttributes(true);
                 foreach (var a in attrs) {
-                    if (!(a is STNodePropertyAttribute)) continue;
-                    var attr = a as STNodePropertyAttribute;
-                    object obj = Activator.CreateInstance(attr.DescriptorType);
-                    if (!(obj is STNodePropertyDescriptor))
+                    if (a is not STNodePropertyAttribute attr) continue;
+                    if (Activator.CreateInstance(attr.DescriptorType) is not STNodePropertyDescriptor desc)
                         throw new InvalidOperationException("[STNodePropertyAttribute.Type] parameter value must be the type of [STNodePropertyDescriptor] or its subclass");
-                    var desc = (STNodePropertyDescriptor)Activator.CreateInstance(attr.DescriptorType);
                     desc.Node = this;
                     desc.PropertyInfo = p;
                     try {
-                        if (dic.TryGetValue(p.Name, out byte[] propData)) desc.SetValue(propData);
+                        if (dic.TryGetValue(p.Name, out byte[]? propData)) desc.SetValue(propData);
                     } catch (Exception ex) {
                         string strErr = "The value of attribute [" + this.Title + "." + p.Name + "] cannot be restored by overriding [STNodePropertyAttribute.GetBytesFromValue(), STNodePropertyAttribute.GetValueFromBytes(byte[])] to ensure preservation and The binary data is correct when loading";
-                        Exception e = ex;
+                        Exception? e = ex;
                         while (e != null) {
                             strErr += "\r\n----\r\n[" + e.GetType().Name + "] -> " + e.Message;
                             e = e.InnerException;
@@ -974,13 +969,13 @@ namespace ST.Library.UI.NodeEditor
         protected internal virtual void OnMouseWheel(MouseEventArgs e) {
             Point pt = e.Location;
             pt.Y -= this._TitleHeight;
-            if (m_ctrl_hover != null && m_ctrl_active.Enabled && m_ctrl_hover.Visable) {
+            if (m_ctrl_hover != null && m_ctrl_hover.Enabled && m_ctrl_hover.Visable) {
                 m_ctrl_hover.OnMouseWheel(new MouseEventArgs(e.Button, e.Clicks, e.X - m_ctrl_hover.Left, pt.Y - m_ctrl_hover.Top, e.Delta));
                 return;
             }
         }
         protected internal virtual void OnMouseHWheel(MouseEventArgs e) {
-            if (m_ctrl_hover != null && m_ctrl_active.Enabled && m_ctrl_hover.Visable) {
+            if (m_ctrl_hover != null && m_ctrl_hover.Enabled && m_ctrl_hover.Visable) {
                 m_ctrl_hover.OnMouseHWheel(e);
                 return;
             }
@@ -1069,7 +1064,7 @@ namespace ST.Library.UI.NodeEditor
         /// Get the input Option collection contained in this Node
         /// </summary>
         /// <returns>Option array</returns>
-        public STNodeOption[] GetInputOptions() {
+        public STNodeOption[]? GetInputOptions() {
             if (!this._LetGetOptions) return null;
             return this._InputOptions.ToArray();
         }
@@ -1077,7 +1072,7 @@ namespace ST.Library.UI.NodeEditor
         /// Get the output Option set contained in this Node
         /// </summary>
         /// <returns>Option array</returns>
-        public STNodeOption[] GetOutputOptions() {
+        public STNodeOption[]? GetOutputOptions() {
             if (!this._LetGetOptions) return null;
             return this._OutputOptions.ToArray();
         }
@@ -1099,13 +1094,13 @@ namespace ST.Library.UI.NodeEditor
             this.OnSelectedChanged();
             if (this._Owner != null) this._Owner.OnSelectedChanged(EventArgs.Empty);
         }
-        public IAsyncResult BeginInvoke(Delegate method) { return this.BeginInvoke(method, null); }
-        public IAsyncResult BeginInvoke(Delegate method, params object[] args) {
+        public IAsyncResult? BeginInvoke(Delegate method) { return this.BeginInvoke(method, null); }
+        public IAsyncResult? BeginInvoke(Delegate method, params object?[]? args) {
             if (this._Owner == null) return null;
             return this._Owner.BeginInvoke(method, args);
         }
-        public object Invoke(Delegate method) { return this.Invoke(method, null); }
-        public object Invoke(Delegate method, params object[] args) {
+        public object? Invoke(Delegate method) { return this.Invoke(method, null); }
+        public object? Invoke(Delegate method, params object?[]? args) {
             if (this._Owner == null) return null;
             return this._Owner.Invoke(method, args);
         }

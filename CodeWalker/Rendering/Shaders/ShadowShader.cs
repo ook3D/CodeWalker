@@ -50,6 +50,7 @@ namespace CodeWalker.Rendering
         public uint IsDecal;
         public uint EnableWind;
         public Vector4 WindOverrideParams;
+        public Vector4 AlphaParams;
     }
 
     public class ShadowShader : Shader, IDisposable
@@ -67,8 +68,8 @@ namespace CodeWalker.Rendering
         GpuABuffer<Matrix3_s> BoneMatrices;
         GpuABuffer<Vector4> ClothVertices;
 
-        SamplerState texsampler;
-        SamplerState texsamplerc;
+        SamplerState? texsampler;
+        SamplerState? texsamplerc;
         //public bool DecalMode = false;
 
         public Vector4 WindVector { get; set; }
@@ -181,7 +182,7 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout l;
+            InputLayout? l;
             if (layouts.TryGetValue(type, out l))
             {
                 VertexShader vs = shadowvs;
@@ -210,7 +211,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
         }
         public void SetSceneVars(DeviceContext context, Matrix shadowviewproj)
@@ -235,7 +236,7 @@ namespace CodeWalker.Rendering
 
         public override void SetModelVars(DeviceContext context, RenderableModel model)
         {
-            if ((model.Owner.Skeleton?.BoneTransforms != null) && (model.Owner.Skeleton.BoneTransforms.Length > 0))
+            if ((model.Owner?.Skeleton?.BoneTransforms != null) && (model.Owner.Skeleton.BoneTransforms.Length > 0))
             {
                 SetBoneMatrices(context, model.Owner.Skeleton.BoneTransforms);
                 defaultBoneMatricesBound = false;
@@ -245,7 +246,7 @@ namespace CodeWalker.Rendering
                 SetBoneMatrices(context, defaultBoneMatrices);
                 defaultBoneMatricesBound = true;
             }
-            if (model.Owner.Cloth?.Vertices != null)
+            if (model.Owner?.Cloth?.Vertices != null)
             {
                 SetClothVertices(context, model.Owner.Cloth.Vertices);
             }
@@ -258,7 +259,7 @@ namespace CodeWalker.Rendering
 
         public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
         {
-            RenderableTexture texture = null; // ((geom.Textures != null) && (geom.Textures.Length > 0)) ? geom.Textures[0] : null;
+            RenderableTexture? texture = null; // ((geom.Textures != null) && (geom.Textures.Length > 0)) ? geom.Textures[0] : null;
             //RenderableTexture tintpal = null;
 
             //float tntpalind = 0.0f;
@@ -268,6 +269,11 @@ namespace CodeWalker.Rendering
                 for (int i = 0; i < geom.RenderableTextures.Length; i++)
                 {
                     var itex = geom.RenderableTextures[i];
+                    if (geom.HDTextureEnable)
+                    {
+                        var hdtex = geom.RenderableTexturesHD[i];
+                        if (hdtex?.IsLoaded == true) itex = hdtex;
+                    }
                     var ihash = geom.TextureParamHashes[i];
                     switch (ihash)
                     {
@@ -330,7 +336,7 @@ namespace CodeWalker.Rendering
 
             uint windflag = 0;
             uint tintflag = 0;
-            var shaderFile = geom.DrawableGeom.Shader.FileName;
+            var shaderFile = geom.DrawableGeom?.Shader?.FileName ?? 0;
             switch (shaderFile.Hash)
             {
                 case 2245870123: //trees_normal_diffspec_tnt.sps
@@ -356,6 +362,8 @@ namespace CodeWalker.Rendering
             GeomVars.Vars.EnableTint = tintflag;// usetint ? 1u : 0u;
             GeomVars.Vars.IsDecal = 0u;// DecalMode ? 1u : 0u;
             GeomVars.Vars.EnableWind = windflag;
+            GeomVars.Vars.AlphaParams = new Vector4(
+                MaterialAlpha.Mode(shaderFile.Hash, (geom.DrawableGeom?.Shader?.RenderBucket ?? 0)), geom.HardAlphaBlend, 0, 0);
             GeomVars.Vars.WindOverrideParams = geom.WindOverrideParams;
             GeomVars.Update(context);
             GeomVars.SetPSCBuffer(context, 0);
@@ -364,13 +372,13 @@ namespace CodeWalker.Rendering
             context.VertexShader.SetSampler(0, texsamplerc);
             context.PixelShader.SetSampler(0, texsampler);
             //context.PixelShader.SetSampler(1, texsamplerc);
-            if (usediff)
+            if (usediff && texture != null)
             {
                 texture.SetPSResource(context, 0);
             }
 
 
-            if (geom.BoneTransforms != null)
+            if (geom.BoneTransforms is { Length: > 0 })
             {
                 SetBoneMatrices(context, geom.BoneTransforms);
                 defaultBoneMatricesBound = false;

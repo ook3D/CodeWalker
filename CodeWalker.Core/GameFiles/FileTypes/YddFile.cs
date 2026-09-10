@@ -11,10 +11,10 @@ namespace CodeWalker.GameFiles
 {
     [TypeConverter(typeof(ExpandableObjectConverter))] public class YddFile : GameFile, PackedFile
     {
-        public DrawableDictionary DrawableDict { get; set; }
+        public DrawableDictionary? DrawableDict { get; set; }
 
-        public Dictionary<uint, Drawable> Dict { get; set; }
-        public Drawable[] Drawables { get; set; }
+        public Dictionary<uint, Drawable> Dict { get; set; } = new();
+        public Drawable[] Drawables { get; set; } = [];
 
         public YddFile() : base(null, GameFileType.Ydd)
         {
@@ -37,7 +37,7 @@ namespace CodeWalker.GameFiles
             RpfFileEntry = entry;
 
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");
@@ -115,7 +115,8 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            byte[] data = ResourceBuilder.Build(DrawableDict, GetVersion(gen9), true, gen9);
+            byte[] data = ResourceBuilder.Build(DrawableDict
+                ?? throw new InvalidOperationException("A drawable dictionary must be loaded before saving."), GetVersion(gen9), true, gen9);
 
             return data;
         }

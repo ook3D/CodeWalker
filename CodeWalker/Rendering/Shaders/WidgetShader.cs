@@ -70,7 +70,7 @@ namespace CodeWalker.Rendering
             context.InputAssembler.SetIndexBuffer(null, SharpDX.DXGI.Format.Unknown, 0);
             return true;
         }
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights? lights)
         {
             SceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             SceneVars.Update(context);

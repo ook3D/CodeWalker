@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -11,14 +12,14 @@ namespace CodeWalker.GameFiles
 {
     [TypeConverter(typeof(ExpandableObjectConverter))] public class Gxt2File : PackedFile
     {
-        public string Name { get; set; }
-        public RpfFileEntry FileEntry { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public RpfFileEntry? FileEntry { get; set; }
         public uint EntryCount { get; set; }
-        public Gxt2Entry[] TextEntries { get; set; }
+        public Gxt2Entry[] TextEntries { get; set; } = [];
         //public Dictionary<uint, string> Dict { get; set; }
 
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             Name = entry?.Name ?? "";
             FileEntry = entry;
@@ -71,35 +72,28 @@ namespace CodeWalker.GameFiles
         {
             TextEntries ??= [];
             EntryCount = (uint)TextEntries.Length;
-            uint offset = 16 + (EntryCount * 8);
-            List<byte[]> datas = new();
-
-            var ms = new MemoryStream();
-            var bw = new BinaryWriter(ms);
-
-            bw.Write(1196971058); //"GXT2"
-            bw.Write(EntryCount);
-            foreach (var e in TextEntries)
+            int dataOffset = checked(16 + TextEntries.Length * 8);
+            int size = dataOffset;
+            foreach (var entry in TextEntries)
             {
-                e.Offset = offset;
-                var d = Encoding.UTF8.GetBytes(e.Text + "\0");
-                datas.Add(d);
-                offset += (uint)d.Length;
-                bw.Write(e.Hash);
-                bw.Write(e.Offset);
-            }
-            bw.Write(1196971058); //"GXT2"
-            bw.Write(offset);
-            foreach (var d in datas)
-            {
-                bw.Write(d);
+                size = checked(size + Encoding.UTF8.GetByteCount(entry.Text.AsSpan()) + 1);
             }
 
-            bw.Flush();
-            ms.Position = 0;
-            var data = new byte[ms.Length];
-            ms.Read(data, 0, (int)ms.Length);
-
+            var data = new byte[size];
+            BinaryPrimitives.WriteUInt32LittleEndian(data, 1196971058); // GXT2
+            BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(4), EntryCount);
+            int tableOffset = 8;
+            foreach (var entry in TextEntries)
+            {
+                entry.Offset = (uint)dataOffset;
+                BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset), entry.Hash);
+                BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset + 4), entry.Offset);
+                tableOffset += 8;
+                dataOffset += Encoding.UTF8.GetBytes(entry.Text.AsSpan(), data.AsSpan(dataOffset));
+                dataOffset++; // The output buffer already contains the null terminator.
+            }
+            BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset), 1196971058);
+            BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset + 4), (uint)size);
             return data;
         }
 
@@ -112,7 +106,7 @@ namespace CodeWalker.GameFiles
                 foreach (var entry in TextEntries)
                 {
                     sb.Append("0x");
-                    sb.Append(entry.Hash.ToString("X").PadLeft(8, '0'));
+                    sb.Append(entry.Hash.ToString("X8"));
                     sb.Append(" = ");
                     sb.Append(entry.Text);
                     sb.AppendLine();
@@ -120,20 +114,20 @@ namespace CodeWalker.GameFiles
             }
             return sb.ToString();
         }
-        public static Gxt2File FromText(string text)
+        public static Gxt2File FromText(string? text)
         {
             var gxt = new Gxt2File();
-            var lines = text?.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries) ?? new string[0];
+            var span = text.AsSpan();
             var entries = new List<Gxt2Entry>();
-            foreach (var line in lines)
+            foreach (var range in span.Split('\n'))
             {
-                var tline = line.Trim();
+                var tline = span[range].Trim();
                 if (tline.Length < 13) continue;
-                if (uint.TryParse(tline.Substring(2, 8), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint hash))
+                if (uint.TryParse(tline.Slice(2, 8), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint hash))
                 {
                     var entry = new Gxt2Entry();
                     entry.Hash = hash;
-                    entry.Text = (tline.Length > 13) ? tline.Substring(13) : "";
+                    entry.Text = (tline.Length > 13) ? tline[13..].ToString() : "";
                     entries.Add(entry);
                 }
                 else
@@ -154,7 +148,7 @@ namespace CodeWalker.GameFiles
     {
         public uint Hash { get; set; }
         public uint Offset { get; set; }
-        public string Text { get; set; }
+        public string Text { get; set; } = string.Empty;
 
         public override string ToString()
         {
@@ -172,7 +166,7 @@ namespace CodeWalker.GameFiles
     public static class GlobalText
     {
         public static Dictionary<uint, string> Index = new();
-        private static object syncRoot = new object();
+        private static readonly System.Threading.Lock syncRoot = new();
 
         public static volatile bool FullIndexBuilt = false;
 
@@ -190,13 +184,8 @@ namespace CodeWalker.GameFiles
             if (hash == 0) return true;
             lock (syncRoot)
             {
-                if (!Index.ContainsKey(hash))
-                {
-                    Index.Add(hash, str);
-                    return false;
-                }
+                return !Index.TryAdd(hash, str);
             }
-            return true;
         }
 
         public static bool Ensure(string str, uint hash)
@@ -204,18 +193,13 @@ namespace CodeWalker.GameFiles
             if (hash == 0) return true;
             lock (syncRoot)
             {
-                if (!Index.ContainsKey(hash))
-                {
-                    Index.Add(hash, str);
-                    return false;
-                }
+                return !Index.TryAdd(hash, str);
             }
-            return true;
         }
 
         public static string GetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))
@@ -227,7 +211,7 @@ namespace CodeWalker.GameFiles
         }
         public static string TryGetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))

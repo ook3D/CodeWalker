@@ -21,7 +21,7 @@ namespace CodeWalker.GameFiles
         public uint Unknown_28h; // 0x00000000
         public uint Unknown_2Ch; // 0x00000000
 
-        public ResourceSimpleArray<WaypointRecordEntry> Entries;
+        public ResourceSimpleArray<WaypointRecordEntry>? Entries;
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -90,7 +90,7 @@ namespace CodeWalker.GameFiles
             Entries.Data = entries;
 
         }
-        public static void WriteXmlNode(WaypointRecordList l, StringBuilder sb, int indent, string name = "WaypointRecordList")
+        public static void WriteXmlNode(WaypointRecordList? l, StringBuilder sb, int indent, string name = "WaypointRecordList")
         {
             if (l == null) return;
             if ((l.Entries?.Data == null) || (l.Entries.Data.Count == 0))
@@ -104,7 +104,7 @@ namespace CodeWalker.GameFiles
                 YwrXml.CloseTag(sb, indent, name);
             }
         }
-        public static WaypointRecordList ReadXmlNode(XmlNode node)
+        public static WaypointRecordList? ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var l = new WaypointRecordList();
@@ -154,8 +154,8 @@ namespace CodeWalker.GameFiles
         public void ReadXml(XmlNode node)
         {
             Position = Xml.GetChildVector3Attributes(node, "Position");
-            Flags0 = Struct0.FromXml(Xml.GetChild((XmlElement)node, "Flags0"));
-            Flags1 = Struct1.FromXml(Xml.GetChild((XmlElement)node, "Flags1"));
+            Flags0 = Xml.GetChild((XmlElement)node, "Flags0") is XmlNode flags0 ? Struct0.FromXml(flags0) : default;
+            Flags1 = Xml.GetChild((XmlElement)node, "Flags1") is XmlNode flags1 ? Struct1.FromXml(flags1) : default;
         }
 
         public struct Struct0

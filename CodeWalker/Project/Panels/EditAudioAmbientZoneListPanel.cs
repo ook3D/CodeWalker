@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditAudioAmbientZoneListPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public Dat151AmbientZoneList CurrentZoneList { get; set; }
+        public Dat151AmbientZoneList? CurrentZoneList { get; set; }
 
         private bool populatingui = false;
 

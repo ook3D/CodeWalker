@@ -107,8 +107,8 @@ static class Program
 
             try
             {
-                var cwpath = Assembly.GetEntryAssembly().Location;
-                var cwdir = Path.GetDirectoryName(cwpath);
+                var cwpath = (Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly()).Location;
+                var cwdir = Path.GetDirectoryName(cwpath) ?? AppContext.BaseDirectory;
 
                 JumpTask jtWorld = new()
                 {

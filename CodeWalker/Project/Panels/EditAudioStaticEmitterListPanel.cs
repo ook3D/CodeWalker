@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditAudioStaticEmitterListPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public Dat151StaticEmitterList CurrentEmitterList { get; set; }
+        public Dat151StaticEmitterList? CurrentEmitterList { get; set; }
 
         private bool populatingui = false;
 

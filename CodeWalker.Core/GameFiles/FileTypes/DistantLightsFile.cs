@@ -16,12 +16,12 @@ namespace CodeWalker.GameFiles
         public uint CellCount { get; set; } = 1024;
         public uint NodeCount { get; set; }
         public uint PathCount { get; set; }
-        public uint[] PathIndices { get; set; } //CellCount
-        public uint[] PathCounts1 { get; set; } //CellCount
-        public uint[] PathCounts2 { get; set; } //CellCount
-        public DistantLightsNode[] Nodes { get; set; } //NodeCount
-        public DistantLightsPath[] Paths { get; set; } //PathCount
-        public DistantLightsCell[] Cells { get; set; } //CellCount (built from loaded data)
+        public uint[] PathIndices { get; set; } = []; //CellCount
+        public uint[] PathCounts1 { get; set; } = []; //CellCount
+        public uint[] PathCounts2 { get; set; } = []; //CellCount
+        public DistantLightsNode[] Nodes { get; set; } = []; //NodeCount
+        public DistantLightsPath[] Paths { get; set; } = []; //PathCount
+        public DistantLightsCell[] Cells { get; set; } = []; //CellCount (built from loaded data)
 
 
         public DistantLightsFile() : base(null, GameFileType.DistantLights)
@@ -33,7 +33,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             if (entry != null)
             {
@@ -239,7 +239,7 @@ namespace CodeWalker.GameFiles
         public byte Byte3 { get; set; }
         public byte Byte4 { get; set; }
 
-        public DistantLightsNode[] Nodes { get; set; }
+        public DistantLightsNode[] Nodes { get; set; } = [];
 
         public DistantLightsPath()
         { }
@@ -312,8 +312,8 @@ namespace CodeWalker.GameFiles
         public uint CellY { get; set; }
         public Vector2 CellMin { get; set; }
         public Vector2 CellMax { get; set; }
-        public DistantLightsPath[] Paths1 { get; set; }
-        public DistantLightsPath[] Paths2 { get; set; }
+        public DistantLightsPath[] Paths1 { get; set; } = [];
+        public DistantLightsPath[] Paths2 { get; set; } = [];
 
         public override string ToString()
         {

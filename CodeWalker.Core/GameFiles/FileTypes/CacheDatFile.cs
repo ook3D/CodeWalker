@@ -13,19 +13,19 @@ namespace CodeWalker.GameFiles
 {
     public class CacheDatFile : PackedFile
     {
-        public RpfFileEntry FileEntry { get; set; }
+        public RpfFileEntry? FileEntry { get; set; }
 
-        public string Version { get; set; }
-        public CacheFileDate[] FileDates { get; set; }
+        public string Version { get; set; } = string.Empty;
+        public CacheFileDate[] FileDates { get; set; } = [];
 
-        public Dictionary<uint, MapDataStoreNode> MapNodeDict { get; set; }
-        public MapDataStoreNode[] RootMapNodes { get; set; }
-        //public Dictionary<MetaHash, CInteriorProxy> InteriorProxyDict { get; set; }
-        public Dictionary<MetaHash, BoundsStoreItem> BoundsStoreDict { get; set; }
+        public Dictionary<uint, MapDataStoreNode> MapNodeDict { get; set; } = new();
+        public MapDataStoreNode[] RootMapNodes { get; set; } = [];
+        //public Dictionary<MetaHash, CInteriorProxy> InteriorProxyDict { get; set; } = new();
+        public Dictionary<MetaHash, BoundsStoreItem> BoundsStoreDict { get; set; } = new();
 
-        public MapDataStoreNode[] AllMapNodes { get; set; }
-        public CInteriorProxy[] AllCInteriorProxies { get; set; }
-        public BoundsStoreItem[] AllBoundsStoreItems { get; set; }
+        public MapDataStoreNode[] AllMapNodes { get; set; } = [];
+        public CInteriorProxy[] AllCInteriorProxies { get; set; } = [];
+        public BoundsStoreItem[] AllBoundsStoreItems { get; set; } = [];
 
         public void Load(byte[] data, RpfFileEntry entry)
         {
@@ -49,7 +49,6 @@ namespace CodeWalker.GameFiles
             uint structcount = 0;
             uint modlen;
             bool indates = false;
-            List<string> lines = new();
             var dates = new List<CacheFileDate>();
             var allMapNodes = new List<MapDataStoreNode>();
             var allCInteriorProxies = new List<CInteriorProxy>();
@@ -63,7 +62,6 @@ namespace CodeWalker.GameFiles
                 {
                     lastn = i;
                     string line = sb.ToString();
-                    lines.Add(line);
                     switch (line)
                     {
                         case "<fileDates>":
@@ -151,7 +149,7 @@ namespace CodeWalker.GameFiles
             }
             foreach (var mapnode in AllMapNodes)
             {
-                MapDataStoreNode pnode;
+                MapDataStoreNode? pnode;
                 if (MapNodeDict.TryGetValue(mapnode.ParentName, out pnode))
                 {
                     pnode.AddChildToList(mapnode);
@@ -170,7 +168,7 @@ namespace CodeWalker.GameFiles
             BoundsStoreDict = new Dictionary<MetaHash, BoundsStoreItem>();
             foreach (BoundsStoreItem item in AllBoundsStoreItems)
             {
-                BoundsStoreItem mbsi = null;
+                BoundsStoreItem? mbsi = null;
                 if (BoundsStoreDict.TryGetValue(item.Name, out mbsi))
                 { }
                 BoundsStoreDict[item.Name] = item;
@@ -185,7 +183,7 @@ namespace CodeWalker.GameFiles
                 //InteriorProxyDict[prx.Name] = prx;//can't do this! multiples with same name different pos
 
 
-                MapDataStoreNode mnode = null;
+                MapDataStoreNode? mnode = null;
                 if (MapNodeDict.TryGetValue(prx.Parent, out mnode))
                 {
                     mnode.AddInteriorToList(prx);
@@ -290,7 +288,7 @@ namespace CodeWalker.GameFiles
         }
         public void ReadXml(XmlNode node)
         {
-            Version = Xml.GetChildStringAttribute(node, "Version");
+            Version = Xml.GetChildStringAttribute(node, "Version") ?? string.Empty;
             FileDates = XmlMeta.ReadItemArray<CacheFileDate>(node, "FileDates");
             AllMapNodes = XmlMeta.ReadItemArray<MapDataStoreNode>(node, "MapDataStore");
             AllCInteriorProxies = XmlMeta.ReadItemArray<CInteriorProxy>(node, "InteriorProxies");
@@ -374,7 +372,7 @@ namespace CodeWalker.GameFiles
             {
                 return FileEntry.ToString();
             }
-            return base.ToString();
+            return base.ToString() ?? string.Empty;
         }
     }
 
@@ -390,10 +388,13 @@ namespace CodeWalker.GameFiles
         { }
         public CacheFileDate(string line)
         {
-            string[] p = line.Split(' ');
-            if (p.Length > 0 && uint.TryParse(p[0], out uint hash)) FileName = new MetaHash(hash);
-            if (p.Length > 1 && long.TryParse(p[1], out long ts)) TimeStamp = ts;
-            if (p.Length > 2 && uint.TryParse(p[2], out uint fid)) FileID = fid;
+            if (line == null) throw new NullReferenceException();
+            var text = line.AsSpan();
+            var parts = text.Split(' ');
+            // Empty fields are positional; do not skip them or trim the line.
+            if (parts.MoveNext() && uint.TryParse(text[parts.Current], out uint hash)) FileName = new MetaHash(hash);
+            if (parts.MoveNext() && long.TryParse(text[parts.Current], out long ts)) TimeStamp = ts;
+            if (parts.MoveNext() && uint.TryParse(text[parts.Current], out uint fid)) FileID = fid;
         }
 
         public string ToCacheFileString()
@@ -797,13 +798,13 @@ namespace CodeWalker.GameFiles
         public byte Unk3 { get; set; }
         public byte Unk4 { get; set; }
 
-        public MapDataStoreNodeExtra UnkExtra { get; set; }
+        public MapDataStoreNodeExtra? UnkExtra { get; set; }
 
-        public MapDataStoreNode[] Children { get; set; }
-        private List<MapDataStoreNode> ChildrenList; //used when building the array
+        public MapDataStoreNode[] Children { get; set; } = [];
+        private List<MapDataStoreNode>? ChildrenList; //used when building the array
 
-        public CInteriorProxy[] InteriorProxies { get; set; }
-        private List<CInteriorProxy> InteriorProxyList;
+        public CInteriorProxy[] InteriorProxies { get; set; } = [];
+        private List<CInteriorProxy>? InteriorProxyList;
 
         public MapDataStoreNode()
         { }
@@ -950,7 +951,7 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))] public class MapDataStoreNodeExtra
     {
         public uint Unk01; //0
-        public byte[] Unk02; //1 - 16  (60 bytes)
+        public byte[] Unk02 = []; //1 - 16  (60 bytes)
         public uint Unk03;//16
         public uint Unk04;
         public uint Unk05;
@@ -1002,7 +1003,7 @@ namespace CodeWalker.GameFiles
         public void Write(DataWriter w)
         {
             w.Write(Unk01);
-            var alen = Unk02?.Length ?? 0;
+            var alen = Unk02.Length;
             for (int i = 0; i < 60; i++)
             {
                 w.Write((i < alen) ? Unk02[i] : (byte)0);
@@ -1064,7 +1065,7 @@ namespace CodeWalker.GameFiles
         public static CacheDatFile GetCacheDat(XmlDocument doc)
         {
             CacheDatFile cdf = new();
-            cdf.ReadXml(doc.DocumentElement);
+            cdf.ReadXml(doc.DocumentElement ?? throw new XmlException("The cache document must have a root element."));
             return cdf;
         }
 

@@ -25,7 +25,7 @@ namespace CodeWalker.World
         MapSelection Selection;
         string SelectionMode = "";
         bool MouseSelectEnable = false;
-        Texture currentTex; // Used by save button
+        Texture? currentTex; // Used by save button
 
         public WorldInfoForm(WorldForm worldForm)
         {
@@ -213,7 +213,7 @@ namespace CodeWalker.World
             }
 
         }
-        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[] models, string prefix, bool check)
+        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check)
         {
             if (models == null) return;
 
@@ -272,13 +272,13 @@ namespace CodeWalker.World
             }
         }
 
-        private void AddSelectionEntityHierarchyNodes(YmapEntityDef entity)
+        private void AddSelectionEntityHierarchyNodes(YmapEntityDef? entity)
         {
             if (entity == null) return;
 
             var e = entity;
-            TreeNode tn = null;
-            TreeNode seltn = null;
+            TreeNode? tn = null;
+            TreeNode? seltn = null;
 
             while (e != null)
             {
@@ -325,7 +325,7 @@ namespace CodeWalker.World
             try
             {
                 int cmip = Math.Min(Math.Max(mip, 0), tex.Levels - 1);
-                byte[] pixels = DDSIO.GetPixels(tex, cmip);
+                var pixels = DDSIO.GetPixels(tex, cmip);
                 int w = tex.Width >> cmip;
                 int h = tex.Height >> cmip;
                 Bitmap bmp = new(w, h, PixelFormat.Format32bppArgb);
@@ -350,10 +350,10 @@ namespace CodeWalker.World
             }
         }
 
-        private void SelectTexture(TextureBase texbase, bool mipchange)
+        private void SelectTexture(TextureBase? texbase, bool mipchange)
         {
-            Texture tex = texbase as Texture;
-            YtdFile ytd = null;
+            Texture? tex = texbase as Texture;
+            YtdFile? ytd = null;
             string errstr = string.Empty;
             if ((tex == null) && (texbase != null))
             {
@@ -376,14 +376,14 @@ namespace CodeWalker.World
 
 
                 //try get owner drawable to get the name for the dictionary textbox...
-                object owner = null;
+                object? owner = null;
                 if (Selection.Drawable != null)
                 {
                     owner = Selection.Drawable.Owner;
                 }
-                YdrFile ydr = owner as YdrFile;
-                YddFile ydd = owner as YddFile;
-                YftFile yft = owner as YftFile;
+                YdrFile? ydr = owner as YdrFile;
+                YddFile? ydd = owner as YddFile;
+                YftFile? yft = owner as YftFile;
 
                 SelTextureNameTextBox.Text = tex.Name;
                 SelTextureDictionaryTextBox.Text = (ytd != null) ? ytd.Name : (ydr != null) ? ydr.Name : (ydd != null) ? ydd.Name : (yft != null) ? yft.Name : string.Empty;
@@ -402,7 +402,7 @@ namespace CodeWalker.World
             }
         }
 
-        private Texture TryGetTexture(TextureBase texbase, out YtdFile ytd, ref string errstr)
+        private Texture? TryGetTexture(TextureBase texbase, out YtdFile? ytd, ref string errstr)
         {
             //need to load from txd.
             var arch = Selection.Archetype;
@@ -435,7 +435,7 @@ namespace CodeWalker.World
                         }
                         if (ytd.Loaded)
                         {
-                            tex = ytd.TextureDict.Lookup(texhash);
+                            tex = ytd.TextureDict?.Lookup(texhash);
                         }
                     }
                     if (tex == null)
@@ -448,7 +448,7 @@ namespace CodeWalker.World
             return tex;
         }
 
-        private Texture TryGetTextureFromYtd(uint texHash, uint txdHash, out YtdFile ytd)
+        private Texture? TryGetTextureFromYtd(uint texHash, uint txdHash, out YtdFile? ytd)
         {
             if (txdHash != 0)
             {
@@ -463,7 +463,7 @@ namespace CodeWalker.World
                     }
                     if (ytd.Loaded)
                     {
-                        return ytd.TextureDict.Lookup(texHash);
+                        return ytd.TextureDict?.Lookup(texHash);
                     }
                 }
             }
@@ -509,7 +509,7 @@ namespace CodeWalker.World
 
         private void SelDrawableModelsTreeView_AfterCheck(object sender, TreeViewEventArgs e)
         {
-            WorldForm.SyncSelDrawableModelsTreeNode(e.Node);
+            if (e.Node is { } node) WorldForm.SyncSelDrawableModelsTreeNode(node);
         }
 
         private void SelDrawableModelsTreeView_AfterSelect(object sender, TreeViewEventArgs e)
@@ -521,7 +521,7 @@ namespace CodeWalker.World
         {
             SelDrawableTexturePropertyGrid.SelectedObject = e.Node?.Tag;
 
-            TextureBase texbase = e.Node?.Tag as TextureBase;
+            TextureBase? texbase = e.Node?.Tag as TextureBase;
 
             SelTextureMipTrackBar.Value = 0;
             SelTextureMipLabel.Text = "0";
@@ -533,7 +533,7 @@ namespace CodeWalker.World
         {
             var node = SelDrawableTexturesTreeView.SelectedNode;
 
-            TextureBase texbase = node?.Tag as TextureBase;
+            TextureBase? texbase = node?.Tag as TextureBase;
 
             SelTextureMipLabel.Text = SelTextureMipTrackBar.Value.ToString();
 

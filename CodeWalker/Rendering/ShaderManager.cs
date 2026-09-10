@@ -1,4 +1,4 @@
-﻿using CodeWalker.GameFiles;
+using CodeWalker.GameFiles;
 using CodeWalker.Properties;
 using CodeWalker.World;
 using SharpDX;
@@ -27,6 +27,10 @@ namespace CodeWalker.Rendering
         RasterizerState rsWireframeDblSided;
         BlendState bsDefault;
         BlendState bsAlpha;
+        BlendState bsGrassCoverage;
+        BlendState bsHairNormals;
+        DepthStencilState dsHairMark;
+        DepthStencilState dsHairNormals;
         BlendState bsAdd;
         BlendState bsParticleComposite;
         BlendState bsParticleScreen;
@@ -38,8 +42,8 @@ namespace CodeWalker.Rendering
 
 
 
-        public DeferredScene DefScene { get; set; }
-        public PostProcessor HDR { get; set; }
+        public DeferredScene? DefScene { get; set; }
+        public PostProcessor? HDR { get; set; }
         public BasicShader Basic { get; set; }
         public CableShader Cable { get; set; }
         public WaterShader Water { get; set; }
@@ -59,7 +63,7 @@ namespace CodeWalker.Rendering
         public ParticleShader Particles { get; set; }
 
         public bool shadows = Settings.Default.Shadows;
-        public Shadowmap Shadowmap { get; set; }
+        public Shadowmap? Shadowmap { get; set; }
         List<RenderableGeometryInst> shadowcasters = new List<RenderableGeometryInst>();
         List<RenderableGeometryInst> shadowbatch = new List<RenderableGeometryInst>();
         List<ShaderBatch> shadowbatches = new List<ShaderBatch>();
@@ -101,13 +105,15 @@ namespace CodeWalker.Rendering
         public double CurrentRealTime = 0;
         public float CurrentElapsedTime = 0;
 
-        private Camera Camera;
+        private Camera? camera;
+        private Camera Camera { get => camera ?? throw new InvalidOperationException("No active render camera."); set => camera = value; }
         public ShaderGlobalLights GlobalLights = new ShaderGlobalLights();
         public bool PathsDepthClip = true;//false;//
         public Vector3? SelectedScenarioNodePosition = null; // Position of selected scenario node to exclude from cube rendering
 
-        private GameFileCache GameFileCache;
-        private RenderableCache RenderableCache;
+        private GameFileCache? GameFileCache;
+        private RenderableCache? renderableCache;
+        private RenderableCache RenderableCache { get => renderableCache ?? throw new InvalidOperationException("Shader textures have not been initialized."); set => renderableCache = value; }
 
 
         public long TotalGraphicsMemoryUse
@@ -199,6 +205,11 @@ namespace CodeWalker.Rendering
 
             bsd.AlphaToCoverageEnable = true;
             bsAlpha = new BlendState(device, bsd);
+            // Coverage selects samples; G-buffer values must not blend with the
+            // surface behind the grass while writing the grass depth.
+            bsd.RenderTarget[0].IsBlendEnabled = false;
+            bsGrassCoverage = new BlendState(device, bsd);
+            bsd.RenderTarget[0].IsBlendEnabled = true;
 
             bsd.AlphaToCoverageEnable = false;
             bsd.RenderTarget[0].DestinationBlend = BlendOption.One;
@@ -241,6 +252,27 @@ namespace CodeWalker.Rendering
                 StencilWriteMask = 0
             };
             dsEnabled = new DepthStencilState(device, dsd);
+            var hairDepth = dsd;
+            hairDepth.IsStencilEnabled = true;
+            hairDepth.StencilReadMask = 1;
+            hairDepth.StencilWriteMask = 1;
+            hairDepth.FrontFace = hairDepth.BackFace = new DepthStencilOperationDescription
+            {
+                Comparison = Comparison.Always, PassOperation = StencilOperation.Replace,
+                FailOperation = StencilOperation.Keep, DepthFailOperation = StencilOperation.Keep
+            };
+            dsHairMark = new DepthStencilState(device, hairDepth);
+            hairDepth.DepthWriteMask = DepthWriteMask.Zero;
+            hairDepth.FrontFace = hairDepth.BackFace = new DepthStencilOperationDescription
+            {
+                Comparison = Comparison.Equal, PassOperation = StencilOperation.Zero,
+                FailOperation = StencilOperation.Keep, DepthFailOperation = StencilOperation.Keep
+            };
+            dsHairNormals = new DepthStencilState(device, hairDepth);
+            var hairBlend = new BlendStateDescription { IndependentBlendEnable = true };
+            hairBlend.RenderTarget[1].RenderTargetWriteMask = ColorWriteMaskFlags.Red | ColorWriteMaskFlags.Green | ColorWriteMaskFlags.Blue;
+            hairBlend.RenderTarget[3].RenderTargetWriteMask = ColorWriteMaskFlags.Red | ColorWriteMaskFlags.Green;
+            bsHairNormals = new BlendState(device, hairBlend);
             dsd.DepthWriteMask = DepthWriteMask.Zero;
             dsDisableWrite = new DepthStencilState(device, dsd);
             dsd.DepthComparison = Comparison.LessEqual;
@@ -265,6 +297,10 @@ namespace CodeWalker.Rendering
             dsDisableAll.Dispose();
             bsDefault.Dispose();
             bsAlpha.Dispose();
+            bsGrassCoverage.Dispose();
+            bsHairNormals.Dispose();
+            dsHairMark.Dispose();
+            dsHairNormals.Dispose();
             bsAdd.Dispose();
             bsParticleComposite.Dispose();
             bsParticleScreen.Dispose();
@@ -321,6 +357,8 @@ namespace CodeWalker.Rendering
             GlobalLights.SpecularEnabled = lights.SpecularEnabled;
             GlobalLights.Weather = lights.Weather;
             GlobalLights.Params = lights.Params;
+            GlobalLights.InteriorAmbientUp = lights.InteriorAmbientUp;
+            GlobalLights.InteriorAmbientDown = lights.InteriorAmbientDown;
         }
 
         public void BeginFrame(DeviceContext context, double currentRealTime, float elapsedTime)
@@ -436,13 +474,13 @@ namespace CodeWalker.Rendering
 
         }
 
-        private RenderableTexture EnsureTexture(uint texDict, uint texName)
+        private RenderableTexture? EnsureTexture(uint texDict, uint texName)
         {
-            YtdFile ytd = GameFileCache.GetYtd(texDict);
+            var ytd = GameFileCache?.GetYtd(texDict);
             if ((ytd != null) && (ytd.Loaded) && (ytd.TextureDict != null))
             {
                 var dtex = ytd.TextureDict.Lookup(texName);
-                return RenderableCache.GetRenderableTexture(dtex);
+                return dtex != null ? RenderableCache.GetRenderableTexture(dtex) : null;
             }
             return null;
         }
@@ -478,8 +516,12 @@ namespace CodeWalker.Rendering
                     shadowbatches.AddRange(bucket.TerrainBatches);
                     shadowbatches.AddRange(bucket.CableBatches);
                     shadowbatches.AddRange(bucket.CutoutBatches);
+                    shadowbatches.AddRange(bucket.HairBatches);
                     shadowbatches.AddRange(bucket.TreesBatches);
                     shadowbatches.AddRange(bucket.ClothBatches);
+                    foreach (var batch in bucket.ForwardAlphaBatches)
+                        if (MaterialAlpha.Mode(batch.Key.ShaderFile.Hash, (batch.Geometries[0].Geom.DrawableGeom?.Shader?.RenderBucket ?? 0)) == 4)
+                            shadowbatches.Add(batch);
                 }
             }
 
@@ -563,12 +605,14 @@ namespace CodeWalker.Rendering
             }
 
 
+            RenderHair(context);
+
             if (RenderInstBatches.Count > 0) //grass pass
             {
                 context.Rasterizer.State = wireframe ? rsWireframeDblSided : rsSolidDblSided;
-                context.OutputMerger.BlendState = bsAlpha; //alpha to coverage for grass...
-                Basic.DecalMode = true;
-                Basic.AlphaScale = 7.0f; //instanced grass alpha scale...
+                context.OutputMerger.BlendState = bsGrassCoverage;
+                Basic.DecalMode = false;
+                Basic.AlphaScale = 1.0f;
                 Basic.SetShader(context);
                 Basic.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
                 for (int i = 0; i < RenderInstBatches.Count; i++)
@@ -688,6 +732,17 @@ namespace CodeWalker.Rendering
 
 
 
+            RenderAlphaMaterials(context);
+
+            if (HDR != null)
+            {
+                context.Rasterizer.State = rsSolid;
+                context.OutputMerger.DepthStencilState = dsDisableAll;
+                HDR.RenderAtmosphere(context, DefScene, Camera, GlobalLights);
+                context.OutputMerger.BlendState = bsDefault;
+                context.OutputMerger.DepthStencilState = dsEnabled;
+            }
+
             if (RenderBoundGeoms.Count > 0) //collision meshes pass
             {
                 if (DefScene != null)
@@ -734,12 +789,13 @@ namespace CodeWalker.Rendering
 
             if (HDR != null)
             {
-                if ((DefScene?.SSAASampleCount ?? 1) > 1)
+                if (DefScene != null && DefScene.SSAASampleCount > 1)
                 {
                     HDR.SetPrimary(context);
                     DefScene.SSAAPass(context);
                 }
 
+                HDR.ReferenceWeather = GlobalLights.Weather;
                 HDR.Render(DXMan, CurrentElapsedTime, DefScene);
             }
             else if (DefScene != null)
@@ -753,6 +809,7 @@ namespace CodeWalker.Rendering
 
         private void RenderShadowmap(DeviceContext context)
         {
+            if (Shadowmap == null) return;
             context.OutputMerger.BlendState = bsDefault;
             context.OutputMerger.DepthStencilState = dsEnabled;
             context.Rasterizer.State = rsSolid;
@@ -762,6 +819,12 @@ namespace CodeWalker.Rendering
             //find the casters within range
             shadowcasters.Clear();
             shadowcastercount = 0;
+            hairShadowProxies.Clear();
+            foreach (var batch in shadowbatches)
+                foreach (var geometry in batch.Geometries)
+                    if (geometry.Geom.isHair && geometry.Geom.HairOrder == 8)
+                        hairShadowProxies.Add(geometry.Inst.Renderable);
+
             for (int b = 0; b < shadowbatches.Count; b++)
             {
                 //shadowcasters.AddRange(shadowbatches[b].Geometries);
@@ -769,7 +832,7 @@ namespace CodeWalker.Rendering
                 for (int g = 0; g < sbgeoms.Count; g++)
                 {
                     var sbgeom = sbgeoms[g];
-                    if (sbgeom.Inst.CastShadow)
+                    if (sbgeom.Inst.CastShadow && (!sbgeom.Geom.isHair || PedMaterial.CastsHairShadow(sbgeom.Geom.HairOrder, hairShadowProxies.Contains(sbgeom.Inst.Renderable))))
                     {
                         float idist = sbgeom.Inst.Distance - sbgeom.Inst.Radius;
                         if (idist <= maxdist)
@@ -826,6 +889,87 @@ namespace CodeWalker.Rendering
         }
 
 
+        private readonly List<RenderableGeometryInst> hairGeometry = new();
+        private readonly HashSet<(Renderable, Vector3, Quaternion, Vector3)> renderedHairInstances = new();
+        private readonly HashSet<Renderable> hairShadowProxies = new();
+        private readonly List<RenderableGeometryInst> hairDraw = new();
+
+        private static bool SameHairInstance(RenderableInst a, RenderableInst b) =>
+            a.Renderable == b.Renderable && a.Position == b.Position && a.Orientation == b.Orientation && a.Scale == b.Scale;
+
+        private void RenderHair(DeviceContext context)
+        {
+            hairGeometry.Clear();
+            renderedHairInstances.Clear();
+            foreach (var bucket in RenderBuckets)
+                foreach (var batch in bucket.HairBatches)
+                    hairGeometry.AddRange(batch.Geometries);
+            if (hairGeometry.Count == 0) return;
+            Basic.SetShader(context);
+            Basic.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
+            // Ordered hair includes opposite-facing surfaces. Culling is essential:
+            // an inward-facing cap must not consume the stencil before its outer face.
+            context.Rasterizer.State = wireframe ? rsWireframe : rsSolid;
+            var depth = DefScene?.GBuffers?.DSV;
+            foreach (var strands in hairGeometry)
+            {
+                if (strands.Geom.HairOrder > 0) continue;
+                var key = (strands.Inst.Renderable, strands.Inst.Position, strands.Inst.Orientation, strands.Inst.Scale);
+                if (!renderedHairInstances.Add(key)) continue;
+                // Each cap may affect only the surviving strand pixels of this instance.
+                // Clear stencil (not depth) so different peds cannot mask one another.
+                if (depth != null) context.ClearDepthStencilView(depth, DepthStencilClearFlags.Stencil, 0, 0);
+                context.OutputMerger.SetDepthStencilState(depth != null ? dsHairMark : dsEnabled, 1);
+                context.OutputMerger.BlendState = bsDefault;
+                hairDraw.Clear();
+                foreach (var layer in hairGeometry)
+                {
+                    if (layer.Geom.HairOrder <= 0 && SameHairInstance(layer.Inst, strands.Inst)) hairDraw.Add(layer);
+                }
+                RenderGeometryBatch(context, hairDraw, Basic);
+                if (depth == null) continue; // No normal cap in the forward/special pass.
+                hairDraw.Clear();
+                foreach (var cap in hairGeometry)
+                {
+                    if (cap.Geom.HairOrder == 1 && SameHairInstance(cap.Inst, strands.Inst)) hairDraw.Add(cap);
+                }
+                context.OutputMerger.SetDepthStencilState(dsHairNormals, 1);
+                context.OutputMerger.BlendState = bsHairNormals;
+                RenderGeometryBatch(context, hairDraw, Basic);
+            }
+            Basic.UnbindResources(context);
+            context.OutputMerger.DepthStencilState = dsEnabled;
+            context.OutputMerger.BlendState = bsDefault;
+        }
+
+        private readonly List<RenderableGeometryInst> forwardAlpha = new List<RenderableGeometryInst>();
+
+        private void RenderAlphaMaterials(DeviceContext context)
+        {
+            forwardAlpha.Clear();
+            foreach (var bucket in RenderBuckets)
+                foreach (var batch in bucket.ForwardAlphaBatches)
+                    forwardAlpha.AddRange(batch.Geometries);
+            if (forwardAlpha.Count == 0) return;
+
+            // Blend lit fences and cloth over opaque scene colour; never blend its normals
+            // or material parameters into an unrelated surface's G-buffer.
+            forwardAlpha.Sort((a, b) => b.Inst.Distance.CompareTo(a.Inst.Distance));
+            bool wasDeferred = Basic.Deferred;
+            Basic.Deferred = false;
+            Basic.DecalMode = true;
+            context.Rasterizer.State = wireframe ? rsWireframeDblSided : rsSolidDblSided;
+            context.OutputMerger.BlendState = bsDefault;
+            context.OutputMerger.DepthStencilState = dsDisableWrite;
+            Basic.SetShader(context);
+            Basic.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
+            RenderGeometryBatch(context, forwardAlpha, Basic);
+            Basic.UnbindResources(context);
+            Basic.DecalMode = false;
+            Basic.Deferred = wasDeferred;
+            context.OutputMerger.DepthStencilState = dsEnabled;
+        }
+
         private void RenderGeometryBatches(DeviceContext context, List<ShaderBatch> batches, Shader shader)
         {
             shader.SetShader(context);
@@ -840,7 +984,7 @@ namespace CodeWalker.Rendering
         {
             GeometryCount += batch.Count;
 
-            RenderableModel model = null;
+            RenderableModel? model = null;
 
             VertexType vtyp = 0;
             bool vtypok = false;
@@ -848,6 +992,7 @@ namespace CodeWalker.Rendering
             {
                 var geom = batch[i];
                 var gmodel = geom.Geom.Owner;
+                if (gmodel == null) continue;
                 shader.SetEntityVars(context, ref geom.Inst);
 
                 if (gmodel != model)
@@ -893,7 +1038,7 @@ namespace CodeWalker.Rendering
         {
             GeometryCount += batch.Count;
 
-            RenderableModel model = null;
+            RenderableModel? model = null;
             VertexType vtyp = 0;
             bool vtypok = false;
 
@@ -901,6 +1046,7 @@ namespace CodeWalker.Rendering
             {
                 var geom = batch[i];
                 var gmodel = geom.Geom.Owner;
+                if (gmodel == null) continue;
                 GrassFur.SetEntityVars(context, ref geom.Inst);
 
                 if (gmodel != model)
@@ -966,13 +1112,13 @@ namespace CodeWalker.Rendering
 
         public void Enqueue(ref RenderableGeometryInst geom)
         {
-            var shader = geom.Geom.DrawableGeom.Shader;
+            var shader = geom.Geom.DrawableGeom?.Shader;
 
             var b = (shader!=null) ? shader.RenderBucket : 0; //rage render bucket?
 
             var bucket = EnsureRenderBucket(b);
 
-            ShaderBatch batch = null;
+            ShaderBatch? batch = null;
             ShaderKey key = new ShaderKey();
             key.ShaderName = (shader!=null) ? shader.Name : new MetaHash(0);
             key.ShaderFile = (shader!=null) ? shader.FileName : new MetaHash(0);
@@ -1017,16 +1163,12 @@ namespace CodeWalker.Rendering
 
         public ShaderRenderBucket EnsureRenderBucket(int index)
         {
-            ShaderRenderBucket bucket = null;
+            ArgumentOutOfRangeException.ThrowIfNegative(index);
             while (index >= RenderBuckets.Count)
             {
                 RenderBuckets.Add(new ShaderRenderBucket(RenderBuckets.Count));
             }
-            if (index < RenderBuckets.Count)
-            {
-                bucket = RenderBuckets[index];
-            }
-            return bucket;
+            return RenderBuckets[index];
         }
 
 
@@ -1180,6 +1322,8 @@ namespace CodeWalker.Rendering
         public List<ShaderBatch> WaterBatches = new List<ShaderBatch>();
         public List<ShaderBatch> Water2Batches = new List<ShaderBatch>();
         public List<ShaderBatch> AlphaBatches = new List<ShaderBatch>();
+        public List<ShaderBatch> HairBatches = new List<ShaderBatch>();
+        public List<ShaderBatch> ForwardAlphaBatches = new List<ShaderBatch>();
         public List<ShaderBatch> GlassBatches = new List<ShaderBatch>();
         public List<ShaderBatch> CutoutBatches = new List<ShaderBatch>();
         public List<ShaderBatch> GrassFurBatches = new List<ShaderBatch>();
@@ -1210,6 +1354,8 @@ namespace CodeWalker.Rendering
             WaterBatches.Clear();
             Water2Batches.Clear();
             AlphaBatches.Clear();
+            ForwardAlphaBatches.Clear();
+            HairBatches.Clear();
             GlassBatches.Clear();
             CutoutBatches.Clear();
             GrassFurBatches.Clear();
@@ -1224,7 +1370,9 @@ namespace CodeWalker.Rendering
             {
                 if (kvp.Value.Geometries.Count == 0) continue;
 
-                List<ShaderBatch> b = null;
+                var material = kvp.Value.Geometries[0].Geom.DrawableGeom?.Shader;
+                uint alphaMode = MaterialAlpha.Mode(kvp.Key.ShaderFile.Hash, (material?.RenderBucket ?? 0));
+                List<ShaderBatch>? b = null;
                 switch (kvp.Key.ShaderFile.Hash)
                 {
                     #region default batches
@@ -1300,11 +1448,13 @@ namespace CodeWalker.Rendering
                         break;
                     #endregion
                     #region cutout batches
+                    case 2219447268://{cutout_fence.sps}
+                    case 3091995132://{cutout_fence_normal.sps}
+                        b = CutoutBatches;
+                        break;
                     case 1530399584://{cutout.sps}
                     case 3190732435://{cutout_um.sps}
                     case 3959636627://{cutout_tnt.sps}
-                    case 2219447268://{cutout_fence.sps}
-                    case 3091995132://{cutout_fence_normal.sps}
                     case 3187789425://{cutout_hard.sps}
                     case 3339370144://{cutout_spec_tnt.sps}
                     case 1264076685://{normal_cutout.sps}
@@ -1521,6 +1671,23 @@ namespace CodeWalker.Rendering
                         break;
                 }
 
+                // Select the shader family first, then let the material bucket select
+                // coverage/blending. Never move water, terrain or trees to BasicShader.
+                if (b == BasicBatches || b == CutoutBatches || b == ClothBatches ||
+                    b == AlphaBatches || b == GlassBatches || b == DecalBatches)
+                {
+                    if (alphaMode == 2 || alphaMode == 4) b = ForwardAlphaBatches;
+                    else if (alphaMode == 1) b = CutoutBatches;
+                    else if (alphaMode == 3)
+                    {
+                        // Preserve double-sided cloth/cutout geometry while disabling alpha.
+                        if (b != CutoutBatches && b != ClothBatches) b = BasicBatches;
+                    }
+                    else if ((material?.RenderBucket ?? 0) == 2) b = DecalBatches;
+                }
+
+                if (kvp.Key.ShaderFile.Hash == 100720695) b = HairBatches;
+
                 if (b != null)
                 {
                     b.Add(kvp.Value);
@@ -1549,7 +1716,9 @@ namespace CodeWalker.Rendering
 
     public class ShaderGlobalLights
     {
-        public Weather Weather;
+        public Color4 InteriorAmbientUp;
+        public Color4 InteriorAmbientDown;
+        public Weather? Weather;
         public ShaderGlobalLightParams Params;
         public Vector3 CurrentSunDir;
         public Vector3 CurrentMoonDir;
@@ -1563,7 +1732,7 @@ namespace CodeWalker.Rendering
         public Vector3 LightDir;
         public float LightHdr; //global intensity
         public Color4 LightDirColour;
-        public Color4 LightDirAmbColour;
+        public Color4 LightDirAmbColour; // RGB: intensity-scaled colour; A: timecycle bounce blend
         public Color4 LightNaturalAmbUp;
         public Color4 LightNaturalAmbDown;
         public Color4 LightArtificialAmbUp;

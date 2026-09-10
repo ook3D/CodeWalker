@@ -13,8 +13,8 @@ namespace CodeWalker.Tools
     public partial class ImportFbxForm : Form
     {
 
-        private Dictionary<string, byte[]> InputFiles { get; set; }
-        private Dictionary<string, byte[]> OutputFiles { get; set; }
+        private Dictionary<string, byte[]> InputFiles { get; set; } = new();
+        private Dictionary<string, byte[]> OutputFiles { get; set; } = new();
 
         public ImportFbxForm()
         {

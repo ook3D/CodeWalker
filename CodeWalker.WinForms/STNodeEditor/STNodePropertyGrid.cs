@@ -47,12 +47,12 @@ namespace ST.Library.UI.NodeEditor
     {
         #region properties ==========
 
-        private STNode _STNode;
+        private STNode? _STNode;
         /// <summary>
         /// The currently displayed STNode
         /// </summary>
         [Description("Currently displayed STNode"), Browsable(false)]
-        public STNode STNode {
+        public STNode? STNode {
             get { return _STNode; }
         }
 
@@ -234,7 +234,7 @@ namespace ST.Library.UI.NodeEditor
 
         #endregion
 
-        private Type m_type;
+        private Type? m_type;
         private string[] m_KeysString = new string[] { "author", "email", "link", "view help" };
 
         private int m_nTitleHeight = 20;
@@ -244,18 +244,18 @@ namespace ST.Library.UI.NodeEditor
         //All property lists are saved in this List
         private List<STNodePropertyDescriptor> m_lst_item = new();
 
-        private STNodePropertyDescriptor m_item_hover; //The currently hovered option
-        private STNodePropertyDescriptor m_item_hover_value; //The current value area is hovered by the mouse
-        private STNodePropertyDescriptor m_item_down_value; //The option that the current value area is clicked by the mouse
-        private STNodePropertyDescriptor m_item_selected; //The currently selected option
-        private STNodeAttribute m_node_attribute; //Node parameter information
+        private STNodePropertyDescriptor? m_item_hover; //The currently hovered option
+        private STNodePropertyDescriptor? m_item_hover_value; //The current value area is hovered by the mouse
+        private STNodePropertyDescriptor? m_item_down_value; //The option that the current value area is clicked by the mouse
+        private STNodePropertyDescriptor? m_item_selected; //The currently selected option
+        private STNodeAttribute? m_node_attribute; //Node parameter information
         private bool m_b_hover_switch; //Whether the mouse hovers over the panel switch button
         private bool m_b_current_draw_info; //The current drawing is the information panel
 
         private Point m_pt_move; //The real-time coordinates of the mouse on the control
         private Point m_pt_down; //The coordinates of the last mouse click on the control
-        private string m_str_err; // draw error message when set
-        private string m_str_desc; //Draw description information when set
+        private string? m_str_err; // draw error message when set
+        private string? m_str_desc; //Draw description information when set
 
         private Pen m_pen;
         private SolidBrush m_brush;
@@ -289,19 +289,16 @@ namespace ST.Library.UI.NodeEditor
 
         #region private method ==========
 
-        private List<STNodePropertyDescriptor> GetProperties(STNode node) {
+        private List<STNodePropertyDescriptor> GetProperties(STNode? node) {
             List<STNodePropertyDescriptor> lst = new();
             if (node == null) return lst;
             Type t = node.GetType();
             foreach (var p in t.GetProperties()) {
                 var attrs = p.GetCustomAttributes(true);
                 foreach (var a in attrs) {
-                    if (!(a is STNodePropertyAttribute)) continue;
-                    var attr = a as STNodePropertyAttribute;
-                    object obj = Activator.CreateInstance(attr.DescriptorType);
-                    if (!(obj is STNodePropertyDescriptor))
+                    if (a is not STNodePropertyAttribute attr) continue;
+                    if (Activator.CreateInstance(attr.DescriptorType) is not STNodePropertyDescriptor desc)
                         throw new ArgumentException("[STNodePropertyAttribute.DescriptorType] parameter value must be the type of [STNodePropertyDescriptor] or its subclass");
-                    var desc = (STNodePropertyDescriptor)Activator.CreateInstance(attr.DescriptorType);
                     desc.Node = node;
                     desc.Name = attr.Name;
                     desc.Description = attr.Description;
@@ -313,7 +310,7 @@ namespace ST.Library.UI.NodeEditor
             return lst;
         }
 
-        private STNodeAttribute GetNodeAttribute(STNode node) {
+        private STNodeAttribute? GetNodeAttribute(STNode? node) {
             if (node == null) return null;
             Type t = node.GetType();
             foreach (var v in t.GetCustomAttributes(true)) {
@@ -755,7 +752,7 @@ namespace ST.Library.UI.NodeEditor
         /// <param name="e">Mouse event parameters</param>
         protected virtual void OnProcessInfoMouseDown(MouseEventArgs e) {
             try {
-                if (m_rect_link.Contains(e.Location)) {
+                if (m_rect_link.Contains(e.Location) && !string.IsNullOrEmpty(m_node_attribute?.Link)) {
                     System.Diagnostics.Process.Start(m_node_attribute.Link);
                 } else if (m_rect_help.Contains(e.Location)) {
                     STNodeAttribute.ShowHelp(m_type);
@@ -773,7 +770,7 @@ namespace ST.Library.UI.NodeEditor
                 m_item_down_value.OnMouseMove(e);
                 return;
             }
-            STNodePropertyDescriptor item = null;
+            STNodePropertyDescriptor? item = null;
             foreach (var v in m_lst_item) {
                 if (v.Rectangle.Contains(e.Location)) {
                     item = v;
@@ -815,7 +812,7 @@ namespace ST.Library.UI.NodeEditor
         /// Set the STNode node that needs to be displayed
         /// </summary>
         /// <param name="node">target node</param>
-        public void SetNode(STNode node) {
+        public void SetNode(STNode? node) {
             if (node == this._STNode) return;
             m_nInfoOffsetY = m_nPropertyOffsetY = 0;
             m_nInfoVHeight = m_nPropertyVHeight = 0;
@@ -828,7 +825,7 @@ namespace ST.Library.UI.NodeEditor
                 m_node_attribute = this.GetNodeAttribute(node);
                 this.SetItemRectangle();
                 m_b_current_draw_info = m_lst_item.Count == 0 || this._InfoFirstOnDraw;
-                if (this._AutoColor) this._ItemSelectedColor = this._STNode.TitleColor;
+                if (this._AutoColor) this._ItemSelectedColor = node.TitleColor;
             } else {
                 m_type = null;
                 m_lst_item.Clear();

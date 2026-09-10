@@ -1449,7 +1449,7 @@ namespace CodeWalker
             this.SavePositionCheckBox.Name = "SavePositionCheckBox";
             this.SavePositionCheckBox.Size = new System.Drawing.Size(124, 17);
             this.SavePositionCheckBox.TabIndex = 148;
-            this.SavePositionCheckBox.Text = "Save position on exit";
+            this.SavePositionCheckBox.Text = "Save position and direction on exit";
             this.SavePositionCheckBox.UseVisualStyleBackColor = true;
             // 
             // ResetSettingsButton

@@ -1,6 +1,8 @@
 
 
 
+#include "MaterialLighting.hlsli"
+
 struct ShaderGlobalLightParams
 {
     float3 LightDir;
@@ -283,6 +285,13 @@ float3 BasicLighting(float4 lightcolour, float4 ambcolour, float pclit)
     return (ambcolour.rgb + lightcolour.rgb*pclit);
 }
 
+// common.fxh ProcessDiffuseColor: GTA uses a square-law material colour
+// conversion, independently of the texture resource's sRGB metadata.
+float3 MaterialDiffuseColour(float3 colour)
+{
+    return colour * colour;
+}
+
 float3 AmbientLight(float3 diff, float normz, float4 upcolour, float4 downcolour, float amount)
 {
     float ambientDownWrap = downcolour.a;
@@ -294,11 +303,19 @@ float3 AmbientLight(float3 diff, float normz, float4 upcolour, float4 downcolour
 
 float3 GlobalLighting(float3 diff, float3 norm, float4 vc0, float lf, uniform ShaderGlobalLightParams globalLights)
 {
-    float3 c = saturate(diff);
+    float3 c = max(diff, 0);
     float3 fc = c;
-    float naturalDiffuseFactor = vc0.r * vc0.r;
-    float artificialDiffuseFactor = saturate(vc0.g) * saturate(vc0.g);
-    c *= BasicLighting(globalLights.LightDirColour, globalLights.LightDirAmbColour, lf);
+    // lighting_common.fxh squares material ambient scales after vertex/G-buffer
+    // decoding. These are authored visibility values, not linear irradiance.
+    float naturalDiffuseFactor = max(vc0.r, 0) * max(vc0.r, 0);
+    float artificialDiffuseFactor = max(vc0.g, 0) * max(vc0.g, 0);
+    // Timecycle bounce reflects the ambient direction across the ground plane.
+    // Its blend is carried in the otherwise unused directional ambient alpha.
+    float3 ambientLightDir = globalLights.LightDir;
+    ambientLightDir.z *= 1.0 - 2.0 * saturate(globalLights.LightDirAmbColour.a);
+    float ambientDirection = saturate(dot(norm, ambientLightDir));
+    c *= globalLights.LightDirColour.rgb * lf
+        + globalLights.LightDirAmbColour.rgb * ambientDirection * naturalDiffuseFactor;
     c += AmbientLight(fc, norm.z, globalLights.LightNaturalAmbUp, globalLights.LightNaturalAmbDown, naturalDiffuseFactor);
     c += AmbientLight(fc, norm.z, globalLights.LightArtificialAmbUp, globalLights.LightArtificialAmbDown, artificialDiffuseFactor);
     return c;

@@ -16,8 +16,8 @@ namespace CodeWalker.Rendering
     {
         public int SegmentCount { get; set; }
         public int IndexCount { get; set; }
-        public Buffer VertexBuffer { get; set; }
-        public Buffer IndexBuffer { get; set; }
+        public Buffer? VertexBuffer { get; set; }
+        public Buffer? IndexBuffer { get; set; }
 
         private VertexBufferBinding vbbinding;
 

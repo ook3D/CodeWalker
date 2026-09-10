@@ -39,7 +39,7 @@ namespace CodeWalker.Rendering
         GpuVarsBuffer<MarkerShaderVSSceneVars> VSSceneVars;
         GpuVarsBuffer<MarkerShaderVSMarkerVars> VSMarkerVars;
 
-        SamplerState texsampler;
+        SamplerState? texsampler;
 
         InputLayout layout;
 
@@ -93,7 +93,7 @@ namespace CodeWalker.Rendering
         }
 
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Vars.ViewInv = Matrix.Transpose(camera.ViewInvMatrix);

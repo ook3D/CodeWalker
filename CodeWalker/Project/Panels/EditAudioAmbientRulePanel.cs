@@ -16,7 +16,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditAudioAmbientRulePanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public AudioPlacement CurrentRule { get; set; }
+        public AudioPlacement? CurrentRule { get; set; }
 
         private bool populatingui = false;
 
@@ -79,7 +79,7 @@ namespace CodeWalker.Project.Panels
             }
             else
             {
-                AddToProjectButton.Enabled = CurrentRule?.RelFile != null ? !ProjectForm.AudioFileExistsInProject(CurrentRule.RelFile) : false;
+                AddToProjectButton.Enabled = CurrentRule.RelFile != null ? !ProjectForm.AudioFileExistsInProject(CurrentRule.RelFile) : false;
                 DeleteButton.Enabled = !AddToProjectButton.Enabled;
 
                 populatingui = true;
@@ -349,7 +349,7 @@ namespace CodeWalker.Project.Panels
             if (populatingui) return;
             if (CurrentRule?.AmbientRule == null) return;
 
-            var val = (Dat151AmbientRule.ExplicitSpawnType)ExplicitSpawnCombo.SelectedItem;
+            if (ExplicitSpawnCombo.SelectedItem is not Dat151AmbientRule.ExplicitSpawnType val) return;
             if (CurrentRule.AmbientRule.ExplicitSpawn != val)
             {
                 CurrentRule.AmbientRule.ExplicitSpawn = val;
@@ -515,7 +515,7 @@ namespace CodeWalker.Project.Panels
         private void AddToProjectButton_Click(object sender, EventArgs e)
         {
             ProjectForm.SetProjectItem(CurrentRule);
-            ProjectForm.AddAudioFileToProject(CurrentRule.RelFile);
+            if (CurrentRule?.RelFile is { } rel) ProjectForm.AddAudioFileToProject(rel);
         }
 
         private void DeleteButton_Click(object sender, EventArgs e)

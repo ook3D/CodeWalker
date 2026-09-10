@@ -27,6 +27,7 @@ namespace CodeWalker.Rendering
         public Vector3 Scale;
         public uint TintPaletteIndex;
         public bool CastShadow;
+        public bool IsInterior;
     }
     public struct RenderableGeometryInst
     {
@@ -63,37 +64,45 @@ namespace CodeWalker.Rendering
 
     public class Renderable : RenderableCacheItem<DrawableBase>
     {
-        public YtdFile[] SDtxds;
-        public YtdFile[] HDtxds;
+        // Null means the hierarchy has not been resolved; empty means it was
+        // resolved and no external texture dictionaries were found.
+        public YtdFile[]? SDtxds;
+        public YtdFile[]? HDtxds;
         public bool AllTexturesLoaded = false;
 
-        public RenderableModel[] HDModels;
-        public RenderableModel[] MedModels;
-        public RenderableModel[] LowModels;
-        public RenderableModel[] VlowModels;
-        public RenderableModel[] AllModels;
+        public RenderableModel[] HDModels = [];
+        public RenderableModel[] MedModels = [];
+        public RenderableModel[] LowModels = [];
+        public RenderableModel[] VlowModels = [];
+        public RenderableModel[] AllModels = [];
         //public Dictionary<uint, Texture> TextureDict { get; private set; }
         //public long EmbeddedTextureSize { get; private set; }
 
-        public Skeleton Skeleton { get; set; } = null;
+        public Skeleton? Skeleton { get; set; } = null;
         public bool HasSkeleton;
         public bool HasTransforms;
 
         public bool HasAnims = false;
-        public double CurrentAnimTime = 0;
-        public YcdFile ClipDict;
-        public ClipMapEntry ClipMapEntry;
-        public Expression Expression;
-        public Dictionary<ushort, RenderableModel> ModelBoneLinks;
+        public double CurrentAnimTime = double.NaN;
+        private ClipMapEntry? LastAnimationClip;
+        private Expression? LastAnimationExpression;
+        public YcdFile? ClipDict;
+        public ClipMapEntry? ClipMapEntry;
+        public ClipMapEntry? FaceClip;
+        private ClipMapEntry? LastFaceClip;
+        private readonly ExpressionEvaluator FacialEvaluator = new();
+        public string? FacialExpressionError => FacialEvaluator.LastError;
+        public Expression? Expression;
+        public Dictionary<ushort, RenderableModel> ModelBoneLinks = new();
 
         public bool EnableRootMotion = false; //used to toggle whether or not to include root motion when playing animations
         public Vector3 RootMotionPosition;
         public Quaternion RootMotionRotation;
 
-        public ClothInstance Cloth;
+        public ClothInstance? Cloth;
 
 
-        public RenderableLight[] Lights;
+        public RenderableLight[] Lights = [];
 
 
 
@@ -107,8 +116,8 @@ namespace CodeWalker.Rendering
             var med = Key.DrawableModels?.Med;
             var low = Key.DrawableModels?.Low;
             var vlow = Key.DrawableModels?.VLow;
-            int totmodels = (hd?.Length ?? 0) + (med?.Length ?? 0) + (low?.Length ?? 0) + (vlow?.Length ?? 0);
-            int curmodel = hd?.Length ?? 0;
+            int totmodels = (hd.Length) + (med?.Length ?? 0) + (low?.Length ?? 0) + (vlow?.Length ?? 0);
+            int curmodel = hd.Length;
             AllModels = new RenderableModel[totmodels];
             HDModels = new RenderableModel[hd.Length];
             if (hd != null)
@@ -167,12 +176,12 @@ namespace CodeWalker.Rendering
             bool hasskeleton = false;
             bool hastransforms = false;
             bool hasbones = false;
-            Skeleton skeleton = drawable.Skeleton;
-            Matrix[] modeltransforms = null;
-            Matrix[] fragtransforms = null;
+            var skeleton = drawable.Skeleton;
+            Matrix[]? modeltransforms = null;
+            Matrix[]? fragtransforms = null;
             Vector4 fragoffset = Vector4.Zero;
             int fragtransformid = 0;
-            Bone[] bones = null;
+            Bone[]? bones = null;
             bool usepose = false;
             if (skeleton != null)
             {
@@ -226,6 +235,7 @@ namespace CodeWalker.Rendering
                                 case 5858:  //wheel_rm2
                                 case 5859:  //wheel_rm3
                                 case 26398: //wheel_rr
+                                    if (fragtransforms == null || fragtransformid < 0 || fragtransformid >= fragtransforms.Length) break;
                                     fragtransforms[fragtransformid].M11 = -1;
                                     fragtransforms[fragtransformid].M12 = 0;
                                     fragtransforms[fragtransformid].M13 = 0;
@@ -249,7 +259,7 @@ namespace CodeWalker.Rendering
 
                 hastransforms = (modeltransforms != null) || (fragtransforms != null);
                 hasbones = ((skeleton.Bones != null) && (skeleton.Bones.Items != null));
-                bones = hasbones ? skeleton.Bones.Items : null;
+                bones = skeleton.Bones?.Items;
             }
 
             HasSkeleton = hasskeleton;
@@ -269,8 +279,8 @@ namespace CodeWalker.Rendering
 
                     int boneidx = model.BoneIndex;
 
-                    Matrix trans = (boneidx < modeltransforms.Length) ? modeltransforms[boneidx] : Matrix.Identity;
-                    Bone bone = (hasbones && (boneidx < bones.Length)) ? bones[boneidx] : null;
+                    Matrix trans = (modeltransforms != null && boneidx < modeltransforms.Length) ? modeltransforms[boneidx] : Matrix.Identity;
+                    Bone? bone = (bones != null && boneidx < bones.Length) ? bones[boneidx] : null;
 
                     if (mi < HDModels.Length) //populate bone links map for hd models
                     {
@@ -296,14 +306,14 @@ namespace CodeWalker.Rendering
                     else if (!usepose) //when using the skeleton's matrices, they need to be transformed by parent
                     {
                         trans.Column4 = Vector4.UnitW;
-                        short[] pinds = skeleton.ParentIndices;
-                        short parentind = ((pinds != null) && (boneidx < pinds.Length)) ? pinds[boneidx] : (short)-1;
+                        var pinds = skeleton?.ParentIndices ?? [];
+                        short parentind = ((boneidx < pinds.Length)) ? pinds[boneidx] : (short)-1;
                         while ((parentind >= 0) && (parentind < pinds.Length))
                         {
-                            Matrix ptrans = (parentind < modeltransforms.Length) ? modeltransforms[parentind] : Matrix.Identity;
+                            Matrix ptrans = (modeltransforms != null && parentind < modeltransforms.Length) ? modeltransforms[parentind] : Matrix.Identity;
                             ptrans.Column4 = Vector4.UnitW;
                             trans = Matrix.Multiply(trans, ptrans);
-                            parentind = ((pinds != null) && (parentind < pinds.Length)) ? pinds[parentind] : (short)-1;
+                            parentind = ((parentind < pinds.Length)) ? pinds[parentind] : (short)-1;
                         }
                     }
 
@@ -321,9 +331,9 @@ namespace CodeWalker.Rendering
 
 
             var lights = dd?.LightAttributes?.data_items;
-            if ((lights == null) && (fd != null) && (fd?.OwnerFragment?.Drawable == fd))
+            if ((lights == null) && (fd?.OwnerFragment is { } ownerFragment) && (ownerFragment.Drawable == fd))
             {
-                lights = fd.OwnerFragment.LightAttributes?.data_items;
+                lights = ownerFragment.LightAttributes.data_items;
             }
             if (lights != null)
             {
@@ -393,7 +403,7 @@ namespace CodeWalker.Rendering
 
         public override string ToString()
         {
-            return Key.ToString();
+            return Key?.ToString() ?? string.Empty;
         }
 
 
@@ -422,7 +432,7 @@ namespace CodeWalker.Rendering
                 {
                     var geom = model.Geometries[g];
                     var boneids = geom?.DrawableGeom?.BoneIds;
-                    if (boneids == null) continue;
+                    if (boneids == null || boneids.Length == 0 || geom == null || bones == null) continue;
                     if (boneids.Length != bones.Length)
                     {
                         var idc = boneids.Length;
@@ -457,7 +467,12 @@ namespace CodeWalker.Rendering
                 realTime = ClipMapEntry.PlayTime;
             }
 
-            if (CurrentAnimTime == realTime) return;//already updated this!
+            if (CurrentAnimTime == realTime && ReferenceEquals(LastAnimationClip, ClipMapEntry) &&
+                ReferenceEquals(LastAnimationExpression, Expression) && ReferenceEquals(LastFaceClip, FaceClip)) return;
+            bool hadAnimation = LastAnimationClip != null;
+            LastFaceClip = FaceClip;
+            LastAnimationClip = ClipMapEntry;
+            LastAnimationExpression = Expression;
             CurrentAnimTime = realTime;
 
             EnableRootMotion = ClipMapEntry?.EnableRootMotion ?? false;
@@ -467,6 +482,7 @@ namespace CodeWalker.Rendering
                 UpdateAnim(ClipMapEntry); //animate skeleton/models
             }
 
+            if (ClipMapEntry == null && hadAnimation) Skeleton?.ResetBoneTransforms();
             UpdateBoneTransforms();
 
             foreach (var model in HDModels)
@@ -485,6 +501,15 @@ namespace CodeWalker.Rendering
         }
         private void UpdateAnim(ClipMapEntry cme)
         {
+            // Channels absent from the new clip must not retain a previous facial pose.
+            if (Skeleton?.BonesSorted is { } poseBones)
+                foreach (var bone in poseBones)
+                {
+                    bone.AnimTranslation = bone.Translation;
+                    bone.AnimRotation = bone.Rotation;
+                    bone.AnimScale = bone.Scale;
+                }
+            FacialEvaluator.Frame.Clear();
             RootMotionPosition = Vector3.Zero;
             RootMotionRotation = Quaternion.Identity;
 
@@ -503,6 +528,14 @@ namespace CodeWalker.Rendering
                     UpdateAnim(canim.Animation, canim.GetPlaybackTime(CurrentAnimTime));
                 }
             }
+
+            if (FaceClip?.Clip is ClipAnimation face && face.Animation != null)
+                UpdateAnim(face.Animation, face.GetPlaybackTime(CurrentAnimTime), true);
+            else if (FaceClip?.Clip is ClipAnimationList faces && faces.Animations != null)
+                foreach (var part in faces.Animations)
+                    if (part.Animation != null) UpdateAnim(part.Animation, part.GetPlaybackTime(CurrentAnimTime), true);
+            if (Expression != null && Skeleton != null)
+                FacialEvaluator.Evaluate(Expression, Skeleton, (float)CurrentAnimTime);
 
             var bonesmap = Skeleton?.BonesMap;
             var bones = Skeleton?.BonesSorted;
@@ -541,7 +574,7 @@ namespace CodeWalker.Rendering
                     bone.UpdateSkinTransform();
 
                     //update model's transform from animated bone
-                    RenderableModel bmodel = null;
+                    RenderableModel? bmodel = null;
                     ModelBoneLinks?.TryGetValue(bone.Tag, out bmodel);
 
 
@@ -556,7 +589,7 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private void UpdateAnim(Animation anim, float t)
+        private void UpdateAnim(Animation? anim, float t, bool faceOnly = false)
         { 
             if (anim == null)
             { return; }
@@ -569,7 +602,6 @@ namespace CodeWalker.Rendering
 
             var frame = anim.GetFramePosition(t);
 
-            var dwbl = this.Key;
             var skel = Skeleton;
             var bones = skel?.BonesSorted;//.Bones?.Items;//
             if (bones == null)
@@ -583,24 +615,20 @@ namespace CodeWalker.Rendering
                 var boneiditem = anim.BoneIds.data_items[i];
                 var boneid = boneiditem.BoneId;
                 var track = boneiditem.Track;
+                if (faceOnly && track is 5 or 6) continue;
 
-                if (Expression?.BoneTracksDict != null)
+                // These are inputs to a YED expression program, not skeletal transforms.
+                // The track table lists inputs/outputs; adjacency does not define a direct binding.
+                // Applying guessed rotations/translations here distorts eyes and mouths.
+                if (Expression != null)
                 {
-                    var exprbt = new ExpressionTrack() { BoneId = boneid, Track = track, Flags = boneiditem.Unk0 };
-                    var exprbtmap = exprbt;
-
-                    if ((track == 24) || (track == 25) || (track == 26))
-                    {
-                        if (Expression.BoneTracksDict.TryGetValue(exprbt, out exprbtmap))
-                        {
-                            boneid = exprbtmap.BoneId;
-                        }
-                        else
-                        { }
-                    }
+                    var sample = track is 1 or 6 or 8 or 26 || boneiditem.Unk0 == 1
+                        ? anim.EvaluateQuaternion(frame, i, interpolate).ToVector4() : anim.EvaluateVector4(frame, i, interpolate);
+                    FacialEvaluator.Frame[(boneid, track)] = sample;
                 }
+                if (track is 24 or 25 or 26 or 37) continue;
 
-                Bone bone = null;
+                Bone? bone = null;
                 skel?.BonesMap?.TryGetValue(boneid, out bone);
                 if (bone == null)
                 {
@@ -636,21 +664,6 @@ namespace CodeWalker.Rendering
                         break;
                     case 8://quaternion... (camera rotation?)
                         break;
-                    case 24://face stuff
-                        v = anim.EvaluateVector4(frame, i, interpolate); //single float
-                        var fv = new Vector3(0, v.X * 0.005f, 0);//not sure about this
-                        bone.AnimTranslation = bone.Translation + bone.AnimRotation.Multiply(fv);//not sure about this
-                        break;
-                    case 25://face stuff
-                        v = anim.EvaluateVector4(frame, i, interpolate); //vector3 roll/pitch/yaw
-                        var mult = -0.314159265f;
-                        q = Quaternion.RotationYawPitchRoll(v.Z * mult, v.Y * mult, v.X * mult);
-                        bone.AnimRotation = bone.Rotation * q;
-                        break;
-                    case 26://face stuff
-                        q = anim.EvaluateQuaternion(frame, i, interpolate);
-                        bone.AnimRotation = bone.Rotation * q;//is this right?
-                        break;
                     case 27:
                     case 50:
                     case 134://single float?
@@ -671,7 +684,7 @@ namespace CodeWalker.Rendering
 
 
         }
-        private void UpdateAnimUV(ClipMapEntry cme, RenderableGeometry rgeom = null)
+        private void UpdateAnimUV(ClipMapEntry cme, RenderableGeometry? rgeom = null)
         {
 
             var clipanim = cme.Clip as ClipAnimation;
@@ -691,7 +704,7 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private void UpdateAnimUV(Animation anim, float t, RenderableGeometry rgeom = null)
+        private void UpdateAnimUV(Animation? anim, float t, RenderableGeometry? rgeom = null)
         {
             if (anim == null)
             { return; }
@@ -752,10 +765,10 @@ namespace CodeWalker.Rendering
 
     public class RenderableModel
     {
-        public Renderable Owner;
-        public DrawableModel DrawableModel;
-        public RenderableGeometry[] Geometries;
-        public AABB_s[] GeometryBounds;
+        public Renderable? Owner;
+        public DrawableModel? DrawableModel;
+        public RenderableGeometry[] Geometries = [];
+        public AABB_s[] GeometryBounds = [];
         public long GeometrySize { get; private set; }
 
         public uint SkeletonBinding;
@@ -799,7 +812,7 @@ namespace CodeWalker.Rendering
                     //GeometryBounds[i] = new AABB_s();//what to default to?
                 }
 
-                if (Owner.Key is FragDrawable)
+                if (Owner?.Key is FragDrawable)
                 {
                     rgeom.IsFragment = true;
                 }
@@ -812,11 +825,11 @@ namespace CodeWalker.Rendering
 
     public class RenderableGeometry
     {
-        public RenderableModel Owner;
-        public Buffer VertexBuffer { get; set; }
-        public Buffer IndexBuffer { get; set; }
+        public RenderableModel? Owner;
+        public Buffer? VertexBuffer { get; set; }
+        public Buffer? IndexBuffer { get; set; }
         public VertexBufferBinding VBBinding;
-        public DrawableGeometry DrawableGeom;
+        public DrawableGeometry? DrawableGeom;
         public VertexType VertexType { get; set; }
         public int VertexStride { get; set; }
         public int VertexCount { get; set; }
@@ -824,11 +837,11 @@ namespace CodeWalker.Rendering
         public uint VertexDataSize { get; set; }
         public uint IndexDataSize { get; set; }
         public uint TotalDataSize { get; set; }
-        public TextureBase[] Textures;
-        public Texture[] TexturesHD;
-        public RenderableTexture[] RenderableTextures;
-        public RenderableTexture[] RenderableTexturesHD;
-        public ShaderParamNames[] TextureParamHashes;
+        public TextureBase[] Textures = [];
+        public Texture?[] TexturesHD = [];
+        public RenderableTexture?[] RenderableTextures = [];
+        public RenderableTexture?[] RenderableTexturesHD = [];
+        public ShaderParamNames[] TextureParamHashes = [];
         public PrimitiveTopology Topology { get; set; }
         public bool IsFragment = false;
         public bool IsEmissive { get; set; } = false;
@@ -838,10 +851,11 @@ namespace CodeWalker.Rendering
         public float wetnessMultiplier { get; set; } = 0.0f;
         public float bumpiness { get; set; } = 1.0f;
         public Vector4 detailSettings { get; set; } = Vector4.Zero;
-        public Vector3 specMapIntMask { get; set; } = Vector3.Zero;
+        public bool UsePedSpecular { get; private set; }
+        public Vector3 specMapIntMask { get; set; } = Vector3.UnitX;
         public float specularIntensityMult { get; set; } = 0.0f;
-        public float specularFalloffMult { get; set; } = 0.0f;
-        public float specularFresnel { get; set; } = 0.0f;
+        public float specularFalloffMult { get; set; } = 100.0f;
+        public float specularFresnel { get; set; } = 0.97f;
         public float RippleSpeed { get; set; } = 1.0f;
         public float RippleScale { get; set; } = 1.0f;
         public float RippleBumpiness { get; set; } = 1.0f;
@@ -868,7 +882,12 @@ namespace CodeWalker.Rendering
         public float HeightOpacity { get; set; } = 0; //for terrainfoam
         public bool HDTextureEnable = true;
         public bool globalAnimUVEnable = false;
-        public ClipMapEntry ClipMapEntryUV = null;
+        public ClipMapEntry? ClipMapEntryUV;
+        public Vector4 HairSpecular = new Vector4(16, 32, 0.1f, 0.15f);
+        public Vector4 HairColour = new Vector4(0.1f);
+        public Vector4 HairNoiseUV = new Vector4(2, 1, 3, 1);
+        public float HairAlphaBias = 1;
+        public int HairOrder;
         public bool isHair = false;
         public bool disableRendering = false;
         public bool IsGrassFur = false;
@@ -892,7 +911,7 @@ namespace CodeWalker.Rendering
         public Vector4 FurShadows3 { get; set; } = Vector4.Zero;
         public Vector4 FurShadows4 { get; set; } = Vector4.Zero;
 
-        public Matrix3_s[] BoneTransforms = null;
+        public Matrix3_s[]? BoneTransforms;
 
         public static ShaderParamNames[] GetTextureSamplerList()
         {
@@ -940,7 +959,7 @@ namespace CodeWalker.Rendering
         public void Init(DrawableGeometry dgeom)
         {
             DrawableGeom = dgeom;
-            VertexType = dgeom.VertexData.VertexType;
+            VertexType = dgeom.VertexData?.VertexType ?? VertexType.Default;
             VertexStride = dgeom.VertexStride;
             VertexCount = dgeom.VerticesCount;
             IndexCount = (int)dgeom.IndicesCount;
@@ -960,6 +979,8 @@ namespace CodeWalker.Rendering
 
                 var shaderName = shader.Name;
                 var shaderFile = shader.FileName;
+                UsePedSpecular = PedMaterial.UsesPackedSpecular(shaderFile.Hash);
+                if (UsePedSpecular) specularIntensityMult = 0.125f;
                 switch (shaderFile.Hash)
                 {
                     case 2245870123: //trees_normal_diffspec_tnt.sps
@@ -1030,9 +1051,9 @@ namespace CodeWalker.Rendering
                     {
                         ShaderParamNames pName = (ShaderParamNames)hl[i];
                         var param = pl[i];
-                        if (param.Data is TextureBase)
+                        if (param.Data is TextureBase texture)
                         {
-                            texs.Add(param.Data as TextureBase);
+                            texs.Add(texture);
                             phashes.Add(pName);
                             if (IsGrassFur)
                             {
@@ -1041,133 +1062,150 @@ namespace CodeWalker.Rendering
                             }
                         }
 
+                        if (param.Data is not Vector4 vector) continue;
                         switch (pName)
                         {
+                            case ShaderParamNames.anisotropicSpecularExponent:
+                                HairSpecular.X = vector.X; HairSpecular.Y = vector.Y;
+                                break;
+                            case ShaderParamNames.anisotropicSpecularIntensity:
+                                HairSpecular.Z = vector.X; HairSpecular.W = vector.Y;
+                                break;
+                            case ShaderParamNames.anisotropicSpecularColour:
+                                HairColour = vector;
+                                break;
+                            case ShaderParamNames.specularNoiseMapUVScaleFactor:
+                                HairNoiseUV = vector;
+                                break;
+                            case ShaderParamNames.AnisotropicAlphaBias:
+                                HairAlphaBias = vector.X;
+                                break;
                             case ShaderParamNames.HardAlphaBlend:
-                                HardAlphaBlend = ((Vector4)param.Data).X;
+                                HardAlphaBlend = (vector).X;
                                 break;
                             case ShaderParamNames.useTessellation:
-                                useTessellation = ((Vector4)param.Data).X;
+                                useTessellation = (vector).X;
                                 break;
                             case ShaderParamNames.wetnessMultiplier:
-                                wetnessMultiplier = ((Vector4)param.Data).X;
+                                wetnessMultiplier = (vector).X;
                                 break;
                             case ShaderParamNames.bumpiness: //float
-                                bumpiness = ((Vector4)param.Data).X;
-                                if (IsGrassFur) FurBumpScale = ((Vector4)param.Data).X;
+                                bumpiness = (vector).X;
+                                if (IsGrassFur) FurBumpScale = (vector).X;
                                 break;
                             case ShaderParamNames.detailSettings: //float4
-                                detailSettings = (Vector4)param.Data;
+                                detailSettings = vector;
                                 break;
                             case ShaderParamNames.specMapIntMask: //float3
-                                specMapIntMask = ((Vector4)param.Data).XYZ();
+                                specMapIntMask = (vector).XYZ();
                                 break;
                             case ShaderParamNames.specularIntensityMult: //float
-                                specularIntensityMult = ((Vector4)param.Data).X;
+                                specularIntensityMult = (vector).X;
                                 break;
                             case ShaderParamNames.specularFalloffMult: //float
-                                specularFalloffMult = ((Vector4)param.Data).X;
+                                specularFalloffMult = (vector).X;
                                 break;
                             case ShaderParamNames.specularFresnel: //float
-                                specularFresnel= ((Vector4)param.Data).X;
+                                specularFresnel= (vector).X;
                                 break;
                             case ShaderParamNames.WindGlobalParams:
-                                WindGlobalParams = ((Vector4)param.Data);
+                                WindGlobalParams = (vector);
                                 break;
                             case ShaderParamNames.umGlobalOverrideParams:
-                                WindOverrideParams = ((Vector4)param.Data);
+                                WindOverrideParams = (vector);
                                 break;
                             case ShaderParamNames.umGlobalParams:
-                                UmGlobalParams = ((Vector4)param.Data);
+                                UmGlobalParams = (vector);
                                 break;
                             case ShaderParamNames.RippleSpeed:
-                                RippleSpeed = ((Vector4)param.Data).X;
+                                RippleSpeed = (vector).X;
                                 break;
                             case ShaderParamNames.RippleScale:
-                                RippleScale = ((Vector4)param.Data).X;
+                                RippleScale = (vector).X;
                                 break;
                             case ShaderParamNames.RippleBumpiness:
-                                RippleBumpiness = ((Vector4)param.Data).X;
+                                RippleBumpiness = (vector).X;
                                 break;
                             case ShaderParamNames.heightScale:
-                                heightScale = ((Vector4)param.Data).X;
+                                heightScale = (vector).X;
                                 break;
                             case ShaderParamNames.heightBias:
-                                heightBias = ((Vector4)param.Data).X;
+                                heightBias = (vector).X;
                                 break;
                             case ShaderParamNames.heightScale0:
-                                heightScale0 = ((Vector4)param.Data).X;
+                                heightScale0 = (vector).X;
                                 break;
                             case ShaderParamNames.heightScale1:
-                                heightScale1 = ((Vector4)param.Data).X;
+                                heightScale1 = (vector).X;
                                 break;
                             case ShaderParamNames.heightScale2:
-                                heightScale2 = ((Vector4)param.Data).X;
+                                heightScale2 = (vector).X;
                                 break;
                             case ShaderParamNames.heightScale3:
-                                heightScale3 = ((Vector4)param.Data).X;
+                                heightScale3 = (vector).X;
                                 break;
                             case ShaderParamNames.heightBias0:
-                                heightBias0 = ((Vector4)param.Data).X;
+                                heightBias0 = (vector).X;
                                 break;
                             case ShaderParamNames.heightBias1:
-                                heightBias1 = ((Vector4)param.Data).X;
+                                heightBias1 = (vector).X;
                                 break;
                             case ShaderParamNames.heightBias2:
-                                heightBias2 = ((Vector4)param.Data).X;
+                                heightBias2 = (vector).X;
                                 break;
                             case ShaderParamNames.heightBias3:
-                                heightBias3 = ((Vector4)param.Data).X;
+                                heightBias3 = (vector).X;
                                 break;
                             case ShaderParamNames.globalAnimUV0:
-                                globalAnimUV0 = (Vector4)param.Data;
+                                globalAnimUV0 = vector;
                                 globalAnimUVEnable = true;
                                 break;
                             case ShaderParamNames.globalAnimUV1:
-                                globalAnimUV1 = (Vector4)param.Data;
+                                globalAnimUV1 = vector;
                                 globalAnimUVEnable = true;
                                 break;
                             case ShaderParamNames.WaveOffset:
-                                WaveOffset = ((Vector4)param.Data).X;
+                                WaveOffset = (vector).X;
                                 break;
                             case ShaderParamNames.WaterHeight:
-                                WaterHeight = ((Vector4)param.Data).X;
+                                WaterHeight = (vector).X;
                                 break;
                             case ShaderParamNames.WaveMovement:
-                                WaveMovement = ((Vector4)param.Data).X;
+                                WaveMovement = (vector).X;
                                 break;
                             case ShaderParamNames.HeightOpacity:
-                                HeightOpacity = ((Vector4)param.Data).X;
+                                HeightOpacity = (vector).X;
                                 break;
                             case ShaderParamNames.DirtDecalMask:
-                                DirtDecalMask = ((Vector4)param.Data);
+                                DirtDecalMask = (vector);
                                 break;
                             case ShaderParamNames.furLayerParams:
                                 if (IsGrassFur)
                                 {
-                                    var flp = (Vector4)param.Data;
+                                    var flp = vector;
                                     FurLength = flp.X;
                                     FurFadeShadow = flp.W;
                                 }
                                 break;
                             case ShaderParamNames.furUvScales:
-                                if (IsGrassFur) FurUVScaling = (Vector4)param.Data;
+                                if (IsGrassFur) FurUVScaling = vector;
                                 break;
                             case ShaderParamNames.furShadow03:
-                                if (IsGrassFur) FurShadows1 = (Vector4)param.Data;
+                                if (IsGrassFur) FurShadows1 = vector;
                                 break;
                             case ShaderParamNames.furShadow47:
-                                if (IsGrassFur) FurShadows2 = (Vector4)param.Data;
+                                if (IsGrassFur) FurShadows2 = vector;
                                 break;
                             case ShaderParamNames.furAlphaClip03:
-                                if (IsGrassFur) FurThresholds1 = (Vector4)param.Data;
+                                if (IsGrassFur) FurThresholds1 = vector;
                                 break;
                             case ShaderParamNames.furAlphaClip47:
-                                if (IsGrassFur) FurThresholds2 = (Vector4)param.Data;
+                                if (IsGrassFur) FurThresholds2 = vector;
                                 break;
                             case ShaderParamNames.orderNumber:
-                                //stops drawing hair geoms that apparently shouldn't be rendered... any better way to do this?
-                                if (isHair && (((Vector4)param.Data).X > 0.0f)) disableRendering = true;
+                                // Spiked hair uses order 0 for colour and order 1 for its normal cap.
+                                HairOrder = (int)vector.X;
+                                if (isHair && HairOrder > 1 && HairOrder != 8) disableRendering = true;
                                 break;
                         }
 
@@ -1189,7 +1227,8 @@ namespace CodeWalker.Rendering
         public void Load(Device device)
         {
 
-            VertexBuffer = Buffer.Create(device, BindFlags.VertexBuffer, DrawableGeom.VertexData.VertexBytes);
+            if (DrawableGeom?.VertexData?.VertexBytes is not { Length: > 0 } vertexBytes) return;
+            VertexBuffer = Buffer.Create(device, BindFlags.VertexBuffer, vertexBytes);
 
             //object v = DrawableGeom.VertexData.Vertices;
             //switch (VertexType)
@@ -1296,7 +1335,7 @@ namespace CodeWalker.Rendering
                 {
                     RenderableTextures[i] = null;
                 }
-                RenderableTextures = null;
+                RenderableTextures = [];
             }
             if (RenderableTexturesHD != null)
             {
@@ -1304,7 +1343,7 @@ namespace CodeWalker.Rendering
                 {
                     RenderableTexturesHD[i] = null;
                 }
-                RenderableTexturesHD = null;
+                RenderableTexturesHD = [];
             }
 
         }
@@ -1342,9 +1381,9 @@ namespace CodeWalker.Rendering
     public class RenderableTexture : RenderableCacheItem<Texture>
     {
         public uint Hash { get; private set; }
-        public string Name { get; private set; }
-        public Texture2D Texture2D { get; set; }
-        public ShaderResourceView ShaderResourceView { get; set; }
+        public string Name { get; private set; } = string.Empty;
+        public Texture2D? Texture2D { get; set; }
+        public ShaderResourceView? ShaderResourceView { get; set; }
 
 
         public override void Init(Texture tex)
@@ -1476,15 +1515,15 @@ namespace CodeWalker.Rendering
 
         public override string ToString()
         {
-            return (Key != null) ? Key.ToString() : base.ToString();
+            return Key?.ToString() ?? base.ToString() ?? string.Empty;
         }
     }
 
     public class RenderableLight
     {
-        public LightAttributes OwnerLight;
-        public Renderable Owner;
-        public Bone Bone;
+        public LightAttributes? OwnerLight;
+        public Renderable? Owner;
+        public Bone? Bone;
         public Vector3 Position;
         public Vector3 Colour;
         public Vector3 Direction;
@@ -1534,8 +1573,8 @@ namespace CodeWalker.Rendering
 
     public class RenderableInstanceBatch : RenderableCacheItem<YmapGrassInstanceBatch>
     {
-        public rage__fwGrassInstanceListDef__InstanceData[] GrassInstanceData { get; set; }
-        public GpuSBuffer<rage__fwGrassInstanceListDef__InstanceData> GrassInstanceBuffer { get; set; }
+        public rage__fwGrassInstanceListDef__InstanceData[] GrassInstanceData { get; set; } = [];
+        public GpuSBuffer<rage__fwGrassInstanceListDef__InstanceData>? GrassInstanceBuffer { get; set; }
         public int InstanceCount { get; set; }
         public Vector3 AABBMin { get; set; }
         public Vector3 AABBMax { get; set; }
@@ -1603,13 +1642,13 @@ namespace CodeWalker.Rendering
             public float OuterAngleOrCapExt;//outer angle for cone, cap extent for capsule
         }
 
-        public LODLight[] Points;
-        public LODLight[] Spots;
-        public LODLight[] Caps;
+        public LODLight[] Points = [];
+        public LODLight[] Spots = [];
+        public LODLight[] Caps = [];
 
-        public GpuSBuffer<LODLight> PointsBuffer { get; set; }
-        public GpuSBuffer<LODLight> SpotsBuffer { get; set; }
-        public GpuSBuffer<LODLight> CapsBuffer { get; set; }
+        public GpuSBuffer<LODLight>? PointsBuffer { get; set; }
+        public GpuSBuffer<LODLight>? SpotsBuffer { get; set; }
+        public GpuSBuffer<LODLight>? CapsBuffer { get; set; }
 
 
         public override void Init(YmapFile key)
@@ -1723,12 +1762,12 @@ namespace CodeWalker.Rendering
             public uint Colour;
         }
 
-        private DistLODLight[] InstanceData { get; set; } 
-        public GpuSBuffer<DistLODLight> InstanceBuffer { get; set; }
+        private DistLODLight[] InstanceData { get; set; } = [];
+        public GpuSBuffer<DistLODLight>? InstanceBuffer { get; set; }
         public int InstanceCount { get; set; }
         public ushort Category { get; set; }
         public ushort NumStreetLights { get; set; }
-        public RenderableTexture Texture { get; set; }
+        public RenderableTexture? Texture { get; set; }
 
         public override void Init(YmapDistantLODLights key)
         {
@@ -1781,18 +1820,18 @@ namespace CodeWalker.Rendering
     {
         public int VertexStride { get { return 16; } }
 
-        public EditorVertex[] PathVertices;
+        public EditorVertex[] PathVertices = [];
         public int PathVertexCount { get; set; }
-        public Buffer PathVertexBuffer { get; set; }
+        public Buffer? PathVertexBuffer { get; set; }
         public VertexBufferBinding PathVBBinding;
 
-        public EditorVertex[] TriangleVertices;
+        public EditorVertex[] TriangleVertices = [];
         public int TriangleVertexCount { get; set; }
-        public Buffer TriangleVertexBuffer { get; set; }
+        public Buffer? TriangleVertexBuffer { get; set; }
         public VertexBufferBinding TriangleVBBinding;
 
-        public Vector4[] Nodes;
-        public GpuSBuffer<Vector4> NodeBuffer { get; set; }
+        public Vector4[] Nodes = [];
+        public GpuSBuffer<Vector4>? NodeBuffer { get; set; }
 
         public override void Init(BasePathData key)
         {
@@ -1876,13 +1915,13 @@ namespace CodeWalker.Rendering
 
     public class RenderableWaterQuad : RenderableCacheItem<WaterQuad>
     {
-        public VertexTypePCT[] Vertices;
-        public uint[] Indices;
+        public VertexTypePCT[] Vertices = [];
+        public uint[] Indices = [];
         public int IndexCount { get; set; }
         public int VertexCount { get; set; }
         public int VertexStride { get; set; } = 24;
-        public Buffer VertexBuffer { get; set; }
-        public Buffer IndexBuffer { get; set; }
+        public Buffer? VertexBuffer { get; set; }
+        public Buffer? IndexBuffer { get; set; }
         public VertexBufferBinding VBBinding;
         public Vector3 CamRel { get; set; } //verts are in world space, so camrel should just be -campos
 
@@ -1892,19 +1931,20 @@ namespace CodeWalker.Rendering
 
             float sx = key.maxX - key.minX;
             float sy = key.maxY - key.minY;
+            float z = key.z ?? throw new ArgumentException("Water quad must have a height.", nameof(key));
 
             VertexCount = 4;
             Vertices = new VertexTypePCT[4];
-            Vertices[0].Position = new Vector3(key.minX, key.minY, key.z.Value);
+            Vertices[0].Position = new Vector3(key.minX, key.minY, z);
             Vertices[0].Texcoord = new Vector2(0.0f, 0.0f);
             Vertices[0].Colour = (uint)new Color4(key.a1 / 255.0f).ToRgba();
-            Vertices[1].Position = new Vector3(key.maxX, key.minY, key.z.Value);
+            Vertices[1].Position = new Vector3(key.maxX, key.minY, z);
             Vertices[1].Texcoord = new Vector2(sx, 0.0f);
             Vertices[1].Colour = (uint)new Color4(key.a2 / 255.0f).ToRgba();
-            Vertices[2].Position = new Vector3(key.minX, key.maxY, key.z.Value);
+            Vertices[2].Position = new Vector3(key.minX, key.maxY, z);
             Vertices[2].Texcoord = new Vector2(0.0f, sy);
             Vertices[2].Colour = (uint)new Color4(key.a3 / 255.0f).ToRgba();
-            Vertices[3].Position = new Vector3(key.maxX, key.maxY, key.z.Value);
+            Vertices[3].Position = new Vector3(key.maxX, key.maxY, z);
             Vertices[3].Texcoord = new Vector2(sx, sy);
             Vertices[3].Colour = (uint)new Color4(key.a4 / 255.0f).ToRgba();
 
@@ -2007,7 +2047,7 @@ namespace CodeWalker.Rendering
 
     public class RenderableBoundComposite : RenderableCacheItem<Bounds>
     {
-        public RenderableBoundGeometry[] Geometries;
+        public RenderableBoundGeometry[] Geometries = [];
 
 
         public override void Init(Bounds bound)
@@ -2133,35 +2173,35 @@ namespace CodeWalker.Rendering
 
         public override string ToString()
         {
-            return Key.ToString();
+            return Key?.ToString() ?? string.Empty;
         }
     }
 
     public class RenderableBoundGeometry
     {
         public RenderableBoundComposite Owner;
-        public Buffer VertexBuffer { get; set; }
-        //public Buffer IndexBuffer { get; set; }
+        public Buffer? VertexBuffer { get; set; }
+        //public Buffer? IndexBuffer { get; set; }
         public VertexBufferBinding VBBinding;
         public VertexType VertexType { get; set; } = VertexType.Default;
         public int VertexStride { get; set; } = 36;
         public int VertexCount { get; set; } = 0;
         public uint VertexDataSize { get; set; } = 0;
         public uint TotalDataSize { get; set; } = 0;
-        public VertexTypeDefault[] Vertices { get; set; }
+        public VertexTypeDefault[] Vertices { get; set; } = [];
 
-        public RenderableBox[] Boxes { get; set; }
-        public RenderableSphere[] Spheres { get; set; }
-        public RenderableCapsule[] Capsules { get; set; }
-        public RenderableCylinder[] Cylinders { get; set; }
-        public GpuSBuffer<RenderableBox> BoxBuffer { get; set; }
-        public GpuSBuffer<RenderableSphere> SphereBuffer { get; set; }
-        public GpuSBuffer<RenderableCapsule> CapsuleBuffer { get; set; }
-        public GpuSBuffer<RenderableCylinder> CylinderBuffer { get; set; }
+        public RenderableBox[] Boxes { get; set; } = [];
+        public RenderableSphere[] Spheres { get; set; } = [];
+        public RenderableCapsule[] Capsules { get; set; } = [];
+        public RenderableCylinder[] Cylinders { get; set; } = [];
+        public GpuSBuffer<RenderableBox>? BoxBuffer { get; set; }
+        public GpuSBuffer<RenderableSphere>? SphereBuffer { get; set; }
+        public GpuSBuffer<RenderableCapsule>? CapsuleBuffer { get; set; }
+        public GpuSBuffer<RenderableCylinder>? CylinderBuffer { get; set; }
 
 
-        public Bounds Bound;
-        public BoundGeometry BoundGeom;
+        public Bounds? Bound;
+        public BoundGeometry? BoundGeom;
         public Vector3 CenterGeom;
         public Vector3 BBMin;
         public Vector3 BBMax;
@@ -2217,11 +2257,11 @@ namespace CodeWalker.Rendering
                 }
             }
 
-            VertexTypeDefault[] rverts = (rvertcount > 0) ? new VertexTypeDefault[rvertcount] : null;
-            RenderableBox[] rboxes = (rboxcount > 0) ? new RenderableBox[rboxcount] : null;
-            RenderableSphere[] rspheres = (rspherecount > 0) ? new RenderableSphere[rspherecount] : null;
-            RenderableCapsule[] rcapsules = (rcapsulecount > 0) ? new RenderableCapsule[rcapsulecount] : null;
-            RenderableCylinder[] rcylinders = (rcylindercount > 0) ? new RenderableCylinder[rcylindercount] : null;
+            VertexTypeDefault[] rverts = new VertexTypeDefault[rvertcount];
+            RenderableBox[] rboxes = new RenderableBox[rboxcount];
+            RenderableSphere[] rspheres = new RenderableSphere[rspherecount];
+            RenderableCapsule[] rcapsules = new RenderableCapsule[rcapsulecount];
+            RenderableCylinder[] rcylinders = new RenderableCylinder[rcylindercount];
             for (int i = 0; i < bgeom.Polygons.Length; i++)
             {
                 var poly = bgeom.Polygons[i];
@@ -2234,7 +2274,7 @@ namespace CodeWalker.Rendering
                 switch (poly.Type)
                 {
                     case BoundPolygonType.Triangle:
-                        var ptri = poly as BoundPolygonTriangle;
+                        var ptri = (BoundPolygonTriangle)poly;
                         p1 = bgeom.GetVertex(ptri.vertIndex1);
                         p2 = bgeom.GetVertex(ptri.vertIndex2);
                         p3 = bgeom.GetVertex(ptri.vertIndex3);
@@ -2244,14 +2284,14 @@ namespace CodeWalker.Rendering
                         AddVertex(p3, n1, colour, rverts, ref curvert);
                         break;
                     case BoundPolygonType.Sphere:
-                        var psph = poly as BoundPolygonSphere;
+                        var psph = (BoundPolygonSphere)poly;
                         rspheres[cursphere].Center = bgeom.GetVertex(psph.sphereIndex);
                         rspheres[cursphere].Radius = psph.sphereRadius;// * 0.5f;//diameter?
                         rspheres[cursphere].Colour = colour;
                         cursphere++;
                         break;
                     case BoundPolygonType.Capsule:
-                        var bcap = poly as BoundPolygonCapsule;
+                        var bcap = (BoundPolygonCapsule)poly;
                         p1 = bgeom.GetVertex(bcap.capsuleIndex1);
                         p2 = bgeom.GetVertex(bcap.capsuleIndex2);
                         a1 = p2 - p1;
@@ -2267,7 +2307,7 @@ namespace CodeWalker.Rendering
                         curcapsule++;
                         break;
                     case BoundPolygonType.Box:  //(...only 4 inds... = diagonal corners)
-                        var pbox = poly as BoundPolygonBox;
+                        var pbox = (BoundPolygonBox)poly;
                         p1 = bgeom.GetVertex(pbox.boxIndex1);
                         p2 = bgeom.GetVertex(pbox.boxIndex2);
                         p3 = bgeom.GetVertex(pbox.boxIndex3);
@@ -2284,7 +2324,7 @@ namespace CodeWalker.Rendering
                         curbox++;
                         break;
                     case BoundPolygonType.Cylinder:
-                        var pcyl = poly as BoundPolygonCylinder;
+                        var pcyl = (BoundPolygonCylinder)poly;
                         p1 = bgeom.GetVertex(pcyl.cylinderIndex1);
                         p2 = bgeom.GetVertex(pcyl.cylinderIndex2);
                         a1 = p2 - p1;
@@ -2306,13 +2346,13 @@ namespace CodeWalker.Rendering
 
             }
 
-            Vertices = rverts;
+            Vertices = rverts ?? [];
             VertexCount = (rverts!=null) ? rverts.Length : 0;
 
-            Boxes = rboxes;
-            Spheres = rspheres;
-            Capsules = rcapsules;
-            Cylinders = rcylinders;
+            Boxes = rboxes ?? [];
+            Spheres = rspheres ?? [];
+            Capsules = rcapsules ?? [];
+            Cylinders = rcylinders ?? [];
 
             VertexDataSize = (uint)(VertexCount * VertexStride);
             TotalDataSize = VertexDataSize;

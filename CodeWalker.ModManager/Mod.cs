@@ -10,20 +10,20 @@ namespace CodeWalker.ModManager
 {
     public class Mod
     {
-        public string Name;
-        public string IconFile;//optional, relative to the local path
-        public string LocalPath;//in the mod manager folder
-        public string SourcePath;//original file that was imported/loaded
+        public string Name = string.Empty;
+        public string? IconFile;//optional, relative to the local path
+        public string LocalPath = string.Empty;//in the mod manager folder
+        public string SourcePath = string.Empty;//original file that was imported/loaded
         public ModType Type;
         public ModStatus Status;
         public int LoadOrder = -1;
         public List<ModFile> Files = new();
         public List<string> LogItems = new();
-        public object IconObject;//loaded Image object for use by the form
+        public object? IconObject;//loaded Image object for use by the form
         public string TypeStatusString => $"{Type} : {Status}";//, {(Enabled ? "Enabled" : "Disabled")}";
 
 
-        public static Mod Load(string localDir)
+        public static Mod? Load(string localDir)
         {
             //create Mod object for an already installed mod
 
@@ -50,7 +50,7 @@ namespace CodeWalker.ModManager
             return mod;
         }
 
-        public static Mod BeginInstall(string file)
+        public static Mod? BeginInstall(string? file)
         {
             //create Mod object for an imported file, determine name and type
             //TODO: check legal path characters in name
@@ -58,7 +58,7 @@ namespace CodeWalker.ModManager
             if (string.IsNullOrEmpty(file)) return null;
             var isdir = Directory.Exists(file);
             if ((isdir == false) && (File.Exists(file) == false)) return null;
-            var dp = Path.GetDirectoryName(file);
+            var dp = Path.GetDirectoryName(Path.GetFullPath(file)) ?? Path.GetFullPath(file);
             var fn = Path.GetFileNameWithoutExtension(file);
             var dn = Path.GetFileName(dp);
             var mod = new Mod();
@@ -169,7 +169,7 @@ namespace CodeWalker.ModManager
             SaveLogFile();
         }
 
-        public static ModType GetModType(string file)
+        public static ModType GetModType(string? file)
         {
             if (string.IsNullOrEmpty(file)) return ModType.Loose;
             if (file.EndsWith("dlc.rpf", StringComparison.OrdinalIgnoreCase))
@@ -186,7 +186,7 @@ namespace CodeWalker.ModManager
             }
             return ModType.Loose;
         }
-        public static bool CanInstallFile(string file)
+        public static bool CanInstallFile(string? file)
         {
             if (string.IsNullOrEmpty(file)) return false;
             if (File.Exists(file) == false) return false;
@@ -239,9 +239,9 @@ namespace CodeWalker.ModManager
             {
                 Log($"Error: {f.FileError}");
             }
-            Name = f.GetItem("Name");
+            Name = f.GetItem("Name") ?? string.Empty;
             IconFile = f.GetItem("Icon");
-            SourcePath = f.GetItem("Source");
+            SourcePath = f.GetItem("Source") ?? string.Empty;
             Enum.TryParse(f.GetItem("Type"), out Type);
             Enum.TryParse(f.GetItem("Status"), out Status);
             int.TryParse(f.GetItem("Order"), out LoadOrder);
@@ -249,7 +249,7 @@ namespace CodeWalker.ModManager
             for (var i = 0; i < count; i++)
             {
                 var mf = f.GetItem($"File{i}");
-                AddModFile(mf);
+                if (!string.IsNullOrEmpty(mf)) AddModFile(mf);
             }
         }
         private void SaveCWMMFile()
@@ -309,9 +309,9 @@ namespace CodeWalker.ModManager
 
     public class ModFile
     {
-        public string Name;
-        public string LocalPath;//in the mod manager folder
-        public string SourcePath;//original file that was imported/loaded
+        public string Name = string.Empty;
+        public string LocalPath = string.Empty;//in the mod manager folder
+        public string SourcePath = string.Empty;//original file that was imported/loaded
 
         public ModFile()
         {

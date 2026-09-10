@@ -13,43 +13,43 @@ namespace ST.Library.UI.NodeEditor
     /// </summary>
     public class STNodeAttribute : Attribute
     {
-        private string _Path;
+        private readonly string? _Path;
         /// <summary>
         /// Get the path that the STNode node expects in the tree control
         /// </summary>
-        public string Path {
+        public string? Path {
             get { return _Path; }
         }
 
-        private string _Author;
+        private readonly string? _Author;
         /// <summary>
         /// Get the author name of the STNode node
         /// </summary>
-        public string Author {
+        public string? Author {
             get { return _Author; }
         }
 
-        private string _Mail;
+        private readonly string? _Mail;
         /// <summary>
         /// Get the author mailbox of the STNode node
         /// </summary>
-        public string Mail {
+        public string? Mail {
             get { return _Mail; }
         }
 
-        private string _Link;
+        private readonly string? _Link;
         /// <summary>
         /// Get the author link of the STNode node
         /// </summary>
-        public string Link {
+        public string? Link {
             get { return _Link; }
         }
 
-        private string _Description;
+        private readonly string? _Description;
         /// <summary>
         /// Get the description information of the STNode node
         /// </summary>
-        public string Description {
+        public string? Description {
             get { return _Description; }
         }
 
@@ -59,13 +59,13 @@ namespace ST.Library.UI.NodeEditor
         /// Constructs an STNode property
         /// </summary>
         /// <param name="strPath">expected path</param>
-        public STNodeAttribute(string strPath) : this(strPath, null, null, null, null) { }
+        public STNodeAttribute(string? strPath) : this(strPath, null, null, null, null) { }
         /// <summary>
         /// Constructs an STNode property
         /// </summary>
         /// <param name="strPath">expected path</param>
         /// <param name="strDescription">Description</param>
-        public STNodeAttribute(string strPath, string strDescription) : this(strPath, null, null, null, strDescription) { }
+        public STNodeAttribute(string? strPath, string? strDescription) : this(strPath, null, null, null, strDescription) { }
         /// <summary>
         /// Constructs an STNode property
         /// </summary>
@@ -74,7 +74,7 @@ namespace ST.Library.UI.NodeEditor
         /// <param name="strMail">STNode author mailbox</param>
         /// <param name="strLink">STNode author link</param>
         /// <param name="strDescription">STNode node description information</param>
-        public STNodeAttribute(string strPath, string strAuthor, string strMail, string strLink, string strDescription) {
+        public STNodeAttribute(string? strPath, string? strAuthor, string? strMail, string? strLink, string? strDescription) {
             if (!string.IsNullOrEmpty(strPath))
                 strPath = strPath.Trim().Trim(m_ch_splitter).Trim();
 
@@ -97,7 +97,8 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="stNodeType">Node Type</param>
         /// <returns>Function information</returns>
-        public static MethodInfo GetHelpMethod(Type stNodeType) {
+        public static MethodInfo? GetHelpMethod(Type? stNodeType) {
+            if (stNodeType == null) return null;
             if (m_dic.ContainsKey(stNodeType)) return m_dic[stNodeType];
             var mi = stNodeType.GetMethod("ShowHelpInfo");
             if (mi == null) return null;
@@ -112,9 +113,9 @@ namespace ST.Library.UI.NodeEditor
         /// Execute the helper function for the corresponding node type
         /// </summary>
         /// <param name="stNodeType">Node Type</param>
-        public static void ShowHelp(Type stNodeType) {
+        public static void ShowHelp(Type? stNodeType) {
             var mi = STNodeAttribute.GetHelpMethod (stNodeType);
-            if (mi == null) return;
+            if (mi == null || stNodeType == null) return;
             mi.Invoke(null, new object[] { stNodeType.Module.FullyQualifiedName });
         }
     }

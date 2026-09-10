@@ -12,14 +12,14 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YbnFile : GameFile, PackedFile
     {
-        public Bounds Bounds { get; set; }
+        public Bounds? Bounds { get; set; }
 
 
         //used by the editor:
         public bool HasChanged { get; set; } = false;
 
 #if DEBUG
-        public ResourceAnalyzer Analyzer { get; set; }
+        public ResourceAnalyzer? Analyzer { get; set; }
 #endif
 
 
@@ -45,7 +45,7 @@ namespace CodeWalker.GameFiles
             RpfFileEntry = entry;
 
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");
@@ -71,7 +71,7 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
-            byte[] data = ResourceBuilder.Build(Bounds, 43); //ybn is type/version 43...
+            byte[] data = ResourceBuilder.Build(Bounds ?? throw new InvalidOperationException("Cannot save a collision file without bounds."), 43); //ybn is type/version 43...
 
             return data;
         }
@@ -88,13 +88,13 @@ namespace CodeWalker.GameFiles
             }
             return false;
         }
-        public bool AddBounds(Bounds b)
+        public bool AddBounds(Bounds? b)
         {
             if (b == null) return false;
             if (Bounds != null) return false;
             Bounds = b;
             Bounds.OwnerYbn = this;
-            Bounds.OwnerName = Name ?? RpfFileEntry?.Name;
+            Bounds.OwnerName = Name ?? RpfFileEntry?.Name ?? string.Empty;
             return true;
         }
 
@@ -158,23 +158,22 @@ namespace CodeWalker.GameFiles
 
 
 
-        public static BoundMaterialColour[] GetRawBoundMaterialColourArray(XmlNode node)
+        public static BoundMaterialColour[]? GetRawBoundMaterialColourArray(XmlNode? node)
         {
             if (node == null) return null;
             byte r, g, b, a;
             var items = new List<BoundMaterialColour>();
-            var split = node.InnerText.Split('\n');// Regex.Split(node.InnerText, @"[\s\r\n\t]");
-            for (int i = 0; i < split.Length; i++)
+            var text = node.InnerText.AsSpan();
+            foreach (var rowRange in text.Split('\n'))
             {
-                var s = split[i]?.Trim();
-                if (string.IsNullOrEmpty(s)) continue;
-                var split2 = s.Split(',');// Regex.Split(s, @"[\s\t]");
+                var row = text[rowRange].Trim();
+                if (row.IsEmpty) continue;
                 int c = 0;
                 r = 0; g = 0; b = 0; a = 0;
-                for (int n = 0; n < split2.Length; n++)
+                foreach (var componentRange in row.Split(','))
                 {
-                    var ts = split2[n]?.Trim();
-                    if (string.IsNullOrEmpty(ts)) continue;
+                    var ts = row[componentRange].Trim();
+                    if (ts.IsEmpty) continue;
                     byte v = 0;
                     byte.TryParse(ts, out v);
                     switch (c)
@@ -199,7 +198,7 @@ namespace CodeWalker.GameFiles
 
             return (items.Count > 0) ? items.ToArray() : null;
         }
-        public static BoundMaterialColour[] GetChildRawBoundMaterialColourArray(XmlNode node, string name)
+        public static BoundMaterialColour[]? GetChildRawBoundMaterialColourArray(XmlNode node, string name)
         {
             var cnode = node.SelectSingleNode(name);
             return GetRawBoundMaterialColourArray(cnode);

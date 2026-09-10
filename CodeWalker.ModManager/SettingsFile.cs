@@ -12,7 +12,7 @@ namespace CodeWalker.ModManager
     {
         private Properties.Settings Settings => Properties.Settings.Default;
         
-        public string GameFolder { get; set; }
+        public string GameFolder { get; set; } = string.Empty;
         public string GameFolderLegacy
         {
             get => Settings.GameFolderLegacy;

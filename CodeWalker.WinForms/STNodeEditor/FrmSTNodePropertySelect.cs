@@ -19,7 +19,7 @@ namespace ST.Library.UI.NodeEditor
         private StringFormat m_sf;
         private Color m_clr_item_1 = Color.FromArgb(10, 0, 0, 0);// Color.FromArgb(255, 40, 40, 40);
         private Color m_clr_item_2 = Color.FromArgb(10, 255, 255, 255);// Color.FromArgb(255, 50, 50, 50);
-        private object m_item_hover;
+        private object? m_item_hover;
 
         public FrmSTNodePropertySelect(STNodePropertyDescriptor descriptor) {
             this.SetStyle(ControlStyles.UserPaint, true);
@@ -70,7 +70,7 @@ namespace ST.Library.UI.NodeEditor
             Rectangle rect_back = new(0, 0, this.Width, m_nItemHeight);
             Rectangle rect_font = new(10, 0, this.Width - 13, m_nItemHeight);
             int nIndex = 0;
-            string strVal = m_descriptor.GetStringFromValue();
+            string? strVal = m_descriptor.GetStringFromValue();
             foreach (var v in m_lst_item) {
                 m_brush.Color = nIndex++ % 2 == 0 ? m_clr_item_1 : m_clr_item_2;
                 g.FillRectangle(m_brush, rect_back);

@@ -46,12 +46,12 @@ namespace CodeWalker.GameFiles
 
         public static byte[] DecryptAESData(byte[] data, byte[] key, int rounds = 1)
         {
-            var rijndael = Rijndael.Create();
-            rijndael.KeySize = 256;
-            rijndael.Key = key;
-            rijndael.BlockSize = 128;
-            rijndael.Mode = CipherMode.ECB;
-            rijndael.Padding = PaddingMode.None;
+            using var aes = Aes.Create();
+            aes.KeySize = 256;
+            aes.Key = key;
+            aes.BlockSize = 128;
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.None;
 
             var buffer = (byte[])data.Clone();
             var length = data.Length - data.Length % 16;
@@ -59,7 +59,7 @@ namespace CodeWalker.GameFiles
             // decrypt...
             if (length > 0)
             {
-                var decryptor = rijndael.CreateDecryptor();
+                using var decryptor = aes.CreateDecryptor();
                 for (var roundIndex = 0; roundIndex < rounds; roundIndex++)
                     decryptor.TransformBlock(buffer, 0, length, buffer, 0);
             }
@@ -68,12 +68,12 @@ namespace CodeWalker.GameFiles
         }
         public static byte[] EncryptAESData(byte[] data, byte[] key, int rounds = 1)
         {
-            var rijndael = Rijndael.Create();
-            rijndael.KeySize = 256;
-            rijndael.Key = key;
-            rijndael.BlockSize = 128;
-            rijndael.Mode = CipherMode.ECB;
-            rijndael.Padding = PaddingMode.None;
+            using var aes = Aes.Create();
+            aes.KeySize = 256;
+            aes.Key = key;
+            aes.BlockSize = 128;
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.None;
 
             var buffer = (byte[])data.Clone();
             var length = data.Length - data.Length % 16;
@@ -81,7 +81,7 @@ namespace CodeWalker.GameFiles
             // encrypt...
             if (length > 0)
             {
-                var encryptor = rijndael.CreateEncryptor();
+                using var encryptor = aes.CreateEncryptor();
                 for (var roundIndex = 0; roundIndex < rounds; roundIndex++)
                     encryptor.TransformBlock(buffer, 0, length, buffer, 0);
             }

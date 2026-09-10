@@ -30,6 +30,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CodeWalker.GameFiles
@@ -48,7 +49,7 @@ namespace CodeWalker.GameFiles
         private Stream systemStream;
         private Stream graphicsStream;
 
-        public RpfResourceFileEntry FileEntry { get; set; }
+        public RpfResourceFileEntry? FileEntry { get; set; }
 
         // this is a dictionary that contains all the resource blocks
         // which were read from this resource reader
@@ -79,14 +80,14 @@ namespace CodeWalker.GameFiles
         /// Initializes a new resource data reader for the specified system- and graphics-stream.
         /// </summary>
         public ResourceDataReader(Stream systemStream, Stream graphicsStream, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base(endianess)
         {
             this.systemStream = systemStream;
             this.graphicsStream = graphicsStream;
         }
 
         public ResourceDataReader(RpfResourceFileEntry resentry, byte[] data, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base(endianess)
         {
             FileEntry = resentry;
             var systemSize = resentry.SystemSize;
@@ -111,7 +112,7 @@ namespace CodeWalker.GameFiles
         }
 
         public ResourceDataReader(int systemSize, int graphicsSize, byte[] data, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base(endianess)
         {
             this.systemStream = new MemoryStream(data, 0, systemSize);
             this.graphicsStream = new MemoryStream(data, systemSize, graphicsSize);
@@ -121,64 +122,83 @@ namespace CodeWalker.GameFiles
 
 
         /// <summary>
-        /// Reads data from the underlying stream. This is the only method that directly accesses
-        /// the data in the underlying stream.
+        /// Reads resource data through the shared span-based stream routing.
         /// </summary>
         protected override byte[] ReadFromStream(int count, bool ignoreEndianess = false)
         {
+            return base.ReadFromStream(count, ignoreEndianess);
+        }
+
+        private Stream GetReadStream(out long addressBase)
+        {
+            Stream stream;
             if ((Position & SYSTEM_BASE) == SYSTEM_BASE)
             {
-                // read from system stream...
-
-                systemStream.Position = Position & ~0x50000000;
-
-                var buffer = new byte[count];
-                systemStream.Read(buffer, 0, count);
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    Array.Reverse(buffer);
-                }
-
-                Position = systemStream.Position | 0x50000000;
-                return buffer;
-
+                addressBase = SYSTEM_BASE;
+                stream = systemStream;
             }
-            if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
+            else if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
             {
-                // read from graphic stream...
-
-                graphicsStream.Position = Position & ~0x60000000;
-
-                var buffer = new byte[count];
-                graphicsStream.Read(buffer, 0, count);
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    Array.Reverse(buffer);
-                }
-
-                Position = graphicsStream.Position | 0x60000000;
-                return buffer;
+                addressBase = GRAPHICS_BASE;
+                stream = graphicsStream;
             }
-            throw new Exception("illegal position!");
+            else
+            {
+                throw new InvalidDataException($"Illegal resource position: 0x{Position:X}.");
+            }
+
+            stream.Position = Position & ~addressBase;
+            return stream;
+        }
+
+        protected override void ReadFromStream(Span<byte> buffer, bool ignoreEndianess = false)
+        {
+            var stream = GetReadStream(out var addressBase);
+            try
+            {
+                stream.ReadExactly(buffer);
+            }
+            finally
+            {
+                Position = stream.Position | addressBase;
+            }
+            if (!ignoreEndianess && Endianess == Endianess.BigEndian)
+            {
+                buffer.Reverse();
+            }
+        }
+
+        protected override async ValueTask ReadFromStreamAsync(Memory<byte> buffer,
+            bool ignoreEndianess, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var stream = GetReadStream(out var addressBase);
+            try
+            {
+                await stream.ReadExactlyAsync(buffer, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                Position = stream.Position | addressBase;
+            }
+            if (!ignoreEndianess && Endianess == Endianess.BigEndian)
+            {
+                buffer.Span.Reverse();
+            }
         }
 
         /// <summary>
         /// Reads a block.
         /// </summary>
-        public T ReadBlock<T>(params object[] parameters) where T : IResourceBlock, new()
+        public T? ReadBlock<T>(params object[] parameters) where T : IResourceBlock, new()
         {
             var usepool = !typeof(IResourceNoCacheBlock).IsAssignableFrom(typeof(T));
             if (usepool)
             {
                 // make sure to return the same object if the same
                 // block is read again...
-                if (blockPool.ContainsKey(Position))
+                if (blockPool.TryGetValue(Position, out var block))
                 {
-                    var block = blockPool[Position];
                     if (block is T tblk)
                     {
                         Position += block.BlockLength;
@@ -215,10 +235,18 @@ namespace CodeWalker.GameFiles
             return result;
         }
 
+        /// <summary>Reads an embedded block that must be present in the resource.</summary>
+        public T ReadRequiredBlock<T>(params object[] parameters) where T : IResourceBlock, new()
+        {
+            var block = ReadBlock<T>(parameters);
+            if (block == null) throw new InvalidDataException($"The required {typeof(T).Name} block is missing or unsupported.");
+            return block;
+        }
+
         /// <summary>
         /// Reads a block at a specified position.
         /// </summary>
-        public T ReadBlockAt<T>(ulong position, params object[] parameters) where T : IResourceBlock, new()
+        public T? ReadBlockAt<T>(ulong position, params object[] parameters) where T : IResourceBlock, new()
         {
             if (position != 0)
             {
@@ -236,20 +264,20 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public T[] ReadBlocks<T>(ulong[] pointers) where T : IResourceBlock, new()
+        public T[]? ReadBlocks<T>(ulong[]? pointers) where T : IResourceBlock, new()
         {
             if (pointers == null) return null;
             var count = pointers.Length;
             var items = new T[count];
             for (int i = 0; i < count; i++)
             {
-                items[i] = ReadBlockAt<T>(pointers[i]);
+                if (ReadBlockAt<T>(pointers[i]) is { } item) items[i] = item;
             }
             return items;
         }
 
 
-        public byte[] ReadBytesAt(ulong position, uint count, bool cache = true)
+        public byte[]? ReadBytesAt(ulong position, uint count, bool cache = true)
         {
             long pos = (long)position;
             if ((pos <= 0) || (count == 0)) return null;
@@ -260,184 +288,115 @@ namespace CodeWalker.GameFiles
             if (cache) arrayPool[(long)position] = result;
             return result;
         }
-        public ushort[] ReadUshortsAt(ulong position, uint count, bool cache = true)
+        public ushort[]? ReadUshortsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<ushort>(position, count, cache);
+
+        public short[]? ReadShortsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<short>(position, count, cache);
+
+        public uint[]? ReadUintsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<uint>(position, count, cache);
+
+        public ulong[]? ReadUlongsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<ulong>(position, count, cache);
+
+        public float[]? ReadFloatsAt(ulong position, uint count, bool cache = true) =>
+            ReadPrimitiveArrayAt<float>(position, count, cache);
+
+        private T[]? ReadPrimitiveArrayAt<T>(ulong position, uint count, bool cache) where T : unmanaged
         {
-            if ((position <= 0) || (count == 0)) return null;
+            if (position == 0 || count == 0) return null;
 
-            var result = new ushort[count];
-            var length = count * 2;
-            byte[] data = ReadBytesAt(position, length, false);
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result2 = new ushort[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result2[i] = ReadUInt16();
-            //}
-            //Position = posbackup;
-
+            // Validate the byte length before allocating; no temporary byte array is needed.
+            _ = checked((int)count * System.Runtime.CompilerServices.Unsafe.SizeOf<T>());
+            var result = GC.AllocateUninitializedArray<T>((int)count);
+            long positionBackup = Position;
+            try
+            {
+                Position = checked((long)position);
+                // Match the existing raw array layout: ReadBytesAt did not swap bytes.
+                ReadFromStream(MemoryMarshal.AsBytes(result.AsSpan()), true);
+            }
+            finally
+            {
+                Position = positionBackup;
+            }
             if (cache) arrayPool[(long)position] = result;
-
             return result;
         }
-        public short[] ReadShortsAt(ulong position, uint count, bool cache = true)
+        public T[]? ReadStructsAt<T>(ulong position, uint count, bool cache = true) where T : struct
         {
-            if ((position <= 0) || (count == 0)) return null;
-            var result = new short[count];
-            var length = count * 2;
-            byte[] data = ReadBytesAt(position, length, false);
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
+            if (position == 0 || count == 0) return null;
+            long positionBackup = Position;
+            T[] result;
+            try
+            {
+                Position = checked((long)position);
+                result = ReadStructs<T>(count);
+            }
+            finally
+            {
+                Position = positionBackup;
+            }
             if (cache) arrayPool[(long)position] = result;
-
             return result;
         }
-        public uint[] ReadUintsAt(ulong position, uint count, bool cache = true)
+
+        public T[] ReadStructs<T>(uint count) where T : struct
         {
-            if ((position <= 0) || (count == 0)) return null;
+            if (count == 0) return [];
+            if (ResourceStructLayout<T>.CanCopyBytes)
+            {
+                _ = checked((int)count * System.Runtime.CompilerServices.Unsafe.SizeOf<T>());
+                var result = GC.AllocateUninitializedArray<T>((int)count);
+                ReadFromStream(MemoryMarshal.AsBytes(result.AsSpan()), true);
+                return result;
+            }
 
-            var result = new uint[count];
-            var length = count * 4;
-            byte[] data = ReadBytesAt(position, length, false);
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result = new uint[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = ReadUInt32();
-            //}
-            //Position = posbackup;
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public ulong[] ReadUlongsAt(ulong position, uint count, bool cache = true)
-        {
-            if ((position <= 0) || (count == 0)) return null;
-
-            var result = new ulong[count];
-            var length = count * 8;
-            byte[] data = ReadBytesAt(position, length, false);
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result = new ulong[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = ReadUInt64();
-            //}
-            //Position = posbackup;
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public float[] ReadFloatsAt(ulong position, uint count, bool cache = true)
-        {
-            if ((position <= 0) || (count == 0)) return null;
-
-            var result = new float[count];
-            var length = count * 4;
-            byte[] data = ReadBytesAt(position, length, false);
-            Buffer.BlockCopy(data, 0, result, 0, (int)length);
-
-            //var posbackup = Position;
-            //Position = position;
-            //var result = new float[count];
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = ReadSingle();
-            //}
-            //Position = posbackup;
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public T[] ReadStructsAt<T>(ulong position, uint count, bool cache = true)
-        {
-            if ((position <= 0) || (count == 0)) return null;
-
-            uint structsize = (uint)Marshal.SizeOf(typeof(T));
-            var length = count * structsize;
-            byte[] data = ReadBytesAt(position, length, false);
-
-            //var result2 = new T[count];
-            //Buffer.BlockCopy(data, 0, result2, 0, (int)length); //error: "object must be an array of primitives" :(
-
-            //var result = new T[count];
-            //GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            //var h = handle.AddrOfPinnedObject();
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = Marshal.PtrToStructure<T>(h + (int)(i * structsize));
-            //}
-            //handle.Free();
-
-            var result = new T[count];
-            GCHandle handle = GCHandle.Alloc(result, GCHandleType.Pinned);
-            var h = handle.AddrOfPinnedObject();
-            Marshal.Copy(data, 0, h, (int)length);
-            handle.Free();
-
-
-            if (cache) arrayPool[(long)position] = result;
-
-            return result;
-        }
-        public T[] ReadStructs<T>(uint count)
-        {
-            uint structsize = (uint)Marshal.SizeOf(typeof(T));
-            var result = new T[count];
-            var length = count * structsize;
-            byte[] data = ReadBytes((int)length);
-
-            //GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            //var h = handle.AddrOfPinnedObject();
-            //for (uint i = 0; i < count; i++)
-            //{
-            //    result[i] = Marshal.PtrToStructure<T>(h + (int)(i * structsize));
-            //}
-            //handle.Free();
-
-            GCHandle handle = GCHandle.Alloc(result, GCHandleType.Pinned);
-            var h = handle.AddrOfPinnedObject();
-            Marshal.Copy(data, 0, h, (int)length);
-            handle.Free();
-
-
-            return result;
+            // Marshal each element when its wire representation differs from managed memory.
+            _ = checked((int)count * Marshal.SizeOf<T>());
+            var converted = new T[(int)count];
+            for (int i = 0; i < converted.Length; i++) converted[i] = ReadStruct<T>();
+            return converted;
         }
 
         public T ReadStruct<T>() where T : struct
         {
-            uint structsize = (uint)Marshal.SizeOf(typeof(T));
-            var length = structsize;
-            byte[] data = ReadBytes((int)length);
+            if (ResourceStructLayout<T>.CanCopyBytes)
+            {
+                T result = default;
+                ReadFromStream(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref result, 1)), true);
+                return result;
+            }
+
+            byte[] data = ReadBytes(Marshal.SizeOf<T>());
             GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            var h = handle.AddrOfPinnedObject();
-            var result = Marshal.PtrToStructure<T>(h);
-            handle.Free();
-            return result;
+            try
+            {
+                return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+            }
+            finally
+            {
+                handle.Free();
+            }
         }
 
         public T ReadStructAt<T>(long position) where T : struct
         {
-            if ((position <= 0)) return default(T);
-            var posbackup = Position;
-            Position = (long)position;
-            var result = ReadStruct<T>();
-            Position = posbackup;
-            return result;
+            if (position <= 0) return default;
+            long positionBackup = Position;
+            try
+            {
+                Position = position;
+                return ReadStruct<T>();
+            }
+            finally
+            {
+                Position = positionBackup;
+            }
         }
 
-        public string ReadStringAt(ulong position)
+        public string? ReadStringAt(ulong position)
         {
             long newpos = (long)position;
             if ((newpos <= 0)) return null;
@@ -490,7 +449,7 @@ namespace CodeWalker.GameFiles
         /// Initializes a new resource data reader for the specified system- and graphics-stream.
         /// </summary>
         public ResourceDataWriter(Stream systemStream, Stream graphicsStream, Endianess endianess = Endianess.LittleEndian)
-            : base((Stream)null, endianess)
+            : base(endianess)
         {
             this.systemStream = systemStream;
             this.graphicsStream = graphicsStream;
@@ -500,53 +459,34 @@ namespace CodeWalker.GameFiles
         /// Writes data to the underlying stream. This is the only method that directly accesses
         /// the data in the underlying stream.
         /// </summary>
-        protected override void WriteToStream(byte[] value, bool ignoreEndianess = true)
+        protected override void WriteToStream(ReadOnlySpan<byte> value, bool ignoreEndianess = false)
         {
+            Stream stream;
+            long addressBase;
             if ((Position & SYSTEM_BASE) == SYSTEM_BASE)
             {
-                // write to system stream...
-
-                systemStream.Position = Position & ~SYSTEM_BASE;
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    var buf = (byte[])value.Clone();
-                    Array.Reverse(buf);
-                    systemStream.Write(buf, 0, buf.Length);
-                }
-                else
-                {
-                    systemStream.Write(value, 0, value.Length);
-                }
-
-                Position = systemStream.Position | 0x50000000;
-                return;
-
+                stream = systemStream;
+                addressBase = SYSTEM_BASE;
             }
-            if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
+            else if ((Position & GRAPHICS_BASE) == GRAPHICS_BASE)
             {
-                // write to graphic stream...
-
-                graphicsStream.Position = Position & ~GRAPHICS_BASE;
-
-                // handle endianess
-                if (!ignoreEndianess && (Endianess == Endianess.BigEndian))
-                {
-                    var buf = (byte[])value.Clone();
-                    Array.Reverse(buf);
-                    graphicsStream.Write(buf, 0, buf.Length);
-                }
-                else
-                {
-                    graphicsStream.Write(value, 0, value.Length);
-                }
-
-                Position = graphicsStream.Position | 0x60000000;
-                return;
+                stream = graphicsStream;
+                addressBase = GRAPHICS_BASE;
+            }
+            else
+            {
+                throw new InvalidDataException($"Illegal resource position: 0x{Position:X}.");
             }
 
-            throw new Exception("illegal position!");
+            stream.Position = Position & ~addressBase;
+            try
+            {
+                WriteToStream(stream, value, ignoreEndianess);
+            }
+            finally
+            {
+                Position = stream.Position | addressBase;
+            }
         }
 
         /// <summary>
@@ -562,23 +502,40 @@ namespace CodeWalker.GameFiles
 
         public void WriteStruct<T>(T val) where T : struct
         {
-            int size = Marshal.SizeOf(typeof(T));
-            byte[] arr = new byte[size];
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(val, ptr, true);
-            Marshal.Copy(ptr, arr, 0, size);
-            Marshal.FreeHGlobal(ptr);
-            Write(arr);
-        }
-        public void WriteStructs<T>(T[] val) where T : struct
-        {
-            if (val == null) return;
-            foreach (var v in val)
+            if (ResourceStructLayout<T>.CanCopyBytes)
             {
-                WriteStruct(v);
+                Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref val, 1)));
+                return;
+            }
+
+            int size = Marshal.SizeOf<T>();
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            bool initialized = false;
+            try
+            {
+                Marshal.StructureToPtr(val, ptr, false);
+                initialized = true;
+                byte[] bytes = new byte[size];
+                Marshal.Copy(ptr, bytes, 0, size);
+                Write(bytes);
+            }
+            finally
+            {
+                if (initialized) Marshal.DestroyStructure<T>(ptr);
+                Marshal.FreeHGlobal(ptr);
             }
         }
 
+        public void WriteStructs<T>(T[]? val) where T : struct
+        {
+            if (val == null || val.Length == 0) return;
+            if (ResourceStructLayout<T>.CanCopyBytes)
+            {
+                Write(MemoryMarshal.AsBytes(val.AsSpan()));
+                return;
+            }
+            foreach (var value in val) WriteStruct(value);
+        }
 
 
         /// <summary>
@@ -591,7 +548,7 @@ namespace CodeWalker.GameFiles
             if (pad > 0) Write(new byte[pad]);
         }
 
-        public void WriteUlongs(ulong[] val)
+        public void WriteUlongs(ulong[]? val)
         {
             if (val == null) return;
             foreach (var v in val)

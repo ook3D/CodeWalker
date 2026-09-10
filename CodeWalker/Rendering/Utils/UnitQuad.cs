@@ -14,8 +14,8 @@ namespace CodeWalker.Rendering
 {
     public class UnitQuad
     {
-        public Buffer VertexBuffer { get; set; }
-        public Buffer IndexBuffer { get; set; }
+        public Buffer? VertexBuffer { get; set; }
+        public Buffer? IndexBuffer { get; set; }
 
         private VertexBufferBinding vbbinding;
 

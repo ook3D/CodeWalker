@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +16,7 @@ namespace CodeWalker.Rendering
     public class GpuVarsBuffer<T> where T:struct //shader vars buffer helper!
     {
         public int Size;
-        public Buffer Buffer;
+        public Buffer? Buffer;
         public T Vars;
         public bool Flag;//for external use
         public GpuVarsBuffer(Device device)
@@ -64,7 +64,7 @@ namespace CodeWalker.Rendering
         public int StructSize;
         public int StructCount;
         public int BufferSize;
-        public Buffer Buffer;
+        public Buffer? Buffer;
 
         public GpuABuffer(Device device, int count)
         {
@@ -83,6 +83,10 @@ namespace CodeWalker.Rendering
         }
         public void Update(DeviceContext context, T[] data)
         {
+            // SharpDX indexes data[0] even for a zero-length write. Do not discard
+            // the current GPU contents when there is nothing to upload.
+            if (data.Length == 0) return;
+
             var dataBox = context.MapSubresource(Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
             try
             {
@@ -111,8 +115,8 @@ namespace CodeWalker.Rendering
         public int StructSize;
         public int StructCount;
         public int BufferSize;
-        public Buffer Buffer;
-        public ShaderResourceView SRV;
+        public Buffer? Buffer;
+        public ShaderResourceView? SRV;
         public GpuSBuffer(Device device, T[] data)
         {
             StructCount = data.Length;
@@ -145,8 +149,8 @@ namespace CodeWalker.Rendering
         public int StructCount;
         public int BufferSize;
         public int CurrentCount;
-        public Buffer Buffer;
-        public ShaderResourceView SRV;
+        public Buffer? Buffer;
+        public ShaderResourceView? SRV;
         public List<T> Data;
         public T[] DataArray;
 
@@ -193,6 +197,8 @@ namespace CodeWalker.Rendering
 
         public void Update(DeviceContext context)
         {
+            if (CurrentCount == 0) return;
+
             for (int i = 0; i < CurrentCount; i++)
             {
                 DataArray[i] = Data[i];
@@ -209,6 +215,8 @@ namespace CodeWalker.Rendering
         }
         public void Update(DeviceContext context, T[] data)
         {
+            if (data.Length == 0) return;
+
             var dataBox = context.MapSubresource(Buffer, 0, MapMode.WriteDiscard, MapFlags.None);
             try
             {
@@ -239,9 +247,9 @@ namespace CodeWalker.Rendering
         public int ItemTotalSize;
         public int ItemCount;
         public int Size;
-        public Buffer Buffer;
-        public ShaderResourceView SRV;
-        public UnorderedAccessView UAV;
+        public Buffer? Buffer;
+        public ShaderResourceView? SRV;
+        public UnorderedAccessView? UAV;
 
         public GpuBuffer(Device device, int itemSize, int itemCount)
         {
@@ -277,16 +285,16 @@ namespace CodeWalker.Rendering
 
     public class GpuTexture //texture and render targets (depth, MS).
     {
-        public Texture2D Texture;
-        public Texture2D TextureMS;
-        public Texture2D Depth;
-        public Texture2D DepthMS;
-        public RenderTargetView RTV;
-        public DepthStencilView DSV;
-        public RenderTargetView MSRTV;
-        public DepthStencilView MSDSV;
-        public ShaderResourceView SRV;
-        //public ShaderResourceView DepthSRV; //possibly causing crash on DX10 hardware when multisampled
+        public Texture2D? Texture;
+        public Texture2D? TextureMS;
+        public Texture2D? Depth;
+        public Texture2D? DepthMS;
+        public RenderTargetView? RTV;
+        public DepthStencilView? DSV;
+        public RenderTargetView? MSRTV;
+        public DepthStencilView? MSDSV;
+        public ShaderResourceView? SRV;
+        public ShaderResourceView? DepthSRV;
         public int VramUsage;
         public bool Multisampled;
         public bool UseDepth;
@@ -302,7 +310,9 @@ namespace CodeWalker.Rendering
             ShaderResourceViewDimension srvd = ShaderResourceViewDimension.Texture2D;// D3D11_SRV_DIMENSION_TEXTURE2D;
             int fs = DXUtility.ElementSize(f);
             int wh = w * h;
-            BindFlags db = BindFlags.DepthStencil;// | BindFlags.ShaderResource;// D3D11_BIND_DEPTH_STENCIL;
+            // Only expose single-sample depth; multisampled depth sampling is
+            // not supported by all of the DX10 devices used by the viewer.
+            BindFlags db = BindFlags.DepthStencil | (Multisampled ? BindFlags.None : BindFlags.ShaderResource);
             DepthStencilViewDimension dsvd = DepthStencilViewDimension.Texture2D;
             Format dtexf = GetDepthTexFormat(df);
             Format dsrvf = GetDepthSrvFormat(df);
@@ -337,13 +347,15 @@ namespace CodeWalker.Rendering
                 {
                     Depth = DXUtility.CreateTexture2D(device, w, h, 1, 1, dtexf, sc, sq, u, db, 0, 0);
                     DSV = DXUtility.CreateDepthStencilView(device, Depth, df, dsvd);
-                    //DepthSRV = DXUtility.CreateShaderResourceView(device, Depth, dsrvf, srvd, 1, 0, 0, 0);
+                    DepthSRV = DXUtility.CreateShaderResourceView(device, Depth, dsrvf, srvd, 1, 0, 0, 0);
                     VramUsage += (wh * DXUtility.ElementSize(df));
                 }
             }
         }
         public void Dispose()
         {
+            DepthSRV?.Dispose();
+            DepthSRV = null;
             if (SRV != null)
             {
                 SRV.Dispose();
@@ -514,12 +526,12 @@ namespace CodeWalker.Rendering
 
     public class GpuMultiTexture //multiple texture and render targets (depth).
     {
-        public Texture2D[] Textures;
-        public Texture2D Depth;
-        public RenderTargetView[] RTVs;
-        public DepthStencilView DSV;
-        public ShaderResourceView[] SRVs;
-        public ShaderResourceView DepthSRV;
+        public Texture2D[]? Textures;
+        public Texture2D? Depth;
+        public RenderTargetView[]? RTVs;
+        public DepthStencilView? DSV;
+        public ShaderResourceView[]? SRVs;
+        public ShaderResourceView? DepthSRV;
         public int VramUsage;
         public bool UseDepth;
         public int Count;
@@ -574,9 +586,9 @@ namespace CodeWalker.Rendering
         {
             for (int i = 0; i < Count; i++)
             {
-                SRVs[i].Dispose();
-                RTVs[i].Dispose();
-                Textures[i].Dispose();
+                SRVs?[i]?.Dispose();
+                RTVs?[i]?.Dispose();
+                Textures?[i]?.Dispose();
             }
             SRVs = null;
             RTVs = null;

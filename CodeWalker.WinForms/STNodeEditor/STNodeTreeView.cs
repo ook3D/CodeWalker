@@ -204,12 +204,12 @@ namespace ST.Library.UI.NodeEditor
         private int m_nVHeight; //The total height required by the content in the control
 
         private bool m_bHoverInfo; //Whether the mouse is currently hovering over the information display button
-        private STNodeTreeCollection m_item_hover; //The tree node currently hovered by the mouse
+        private STNodeTreeCollection? m_item_hover; //The tree node currently hovered by the mouse
         private Point m_pt_control; //The coordinates of the mouse on the control
         private Point m_pt_offsety; //The coordinates of the mouse after the hammer is offset on the control
         private Rectangle m_rect_clear; //Clear the search button area
 
-        private string m_str_search; // retrieved text
+        private string? m_str_search; // retrieved text
         private TextBox m_tbx = new(); //Retrieve the textbox
         /// <summary>
         /// Construct a STNode tree control
@@ -247,7 +247,7 @@ namespace ST.Library.UI.NodeEditor
 
         #region private method ==========
 
-        private void m_tbx_TextChanged(object sender, EventArgs e) {
+        private void m_tbx_TextChanged(object? sender, EventArgs e) {
             m_str_search = m_tbx.Text.Trim().ToLower();
             m_nSearchOffsetY = 0;
             if (m_str_search == string.Empty) {
@@ -280,7 +280,7 @@ namespace ST.Library.UI.NodeEditor
             return bFound;
         }
 
-        private bool AddSTNode(Type stNodeType, STNodeTreeCollection items, string strLibName, bool bShowException) {
+        private bool AddSTNode(Type stNodeType, STNodeTreeCollection items, string? strLibName, bool bShowException) {
             if (m_dic_all_type.ContainsKey(stNodeType)) return false;
             if (stNodeType == null) return false;
             if (!stNodeType.IsSubclassOf(m_type_node_base)) {
@@ -305,7 +305,7 @@ namespace ST.Library.UI.NodeEditor
                 }
             }
             try {
-                STNode node = (STNode)Activator.CreateInstance(stNodeType);
+                STNode node = STNodeFactory.Create(stNodeType);
                 STNodeTreeCollection stt = new(node.Title);
                 stt.Path = (strLibName + "/" + attr.Path).Trim('/');
                 stt.STNodeType = stNodeType;
@@ -333,7 +333,7 @@ namespace ST.Library.UI.NodeEditor
             return items;
         }
 
-        private STNodeAttribute GetNodeAttribute(Type stNodeType) {
+        private STNodeAttribute? GetNodeAttribute(Type? stNodeType) {
             if (stNodeType == null) return null;
             foreach (var v in stNodeType.GetCustomAttributes(true)) {
                 if (!(v is STNodeAttribute)) continue;
@@ -342,7 +342,7 @@ namespace ST.Library.UI.NodeEditor
             return null;
         }
 
-        private STNodeTreeCollection FindItemByPoint(STNodeTreeCollection items, Point pt) {
+        private STNodeTreeCollection? FindItemByPoint(STNodeTreeCollection items, Point pt) {
             foreach (STNodeTreeCollection t in items) {
                 if (t.DisplayRectangle.Contains(pt)) return t;
                 if (t.IsOpen) {
@@ -422,7 +422,7 @@ namespace ST.Library.UI.NodeEditor
             if (m_item_hover.SwitchRectangle.Contains(m_pt_offsety)) {
                 m_item_hover.IsOpen = !m_item_hover.IsOpen;
                 this.Invalidate();
-            } else if (m_item_hover.InfoRectangle.Contains(m_pt_offsety)) {
+            } else if (m_item_hover.InfoRectangle.Contains(m_pt_offsety) && m_item_hover.STNodeType != null) {
                 Rectangle rect = this.RectangleToScreen(m_item_hover.DisplayRectangle);
                 FrmNodePreviewPanel frm = new(m_item_hover.STNodeType,
                     new Point(rect.Right - m_nItemHeight, rect.Top + m_nOffsetY),
@@ -441,7 +441,7 @@ namespace ST.Library.UI.NodeEditor
             base.OnMouseDoubleClick(e);
             m_pt_offsety = m_pt_control = e.Location;
             m_pt_offsety.Y -= m_nOffsetY;
-            STNodeTreeCollection item = this.FindItemByPoint(m_items_draw, m_pt_offsety);
+            STNodeTreeCollection? item = this.FindItemByPoint(m_items_draw, m_pt_offsety);
             if (item == null || item.STNodeType != null) return;
             item.IsOpen = !item.IsOpen;
             this.Invalidate();
@@ -673,7 +673,7 @@ namespace ST.Library.UI.NodeEditor
         /// Retrieve the STNode in the control
         /// </summary>
         /// <param name="strText">Text to retrieve</param>
-        public void Search(string strText) {
+        public void Search(string? strText) {
             if (strText == null) return;
             if (strText.Trim() == string.Empty) return;
             m_tbx.Text = strText.Trim ();
@@ -712,8 +712,8 @@ namespace ST.Library.UI.NodeEditor
         /// <param name="stNodeType">STNode type</param>
         /// <returns>Whether the removal is successful</returns>
         public bool RemoveNode(Type stNodeType) {
-            if (!m_dic_all_type.TryGetValue(stNodeType, out string strPath)) return false;
-            STNodeTreeCollection items = m_items_source;
+            if (!m_dic_all_type.TryGetValue(stNodeType, out string? strPath)) return false;
+            STNodeTreeCollection? items = m_items_source;
             if (!string.IsNullOrEmpty(strPath)) {
                 string[] strKeys = strPath.Split(m_chr_splitter);
                 for (int i = 0; i < strKeys.Length; i++) {
@@ -722,7 +722,7 @@ namespace ST.Library.UI.NodeEditor
                 }
             }
             try {
-                STNode node = (STNode)Activator.CreateInstance(stNodeType);
+                STNode node = STNodeFactory.Create(stNodeType);
                 if (items[node.Title] == null) return false;
                 items.Remove(node.Title, true);
                 m_dic_all_type.Remove(stNodeType);
@@ -754,11 +754,11 @@ namespace ST.Library.UI.NodeEditor
             /// <summary>
             /// Get the STNode type corresponding to the current tree node
             /// </summary>
-            public Type STNodeType { get; internal set; }
+            public Type? STNodeType { get; internal set; }
             /// <summary>
             /// Get the parent tree node of the current tree node
             /// </summary>
-            public STNodeTreeCollection Parent { get; internal set; }
+            public STNodeTreeCollection? Parent { get; internal set; }
 
             /// <summary>
             /// Get the number of STNode types owned by the current tree node
@@ -767,7 +767,7 @@ namespace ST.Library.UI.NodeEditor
             /// <summary>
             /// Get the corresponding path of the STNode type corresponding to the current tree node in the tree control
             /// </summary>
-            public string Path { get; internal set; }
+            public string Path { get; internal set; } = string.Empty;
             /// <summary>
             /// Get the current or set whether the tree node is open
             /// </summary>
@@ -801,7 +801,7 @@ namespace ST.Library.UI.NodeEditor
             /// </summary>
             /// <param name="strKey">specify name</param>
             /// <returns>Collection</returns>
-            public STNodeTreeCollection this[string strKey] {
+            public STNodeTreeCollection? this[string strKey] {
                 get {
                     if (string.IsNullOrEmpty(strKey)) return null;
                     return m_dic.TryGetValue(strKey, out var value) ? value : null;

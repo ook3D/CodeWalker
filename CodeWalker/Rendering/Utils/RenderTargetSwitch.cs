@@ -12,10 +12,10 @@ namespace CodeWalker.Rendering
     public class RenderTargetSwitch
     {
 
-        RenderTargetView[] OrigRenderTargetViewArr;
-        DepthStencilView OrigDepthStencilView;
-        RasterizerState OrigRasterizerState;
-        RawViewportF[] OrigViewports;
+        RenderTargetView[]? OrigRenderTargetViewArr;
+        DepthStencilView? OrigDepthStencilView;
+        RasterizerState? OrigRasterizerState;
+        RawViewportF[] OrigViewports = [];
         bool IsReset = true;
         //bool ResetOnDestroy = false;
         int RenderTargetCount = 1;

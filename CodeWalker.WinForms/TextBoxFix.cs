@@ -7,8 +7,8 @@ namespace CodeWalker.WinForms
     public partial class TextBoxFix : TextBox
     {
         bool ignoreChange = true;
-        List<string> storageUndo;
-        List<string> storageRedo;
+        readonly List<string> storageUndo = new();
+        readonly List<string> storageRedo = new();
 
         public TextBoxFix()
         {
@@ -23,8 +23,9 @@ namespace CodeWalker.WinForms
         protected override void OnCreateControl()
         {
             base.OnCreateControl();
-            storageRedo = new List<string>();
-            storageUndo = new List<string> { Text };
+            storageRedo.Clear();
+            storageUndo.Clear();
+            storageUndo.Add(Text);
             ignoreChange = false;
         }
 

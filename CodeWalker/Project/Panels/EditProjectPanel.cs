@@ -13,7 +13,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditProjectPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public ProjectFile Project { get; set; }
+        public ProjectFile? Project { get; set; }
 
         public EditProjectPanel(ProjectForm owner)
         {
@@ -32,7 +32,7 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateFormTitle()
         {
-            Text = Project.Filename + (Project.HasChanged ? "*" : "");
+            Text = (Project?.Filename ?? "Project") + (Project?.HasChanged == true ? "*" : "");
         }
 
         private void ProjectNameTextBox_TextChanged(object sender, EventArgs e)

@@ -111,9 +111,9 @@ namespace CodeWalker.Rendering
         public bool Deferred = false;
 
 
-        public RenderableTexture waterbump { get; set; }
-        public RenderableTexture waterbump2 { get; set; }
-        public RenderableTexture waterfog { get; set; }
+        public RenderableTexture? waterbump { get; set; }
+        public RenderableTexture? waterbump2 { get; set; }
+        public RenderableTexture? waterfog { get; set; }
 
 
         //check dt1_21_reflproxy and dt1_05_reflproxy
@@ -222,7 +222,7 @@ namespace CodeWalker.Rendering
 
         public override bool SetInputLayout(DeviceContext context, VertexType type)
         {
-            InputLayout l;
+            InputLayout? l;
             if (layouts.TryGetValue(type, out l))
             {
                 SetVertexShader(context, type);
@@ -232,7 +232,7 @@ namespace CodeWalker.Rendering
             return false;
         }
 
-        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap shadowmap, ShaderGlobalLights lights)
+        public override void SetSceneVars(DeviceContext context, Camera camera, Shadowmap? shadowmap, ShaderGlobalLights lights)
         {
             uint rendermode = 0;
             uint rendermodeind = 1;
@@ -285,8 +285,11 @@ namespace CodeWalker.Rendering
             Vector2 fogtexInv = 1.0f / (fogtexMax - fogtexMin);
 
 
-            bool usewaterbumps = (waterbump != null) && (waterbump.ShaderResourceView != null) && (waterbump2 != null) && (waterbump2.ShaderResourceView != null);
-            bool usefogtex = (waterfog != null) && (waterfog.ShaderResourceView != null);
+            var bumpView = waterbump?.ShaderResourceView;
+            var bumpView2 = waterbump2?.ShaderResourceView;
+            var fogView = waterfog?.ShaderResourceView;
+            bool usewaterbumps = bumpView != null && bumpView2 != null;
+            bool usefogtex = fogView != null;
 
             VSSceneVars.Vars.ViewProj = Matrix.Transpose(camera.ViewProjMatrix);
             VSSceneVars.Vars.WaterVector = Vector4.Zero;
@@ -313,12 +316,12 @@ namespace CodeWalker.Rendering
             }
             if (usewaterbumps)
             {
-                context.PixelShader.SetShaderResource(4, waterbump.ShaderResourceView);
-                context.PixelShader.SetShaderResource(5, waterbump2.ShaderResourceView);
+                context.PixelShader.SetShaderResource(4, bumpView);
+                context.PixelShader.SetShaderResource(5, bumpView2);
             }
             if (usefogtex)
             {
-                context.PixelShader.SetShaderResource(6, waterfog.ShaderResourceView);
+                context.PixelShader.SetShaderResource(6, fogView);
             }
 
         }
@@ -338,11 +341,11 @@ namespace CodeWalker.Rendering
 
         public override void SetGeomVars(DeviceContext context, RenderableGeometry geom)
         {
-            RenderableTexture texture = null;
-            RenderableTexture bumptex = null;
-            RenderableTexture flowtex = null;
-            RenderableTexture foamtex = null;
-            RenderableTexture fogtex = null;
+            RenderableTexture? texture = null;
+            RenderableTexture? bumptex = null;
+            RenderableTexture? flowtex = null;
+            RenderableTexture? foamtex = null;
+            RenderableTexture? fogtex = null;
 
             if ((geom.RenderableTextures != null) && (geom.RenderableTextures.Length > 0))
             {
@@ -399,7 +402,7 @@ namespace CodeWalker.Rendering
             bool usefog = ((fogtex != null) && (fogtex.ShaderResourceView != null));
 
             uint shaderMode = 0;
-            var shaderFile = geom.DrawableGeom.Shader.FileName;
+            var shaderFile = geom.DrawableGeom?.Shader?.FileName ?? 0;
             switch (shaderFile.Hash)
             {
                 case 1529202445://{water_river.sps}
@@ -427,7 +430,7 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.EnableFoamMap = usefoam ? 1u : 0u;
             PSGeomVars.Vars.ShaderMode = shaderMode;
             PSGeomVars.Vars.SpecularIntensity = SpecularEnable ? 1.0f : 0.0f;// geom.specularIntensityMult;
-            PSGeomVars.Vars.SpecularFalloff = 1.0f;// geom.specularFalloffMult;
+            PSGeomVars.Vars.SpecularFalloff = 128.0f; // shared forward/deferred water highlight
             PSGeomVars.Vars.WaveOffset = geom.WaveOffset; //for terrainfoam
             PSGeomVars.Vars.WaterHeight = geom.WaterHeight; //for terrainfoam
             PSGeomVars.Vars.WaveMovement = geom.WaveMovement; //for terrainfoam
@@ -447,19 +450,19 @@ namespace CodeWalker.Rendering
 
             context.VertexShader.SetSampler(0, texsamplerflow);
             context.PixelShader.SetSampler(0, AnisotropicFilter ? texsampleranis : texsampler);
-            if (usediff)
+            if (usediff && texture != null)
             {
                 texture.SetPSResource(context, 0);
             }
-            if (usebump)
+            if (usebump && bumptex != null)
             {
                 bumptex.SetPSResource(context, 2);
             }
-            if (usefoam)
+            if (usefoam && foamtex != null)
             {
                 foamtex.SetPSResource(context, 3);
             }
-            if (useflow)
+            if (useflow && flowtex != null)
             {
                 flowtex.SetVSResource(context, 0);
             }

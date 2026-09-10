@@ -13,10 +13,10 @@ namespace CodeWalker
 
     public class MapIcon
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string Filepath { get; set; }
-        public Texture2D Tex { get; set; }
-        public ShaderResourceView TexView { get; set; }
+        public Texture2D? Tex { get; set; }
+        public ShaderResourceView? TexView { get; set; }
         public Vector3 Center { get; set; } //in image pixels
         public float Scale { get; set; } //screen pixels per icon pixel
         public int TexWidth { get; set; }
@@ -75,12 +75,12 @@ namespace CodeWalker
 
     public class MapMarker
     {
-        public MapIcon Icon { get; set; }
+        public MapIcon? Icon { get; set; }
         public Vector3 WorldPos { get; set; } //actual world pos
         public Vector3 CamRelPos { get; set; } //updated per frame
         public Vector3 ScreenPos { get; set; } //position on screen (updated per frame)
-        public string Name { get; set; }
-        public List<string> Properties { get; set; } //additional data
+        public string Name { get; set; } = string.Empty;
+        public List<string>? Properties { get; set; } //additional data
         public bool IsMovable { get; set; }
         public float Distance { get; set; } //length of CamRelPos, updated per frame
 

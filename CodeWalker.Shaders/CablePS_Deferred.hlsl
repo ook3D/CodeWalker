@@ -65,7 +65,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     output.Diffuse = c;
     output.Normal = float4(saturate(norm * 0.5 + 0.5), c.a);
     output.Specular = float4(spec, c.a);
-    float2 cableIrr = sqrt(float2(input.Colour0.r, input.Colour0.g) * 0.5);
+    float2 cableIrr = EncodeAmbient(input.Colour0.rg);
     output.Irradiance = float4(cableIrr, 0, c.a);
 
     return output;

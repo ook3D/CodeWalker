@@ -16,54 +16,54 @@ namespace CodeWalker.GameFiles
     public class YmapFile : GameFile, PackedFile
     {
 
-        public Meta Meta { get; set; }
-        public PsoFile Pso { get; set; }
-        public RbfFile Rbf { get; set; }
+        public Meta? Meta { get; set; }
+        public PsoFile? Pso { get; set; }
+        public RbfFile? Rbf { get; set; }
 
         public CMapData _CMapData;
 
         public CMapData CMapData { get { return _CMapData; } set { _CMapData = value; } }
-        public CEntityDef[] CEntityDefs { get; set; }
-        public CMloInstanceDef[] CMloInstanceDefs { get; set; }
-        public CCarGen[] CCarGens { get; set; }
-        public CTimeCycleModifier[] CTimeCycleModifiers { get; set; }
-        public MetaHash[] physicsDictionaries { get; set; }
+        public CEntityDef[] CEntityDefs { get; set; } = [];
+        public CMloInstanceDef[] CMloInstanceDefs { get; set; } = [];
+        public CCarGen[] CCarGens { get; set; } = [];
+        public CTimeCycleModifier[] CTimeCycleModifiers { get; set; } = [];
+        public MetaHash[] physicsDictionaries { get; set; } = [];
 
-        public BoxOccluder[] CBoxOccluders { get; set; }
-        public OccludeModel[] COccludeModels { get; set; }
+        public BoxOccluder[] CBoxOccluders { get; set; } = [];
+        public OccludeModel[] COccludeModels { get; set; } = [];
 
 
-        public string[] Strings { get; set; }
-        public YmapEntityDef[] AllEntities;
-        public YmapEntityDef[] RootEntities;
-        public YmapEntityDef[] MloEntities;
+        public string[] Strings { get; set; } = [];
+        public YmapEntityDef[] AllEntities = [];
+        public YmapEntityDef[] RootEntities = [];
+        public YmapEntityDef[] MloEntities = [];
 
-        public YmapFile Parent { get; set; }
-        public YmapFile[] ChildYmaps = null;
+        public YmapFile? Parent { get; set; }
+        public YmapFile?[]? ChildYmaps;
         public bool MergedWithParent = false;
 
         public bool IsScripted { get { return (_CMapData.flags & 1) > 0; } }
 
-        public YmapGrassInstanceBatch[] GrassInstanceBatches { get; set; }
-        public YmapPropInstanceBatch[] PropInstanceBatches { get; set; }
+        public YmapGrassInstanceBatch[] GrassInstanceBatches { get; set; } = [];
+        public YmapPropInstanceBatch[] PropInstanceBatches { get; set; } = [];
 
-        public YmapDistantLODLights DistantLODLights { get; set; }
+        public YmapDistantLODLights? DistantLODLights { get; set; }
 
-        public YmapLODLights LODLights { get; set; }
+        public YmapLODLights? LODLights { get; set; }
 
-        public YmapTimeCycleModifier[] TimeCycleModifiers { get; set; }
+        public YmapTimeCycleModifier[] TimeCycleModifiers { get; set; } = [];
 
-        public YmapCarGen[] CarGenerators { get; set; }
+        public YmapCarGen[] CarGenerators { get; set; } = [];
 
-        public YmapBoxOccluder[] BoxOccluders { get; set; }
-        public YmapOccludeModel[] OccludeModels { get; set; }
+        public YmapBoxOccluder[] BoxOccluders { get; set; } = [];
+        public YmapOccludeModel[] OccludeModels { get; set; } = [];
 
 
         //fields used by the editor:
         public bool HasChanged { get; set; } = false;
-        public List<string> SaveWarnings = null;
+        public List<string>? SaveWarnings = null;
         public bool LodManagerUpdate = false; //forces the LOD manager to refresh this ymap when rendering
-        public YmapEntityDef[] LodManagerOldEntities = null; //when entities are removed, need the old ones to remove from lod manager
+        public YmapEntityDef[]? LodManagerOldEntities; //when entities are removed, need the old ones to remove from lod manager
 
 
         public YmapFile() : base(null, GameFileType.Ymap)
@@ -88,7 +88,7 @@ namespace CodeWalker.GameFiles
             Name = entry.Name;
             RpfFileEntry = entry;
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 NonMetaLoad(data);
@@ -98,7 +98,7 @@ namespace CodeWalker.GameFiles
 
             ResourceDataReader rd = new(resentry, data);
 
-            Meta = rd.ReadBlock<Meta>();//maybe null this after load to reduce memory consumption?
+            Meta = rd.ReadRequiredBlock<Meta>();//maybe null this after load to reduce memory consumption?
 
 
 
@@ -282,7 +282,7 @@ namespace CodeWalker.GameFiles
                 //build the entity hierarchy.
                 List<YmapEntityDef> roots = new(instcount);
                 List<YmapEntityDef> alldefs = new(instcount);
-                List<YmapEntityDef> mlodefs = null;
+                List<YmapEntityDef>? mlodefs = null;
 
                 if (CEntityDefs != null)
                 {
@@ -320,7 +320,7 @@ namespace CodeWalker.GameFiles
                     }
                     else
                     {
-                        YmapEntityDef p = alldefs[pind];
+                        YmapEntityDef? p = alldefs[pind];
                         if ((p._CEntityDef.lodLevel <= d._CEntityDef.lodLevel) ||
                             ((p._CEntityDef.lodLevel == rage__eLodType.LODTYPES_DEPTH_ORPHANHD) &&
                              (d._CEntityDef.lodLevel != rage__eLodType.LODTYPES_DEPTH_ORPHANHD)))
@@ -457,7 +457,7 @@ namespace CodeWalker.GameFiles
 
         private void EnsureBoxOccluders(Meta meta)
         {
-            CBoxOccluders = MetaTypes.ConvertDataArray<BoxOccluder>(Meta, MetaName.BoxOccluder, _CMapData.boxOccluders);
+            CBoxOccluders = MetaTypes.ConvertDataArray<BoxOccluder>(meta, MetaName.BoxOccluder, _CMapData.boxOccluders);
             if (CBoxOccluders != null)
             {
                 BoxOccluders = new YmapBoxOccluder[CBoxOccluders.Length];
@@ -471,7 +471,7 @@ namespace CodeWalker.GameFiles
 
         private void EnsureOccludeModels(Meta meta)
         {
-            COccludeModels = MetaTypes.ConvertDataArray<OccludeModel>(Meta, MetaName.OccludeModel, _CMapData.occludeModels);
+            COccludeModels = MetaTypes.ConvertDataArray<OccludeModel>(meta, MetaName.OccludeModel, _CMapData.occludeModels);
             if (COccludeModels != null)
             {
                 OccludeModels = new YmapOccludeModel[COccludeModels.Length];
@@ -479,7 +479,7 @@ namespace CodeWalker.GameFiles
                 {
                     OccludeModels[i] = new YmapOccludeModel(this, COccludeModels[i]);
                     OccludeModels[i].Index = i;
-                    OccludeModels[i].Load(Meta);
+                    OccludeModels[i].Load(meta);
 
                 }
             }
@@ -504,8 +504,8 @@ namespace CodeWalker.GameFiles
             //recreates the CEntityDefs and CMloInstanceDefs arrays from AllEntities.
             //TODO: save entity extensions!!?
 
-            CEntityDefs = null;
-            CMloInstanceDefs = null;
+            CEntityDefs = [];
+            CMloInstanceDefs = [];
             if (AllEntities == null)
             {
                 return;
@@ -542,7 +542,7 @@ namespace CodeWalker.GameFiles
             //recreates the CCarGens array from CarGenerators.
             if (CarGenerators == null)
             {
-                CCarGens = null;
+                CCarGens = [];
                 return;
             }
 
@@ -851,7 +851,7 @@ namespace CodeWalker.GameFiles
             if (ChildYmaps == null)
             {
                 //no children here... look for child ymap....
-                var node = gfc.GetMapNode(RpfFileEntry.ShortNameHash);
+                var node = gfc.GetMapNode(RpfFileEntry?.ShortNameHash ?? _CMapData.name.Hash);
                 if (node == null)
                 {
                     LodDiag.Report(Name + ": no map data store node - it isn't in any cache .dat and wasn't registered as an uncached ymap, so its LOD children can't be found.");
@@ -886,7 +886,7 @@ namespace CodeWalker.GameFiles
                         cmap = gfc.GetYmap(cmap.Key.Hash);
                         ChildYmaps[i] = cmap;
                     }
-                    if ((cmap.Loaded) && (!cmap.MergedWithParent))
+                    if ((cmap?.Loaded == true) && (!cmap.MergedWithParent))
                     {
                         needupd = true;
                     }
@@ -901,7 +901,7 @@ namespace CodeWalker.GameFiles
                     var cmap = ChildYmaps[i];
                     if (cmap == null) continue; //nothing here..
                     //cmap.EnsureChildYmaps();
-                    if ((cmap.Loaded) && (!cmap.MergedWithParent))
+                    if ((cmap?.Loaded == true) && (!cmap.MergedWithParent))
                     {
                         cmap.MergedWithParent = true;
                         if (cmap.RootEntities != null)
@@ -966,7 +966,7 @@ namespace CodeWalker.GameFiles
                     int pind = ent._CEntityDef.parentIndex;
                     if (pind >= 0) //connect root entities to parents if they have them..
                     {
-                        YmapEntityDef p = null;
+                        YmapEntityDef? p = null;
                         if ((pymap != null) && (pymap.AllEntities != null))
                         {
                             if ((pind < pymap.AllEntities.Length))
@@ -1026,7 +1026,7 @@ namespace CodeWalker.GameFiles
             LodManagerUpdate = true;
         }
 
-        public bool RemoveEntity(YmapEntityDef ent)
+        public bool RemoveEntity(YmapEntityDef? ent)
         {
             //used by the editor to remove from the ymap.
             if (ent == null) return false;
@@ -1152,7 +1152,7 @@ namespace CodeWalker.GameFiles
             LodManagerUpdate = true;
         }
 
-        public void EnsureRootEntity(YmapEntityDef ent)
+        public void EnsureRootEntity(YmapEntityDef? ent)
         {
             if (ent == null) return;
             if (RootEntities != null)
@@ -1168,7 +1168,7 @@ namespace CodeWalker.GameFiles
             RootEntities = rootents.ToArray();
         }
 
-        public void RemoveRootEntity(YmapEntityDef ent)
+        public void RemoveRootEntity(YmapEntityDef? ent)
         {
             if ((ent == null) || (RootEntities == null)) return;
             List<YmapEntityDef> rootents = new();
@@ -1194,7 +1194,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveCarGen(YmapCarGen cargen)
+        public bool RemoveCarGen(YmapCarGen? cargen)
         {
             if (cargen == null) return false;
 
@@ -1233,7 +1233,7 @@ namespace CodeWalker.GameFiles
                 LODLights.Ymap = this;
             }
             List<YmapLODLight> lodlights = new();
-            if (LODLights?.LodLights != null) lodlights.AddRange(LODLights.LodLights);
+            if (LODLights.LodLights != null) lodlights.AddRange(LODLights.LodLights);
             lodlight.LodLights = this.LODLights;
             lodlight.Index = lodlights.Count;
             lodlights.Add(lodlight);
@@ -1248,13 +1248,13 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public bool RemoveLodLight(YmapLODLight lodlight)
+        public bool RemoveLodLight(YmapLODLight? lodlight)
         {
-            if (lodlight == null) return false;
+            if (lodlight == null || LODLights == null) return false;
 
             List<YmapLODLight> newlodlights = new();
 
-            var lodlights = LODLights?.LodLights;
+            var lodlights = LODLights.LodLights;
             if (lodlights != null)
             {
                 for (int i = 0; i < lodlights.Length; i++)
@@ -1290,7 +1290,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void AddBoxOccluder(YmapBoxOccluder box)
+        public void AddBoxOccluder(YmapBoxOccluder? box)
         {
             if (box == null) return;
             var boxes = new List<YmapBoxOccluder>();
@@ -1303,7 +1303,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveBoxOccluder(YmapBoxOccluder box)
+        public bool RemoveBoxOccluder(YmapBoxOccluder? box)
         {
             if (box == null) return false;
             var newboxes = new List<YmapBoxOccluder>();
@@ -1331,7 +1331,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void AddOccludeModel(YmapOccludeModel model)
+        public void AddOccludeModel(YmapOccludeModel? model)
         {
             if (model == null) return;
             var models = new List<YmapOccludeModel>();
@@ -1343,7 +1343,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveOccludeModel(YmapOccludeModel model)
+        public bool RemoveOccludeModel(YmapOccludeModel? model)
         {
             if (model == null) return false;
             var newmodels = new List<YmapOccludeModel>();
@@ -1371,7 +1371,7 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public void AddOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        public void AddOccludeModelTriangle(YmapOccludeModelTriangle? tri)
         {
             if (tri == null) return;
             if (tri.Model == null) return;
@@ -1387,7 +1387,7 @@ namespace CodeWalker.GameFiles
             HasChanged = true;
         }
 
-        public bool RemoveOccludeModelTriangle(YmapOccludeModelTriangle tri)
+        public bool RemoveOccludeModelTriangle(YmapOccludeModelTriangle? tri)
         {
             if (tri == null) return false;
             if (tri.Model == null) return false;
@@ -1426,7 +1426,7 @@ namespace CodeWalker.GameFiles
             UpdateGrassPhysDict(true);
         }
 
-        public bool RemoveGrassBatch(YmapGrassInstanceBatch batch)
+        public bool RemoveGrassBatch(YmapGrassInstanceBatch? batch)
         {
             if (batch == null) return false;
 
@@ -1761,7 +1761,7 @@ namespace CodeWalker.GameFiles
                     var ent = AllEntities[i];
                     var arch = gfc.GetArchetype(ent._CEntityDef.archetypeName);
                     ent.SetArchetype(arch);
-                    if (ent.IsMlo) ent.MloInstance.InitYmapEntityArchetypes(gfc);
+                    if (ent.IsMlo) ent.MloInstance?.InitYmapEntityArchetypes(gfc);
                 }
             }
             if (GrassInstanceBatches != null)
@@ -1778,7 +1778,7 @@ namespace CodeWalker.GameFiles
                 for (int i = 0; i < TimeCycleModifiers.Length; i++)
                 {
                     var tcm = TimeCycleModifiers[i];
-                    World.TimecycleMod wtcm;
+                    World.TimecycleMod? wtcm;
                     if (gfc.TimeCycleModsDict.TryGetValue(tcm.CTimeCycleModifier.name.Hash, out wtcm))
                     {
                         tcm.TimeCycleModData = wtcm;
@@ -1799,7 +1799,7 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YmapEntityDef
     {
-        public Archetype Archetype { get; set; } //cached by GameFileCache on loading...
+        public Archetype? Archetype { get; set; } //cached by GameFileCache on loading...
         public Vector3 BBMin;//oriented archetype AABBmin
         public Vector3 BBMax;//oriented archetype AABBmax
         public Vector3 BBCenter; //oriented archetype AABB center
@@ -1811,29 +1811,29 @@ namespace CodeWalker.GameFiles
 
         public CEntityDef _CEntityDef;
         public CEntityDef CEntityDef { get { return _CEntityDef; } set { _CEntityDef = value; } }
-        private List<YmapEntityDef> ChildList { get; set; }
-        public YmapEntityDef[] Children { get; set; }
-        public YmapEntityDef[] ChildrenMerged;// { get; set; }
+        private List<YmapEntityDef>? ChildList { get; set; }
+        public YmapEntityDef[]? Children { get; set; }
+        public YmapEntityDef[]? ChildrenMerged;// { get; set; }
         public Vector3 Position { get; set; }
         public Quaternion Orientation { get; set; }
         public Vector3 Scale { get; set; }
         public bool IsMlo { get; set; }
-        public MloInstanceData MloInstance { get; set; }
-        public YmapEntityDef MloParent { get; set; }
-        public MloInstanceEntitySet MloEntitySet { get; set; }
+        public MloInstanceData? MloInstance { get; set; }
+        public YmapEntityDef? MloParent { get; set; }
+        public MloInstanceEntitySet? MloEntitySet { get; set; }
         public Vector3 MloRefPosition { get; set; }
         public Quaternion MloRefOrientation { get; set; }
-        public MetaWrapper[] Extensions { get; set; }
+        public MetaWrapper[] Extensions { get; set; } = [];
 
         public int Index { get; set; }
         public float Distance { get; set; } //used for rendering
         public bool IsVisible; //used for rendering
         public bool ChildrenVisible; //used for rendering
         public bool ChildrenRendered; //used when rendering ymap mode to reduce LOD flashing...
-        public YmapEntityDef Parent { get; set; } //for browsing convenience, also used/updated for rendering
+        public YmapEntityDef? Parent { get; set; } //for browsing convenience, also used/updated for rendering
         public MetaHash ParentName { get; set; } //just for browsing convenience
 
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
         public Vector3 PivotPosition = Vector3.Zero;
         public Quaternion PivotOrientation = Quaternion.Identity;
@@ -1842,11 +1842,11 @@ namespace CodeWalker.GameFiles
 
         public uint EntityHash { get; set; } = 0; //used by CW as a unique position+name identifier
 
-        public LinkedList<YmapEntityDef> LodManagerChildren = null;
-        public object LodManagerRenderable = null;
+        public LinkedList<YmapEntityDef>? LodManagerChildren;
+        public object? LodManagerRenderable;
 
 
-        public LightInstance[] Lights { get; set; }
+        public LightInstance[]? Lights { get; set; }
         //public uint[] LightHashTest { get; set; }
 
         public bool LodInParentYmap
@@ -1875,7 +1875,7 @@ namespace CodeWalker.GameFiles
             Position = Vector3.One;
             Orientation = Quaternion.Identity;
         }
-        public YmapEntityDef(YmapFile ymap, int index, ref CEntityDef def)
+        public YmapEntityDef(YmapFile? ymap, int index, ref CEntityDef def)
         {
             Ymap = ymap;
             Index = index;
@@ -1894,7 +1894,7 @@ namespace CodeWalker.GameFiles
             UpdateEntityHash();
         }
 
-        public YmapEntityDef(YmapFile ymap, int index, ref CMloInstanceDef mlo)
+        public YmapEntityDef(YmapFile? ymap, int index, ref CMloInstanceDef mlo)
         {
             Ymap = ymap;
             Index = index;
@@ -1942,7 +1942,7 @@ namespace CodeWalker.GameFiles
 
 
 
-        public void SetArchetype(Archetype arch)
+        public void SetArchetype(Archetype? arch)
         {
             Archetype = arch;
             if (Archetype != null)
@@ -2198,7 +2198,7 @@ namespace CodeWalker.GameFiles
             _CEntityDef.scaleXY = s.X;
             _CEntityDef.scaleZ = s.Z;
 
-            MloInstanceData mloInstance = MloParent?.MloInstance;
+            MloInstanceData? mloInstance = MloParent?.MloInstance;
             if (mloInstance != null)
             {
                 var mcEntity = mloInstance.TryGetArchetypeEntity(this);
@@ -2219,9 +2219,9 @@ namespace CodeWalker.GameFiles
 
         private void UpdateMloArchetype()
         {
-            if (!(MloParent.Archetype is MloArchetype mloArchetype)) return;
+            if (!(MloParent?.Archetype is MloArchetype mloArchetype)) return;
 
-            MCEntityDef entity = null;
+            MCEntityDef? entity = null;
             if ((MloEntitySet?.Entities != null) && (MloEntitySet?.EntitySet?.Entities != null))
             {
                 var idx = MloEntitySet.Entities.IndexOf(this);
@@ -2334,7 +2334,7 @@ namespace CodeWalker.GameFiles
             ChildrenMerged = merged.ToArray();
         }
 
-        public void RemoveChild(YmapEntityDef c)
+        public void RemoveChild(YmapEntityDef? c)
         {
             if (c == null) return;
             if (Children != null)
@@ -2357,7 +2357,7 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        public void SetLodParent(YmapEntityDef p)
+        public void SetLodParent(YmapEntityDef? p)
         {
             //editor function to relink this entity to a new LOD parent (or orphan it, if p is null).
             //updates parentIndex, numChildren, child arrays, root entity lists and the lod-in-parent-ymap flag.
@@ -2472,8 +2472,8 @@ namespace CodeWalker.GameFiles
             var dd = db as Drawable;
             var fd = db as FragDrawable;
             var skel = db.Skeleton;
-            LightAttributes[] lightAttrs = null;
-            Bounds b = null;
+            LightAttributes[]? lightAttrs = null;
+            Bounds? b = null;
             if (dd != null)
             {
                 lightAttrs = dd.LightAttributes?.data_items;
@@ -2524,7 +2524,7 @@ namespace CodeWalker.GameFiles
                 var la = lightAttrs[i];
 
                 var xform = Matrix.Identity;
-                if ((bones != null) && (bones.TryGetValue(la.BoneId, out Bone bone)))
+                if ((bones != null) && (bones.TryGetValue(la.BoneId, out Bone? bone)))
                 {
                     xform = bone.AbsTransform;
                 }
@@ -2609,14 +2609,14 @@ namespace CodeWalker.GameFiles
         [TypeConverter(typeof(ExpandableObjectConverter))]
         public class LightInstance
         {
-            public LightAttributes Attributes { get; set; } //just for display purposes!
+            public LightAttributes? Attributes { get; set; } //just for display purposes!
             public uint Hash { get; set; }
             public Vector3 Position { get; set; }
             public Vector3 Direction { get; set; }
 
             public override string ToString()
             {
-                return Hash.ToString() + ": " + Attributes.Type.ToString();
+                return Hash.ToString() + ": " + Attributes?.Type.ToString();
             }
         }
     }
@@ -2627,18 +2627,18 @@ namespace CodeWalker.GameFiles
     {
         private const float BatchVertMultiplier = 0.00001525878f;
 
-        public Archetype Archetype { get; set; } //cached by GameFileCache on loading...
+        public Archetype? Archetype { get; set; } //cached by GameFileCache on loading...
         public rage__fwGrassInstanceListDef Batch { get; set; }
-        public rage__fwGrassInstanceListDef__InstanceData[] Instances { get; set; }
+        public rage__fwGrassInstanceListDef__InstanceData[] Instances { get; set; } = [];
         public Vector3 Position { get; set; } //calculated from AABB
         public float Radius { get; set; } //calculated from AABB
         public Vector3 AABBMin { get; set; }
         public Vector3 AABBMax { get; set; }
         public Vector3 CamRel; //used for rendering...
         public float Distance; //used for rendering
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
-        private List<BoundingBox> grassBounds; // for brush
+        private List<BoundingBox> grassBounds = []; // for brush
         public bool BrushEnabled; // for brush
         public float BrushRadius = 5f; // for brush
         public bool HasChanged; // for brush and renderer
@@ -2675,7 +2675,7 @@ namespace CodeWalker.GameFiles
             // Clear the current bounding cache.
             if (grassBounds == null)
                 grassBounds = new List<BoundingBox>();
-            else grassBounds?.Clear();
+            else grassBounds.Clear();
 
             foreach (var inst in Instances)
             {
@@ -2955,7 +2955,7 @@ namespace CodeWalker.GameFiles
             int colorRandMin,
             int colorRandMax)
         {
-            var rnd = _rng.Value;
+            var rnd = _rng.Value ?? Random.Shared;
 
             for (int i = 0; i < positions.Count; i++)
             {
@@ -3122,7 +3122,7 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YmapPropInstanceBatch
     {
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
     }
 
@@ -3130,12 +3130,12 @@ namespace CodeWalker.GameFiles
     public class YmapDistantLODLights
     {
         public CDistantLODLight CDistantLODLight { get; set; }
-        public uint[] colours { get; set; }
-        public MetaVECTOR3[] positions { get; set; }
+        public uint[] colours { get; set; } = [];
+        public MetaVECTOR3[] positions { get; set; } = [];
 
         public Vector3 BBMin { get; set; }
         public Vector3 BBMax { get; set; }
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
         public void CalcBB()
         {
@@ -3159,7 +3159,7 @@ namespace CodeWalker.GameFiles
 
         public void RebuildFromLodLights(YmapLODLight[] lodlights)
         {
-            var n = lodlights?.Length ?? 0;
+            var n = lodlights.Length;
             if (n == 0) return;
 
             colours = new uint[n];
@@ -3190,7 +3190,7 @@ namespace CodeWalker.GameFiles
             {
                 return Ymap.ToString();
             }
-            return base.ToString();
+            return base.ToString() ?? string.Empty;
         }
     }
 
@@ -3198,24 +3198,24 @@ namespace CodeWalker.GameFiles
     public class YmapLODLights
     {
         public CLODLight CLODLight { get; set; }
-        public MetaVECTOR3[] direction { get; set; }
-        public float[] falloff { get; set; }
-        public float[] falloffExponent { get; set; }
-        public uint[] timeAndStateFlags { get; set; }
-        public uint[] hash { get; set; }
-        public byte[] coneInnerAngle { get; set; }
-        public byte[] coneOuterAngleOrCapExt { get; set; }
-        public byte[] coronaIntensity { get; set; }
+        public MetaVECTOR3[] direction { get; set; } = [];
+        public float[] falloff { get; set; } = [];
+        public float[] falloffExponent { get; set; } = [];
+        public uint[] timeAndStateFlags { get; set; } = [];
+        public uint[] hash { get; set; } = [];
+        public byte[] coneInnerAngle { get; set; } = [];
+        public byte[] coneOuterAngleOrCapExt { get; set; } = [];
+        public byte[] coronaIntensity { get; set; } = [];
 
         public Vector3 BBMin { get; set; }
         public Vector3 BBMax { get; set; }
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
-        public YmapLODLight[] LodLights { get; set; }
+        public YmapLODLight[] LodLights { get; set; } = [];
 
-        public PathBVH BVH { get; set; }
+        public PathBVH? BVH { get; set; }
 
-        public void Init(YmapDistantLODLights parent)
+        public void Init(YmapDistantLODLights? parent)
         {
             if (parent == null) return;
 
@@ -3281,17 +3281,17 @@ namespace CodeWalker.GameFiles
 
         public void RebuildFromLodLights()
         {
-            var n = LodLights?.Length ?? 0;
+            var n = LodLights.Length;
             if (n <= 0)
             {
-                direction = null;
-                falloff = null;
-                falloffExponent = null;
-                timeAndStateFlags = null;
-                hash = null;
-                coneInnerAngle = null;
-                coneOuterAngleOrCapExt = null;
-                coronaIntensity = null;
+                direction = [];
+                falloff = [];
+                falloffExponent = [];
+                timeAndStateFlags = [];
+                hash = [];
+                coneInnerAngle = [];
+                coneOuterAngleOrCapExt = [];
+                coronaIntensity = [];
             }
             else
             {
@@ -3327,16 +3327,16 @@ namespace CodeWalker.GameFiles
             {
                 return Ymap.ToString();
             }
-            return base.ToString();
+            return base.ToString() ?? string.Empty;
         }
     }
 
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YmapLODLight : BasePathNode
     {
-        public YmapFile Ymap { get { return LodLights?.Ymap ?? DistLodLights?.Ymap; } }
-        public YmapLODLights LodLights { get; set; }
-        public YmapDistantLODLights DistLodLights { get; set; }
+        public YmapFile? Ymap { get { return LodLights?.Ymap ?? DistLodLights?.Ymap; } }
+        public YmapLODLights? LodLights { get; set; }
+        public YmapDistantLODLights? DistLodLights { get; set; }
         public int Index { get; set; }
         public Color Colour { get; set; }
         public Vector3 Position { get; set; }
@@ -3538,12 +3538,12 @@ namespace CodeWalker.GameFiles
     public class YmapTimeCycleModifier
     {
         public CTimeCycleModifier CTimeCycleModifier { get; set; }
-        public World.TimecycleMod TimeCycleModData { get; set; }
+        public World.TimecycleMod? TimeCycleModData { get; set; }
 
         public Vector3 BBMin { get; set; }
         public Vector3 BBMax { get; set; }
 
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
     }
 
 
@@ -3558,7 +3558,7 @@ namespace CodeWalker.GameFiles
         public Vector3 BBMin { get; set; }
         public Vector3 BBMax { get; set; }
 
-        public YmapFile Ymap { get; set; }
+        public YmapFile? Ymap { get; set; }
 
 
         public YmapCarGen(YmapFile ymap, CCarGen cargen)
@@ -3639,13 +3639,13 @@ namespace CodeWalker.GameFiles
 
         public YmapFile Ymap { get; set; }
 
-        public byte[] Data { get; set; }
-        public Vector3[] Vertices { get; set; }
-        public byte[] Indices { get; set; }
+        public byte[] Data { get; set; } = [];
+        public Vector3[] Vertices { get; set; } = [];
+        public byte[] Indices { get; set; } = [];
         public int Index { get; set; }
 
-        public YmapOccludeModelTriangle[] Triangles { get; set; }
-        public TriangleBVH BVH { get; set; }
+        public YmapOccludeModelTriangle[] Triangles { get; set; } = [];
+        public TriangleBVH? BVH { get; set; }
 
         public FlagsUint Flags
         {
@@ -3685,7 +3685,7 @@ namespace CodeWalker.GameFiles
         {
             if ((Vertices == null) || (Indices == null))
             {
-                Triangles = null;
+                Triangles = [];
                 return;
             }
             var tris = new List<YmapOccludeModelTriangle>();
@@ -3712,8 +3712,8 @@ namespace CodeWalker.GameFiles
             //create vertices and indices arrays from Triangles
             if (Triangles == null)
             {
-                Vertices = null;
-                Indices = null;
+                Vertices = [];
+                Indices = [];
                 return;
             }
             var vdict = new Dictionary<Vector3, byte>();
@@ -3773,7 +3773,7 @@ namespace CodeWalker.GameFiles
             //_OccludeModel.flags = ...
         }
 
-        public YmapOccludeModelTriangle RayIntersect(ref Ray ray, ref float hitdist)
+        public YmapOccludeModelTriangle? RayIntersect(ref Ray ray, ref float hitdist)
         {
             if (Triangles == null)
             {
@@ -3790,7 +3790,7 @@ namespace CodeWalker.GameFiles
 
         public EditorVertex[] GetTriangleVertices()
         {
-            if ((Vertices == null) || (Indices == null)) return null;
+            if ((Vertices == null) || (Indices == null)) return [];
             EditorVertex[] res = new EditorVertex[Indices.Length];//changing from indexed to nonindexed triangle list
             var colour = new Color4(1.0f, 0.0f, 0.0f, 0.8f); //todo: colours for occluders?
             var colourval = (uint)colour.ToRgba();
@@ -3803,11 +3803,11 @@ namespace CodeWalker.GameFiles
         }
         public EditorVertex[] GetPathVertices()
         {
-            return null;
+            return [];
         }
         public Vector4[] GetNodePositions()
         {
-            return null;
+            return [];
         }
 
         public override string ToString()
@@ -3820,7 +3820,7 @@ namespace CodeWalker.GameFiles
     public class YmapOccludeModelTriangle : TriangleBVHItem
     {
         public YmapOccludeModel Model { get; set; }
-        public YmapFile Ymap { get { return Model?.Ymap; } }
+        public YmapFile? Ymap { get { return Model?.Ymap; } }
         public int Index { get; set; }
 
         public YmapOccludeModelTriangle(YmapOccludeModel model, Vector3 v1, Vector3 v2, Vector3 v3, int i)
@@ -3920,11 +3920,11 @@ namespace CodeWalker.GameFiles
         }
         public EditorVertex[] GetPathVertices()
         {
-            return null;
+            return [];
         }
         public Vector4[] GetNodePositions()
         {
-            return null;
+            return [];
         }
 
         public override string ToString()

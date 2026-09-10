@@ -16,7 +16,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditTrainNodePanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public TrainTrackNode TrainNode { get; set; }
+        public TrainTrackNode? TrainNode { get; set; }
 
         private bool populatingui = false;
 
@@ -36,7 +36,7 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateFormTitle()
         {
-            Text = "Train Node " + TrainNode.Index.ToString();
+            Text = "Train Node " + TrainNode?.Index.ToString();
         }
 
         public void UpdateTrainTrackNodeUI()
@@ -127,7 +127,7 @@ namespace CodeWalker.Project.Panels
         private void TrainNodeAddToProjectButton_Click(object sender, EventArgs e)
         {
             ProjectForm.SetProjectItem(TrainNode);
-            ProjectForm.AddTrainTrackToProject(TrainNode.Track);
+            if (TrainNode?.Track is { } track) ProjectForm.AddTrainTrackToProject(track);
         }
 
         private void TrainNodeDeleteButton_Click(object sender, EventArgs e)

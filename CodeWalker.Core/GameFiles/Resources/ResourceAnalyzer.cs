@@ -9,10 +9,10 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class ResourceAnalyzer
     {
-        public RpfResourceFileEntry FileEntry { get; set; }
-        public ResourcePagesInfo FilePagesInfo { get; set; }
-        public RpfResourcePage[] SystemPages { get; set; }
-        public RpfResourcePage[] GraphicsPages { get; set; }
+        public RpfResourceFileEntry? FileEntry { get; set; }
+        public ResourcePagesInfo? FilePagesInfo { get; set; }
+        public RpfResourcePage[]? SystemPages { get; set; }
+        public RpfResourcePage[]? GraphicsPages { get; set; }
         public ResourceAnalyzerItem[] Blocks { get; set; }
 
         [TypeConverter(typeof(ExpandableObjectConverter))]
@@ -22,10 +22,10 @@ namespace CodeWalker.GameFiles
             public long Length { get; set; }
             public long Offset { get { return Position & 0xFFFFFFF; } }
             public bool Overlapping { get; set; }
-            public ResourceSystemBlock SystemBlock { get; set; }
-            public ResourceGraphicsBlock GraphicsBlock { get; set; }
-            public Array Array { get; set; }
-            public string String { get; set; }
+            public ResourceSystemBlock? SystemBlock { get; set; }
+            public ResourceGraphicsBlock? GraphicsBlock { get; set; }
+            public Array? Array { get; set; }
+            public string? String { get; set; }
 
 
             public override string ToString()
@@ -85,7 +85,8 @@ namespace CodeWalker.GameFiles
                 item.Array = kvp.Value as Array;
                 if (item.Array != null)
                 {
-                    var typ = item.Array.GetType().GetElementType();
+                    var typ = item.Array.GetType().GetElementType()
+                        ?? throw new InvalidOperationException("The resource array must have an element type.");
                     var siz = Marshal.SizeOf(typ);
                     item.Length = item.Array.Length * siz;
                 }

@@ -1,6 +1,7 @@
-﻿using SharpDX.Direct3D11;
+using SharpDX.Direct3D11;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -104,9 +105,9 @@ namespace CodeWalker.Rendering
         private RenderableCacheLookup<WaterQuad, RenderableWaterQuad> waterquads = new RenderableCacheLookup<WaterQuad, RenderableWaterQuad>(4194304, Settings.Default.GPUCacheTime); //4MB - todo: make this a setting
 
 
-        private object updateSyncRoot = new object();
+        private readonly Lock updateSyncRoot = new();
 
-        private Device currentDevice;
+        private Device? currentDevice;
 
 
         public void OnDeviceCreated(Device device)
@@ -184,16 +185,30 @@ namespace CodeWalker.Rendering
             return itemsStillPending;
         }
 
+        private int firstUnloadCache;
+
         public void RenderThreadSync()
         {
-            renderables.RenderThreadSync(currentDevice);
-            textures.RenderThreadSync(currentDevice);
-            boundcomps.RenderThreadSync(currentDevice);
-            instbatches.RenderThreadSync(currentDevice);
-            lodlights.RenderThreadSync(currentDevice);
-            distlodlights.RenderThreadSync(currentDevice);
-            pathbatches.RenderThreadSync(currentDevice);
-            waterquads.RenderThreadSync(currentDevice);
+            if (currentDevice == null) return;
+            // Resource disposal runs on the render thread. Spread streaming cleanup
+            // over frames, with a shared 2 ms soft budget and at most 64 items per cache.
+            // Rotate priority so a geometry backlog cannot starve texture cleanup.
+            long deadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 500;
+            for (int i = 0; i < 8; i++)
+            {
+                switch ((firstUnloadCache + i) % 8)
+                {
+                    case 0: renderables.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 1: textures.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 2: boundcomps.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 3: instbatches.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 4: lodlights.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 5: distlodlights.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 6: pathbatches.RenderThreadSync(currentDevice, 64, deadline); break;
+                    case 7: waterquads.RenderThreadSync(currentDevice, 64, deadline); break;
+                }
+            }
+            firstUnloadCache = (firstUnloadCache + 1) % 8;
         }
 
         public Renderable GetRenderable(DrawableBase drawable)
@@ -245,12 +260,12 @@ namespace CodeWalker.Rendering
         }
         public void Invalidate(YmapLODLight lodlight)
         {
-            lodlights.Invalidate(lodlight.LodLights?.Ymap);
-            distlodlights.Invalidate(lodlight.DistLodLights);
+            if (lodlight.LodLights?.Ymap is { } ymap) lodlights.Invalidate(ymap);
+            if (lodlight.DistLodLights is { } lights) distlodlights.Invalidate(lights);
         }
         public void InvalidateImmediate(YmapLODLights lodlightsonly)
         {
-            lodlights.UpdateImmediate(lodlightsonly?.Ymap, currentDevice);
+            if (lodlightsonly.Ymap is { } ymap && currentDevice != null) lodlights.UpdateImmediate(ymap, currentDevice);
         }
 
     }
@@ -258,7 +273,8 @@ namespace CodeWalker.Rendering
 
     public abstract class RenderableCacheItem<TKey>
     {
-        public TKey Key;
+        private TKey? key;
+        public TKey Key { get => key ?? throw new InvalidOperationException("Cache item is not initialized."); set => key = value; }
         public volatile bool IsLoaded = false;
         public volatile bool LoadQueued = false;
         public long LastUseTime = 0;
@@ -270,10 +286,12 @@ namespace CodeWalker.Rendering
         public abstract void Unload();
     }
 
-    public class RenderableCacheLookup<TKey, TVal> where TVal: RenderableCacheItem<TKey>, new()
+    public class RenderableCacheLookup<TKey, TVal> where TKey : notnull where TVal: RenderableCacheItem<TKey>, new()
     {
         private ConcurrentQueue<TVal> itemsToLoad = new ConcurrentQueue<TVal>();
         private ConcurrentQueue<TVal> itemsToUnload = new ConcurrentQueue<TVal>();
+        private readonly ConcurrentQueue<TVal> failedLoads = new();
+        private readonly ConcurrentQueue<TVal> retainedItems = new();
         private ConcurrentQueue<TKey> keysToInvalidate = new ConcurrentQueue<TKey>();
         private LinkedList<TVal> loadeditems = new LinkedList<TVal>();//only use from content thread!
         private Dictionary<TKey, TVal> cacheitems = new Dictionary<TKey, TVal>();//only use from render thread!
@@ -320,6 +338,10 @@ namespace CodeWalker.Rendering
                 rnd.Unload();
             }
             loadeditems.Clear();
+            // These items have already left loadeditems but still own GPU resources.
+            while (itemsToUnload.TryDequeue(out var pending)) pending.Unload();
+            while (failedLoads.TryDequeue(out var failed)) failed.Unload();
+            while (retainedItems.TryDequeue(out var retained)) retained.Unload();
             cacheitems.Clear();
             itemsToUnload = new ConcurrentQueue<TVal>();
             keysToInvalidate = new ConcurrentQueue<TKey>();
@@ -329,7 +351,7 @@ namespace CodeWalker.Rendering
 
         public int LoadProc(Device device, int maxitemsperloop)
         {
-            TVal item;
+            TVal? item;
             LoadedCount = 0;
             while (itemsToLoad.TryDequeue(out item))
             {
@@ -344,9 +366,13 @@ namespace CodeWalker.Rendering
                         loadeditems.AddLast(item);
                         Interlocked.Add(ref CacheUse, item.DataSize);
                     }
-                    catch //(Exception ex)
+                    catch (Exception ex)
                     {
-                        //todo: error handling...
+                        // Keep cleanup on the render thread: it may still be resolving
+                        // textures on this item. A failed upload must not remain queued forever.
+                        item.IsLoaded = false;
+                        failedLoads.Enqueue(item);
+                        CodeWalker.GameFiles.LodDiag.Report("GPU upload failed for " + item.Key + ": " + ex.Message);
                     }
                 }
                 else
@@ -360,6 +386,8 @@ namespace CodeWalker.Rendering
 
         public void UnloadProc()
         {
+            // Only the content thread owns loadeditems. Return cancelled evictions here.
+            while (retainedItems.TryDequeue(out var retained)) loadeditems.AddLast(retained);
             //unload items that haven't been used in longer than the cache period.
             var now = DateTime.UtcNow;
             var rnode = loadeditems.First;
@@ -381,11 +409,23 @@ namespace CodeWalker.Rendering
 
         }
 
-        public void RenderThreadSync(Device device)
+        public void RenderThreadSync(Device device) => RenderThreadSync(device, int.MaxValue);
+
+        public void RenderThreadSync(Device device, int maxUnloads, long unloadDeadline = long.MaxValue)
         {
             LastFrameTime = DateTime.UtcNow.ToBinary();
-            TVal item;
-            TKey key;
+            while (failedLoads.TryDequeue(out var failed))
+            {
+                if (cacheitems.TryGetValue(failed.Key, out var cached) && ReferenceEquals(cached, failed))
+                {
+                    cacheitems.Remove(failed.Key);
+                }
+                failed.Unload();
+                failed.LoadQueued = false;
+                // Failed uploads were never added to loadeditems or CacheUse.
+            }
+            TVal? item;
+            TKey? key;
             while (keysToInvalidate.TryDequeue(out key))
             {
                 if (cacheitems.TryGetValue(key, out item))
@@ -397,23 +437,35 @@ namespace CodeWalker.Rendering
                     Interlocked.Add(ref CacheUse, item.DataSize);
                 }
             }
-            while (itemsToUnload.TryDequeue(out item))
+            int unloaded = 0;
+            while (unloaded < maxUnloads && Stopwatch.GetTimestamp() < unloadDeadline && itemsToUnload.TryDequeue(out item))
             {
-                if ((item.Key != null) && (cacheitems.ContainsKey(item.Key)))
+                // Disposal is budgeted across frames. The camera may have returned since
+                // the content thread selected this item; keep its GPU resources in that case.
+                var lastUse = DateTime.FromBinary(Interlocked.Read(ref item.LastUseTime));
+                if ((DateTime.UtcNow - lastUse).TotalSeconds <= CacheTime)
+                {
+                    retainedItems.Enqueue(item);
+                    unloaded++;
+                    continue;
+                }
+                if (item.Key != null)
                 {
                     cacheitems.Remove(item.Key);
                 }
                 item.Unload();
                 item.LoadQueued = false;
                 Interlocked.Add(ref CacheUse, -item.DataSize);
+                unloaded++;
             }
 
         }
 
-        public TVal Get(TKey key)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(key))]
+        public TVal? Get(TKey? key)
         {
             if (key == null) return null;
-            TVal item = null;
+            TVal? item = null;
             if (!cacheitems.TryGetValue(key, out item))
             {
                 item = new TVal();
@@ -439,7 +491,7 @@ namespace CodeWalker.Rendering
         }
         public void UpdateImmediate(TKey key, Device device)
         {
-            TVal item;
+            TVal? item;
             if (cacheitems.TryGetValue(key, out item))
             {
                 Interlocked.Add(ref CacheUse, -item.DataSize);

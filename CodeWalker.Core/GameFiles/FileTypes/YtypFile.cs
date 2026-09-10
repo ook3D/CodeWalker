@@ -13,27 +13,27 @@ namespace CodeWalker.GameFiles
     {
 
 
-        public Meta Meta { get; set; }
-        public PsoFile Pso { get; set; }
-        public RbfFile Rbf { get; set; }
+        public Meta? Meta { get; set; }
+        public PsoFile? Pso { get; set; }
+        public RbfFile? Rbf { get; set; }
 
 
         public uint NameHash { get; set; }
-        public string[] Strings { get; set; }
+        public string[] Strings { get; set; } = [];
 
         public CMapTypes _CMapTypes;
         public CMapTypes CMapTypes { get { return _CMapTypes; } set { _CMapTypes = value; } }
 
-        public Archetype[] AllArchetypes { get; set; }
+        public Archetype[] AllArchetypes { get; set; } = [];
 
-        public MetaWrapper[] Extensions { get; set; }
+        public MetaWrapper[] Extensions { get; set; } = [];
 
-        public CCompositeEntityType[] CompositeEntityTypes { get; set; }
+        public CCompositeEntityType[] CompositeEntityTypes { get; set; } = [];
 
 
         //fields used by the editor:
         public bool HasChanged { get; set; } = false;
-        public List<string> SaveWarnings = null;
+        public List<string>? SaveWarnings = null;
 
 
 
@@ -183,7 +183,7 @@ namespace CodeWalker.GameFiles
         {
             Name = entry.Name;
             RpfFileEntry = entry;
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 MemoryStream ms = new(data);
@@ -210,7 +210,7 @@ namespace CodeWalker.GameFiles
 
             ResourceDataReader rd = new(resentry, data);
 
-            Meta = rd.ReadBlock<Meta>();
+            Meta = rd.ReadRequiredBlock<Meta>();
 
 
             _CMapTypes = MetaTypes.GetTypedData<CMapTypes>(Meta, MetaName.CMapTypes);
@@ -231,7 +231,7 @@ namespace CodeWalker.GameFiles
                     if ((offset < 0) || (block.Data == null) || (offset >= block.Data.Length))
                     { continue; }
 
-                    Archetype a = null;
+                    Archetype? a = null;
                     switch (block.StructureNameHash)
                     {
                         case MetaName.CBaseArchetypeDef:

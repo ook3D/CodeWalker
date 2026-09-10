@@ -8,7 +8,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYtypMloRoomPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public MCMloRoomDef CurrentRoom { get; set; }
+        public MCMloRoomDef? CurrentRoom { get; set; }
 
         private bool populatingui = false;
 
@@ -23,7 +23,7 @@ namespace CodeWalker.Project.Panels
             CurrentRoom = room;
             Tag = room;
             UpdateFormTitle();
-            MloInstanceData instance = ProjectForm.TryGetMloInstance(room?.OwnerMlo);
+            var instance = ProjectForm.TryGetMloInstance(room?.OwnerMlo);
             ProjectForm.WorldForm?.SelectObject(room, instance);
             UpdateControls();
         }
@@ -79,7 +79,7 @@ namespace CodeWalker.Project.Panels
             {
                 CurrentRoom.RoomName = NameTextBox.Text;
 
-                TreeNode tn = ProjectForm.ProjectExplorer?.FindMloRoomTreeNode(CurrentRoom);
+                TreeNode? tn = ProjectForm.ProjectExplorer?.FindMloRoomTreeNode(CurrentRoom);
                 if (tn != null)
                 {
                     tn.Text = CurrentRoom.Index.ToString() + ": " + CurrentRoom.RoomName;

@@ -109,41 +109,61 @@ namespace CodeWalker.Rendering
     public struct PostProcessorFinalPSVars
     {
         public Vector4 invPixelCount;
+        public Vector4 ExposureParams;
+        public Vector4 BrightFilmic0;
+        public Vector4 BrightFilmic1;
+        public Vector4 DarkFilmic0;
+        public Vector4 DarkFilmic1;
+        public Vector4 DofPlanes;
+        public Vector4 DofParams;
+        public Vector4 DofDepth;
     }
 
 
     public class PostProcessor
     {
-        ComputeShader ReduceTo1DCS;
-        ComputeShader ReduceTo0DCS;
-        ComputeShader LumBlendCS;
-        ComputeShader BloomFilterBPHCS;
-        ComputeShader BloomFilterVCS;
-        PixelShader CopyPixelsPS;
-        VertexShader FinalPassVS;
-        PixelShader FinalPassPS;
-        UnitQuad FinalPassQuad;
-        InputLayout FinalPassLayout;
-        GpuVarsBuffer<PostProcessorReduceCSVars> ReduceCSVars;
-        GpuVarsBuffer<PostProcessorLumBlendCSVars> LumBlendCSVars;
-        GpuVarsBuffer<PostProcessorFilterBPHCSVars> FilterBPHCSVars;
-        GpuVarsBuffer<PostProcessorFilterVCSVars> FilterVCSVars;
-        GpuVarsBuffer<PostProcessorFinalPSVars> FinalPSVars;
+        public CodeWalker.World.CutsceneDepthOfField? DepthOfField { get; set; }
+        public Vector2 DepthProjection { get; set; }
+        public CodeWalker.World.Weather? ReferenceWeather { get; set; }
+        ComputeShader? ReduceTo1DCS;
+        ComputeShader? ReduceTo0DCS;
+        ComputeShader? LumBlendCS;
+        ComputeShader? BloomFilterBPHCS;
+        ComputeShader? BloomFilterVCS;
+        PixelShader? CopyPixelsPS;
+        VertexShader? FinalPassVS;
+        PixelShader? FinalPassPS;
+        UnitQuad? FinalPassQuad;
+        InputLayout? FinalPassLayout;
+        GpuVarsBuffer<PostProcessorReduceCSVars>? ReduceCSVars;
+        GpuVarsBuffer<PostProcessorLumBlendCSVars>? LumBlendCSVars;
+        GpuVarsBuffer<PostProcessorFilterBPHCSVars>? FilterBPHCSVars;
+        GpuVarsBuffer<PostProcessorFilterVCSVars>? FilterVCSVars;
+        GpuVarsBuffer<PostProcessorFinalPSVars>? FinalPSVars;
 
-        GpuTexture Primary;
+        GpuTexture? Primary;
+        WorldAtmosphere Atmosphere;
 
-        GpuBuffer<float> Reduction0;
-        GpuBuffer<float> Reduction1;
+        public void RenderAtmosphere(DeviceContext context, DeferredScene? scene, Camera camera, ShaderGlobalLights lights)
+        {
+            var target = scene?.SceneColour ?? Primary;
+            if (target == null) return;
+            Atmosphere.Render(context, target, camera, lights);
+            target?.SetRenderTarget(context);
+        }
 
-        GpuBuffer<float> LumBlendResult;
+        GpuBuffer<float>? Reduction0;
+        GpuBuffer<float>? Reduction1;
 
-        GpuBuffer<Vector4> Bloom0;
-        GpuBuffer<Vector4> Bloom1;
-        GpuTexture Bloom;
+        GpuBuffer<float>? LumBlendResult;
 
-        SamplerState SampleStatePoint;
-        SamplerState SampleStateLinear;
-        BlendState BlendState;
+        GpuBuffer<Vector4>? Bloom0;
+        GpuBuffer<Vector4>? Bloom1;
+        GpuTexture? Bloom;
+
+        SamplerState? SampleStatePoint;
+        SamplerState? SampleStateLinear;
+        BlendState? BlendState;
         long WindowSizeVramUsage = 0;
         int Width = 0;
         int Height = 0;
@@ -165,17 +185,17 @@ namespace CodeWalker.Rendering
 
         RawViewportF[] vpOld = new RawViewportF[15];
 
-        DeferredScene DefScene;
+        DeferredScene? DefScene;
         bool UsePrimary = true;
 
-        ShaderResourceView SceneColourSRV
+        ShaderResourceView? SceneColourSRV
         {
             get
             {
                 var srv = DefScene?.SceneColour?.SRV;
                 if (UsePrimary || (srv == null))
                 {
-                    srv = Primary.SRV;
+                    srv = Primary?.SRV;
                 }
                 return srv;
             }
@@ -184,7 +204,8 @@ namespace CodeWalker.Rendering
 
         public PostProcessor(DXManager dxman)
         {
-            var device = dxman.device;
+            var device = dxman.device ?? throw new InvalidOperationException("Graphics device is not initialized.");
+            Atmosphere = new WorldAtmosphere(device);
 
             byte[] bReduceTo1DCS = PathUtil.ReadAllBytes("Shaders\\PPReduceTo1DCS.cso");
             byte[] bReduceTo0DCS = PathUtil.ReadAllBytes("Shaders\\PPReduceTo0DCS.cso");
@@ -230,6 +251,7 @@ namespace CodeWalker.Rendering
         }
         public void Dispose()
         {
+            Atmosphere.Dispose();
             DisposeBuffers();
 
             if (BlendState != null)
@@ -328,15 +350,16 @@ namespace CodeWalker.Rendering
         {
             DisposeBuffers();
 
-            var device = dxman.device;
+            var device = dxman.device ?? throw new InvalidOperationException("Graphics device is not initialized.");
 
 
             int sc = dxman.multisamplecount;
             int sq = dxman.multisamplequality;
             Multisampled = (sc > 1);
 
-            int uw = Width = dxman.backbuffer.Description.Width;
-            int uh = Height = dxman.backbuffer.Description.Height;
+            var backbuffer = dxman.backbuffer ?? throw new InvalidOperationException("Back buffer is not initialized.");
+            int uw = Width = backbuffer.Description.Width;
+            int uh = Height = backbuffer.Description.Height;
             Viewport = new ViewportF();
             Viewport.Width = (float)uw;
             Viewport.Height = (float)uh;
@@ -439,7 +462,7 @@ namespace CodeWalker.Rendering
             context.Rasterizer.SetViewport(Viewport);
         }
 
-        public void Render(DXManager dxman, float elapsed, DeferredScene defScene)
+        public void Render(DXManager dxman, float elapsed, DeferredScene? defScene)
         {
             if (Primary == null || Reduction0 == null || Reduction1 == null || 
                 LumBlendResult == null || Bloom0 == null || Bloom1 == null || Bloom == null)
@@ -449,7 +472,7 @@ namespace CodeWalker.Rendering
             DefScene = defScene;
             UsePrimary = ((defScene?.SSAASampleCount ?? 2) > 1) || (defScene?.SceneColour == null);
 
-            var context = dxman.context;
+            var context = dxman.context ?? throw new InvalidOperationException("Graphics context is not initialized.");
 
             if (Multisampled && UsePrimary)
             {
@@ -457,7 +480,7 @@ namespace CodeWalker.Rendering
                 context.ResolveSubresource(Primary.TextureMS, sr, Primary.Texture, sr, Format.R32G32B32A32_Float);
             }
 
-            context.OutputMerger.SetRenderTargets((RenderTargetView)null);
+            context.OutputMerger.SetRenderTargets((RenderTargetView?)null);
 
             if (FixedAvgLuminance.HasValue) WriteFixedLuminance(context, FixedAvgLuminance.Value);
             else ProcessLuminance(context);
@@ -477,6 +500,7 @@ namespace CodeWalker.Rendering
 
         private void WriteFixedLuminance(DeviceContext context, float avgLum)
         {
+            if (LumBlendResult == null) return;
             // FinalPass computes fLum = lum[0] * invPixelCount (invPixelCount = 1/(81*81) here). To make the
             // average read back as avgLum, store lum[0] = avgLum / invPixelCount into the 1-float buffer.
             float inv = CS_FULL_PIXEL_REDUCTION ? (1.0f / (Width * Height)) : (1.0f / (81 * 81));
@@ -486,6 +510,7 @@ namespace CodeWalker.Rendering
 
         private void ProcessLuminance(DeviceContext context)
         {
+            if (ReduceCSVars == null || Reduction0 == null || Reduction1 == null || LumBlendCSVars == null || LumBlendResult == null) return;
             var srv = SceneColourSRV;
 
             uint dimx, dimy;
@@ -551,6 +576,7 @@ namespace CodeWalker.Rendering
         }
         private void ProcessBloom(DeviceContext context)
         {
+            if (FilterBPHCSVars == null || FilterVCSVars == null || Bloom0 == null || Bloom1 == null || Bloom == null || LumBlendResult == null) return;
             if (EnableBloom)
             {
                 var srv = SceneColourSRV;
@@ -592,13 +618,20 @@ namespace CodeWalker.Rendering
         }
         private void FinalPass(DeviceContext context)
         {
+            if (LumBlendResult == null || FinalPSVars == null || FinalPassQuad == null) return;
             context.Rasterizer.SetViewport(Viewport);
             context.VertexShader.Set(FinalPassVS);
             context.PixelShader.Set(FinalPassPS);
 
             var srv = SceneColourSRV;
 
-            context.PixelShader.SetShaderResources(0, srv, LumBlendResult.SRV, EnableBloom ? Bloom.SRV : null);
+            var depth = DefScene?.SceneColour?.DepthSRV ?? Primary?.DepthSRV;
+            context.PixelShader.SetShaderResources(0, srv, LumBlendResult.SRV, EnableBloom ? Bloom?.SRV : null, depth);
+            var dof = DepthOfField;
+            bool useDof = dof?.IsValid == true && depth != null;
+            FinalPSVars.Vars.DofPlanes = useDof ? dof!.Planes : Vector4.Zero;
+            FinalPSVars.Vars.DofParams = useDof ? new Vector4(dof!.Strength, dof.BlurRadius / Width, dof.BlurRadius / Height, 1) : Vector4.Zero;
+            FinalPSVars.Vars.DofDepth = new Vector4(DepthProjection, 0, 0);
 
             if (CS_FULL_PIXEL_REDUCTION)
             {
@@ -607,6 +640,34 @@ namespace CodeWalker.Rendering
             else
             {
                 FinalPSVars.Vars.invPixelCount = new Vector4(1.0f / (81 * 81));
+            }
+            var weather = ReferenceWeather;
+            bool reference = weather?.Inited == true;
+            FinalPSVars.Vars.invPixelCount.Y = reference ? 1 : 0;
+            if (weather?.Inited == true)
+            {
+                FinalPSVars.Vars.ExposureParams = new Vector4(weather.GetDynamicValue("postfx_exposure"),
+                    weather.GetDynamicValue("postfx_exposure_min"), weather.GetDynamicValue("postfx_exposure_max"),
+                    weather.GetDynamicValue("postfx_intensity_bloom"));
+                var bright0 = new Vector4(0.22f, 0.3f, 0.1f, 0.2f);
+                var bright1 = new Vector4(0.01f, 0.3f, 4, -0.5f);
+                var dark0 = bright0;
+                var dark1 = new Vector4(0, 0.3f, 4, 3);
+                void OverrideFilmic(string suffix, ref Vector4 p0, ref Vector4 p1)
+                {
+                    if (weather.GetDynamicValue("postfx_tonemap_filmic_override" + suffix) <= 0) return;
+                    string prefix = "postfx_tonemap_filmic_";
+                    p0 = new Vector4(weather.GetDynamicValue(prefix + "a" + suffix), weather.GetDynamicValue(prefix + "b" + suffix),
+                        weather.GetDynamicValue(prefix + "c" + suffix), weather.GetDynamicValue(prefix + "d" + suffix));
+                    p1 = new Vector4(weather.GetDynamicValue(prefix + "e" + suffix), weather.GetDynamicValue(prefix + "f" + suffix),
+                        weather.GetDynamicValue(prefix + "w" + suffix), weather.GetDynamicValue(prefix + "exposure" + (suffix == "" ? "_dark" : suffix)));
+                }
+                OverrideFilmic("_bright", ref bright0, ref bright1);
+                OverrideFilmic("", ref dark0, ref dark1);
+                FinalPSVars.Vars.BrightFilmic0 = bright0;
+                FinalPSVars.Vars.BrightFilmic1 = bright1;
+                FinalPSVars.Vars.DarkFilmic0 = dark0;
+                FinalPSVars.Vars.DarkFilmic1 = dark1;
             }
             FinalPSVars.Update(context);
             FinalPSVars.SetPSCBuffer(context, 0);
@@ -618,7 +679,7 @@ namespace CodeWalker.Rendering
 
             context.VertexShader.Set(null);
             context.PixelShader.Set(null);
-            context.PixelShader.SetShaderResources(0, null, null, null);
+            context.PixelShader.SetShaderResources(0, null, null, null, null);
             context.PixelShader.SetSamplers(0, null, null);
         }
 
@@ -656,7 +717,7 @@ namespace CodeWalker.Rendering
         }
 
 
-        private void Compute(DeviceContext context, ComputeShader cs, Buffer constantBuffer, UnorderedAccessView unorderedAccessView, int X, int Y, int Z, params ShaderResourceView[] resourceViews)
+        private void Compute(DeviceContext context, ComputeShader? cs, Buffer? constantBuffer, UnorderedAccessView? unorderedAccessView, int X, int Y, int Z, params ShaderResourceView?[] resourceViews)
         {
             context.ComputeShader.Set(cs);
             context.ComputeShader.SetShaderResources(0, resourceViews);
@@ -674,14 +735,15 @@ namespace CodeWalker.Rendering
 
             context.Dispatch(X, Y, Z);
 
-            ShaderResourceView[] ppSRVNULL = { null, null, null };
+            ShaderResourceView?[] ppSRVNULL = { null, null, null };
             context.ComputeShader.SetUnorderedAccessView(0, null);
             context.ComputeShader.SetShaderResources(0, 3, ppSRVNULL);
             context.ComputeShader.SetConstantBuffer(0, null);
         }
 
-        private void CopyPixels(DeviceContext context, int w, int h, ShaderResourceView fromSRV, RenderTargetView toRTV)
+        private void CopyPixels(DeviceContext context, int w, int h, ShaderResourceView? fromSRV, RenderTargetView? toRTV)
         {
+            if (ReduceCSVars == null || FinalPassQuad == null || fromSRV == null || toRTV == null) return;
             context.VertexShader.Set(FinalPassVS);
             context.PixelShader.Set(CopyPixelsPS);
 

@@ -21,18 +21,22 @@ namespace CodeWalker.World
         private GameFileCache GameFileCache;
         private AudioDatabase AudioDatabase;
 
-        private Cutscene Cutscene = null;
+        private Cutscene? Cutscene = null;
 
         private bool AnimateCamera = true;
         private bool EnableSubtitles = true;
         private bool EnableAudio = true;
+        private AudioPlayer? ActiveAudioPlayer;
+        private bool AudioRunning;
         private bool Playing = false;
         private bool PositionScrolled = false;
         private float Volume = 0.5f;
+        private float? SavedCameraFieldOfView;
+        private string? DisplayedSubtitle;
 
         class CutsceneDropdownItem
         {
-            public RpfEntry RpfEntry { get; set; }
+            public required RpfEntry RpfEntry { get; set; }
 
             public override string ToString()
             {
@@ -63,17 +67,35 @@ namespace CodeWalker.World
                     {
                         if (EnableAudio) // handle looping cutscenes, loop the audio also
                         {
-                            BeginInvoke(new Action(() => PlayAudio(Cutscene.PlaybackTime)));
+                            PlayAudio(Cutscene.PlaybackTime);
                         }
                     }
                 }
 
+                bool shouldPlayAudio = Playing && EnableAudio && Cutscene.AudioActive && Cutscene.SoundPlayer != null;
+                if (shouldPlayAudio != AudioRunning || (shouldPlayAudio && ActiveAudioPlayer != Cutscene.SoundPlayer))
+                {
+                    if (shouldPlayAudio) PlayAudio(Cutscene.PlaybackTime);
+                    else StopAudio();
+                }
+                WorldForm.Renderer.CutsceneDepthOfField = AnimateCamera ? Cutscene.DepthOfField : null;
                 if (AnimateCamera && (Cutscene.CameraObject != null))
                 {
                     var pos = Cutscene.CameraObject.Position;
                     var rot = Cutscene.CameraObject.Rotation;
 
-                    WorldForm.SetCameraTransform(pos, rot);
+                    var camera = WorldForm.Renderer.camera;
+                    // Cutscene poses are temporary. Keep the editor follow/orbit state intact
+                    // so SaveSettings never persists an authored cutscene orientation.
+                    camera.SetAuthoredPose(pos, rot);
+                    SavedCameraFieldOfView ??= camera.FieldOfView;
+                    var fov = Cutscene.CameraFieldOfViewDegrees is float degrees
+                        ? degrees * (MathF.PI / 180.0f) : SavedCameraFieldOfView.Value;
+                    if (camera.FieldOfView != fov)
+                    {
+                        camera.FieldOfView = fov;
+                        camera.UpdateProj = true;
+                    }
 
                     if (Cutscene.CameraClipUpdate)
                     {
@@ -102,13 +124,13 @@ namespace CodeWalker.World
 
 
 
-        private void SelectCutscene(CutsceneDropdownItem dditem)
+        private void SelectCutscene(CutsceneDropdownItem? dditem)
         {
             Cursor = Cursors.WaitCursor;
             Task.Run(() =>
             {
-                CutFile cutFile = null;
-                Cutscene cutscene = null;
+                CutFile? cutFile = null;
+                Cutscene? cutscene = null;
 
                 if (GameFileCache.IsInited)
                 {
@@ -122,10 +144,9 @@ namespace CodeWalker.World
                     {
 
                         cutFile = new CutFile(entry);
-                        GameFileCache.RpfMan.LoadFile(cutFile, entry);
+                        (GameFileCache.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.")).LoadFile(cutFile, entry);
 
-                        cutscene = new Cutscene();
-                        cutscene.Init(cutFile, GameFileCache, WorldForm, AudioDatabase);
+                        cutscene = new Cutscene(cutFile, GameFileCache, WorldForm, AudioDatabase);
 
                     }
                 }
@@ -134,7 +155,7 @@ namespace CodeWalker.World
 
             });
         }
-        private void CutsceneLoaded(Cutscene cs)
+        private void CutsceneLoaded(Cutscene? cs)
         {
             if (InvokeRequired)
             {
@@ -148,6 +169,9 @@ namespace CodeWalker.World
             }
 
             DisposeAudio();
+            RestoreCameraFieldOfView();
+            WorldForm.SetCutsceneSubtitle(null);
+            DisplayedSubtitle = null;
 
             Cutscene = cs;
 
@@ -163,7 +187,7 @@ namespace CodeWalker.World
 
             LoadTreeView(cs);
 
-            TimeTrackBar.Maximum = (int)(cs.Duration * 10.0f);
+            TimeTrackBar.Maximum = (int)((cs?.Duration ?? 0.0f) * 10.0f);
             TimeTrackBar.Value = 0;
             UpdateTimeLabel();
 
@@ -171,13 +195,13 @@ namespace CodeWalker.World
         }
 
 
-        private void LoadTreeView(Cutscene cs)
+        private void LoadTreeView(Cutscene? cs)
         {
             CutsceneTreeView.Nodes.Clear();
 
             var cutFile = cs?.CutFile;
             var cf = cutFile?.CutsceneFile2;
-            if (cf != null)
+            if (cs != null && cutFile != null && cf != null)
             {
                 var csnode = CutsceneTreeView.Nodes.Add(cutFile.FileEntry?.Name);
                 csnode.Tag = cs;
@@ -218,6 +242,24 @@ namespace CodeWalker.World
 
 
 
+                var unsupported = cs.UnsupportedEventTypes;
+                if (unsupported.Length > 0)
+                {
+                    var limitations = csnode.Nodes.Add("Playback limitations (partial or unavailable features)");
+                    foreach (var type in unsupported)
+                        limitations.Nodes.Add($"{type} ({(int)type}): {Cutscene.GetEventLimitation(type)}");
+                    limitations.Expand();
+                }
+                if ((cs.SceneObjects?.Values.Any(o => o.Light != null) == true) || cs.PlayEvents.Any(e => e?.iEventId == CutEventType.EnableCamera))
+                {
+                    var effects = csnode.Nodes.Add("Visual effects (partial support)");
+                    if ((cs.SceneObjects?.Values.Any(o => o.Light != null) == true))
+                        effects.Nodes.Add("Point/spot lights require deferred rendering and lights enabled; attachments, shadows, coronas and volume effects are pending");
+                    if (cs.PlayEvents.Any(e => e?.iEventId == CutEventType.EnableCamera))
+                        effects.Nodes.Add("DOF requires HDR and Animate camera: four-plane focus and day/night blur radius supported; optical bokeh controls are pending");
+                }
+                if (cs.SceneObjects?.Values.Any(o => o.CutObject is CutPedModelObject) == true)
+                    csnode.Nodes.Add("Merged facial expressions enabled; separate face overlays and advanced expression operations remain limited");
                 csnode.Expand();
                 CutsceneTreeView.SelectedNode = csnode;
             }
@@ -237,54 +279,80 @@ namespace CodeWalker.World
             var tim = Cutscene?.PlaybackTime ?? 0.0f;
             var dur = Cutscene?.Duration ?? 0.0f;
             TimeLabel.Text = tim.ToString("0.00") + " / " + dur.ToString("0.00");
+            UpdateSubtitle();
+        }
+
+        private void UpdateSubtitle()
+        {
+            var text = Cutscene?.CurrentSubtitle;
+            if (text == DisplayedSubtitle) return;
+            DisplayedSubtitle = text;
+            WorldForm.SetCutsceneSubtitle(text);
         }
 
 
 
         private void PlayAudio(float playTime = 0.0f)
         {
-            StopAudio();
-            if (!EnableAudio) return;
-            var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            lock (WorldForm.Renderer.RenderSyncRoot)
             {
-                sp.SetVolume(Volume);
-                sp.Play(Cutscene.SoundStartOffset + playTime);
+                StopAudio();
+                if (!EnableAudio || Cutscene?.AudioActive != true) return;
+                var sp = Cutscene?.SoundPlayer;
+                if (Cutscene != null && sp != null)
+                {
+                    ActiveAudioPlayer = sp;
+                    AudioRunning = true;
+                    sp.SetVolume(Volume);
+                    sp.Play(Cutscene.SoundStartOffset + playTime);
+                }
             }
         }
         private void StopAudio()
         {
-            var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            lock (WorldForm.Renderer.RenderSyncRoot)
             {
-                sp.Stop();
+                ActiveAudioPlayer?.Stop();
+                ActiveAudioPlayer = null;
+                AudioRunning = false;
             }
         }
         private void PauseAudio()
         {
-            if (!EnableAudio) return;
-            var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            lock (WorldForm.Renderer.RenderSyncRoot)
             {
-                sp.Pause();
+                if (!EnableAudio) return;
+                var sp = Cutscene?.SoundPlayer;
+                if (Cutscene != null && sp != null)
+                {
+                    sp.Pause();
+                }
             }
         }
         private void ResumeAudio()
         {
-            if (!EnableAudio) return;
-            var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            lock (WorldForm.Renderer.RenderSyncRoot)
             {
-                sp.Resume();
+                if (!EnableAudio) return;
+                var sp = Cutscene?.SoundPlayer;
+                if (Cutscene != null && sp != null)
+                {
+                    sp.Resume();
+                }
             }
         }
         private void DisposeAudio()
         {
-            var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            lock (WorldForm.Renderer.RenderSyncRoot)
             {
-                sp.Stop();
-                sp.DisposeAudio();
+                StopAudio();
+                if (Cutscene == null) return;
+                foreach (var player in Cutscene.SceneObjects.Values.Select(o => o.SoundPlayer)
+                    .Append(Cutscene.SoundPlayer).OfType<AudioPlayer>().Distinct())
+                {
+                    player.Stop();
+                    player.DisposeAudio();
+                }
             }
         }
 
@@ -294,6 +362,7 @@ namespace CodeWalker.World
             if (!GameFileCache.IsInited) return;//what to do here?
 
             var rpfman = GameFileCache.RpfMan;
+            if (rpfman == null) return;
             var rpflist = rpfman.AllRpfs; //loadedOnly ? gfc.ActiveMapRpfFiles.Values.ToList() :
 
             var dditems = new List<CutsceneDropdownItem>();
@@ -303,8 +372,7 @@ namespace CodeWalker.World
                 {
                     if (entry.NameLower.EndsWith(".cut"))
                     {
-                        var dditem = new CutsceneDropdownItem();
-                        dditem.RpfEntry = entry;
+                        var dditem = new CutsceneDropdownItem { RpfEntry = entry };
                         dditems.Add(dditem);
                     }
                 }
@@ -319,6 +387,18 @@ namespace CodeWalker.World
         private void CutsceneForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             DisposeAudio();
+            RestoreCameraFieldOfView();
+            WorldForm.SetCutsceneSubtitle(null);
+        }
+
+        private void RestoreCameraFieldOfView()
+        {
+            WorldForm.Renderer.CutsceneDepthOfField = null;
+            WorldForm.Renderer.camera.ClearAuthoredPose();
+            if (SavedCameraFieldOfView is not float fov) return;
+            WorldForm.Renderer.camera.FieldOfView = fov;
+            WorldForm.Renderer.camera.UpdateProj = true;
+            SavedCameraFieldOfView = null;
         }
 
         private void CutsceneForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -343,6 +423,7 @@ namespace CodeWalker.World
 
             if (!AnimateCamera)
             {
+                RestoreCameraFieldOfView();
                 //WorldForm?.ResetCameraClipPlanes();
             }
             else
@@ -361,6 +442,7 @@ namespace CodeWalker.World
             {
                 Cutscene.EnableSubtitles = EnableSubtitles;
             }
+            UpdateSubtitle();
         }
 
         private void AudioCheckBox_CheckedChanged(object sender, EventArgs e)
@@ -369,12 +451,13 @@ namespace CodeWalker.World
             if (!EnableAudio)
             {
                 StopAudio();
+                UpdateSubtitle();
             }
             else
             {
                 if (Playing && (Cutscene != null))
                 {
-                    PlayAudio(Cutscene.PlaybackTime);
+                    PlayAudio(Cutscene?.PlaybackTime ?? 0.0f);
                 }
             }
         }
@@ -387,13 +470,14 @@ namespace CodeWalker.World
                 PlayStopButton.Text = "Play";
                 PlaybackTimer.Enabled = false;
                 StopAudio();
+                UpdateSubtitle();
             }
             else
             {
                 Playing = true;
                 PlayStopButton.Text = "Stop";
                 PlaybackTimer.Enabled = true;
-                PlayAudio(Cutscene.PlaybackTime);
+                PlayAudio(Cutscene?.PlaybackTime ?? 0.0f);
             }
         }
 
@@ -414,7 +498,7 @@ namespace CodeWalker.World
 
             if (Cutscene != null)
             {
-                Cutscene.Update(t);
+                lock (WorldForm.Renderer.RenderSyncRoot) Cutscene.Update(t);
 
                 if (Playing)
                 {
@@ -442,7 +526,7 @@ namespace CodeWalker.World
 
             if (Cutscene != null)
             {
-                Cutscene.Update(t);
+                lock (WorldForm.Renderer.RenderSyncRoot) Cutscene.Update(t);
 
                 if (Playing)
                 {
@@ -462,7 +546,7 @@ namespace CodeWalker.World
         {
             Volume = VolumeTrackBar.Value / 100.0f;
             var sp = Cutscene?.SoundPlayer;
-            if (sp != null)
+            if (Cutscene != null && sp != null)
             {
                 sp.SetVolume(Volume);
             }
@@ -472,51 +556,86 @@ namespace CodeWalker.World
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class Cutscene
     {
-        public CutFile CutFile { get; set; } = null;
-        private GameFileCache GameFileCache = null;
-        private WorldForm WorldForm = null;
-        private AudioDatabase AudioDB = null;
+        public CutFile CutFile { get; set; }
+        private GameFileCache GameFileCache;
+        private WorldForm WorldForm;
+        private AudioDatabase AudioDB;
 
-        public float[] CameraCutList { get; set; } = null;
-        public YcdFile[] Ycds { get; set; } = null;
+        public float[] CameraCutList { get; set; } = [];
+        public YcdFile?[] Ycds { get; set; } = [];
 
 
         public float Duration { get; set; } = 0.0f;
         public float PlaybackTime { get; set; } = 0.0f;
         private bool Seeking = false;
+        private bool? EventAudioActive;
+        public bool AudioActive => EventAudioActive ?? !PlayEvents.Any(e => e?.iEventId == CutEventType.EnableAudio);
+        private readonly Dictionary<MetaHash, YcdFile?> RequestedAnimationDictionaries = new();
 
         public bool EnableSubtitles { get; set; } = true;
+        private string? SubtitleText;
+        private float SubtitleEndTime;
+        public string? CurrentSubtitle => EnableSubtitles && PlaybackTime < SubtitleEndTime ? SubtitleText : null;
 
 
-        public Dictionary<int, CutObject> Objects { get; set; } = null;
-        public Dictionary<int, CutsceneObject> SceneObjects { get; set; } = null;
-        public CutEvent[] LoadEvents { get; set; } = null;
-        public CutEvent[] PlayEvents { get; set; } = null;
-        public CutConcatData[] ConcatDatas { get; set; } = null;
+        public Dictionary<int, CutObject> Objects { get; set; } = new();
+        public Dictionary<int, CutsceneObject> SceneObjects { get; set; } = new();
+        public CutEvent[] LoadEvents { get; set; } = [];
+        public CutEvent[] PlayEvents { get; set; } = [];
+        public CutConcatData[] ConcatDatas { get; set; } = [];
+
+        public CutEventType[] UnsupportedEventTypes => LoadEvents.Concat(PlayEvents)
+            .Where(e => e != null && !HasPlaybackHandler(e.iEventId))
+            .Select(e => e.iEventId).Distinct().OrderBy(e => (int)e).ToArray();
+
+        public static string GetEventLimitation(CutEventType type) => type switch
+        {
+            CutEventType.EnableBlockBounds or CutEventType.DisableBlockBounds => "Ambient population blocking; the viewer has no population simulation",
+            CutEventType.CameraUnk2 => "Catchup to the gameplay camera; no gameplay camera in the viewer",
+            CutEventType.CameraUnk8 => "First-person gameplay blend-out; no first-person gameplay camera in the viewer",
+            CutEventType.CameraShadowCascade => "Authored cascade bounds are not connected to the viewer's shadow renderer",
+            CutEventType.CameraUnk4 => "Game dynamic shadow-depth mode is not implemented",
+            CutEventType.CameraUnk7 => "Game cascade-shadow session reset is not implemented",
+            _ => "Not implemented"
+        };
+
+        private static bool HasPlaybackHandler(CutEventType type) => type is
+            CutEventType.LoadScene or CutEventType.LoadAudio or CutEventType.LoadModels or
+            CutEventType.LoadGxt2 or CutEventType.UnloadModels or CutEventType.EnableHideObject or
+            CutEventType.DisableHideObject or CutEventType.Subtitle or CutEventType.PedVariation or
+            CutEventType.CameraCut or CutEventType.HideHiddenObject or CutEventType.ShowHiddenObject or CutEventType.HideSubtitle or
+            CutEventType.EnableCamera or CutEventType.CameraUnk1 or CutEventType.EnableLight or CutEventType.DisableLight or
+            CutEventType.EnableAnimation or CutEventType.DisableAnimation or CutEventType.LoadAnimation or
+            CutEventType.EnableAudio or CutEventType.DisableAudio;
 
         public int NextLoadEvent { get; set; } = 0;
         public int NextPlayEvent { get; set; } = 0;
         public int NextCameraCut { get; set; } = 0;
         public int NextConcatData { get; set; } = 0;
 
-        public Gxt2File Gxt2File { get; set; } = null;
+        public Gxt2File? Gxt2File { get; set; } = null;
 
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; }
 
 
-        public CutsceneObject CameraObject = null;
+        public CutsceneObject? CameraObject = null;
         public float CameraNearClip { get; set; } = 0.5f;
         public float CameraFarClip { get; set; } = 12000.0f;
+        public CutsceneDepthOfField? DepthOfField { get; private set; }
+        private bool DepthOfFieldEnabled;
+        public float? CameraFieldOfViewDegrees { get; private set; }
         public bool CameraClipUpdate = false;//signal to the form to update the camera clip planes
         public Quaternion CameraRotationOffset = Quaternion.RotationAxis(Vector3.UnitX, -1.57079632679f) * Quaternion.RotationAxis(Vector3.UnitZ, 3.141592653f);
+        private Vector3 CameraTrackPosition;
+        private Quaternion CameraTrackRotation = Quaternion.Identity;
 
-        public AudioPlayer SoundPlayer { get; set; } = null;
+        public AudioPlayer? SoundPlayer { get; set; } = null;
         public float SoundStartOffset { get; set; }
 
 
 
-        public void Init(CutFile cutFile, GameFileCache gfc, WorldForm wf, AudioDatabase adb)
+        public Cutscene(CutFile cutFile, GameFileCache gfc, WorldForm wf, AudioDatabase adb)
         {
             CutFile = cutFile;
             GameFileCache = gfc;
@@ -572,6 +691,8 @@ namespace CodeWalker.World
 
         public void Update(float newTime)
         {
+            if (!float.IsFinite(newTime)) return;
+            newTime = Math.Max(0.0f, newTime);
             if (newTime > Duration)
             {
                 newTime = 0.0f; //stop or loop?
@@ -585,14 +706,39 @@ namespace CodeWalker.World
             {
                 //reset playback to beginning, and seek to newTime
                 Seeking = true;
-                RaiseEvents(Duration);//raise all events up to the end first
                 PlaybackTime = 0.0f;
                 NextLoadEvent = 0;
                 NextPlayEvent = 0;
                 NextCameraCut = 0;
                 NextConcatData = 0;
-                RaiseEvents(newTime);
-                Seeking = false;
+                Position = CutFile.CutsceneFile2?.vOffset ?? Vector3.Zero;
+                Rotation = Quaternion.RotationAxis(Vector3.UnitZ, CutFile.CutsceneFile2?.fRotation ?? 0.0f);
+                CameraObject = null;
+                EventAudioActive = null;
+                SoundPlayer = null;
+                SoundStartOffset = 0;
+                DepthOfFieldEnabled = false;
+                SubtitleText = null;
+                SubtitleEndTime = 0;
+                CameraTrackPosition = Vector3.Zero;
+                CameraTrackRotation = Quaternion.Identity;
+                CameraFieldOfViewDegrees = null;
+                CameraNearClip = 0.5f;
+                CameraFarClip = 12000.0f;
+                CameraClipUpdate = true;
+                foreach (var obj in SceneObjects.Values)
+                {
+                    obj.Enabled = false;
+                    obj.Position = Vector3.Zero;
+                    obj.Rotation = Quaternion.Identity;
+                    obj.AnimClip = null;
+                    obj.Light?.Reset();
+                    obj.AnimationReferences = 0;
+                    obj.AnimationControlled = false;
+                    obj.AnimationPartialHash = 0;
+                }
+                try { RaiseEvents(newTime); }
+                finally { Seeking = false; }
             }
 
             PlaybackTime = newTime;
@@ -609,7 +755,7 @@ namespace CodeWalker.World
             float cutOffset = newTime - cutStart;//offset into the current cut
 
 
-            void updateObjectTransform(CutsceneObject obj, ClipMapEntry cme, ushort boneTag, byte posTrack, byte rotTrack)
+            void updateObjectTransform(CutsceneObject obj, ClipMapEntry? cme, ushort boneTag, byte posTrack, byte rotTrack)
             {
                 if (cme != null)
                 {
@@ -623,6 +769,7 @@ namespace CodeWalker.World
                             var r = canim.Animation.FindBoneIndex(boneTag, rotTrack);
                             if (p >= 0) obj.Position = canim.Animation.EvaluateVector4(f, p, true).XYZ();
                             if (r >= 0) obj.Rotation = canim.Animation.EvaluateQuaternion(f, r, true);
+                            if (ReferenceEquals(obj, CameraObject)) UpdateCameraFieldOfView(canim.Animation, f);
                         }
                     }
                     else if (cme.Clip is ClipAnimationList alist)
@@ -631,12 +778,14 @@ namespace CodeWalker.World
                         {
                             foreach (var anim in alist.Animations.Data)
                             {
+                                if (anim.Animation == null) continue;
                                 var t = anim.GetPlaybackTime(cutOffset);
                                 var f = anim.Animation.GetFramePosition(t);
                                 var p = anim.Animation.FindBoneIndex(boneTag, posTrack);
                                 var r = anim.Animation.FindBoneIndex(boneTag, rotTrack);
                                 if (p >= 0) obj.Position = anim.Animation.EvaluateVector4(f, p, true).XYZ();
                                 if (r >= 0) obj.Rotation = anim.Animation.EvaluateQuaternion(f, r, true);
+                                if (ReferenceEquals(obj, CameraObject)) UpdateCameraFieldOfView(anim.Animation, f);
                             }
                         }
                     }
@@ -646,20 +795,43 @@ namespace CodeWalker.World
 
 
 
-            var ycd = (cutIndex < (Ycds?.Length ?? 0)) ? Ycds[cutIndex] : null;
+            var ycd = (cutIndex < Ycds.Length) ? Ycds[cutIndex] : null;
+            CameraFieldOfViewDegrees = null;
+            DepthOfField = null;
+            foreach (var item in SceneObjects.Values)
+            {
+                ClipMapEntry? lightClip = null;
+                lightClip = ResolveAnimation(item, ycd, cutIndex, item.Name);
+                item.Light?.Update(lightClip, cutOffset, item.Enabled);
+            }
             if (ycd?.CutsceneMap != null)
             {
-                ClipMapEntry cme = null;
+                ClipMapEntry? cme = null;
 
                 if (CameraObject != null)
                 {
-                    ycd.CutsceneMap.TryGetValue(CameraObject.Name, out cme);
-
-                    updateObjectTransform(CameraObject, cme, 0, 7, 8);
-
+                    cme = ResolveAnimation(CameraObject, ycd, cutIndex, CameraObject.Name);
+                    if (DepthOfFieldEnabled &&
+                        CutsceneAnimationTracks.TryEvaluate(cme, cutOffset, 43, out var nearOut) &&
+                        CutsceneAnimationTracks.TryEvaluate(cme, cutOffset, 44, out var nearIn) &&
+                        CutsceneAnimationTracks.TryEvaluate(cme, cutOffset, 45, out var farOut) &&
+                        CutsceneAnimationTracks.TryEvaluate(cme, cutOffset, 46, out var farIn))
+                    {
+                        int hour = (int)(WorldForm?.Renderer.timecycle.CurrentHour ?? 12) % 24;
+                        bool useDay = ((CutFile.CutsceneFile2?.DayCoCHours ?? 0) & (1u << hour)) != 0;
+                        float radius = CutsceneAnimationTracks.EvaluateBlurRadius(cme, cutOffset, useDay);
+                        var dof = new CutsceneDepthOfField(new Vector4(nearOut.X, nearIn.X, farIn.X, farOut.X), 1, radius);
+                        if (dof.IsValid) DepthOfField = dof;
+                    }
 
                     if (cme != null)
                     {
+                        // Keep local animation values separate from the rendered world transform.
+                        CameraObject.Position = CameraTrackPosition;
+                        CameraObject.Rotation = CameraTrackRotation;
+                        updateObjectTransform(CameraObject, cme, 0, 7, 8);
+                        CameraTrackPosition = CameraObject.Position;
+                        CameraTrackRotation = CameraObject.Rotation;
                         var pos = Position;
                         var rot = Rotation;
                         pos = pos + rot.Multiply(CameraObject.Position);
@@ -674,14 +846,14 @@ namespace CodeWalker.World
                 {
                     foreach (var obj in SceneObjects.Values)
                     {
-                        if (obj.Enabled == false) continue;
+                        if (obj.Enabled == false || (obj.AnimationControlled && obj.AnimationReferences == 0)) continue;
 
                         var pos = Position;
                         var rot = Rotation;
                         var animate = (obj.Ped != null) || (obj.Prop != null) || (obj.Vehicle != null) || (obj.Weapon != null);
                         if (animate)
                         {
-                            ycd.CutsceneMap.TryGetValue(obj.AnimHash, out cme);
+                            cme = ResolveAnimation(obj, ycd, cutIndex, obj.AnimHash);
                             if (cme != null)
                             {
                                 cme.OverridePlayTime = true;
@@ -698,6 +870,12 @@ namespace CodeWalker.World
                             obj.Ped.Rotation = rot;
                             obj.Ped.UpdateEntity();
                             obj.Ped.AnimClip = cme;
+                            obj.Ped.FaceAnimClip = ResolveFaceAnimation(obj, ycd);
+                            if (obj.Ped.FaceAnimClip is { } faceClip)
+                            {
+                                faceClip.OverridePlayTime = true;
+                                faceClip.PlayTime = cutOffset;
+                            }
                         }
                         if (obj.Prop != null)
                         {
@@ -728,14 +906,61 @@ namespace CodeWalker.World
         }
 
 
+        private static ClipMapEntry? ResolveFaceAnimation(CutsceneObject obj, YcdFile ycd)
+        {
+            if (obj.CutObject is not CutPedModelObject { bFoundFaceAnimation: true, bFaceAndBodyAreMerged: false } ped) return null;
+            // These are authored names, not a guessed suffix on the body clip.
+            MetaHash name = ped.bOverrideFaceAnimation ? ped.overrideFaceAnimationFilename : ped.faceAnimationNodeName;
+            if (name == 0) return null;
+            if (ycd.CutsceneMap.TryGetValue(name, out var clip)) return clip;
+            return ycd.ClipMap.TryGetValue(name, out clip) ? clip : null;
+        }
+
+        private ClipMapEntry? ResolveAnimation(CutsceneObject obj, YcdFile? ycd, int section, MetaHash fallback)
+        {
+            if (obj.AnimationControlled && obj.AnimationReferences == 0) return null;
+            uint partial = obj.AnimationControlled ? obj.AnimationPartialHash : obj.DefaultAnimationPartialHash;
+            if (partial != 0)
+            {
+                bool merged = obj.CutObject is CutPedModelObject { bFoundFaceAnimation: true, bFaceAndBodyAreMerged: true };
+                uint hash = CutsceneAnimationTracks.SectionHash(partial, section, merged);
+                ClipMapEntry? clip;
+                if (ycd != null && ycd.ClipMap.TryGetValue(hash, out clip)) return clip;
+                foreach (var requested in RequestedAnimationDictionaries.Keys)
+                {
+                    var dictionary = GameFileCache?.GetYcd(requested);
+                    if (dictionary?.Loaded == true && dictionary.ClipMap.TryGetValue(hash, out clip)) return clip;
+                }
+            }
+            return ycd != null && ycd.CutsceneMap.TryGetValue(fallback, out var value) ? value : null;
+        }
+
+        private void UpdateCameraFieldOfView(Animation animation, Animation.FramePosition frame)
+        {
+            // cranimation/framedata.h: kTrackCameraFieldOfView = 27.
+            // camAnimatedCamera::ExtractFov reads this scalar in degrees.
+            int index = animation.FindBoneIndex(0, 27);
+            if (index < 0) return;
+            float degrees = animation.EvaluateVector4(frame, index, true).X;
+            if (float.IsFinite(degrees) && degrees > 0.0f && degrees < 180.0f)
+                CameraFieldOfViewDegrees = degrees;
+        }
+
         public void Render(Renderer renderer)
         {
+            foreach (var item in SceneObjects.Values)
+            {
+                // Bone-attached lights need the final animated skeleton transform; do not place them at the scene origin.
+                if (item.Light is { Visible: true, AttachParentId: <= 0 } light)
+                    renderer.RenderCutsceneLight(light.Light, Position, Rotation);
+            }
+
 
             if (SceneObjects != null)
             {
                 foreach (var obj in SceneObjects.Values)
                 {
-                    if (obj.Enabled == false) continue;
+                    if (obj.Enabled == false || (obj.AnimationControlled && obj.AnimationReferences == 0)) continue;
 
                     if (obj.Ped != null)
                     {
@@ -756,7 +981,7 @@ namespace CodeWalker.World
                 }
                 foreach (var obj in SceneObjects.Values)
                 {
-                    if (obj.Enabled == false) continue;
+                    if (obj.Enabled == false || (obj.AnimationControlled && obj.AnimationReferences == 0)) continue;
 
                     if (obj.HideEntity != null)
                     {
@@ -774,29 +999,23 @@ namespace CodeWalker.World
         private void RaiseEvents(float upToTime)
         {
 
+            // Merge the two ordered streams so late load events cannot run
+            // before earlier playback events when advancing by a large step.
+            while (true)
+            {
+                while (NextLoadEvent < LoadEvents.Length && LoadEvents[NextLoadEvent] == null) NextLoadEvent++;
+                while (NextPlayEvent < PlayEvents.Length && PlayEvents[NextPlayEvent] == null) NextPlayEvent++;
+                var load = NextLoadEvent < LoadEvents.Length ? LoadEvents[NextLoadEvent] : null;
+                var play = NextPlayEvent < PlayEvents.Length ? PlayEvents[NextPlayEvent] : null;
+                bool useLoad = load != null && (play == null || load.fTime <= play.fTime);
+                var next = useLoad ? load : play;
+                if (next == null || next.fTime > upToTime) break;
+                RaiseEvent(next);
+                if (useLoad) NextLoadEvent++;
+                else NextPlayEvent++;
+            }
+
             int i;
-            for (i = NextLoadEvent; i < LoadEvents?.Length; i++)
-            {
-                var e = LoadEvents[i];
-                if (e != null)
-                {
-                    if (e.fTime > upToTime) break;
-                    RaiseEvent(e);
-                }
-            }
-            NextLoadEvent = i;
-
-            for (i = NextPlayEvent; i < PlayEvents?.Length; i++)
-            {
-                var e = PlayEvents[i];
-                if (e != null)
-                {
-                    if (e.fTime > upToTime) break;
-                    RaiseEvent(e);
-                }
-            }
-            NextPlayEvent = i;
-
             for (i = NextCameraCut; i < CameraCutList?.Length; i++)
             {
                 var c = CameraCutList[i];
@@ -844,6 +1063,8 @@ namespace CodeWalker.World
                 case CutEventType.EnableLight: EnableLight(e); break;
                 case CutEventType.DisableScreenFade: DisableScreenFade(e); break;
                 case CutEventType.DisableHideObject: DisableHideObject(e); break;
+                case CutEventType.HideHiddenObject: EnableHideObject(e); break;
+                case CutEventType.ShowHiddenObject: DisableHideObject(e); break;
                 case CutEventType.DisableBlockBounds: DisableBlockBounds(e); break;
                 case CutEventType.DisableAnimation: DisableAnimation(e); break;
                 case CutEventType.DisableParticleEffect: DisableParticleEffect(e); break;
@@ -852,6 +1073,7 @@ namespace CodeWalker.World
                 case CutEventType.DisableCamera: DisableCamera(e); break;
                 case CutEventType.DisableLight: DisableLight(e); break;
                 case CutEventType.Subtitle: Subtitle(e); break;
+                case CutEventType.HideSubtitle: SubtitleText = null; SubtitleEndTime = 0; break;
                 case CutEventType.PedVariation: PedVariation(e); break;
                 case CutEventType.CameraCut: CameraCut(e); break;
                 case CutEventType.CameraShadowCascade: CameraShadowCascade(e); break;
@@ -888,10 +1110,8 @@ namespace CodeWalker.World
         }
         private void LoadAnimation(CutEvent e)
         {
-            var args = e.EventArgs as CutNameEventArgs;
-            if (args == null)
-            { return; }
-
+            if (e.EventArgs is CutNameEventArgs args && GameFileCache != null)
+                RequestedAnimationDictionaries[args.cName] = GameFileCache.GetYcd(args.cName);
         }
         private void LoadAudio(CutEvent e)
         {
@@ -904,24 +1124,19 @@ namespace CodeWalker.World
             { return; }
 
             var obj = obje.Object as CutAudioObject;
+            if (obj == null && SceneObjects.TryGetValue(obje.iObjectId, out var audioObject))
+                obj = audioObject.CutObject as CutAudioObject;
             if (obj == null)
             { return; }
 
-            if (Seeking) return;
-
-            if (SceneObjects.TryGetValue(obje.iObjectId, out CutsceneObject audobj))
+            if (SceneObjects.TryGetValue(obje.iObjectId, out CutsceneObject? audobj))
             {
                 if (audobj.SoundPlayer != null)
                 {
                     SoundStartOffset = obj.fOffset;
                     if (SoundPlayer != audobj.SoundPlayer)
                     {
-                        if (SoundPlayer != null)
-                        {
-                            SoundPlayer.Stop();
-                            SoundPlayer.DisposeAudio();
-                            SoundPlayer = null;
-                        }
+                        // Playback synchronization stops the previous stream. Keep it reusable for seeks.
                         SoundPlayer = audobj.SoundPlayer;
                     }
                 }
@@ -941,7 +1156,7 @@ namespace CodeWalker.World
 
             foreach (var objid in args.iObjectIdList)
             {
-                CutsceneObject obj = null;
+                CutsceneObject? obj = null;
                 SceneObjects.TryGetValue(objid, out obj);
                 if (obj != null)
                 {
@@ -977,15 +1192,15 @@ namespace CodeWalker.World
             if (args == null)
             { return; }
 
-            var namel = args.cName?.ToLowerInvariant();
+            var namel = args.cName.ToLowerInvariant();
             var namehash = JenkHash.GenHash(namel);
 
-            RpfFileEntry gxt2entry = null;
+            RpfFileEntry? gxt2entry = null;
             GameFileCache.Gxt2Dict.TryGetValue(namehash, out gxt2entry);
 
             if (gxt2entry != null) //probably should do this load async
             {
-                Gxt2File = GameFileCache.RpfMan.GetFile<Gxt2File>(gxt2entry);
+                Gxt2File = GameFileCache.RpfMan?.GetFile<Gxt2File>(gxt2entry);
 
                 if (Gxt2File != null)
                 {
@@ -1008,7 +1223,7 @@ namespace CodeWalker.World
 
             foreach (var objid in args.iObjectIdList)
             {
-                CutsceneObject obj = null;
+                CutsceneObject? obj = null;
                 SceneObjects.TryGetValue(objid, out obj);
                 if (obj != null)
                 {
@@ -1021,14 +1236,21 @@ namespace CodeWalker.World
         }
         private void EnableHideObject(CutEvent e)
         {
-            var oe = e as CutObjectIdEvent;
-            if (oe == null) return;
+            SetHiddenObjectState(e, true);
+        }
 
-            CutsceneObject cso = null;
-            SceneObjects.TryGetValue(oe.iObjectId, out cso);
-            if (cso != null)
+        private void SetHiddenObjectState(CutEvent e, bool hidden)
+        {
+            // Load-time hide/show events carry an ID list; playback events
+            // target a single hidden-object entity.
+            if (e.EventArgs is CutObjectIdListEventArgs args)
             {
-                cso.Enabled = true;
+                foreach (var id in args.iObjectIdList)
+                    if (SceneObjects.TryGetValue(id, out var obj)) obj.Enabled = hidden;
+            }
+            else if (e is CutObjectIdEvent single && SceneObjects.TryGetValue(single.iObjectId, out var obj))
+            {
+                obj.Enabled = hidden;
             }
         }
         private void EnableFixupModel(CutEvent e)
@@ -1045,9 +1267,11 @@ namespace CodeWalker.World
         }
         private void EnableAnimation(CutEvent e)
         {
-            var oe = e as CutObjectIdEvent;
-            if (oe == null) return;
-
+            int id = (e.EventArgs as CutObjectIdEventArgs)?.iObjectId ?? (e as CutObjectIdEvent)?.iObjectId ?? -1;
+            if (!SceneObjects.TryGetValue(id, out var obj)) return;
+            obj.AnimationControlled = true;
+            if (obj.AnimationReferences++ == 0)
+                obj.AnimationPartialHash = (e.EventArgs as CutObjectIdPartialHashEventArgs)?.PartialHash ?? obj.DefaultAnimationPartialHash;
         }
         private void EnableParticleEffect(CutEvent e)
         {
@@ -1057,31 +1281,26 @@ namespace CodeWalker.World
         }
         private void EnableAudio(CutEvent e)
         {
-            var args = e.EventArgs as CutNameEventArgs;
-            if (args == null)
-            { return; }
-
+            LoadAudio(e);
+            EventAudioActive = true;
         }
         private void EnableCamera(CutEvent e)
         {
-            var oe = e as CutObjectIdEvent;
-            if (oe == null) return;
-
+            DepthOfFieldEnabled = true; // Reference event 48: enable DOF.
         }
         private void EnableLight(CutEvent e)
         {
+            if (e is not CutObjectIdEvent oe || !SceneObjects.TryGetValue(oe.iObjectId, out var obj)) return;
+            obj.Enabled = true;
+            if (obj.Light != null && e.EventArgs is CutTriggerLightEffectEventArgs args)
+            {
+                obj.Light.AttachParentId = args.iAttachParentId;
+                obj.Light.AttachBoneHash = args.iAttachBoneHash;
+            }
         }
         private void DisableHideObject(CutEvent e)
         {
-            var oe = e as CutObjectIdEvent;
-            if (oe == null) return;
-
-            CutsceneObject cso = null;
-            SceneObjects.TryGetValue(oe.iObjectId, out cso);
-            if (cso != null)
-            {
-                cso.Enabled = false;
-            }
+            SetHiddenObjectState(e, false);
         }
         private void DisableBlockBounds(CutEvent e)
         {
@@ -1094,9 +1313,14 @@ namespace CodeWalker.World
         }
         private void DisableAnimation(CutEvent e)
         {
-            var oe = e as CutObjectIdEvent;
-            if (oe == null) return;
-
+            int id = (e.EventArgs as CutObjectIdEventArgs)?.iObjectId ?? (e as CutObjectIdEvent)?.iObjectId ?? -1;
+            if (!SceneObjects.TryGetValue(id, out var obj) || obj.AnimationReferences == 0) return;
+            if (--obj.AnimationReferences == 0)
+            {
+                obj.AnimClip = null;
+                if (obj.Ped != null) { obj.Ped.AnimClip = null; obj.Ped.FaceAnimClip = null; }
+                obj.Light?.Reset();
+            }
         }
         private void DisableParticleEffect(CutEvent e)
         {
@@ -1106,10 +1330,7 @@ namespace CodeWalker.World
         }
         private void DisableAudio(CutEvent e)
         {
-            var args = e.EventArgs as CutNameEventArgs;
-            if (args == null)
-            { return; }
-
+            EventAudioActive = false;
         }
         private void DisableCamera(CutEvent e)
         {
@@ -1119,29 +1340,24 @@ namespace CodeWalker.World
         }
         private void DisableLight(CutEvent e)
         {
+            if (e is not CutObjectIdEvent oe || !SceneObjects.TryGetValue(oe.iObjectId, out var obj)) return;
+            obj.Enabled = false;
+            obj.Light?.Reset();
         }
         private void Subtitle(CutEvent e)
         {
             var args = e.EventArgs as CutSubtitleEventArgs;
             if (args == null)
             { return; }
-
-            if (!EnableSubtitles) return;
-            if (Seeking) return; //don't raise subtitle events while seeking backwards...
-
-            if (WorldForm != null)
-            {
-                var txt = args.cName.ToString();
-                var dur = args.fSubtitleDuration;
-
-                txt = txt.Replace("~z~", "");
-                txt = txt.Replace("~c~~n~", "\n - ");
-                txt = txt.Replace("~n~", "\n");
-                txt = txt.Replace("~c~", " - ");
-                txt = txt.Replace("~t~", " - ");
-
-                WorldForm.ShowSubtitle(txt, dur);
-            }
+            if (!float.IsFinite(args.fSubtitleDuration) || args.fSubtitleDuration < 0) return;
+            // Match CCutSceneSubtitleEntity: resolve the label hash through the
+            // text database. A missing label does not display a numeric hash.
+            string? text = Gxt2File?.TextEntries.FirstOrDefault(entry => entry.Hash == args.cName.Hash)?.Text;
+            text ??= GlobalText.TryGetString(args.cName.Hash);
+            if (string.IsNullOrEmpty(text)) return;
+            SubtitleText = text.Replace("~z~", "").Replace("~c~~n~", "\n - ")
+                .Replace("~n~", "\n").Replace("~c~", " - ").Replace("~t~", " - ");
+            SubtitleEndTime = e.fTime + args.fSubtitleDuration;
         }
         private void PedVariation(CutEvent e)
         {
@@ -1155,7 +1371,7 @@ namespace CodeWalker.World
 
             if (Seeking) return; //this gets a bit messy when seeking backwards
 
-            CutsceneObject cso = null;
+            CutsceneObject? cso = null;
             SceneObjects.TryGetValue(oe.iObjectId, out cso);
 
             if (cso?.Ped != null)
@@ -1183,7 +1399,7 @@ namespace CodeWalker.World
             { return; }
 
 
-            CutsceneObject obj = null;
+            CutsceneObject? obj = null;
             SceneObjects.TryGetValue(oe.iObjectId, out obj);
             if (obj == null)
             { return; }
@@ -1198,12 +1414,17 @@ namespace CodeWalker.World
             CameraFarClip = (args.fFarDrawDistance > 0) ? Math.Max(args.fFarDrawDistance, 1000.0f) : 12000.0f;
             CameraClipUpdate = true;
             CameraObject = obj;
+            // Preserve the cut's static pose as the fallback for absent tracks.
+            var inverseSceneRotation = Quaternion.Invert(Rotation);
+            CameraTrackPosition = inverseSceneRotation.Multiply(obj.Position - Position);
+            CameraTrackRotation = inverseSceneRotation * obj.Rotation * Quaternion.Invert(CameraRotationOffset);
         }
         private void CameraShadowCascade(CutEvent e)
         {
         }
         private void CameraUnk1(CutEvent e)
         {
+            DepthOfFieldEnabled = false; // Reference event 49: disable DOF.
         }
         private void CameraUnk2(CutEvent e)
         {
@@ -1250,13 +1471,13 @@ namespace CodeWalker.World
 
 
 
-        private T[] RecastArray<T>(object[] arr) where T : class
+        private T[] RecastArray<T>(object[]? arr) where T : class
         {
-            if (arr == null) return null;
+            if (arr == null) return [];
             var r = new T[arr.Length];
             for (int i = 0; i < arr.Length; i++)
             {
-                r[i] = arr[i] as T;
+                if (arr[i] is T item) r[i] = item;
             }
             return r;
         }
@@ -1298,24 +1519,38 @@ namespace CodeWalker.World
     [TypeConverter(typeof(ExpandableObjectConverter))] public class CutsceneObject
     {
         public int ObjectID { get; set; }
-        public CutObject CutObject { get; set; }
+        public CutObject? CutObject { get; set; }
         public MetaHash Name { get; set; }
 
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; }
 
-        public Ped Ped { get; set; }
-        public YmapEntityDef Prop { get; set; }
-        public Vehicle Vehicle { get; set; }
-        public Weapon Weapon { get; set; }
-        public YmapEntityDef HideEntity { get; set; }
+        public CutsceneLightState? Light { get; set; }
+        public Ped? Ped { get; set; }
+        public YmapEntityDef? Prop { get; set; }
+        public Vehicle? Vehicle { get; set; }
+        public Weapon? Weapon { get; set; }
+        public YmapEntityDef? HideEntity { get; set; }
 
+        public bool AnimationControlled { get; set; }
+        public int AnimationReferences { get; set; }
+        public uint AnimationPartialHash { get; set; }
+        public uint DefaultAnimationPartialHash => CutObject switch
+        {
+            CutCameraObject o => o.AnimStreamingBase,
+            CutPedModelObject o => o.AnimStreamingBase,
+            CutPropModelObject o => o.AnimStreamingBase,
+            CutVehicleModelObject o => o.AnimStreamingBase,
+            CutWeaponModelObject o => o.AnimStreamingBase,
+            CutAnimatedLightObject o => o.AnimStreamingBase,
+            _ => 0
+        };
         public MetaHash AnimHash { get; set; }
-        public ClipMapEntry AnimClip { get; set; }
+        public ClipMapEntry? AnimClip { get; set; }
 
-        public Dat54Sound SoundInfo { get; set; }
-        public AwcStream[] SoundStreams { get; set; }
-        public AudioPlayer SoundPlayer { get; set; }
+        public Dat54Sound? SoundInfo { get; set; }
+        public AwcStream[] SoundStreams { get; set; } = [];
+        public AudioPlayer? SoundPlayer { get; set; }
 
         public bool Enabled { get; set; } = false;
 
@@ -1377,9 +1612,17 @@ namespace CodeWalker.World
             }
             else if (obj is CutLightObject light)
             {
+                Light = new CutsceneLightState(light);
             }
             else if (obj is CutAnimatedLightObject alight)
             {
+                Light = new CutsceneLightState(new CutLightObject
+                {
+                    vPosition = alight.vPosition, vDirection = alight.vDirection, vColour = alight.vColour,
+                    fIntensity = alight.fIntensity, fFallOff = alight.fFallOff, fConeAngle = alight.fConeAngle,
+                    fInnerConeAngle = alight.fInnerConeAngle, fExponentialFallOff = alight.fExponentialFallOff,
+                    iLightType = alight.iLightType, AttachParentId = alight.AttachParentId, AttachBoneHash = alight.AttachBoneHash
+                }, true);
             }
             else if (obj is CutDecalObject dec)
             {
@@ -1413,11 +1656,11 @@ namespace CodeWalker.World
 
             if (adb?.SoundsDB != null)
             {
-                if (adb.SoundsDB.TryGetValue(soundhash, out Dat54Sound snd))
+                if (adb.SoundsDB.TryGetValue(soundhash, out Dat54Sound? snd))
                 {
                     SoundInfo = snd;
                 }
-                else if (adb.SoundsDB.TryGetValue(soundhash2, out Dat54Sound snd2))
+                else if (adb.SoundsDB.TryGetValue(soundhash2, out Dat54Sound? snd2))
                 {
                     SoundInfo = snd2;
                 }
@@ -1428,7 +1671,7 @@ namespace CodeWalker.World
             {
                 int dur = strsnd.Duration;
                 MetaHash awchash = 0;
-                AwcFile awc = null;
+                AwcFile? awc = null;
 
                 var streaminfs = new List<Dat54SimpleSound>();
                 var streamlist = new List<AwcStream>();
@@ -1441,10 +1684,10 @@ namespace CodeWalker.World
                         if (chanawchash != awchash)
                         {
                             awchash = chanawchash;
-                            if (adb.ContainerDB.TryGetValue(awchash, out RpfFileEntry awcentry))
+                            if (adb?.ContainerDB != null && adb.ContainerDB.TryGetValue(awchash, out RpfFileEntry? awcentry))
                             {
                                 awc = new AwcFile();
-                                gfc.RpfMan.LoadFile(awc, awcentry);
+                                (gfc.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.")).LoadFile(awc, awcentry);
                             }
                             else
                             { }
@@ -1453,7 +1696,7 @@ namespace CodeWalker.World
                         if (awc?.StreamDict != null)
                         {
                             var chanhash = chansnd.FileName & 0x1FFFFFFF;
-                            if (awc.StreamDict.TryGetValue(chanhash, out AwcStream chanstream))
+                            if (awc.StreamDict.TryGetValue(chanhash, out AwcStream? chanstream))
                             {
                                 streaminfs.Add(chansnd);
                                 streamlist.Add(chanstream);

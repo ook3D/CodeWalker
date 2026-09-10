@@ -26,7 +26,7 @@ public class Camera(float smoothness, float sensitivity, float fov)
     public float AspectRatio = 1920.0f / 1080.0f;
     public float ZNear = 0.01f;
     public float ZFar = 100000.0f;
-    public Entity FollowEntity = null;
+    public Entity? FollowEntity;
     public Vector3 LocalLookAt = Vector3.ForwardLH;
     public float VOffset = 0.0f;
     public bool UpdateProj = true;
@@ -50,7 +50,7 @@ public class Camera(float smoothness, float sensitivity, float fov)
     public Ray MouseRay;
     private float MouseX = 0;
     private float MouseY = 0;
-    private object syncRoot = new();
+    private readonly System.Threading.Lock syncRoot = new();
 
 
         public void SetMousePosition(int x, int y)
@@ -62,6 +62,19 @@ public class Camera(float smoothness, float sensitivity, float fov)
         public void SetFollowEntity(Entity e)
         {
             FollowEntity = e;
+        }
+
+        private (Vector3 Position, Quaternion Rotation)? AuthoredPose;
+
+        // A one-frame override: free-camera controls resume when the caller stops supplying poses.
+        public void SetAuthoredPose(Vector3 position, Quaternion rotation)
+        {
+            lock (syncRoot) AuthoredPose = (position, Quaternion.Normalize(rotation));
+        }
+
+        public void ClearAuthoredPose()
+        {
+            lock (syncRoot) AuthoredPose = null;
         }
 
         public void Update(float elapsed)
@@ -116,7 +129,15 @@ public class Camera(float smoothness, float sensitivity, float fov)
 
 
 
-            if (IsMapView)
+            if (AuthoredPose is { } pose)
+            {
+                AuthoredPose = null;
+                Position = pose.Position;
+                LocalLookAt = Vector3.Zero;
+                ViewDirection = pose.Rotation.Multiply(Vector3.UnitZ);
+                UpDirection = pose.Rotation.Multiply(Vector3.UnitY);
+            }
+            else if (IsMapView)
             {
                 //in map view, need a constant view matrix aligned to XY.
 

@@ -16,15 +16,15 @@ namespace CodeWalker.Utils
 
     public class AudioPlayer
     {
-        private XAudio2 xAudio2;
-        private MasteringVoice masteringVoice;
+        private XAudio2? xAudio2;
+        private MasteringVoice? masteringVoice;
 
         public class AudioVoice
         {
-            public AwcStream audio;
-            public SoundStream soundStream;
-            public AudioBuffer audioBuffer;
-            public SourceVoice sourceVoice;
+            public AwcStream? audio;
+            public SoundStream? soundStream;
+            public AudioBuffer? audioBuffer;
+            public SourceVoice? sourceVoice;
             public float[] outputMatrix = new[] { 1.0f, 1.0f }; //left/right channel output levels
             public float trackLength;
         }
@@ -105,6 +105,7 @@ namespace CodeWalker.Utils
             {
                 foreach (var voice in voices)
                 {
+                    if (voice.audioBuffer == null || voice.soundStream == null) continue;
                     voice.audioBuffer.PlayBegin = (int)(voice.soundStream.Format.SampleRate * playBegin) / 128 * 128;
                 }
                 if (playtimer.IsRunning)
@@ -125,6 +126,7 @@ namespace CodeWalker.Utils
             trackFinished = false;
             foreach (var voice in voices)
             {
+                if (xAudio2 == null || voice.soundStream == null || voice.audioBuffer == null) continue;
                 var sourceVoice = new SourceVoice(xAudio2, voice.soundStream.Format, true);
                 sourceVoice.SubmitSourceBuffer(voice.audioBuffer, voice.soundStream.DecodedPacketsInfo);
                 sourceVoice.BufferEnd += (context) => trackFinished = true;
@@ -166,7 +168,7 @@ namespace CodeWalker.Utils
             {
                 foreach (var voice in voices)
                 {
-                    voice.sourceVoice.SetVolume(v);
+                    voice.sourceVoice?.SetVolume(v);
                 }
             }
         }
@@ -178,7 +180,7 @@ namespace CodeWalker.Utils
             voice.outputMatrix[1] = r;
             if (State == PlayerState.Playing)
             {
-                voice.sourceVoice.SetOutputMatrix(1, 2, voice.outputMatrix);
+                voice.sourceVoice?.SetOutputMatrix(1, 2, voice.outputMatrix);
             }
         }
 
@@ -186,7 +188,7 @@ namespace CodeWalker.Utils
         {
             if (xAudio2 != null)
             {
-                masteringVoice.Dispose();
+                masteringVoice?.Dispose();
                 xAudio2.Dispose();
             }
             foreach (var voice in voices)
@@ -202,8 +204,8 @@ namespace CodeWalker.Utils
             {
                 foreach (var voice in voices)
                 {
-                    voice.sourceVoice.DestroyVoice();
-                    voice.sourceVoice.Dispose();
+                    voice.sourceVoice?.DestroyVoice();
+                    voice.sourceVoice?.Dispose();
                 }
                 SetPlayerState(PlayerState.Stopped);
             }
@@ -215,7 +217,7 @@ namespace CodeWalker.Utils
             CreateSourceVoices(playBegin);
             foreach (var voice in voices)
             {
-                voice.sourceVoice.Start();
+                voice.sourceVoice?.Start();
             }
             SetPlayerState(PlayerState.Playing);
         }
@@ -241,7 +243,7 @@ namespace CodeWalker.Utils
             {
                 foreach (var voice in voices)
                 {
-                    voice.sourceVoice.Stop();
+                    voice.sourceVoice?.Stop();
                 }
                 SetPlayerState(PlayerState.Paused);
             }
@@ -253,7 +255,7 @@ namespace CodeWalker.Utils
             {
                 foreach (var voice in voices)
                 {
-                    voice.sourceVoice.Start();
+                    voice.sourceVoice?.Start();
                 }
                 SetPlayerState(PlayerState.Playing);
             }
@@ -268,15 +270,15 @@ namespace CodeWalker.Utils
 
         public bool IsInited { get; set; }
 
-        public Dictionary<uint, Dat54Sound> SoundsDB { get; set; }
-        public Dictionary<uint, Dat151RelData> GameDB { get; set; }
-        public Dictionary<uint, RpfFileEntry> ContainerDB { get; set; }
+        public Dictionary<uint, Dat54Sound> SoundsDB { get; set; } = new();
+        public Dictionary<uint, Dat151RelData> GameDB { get; set; } = new();
+        public Dictionary<uint, RpfFileEntry> ContainerDB { get; set; } = new();
 
         public void Init(GameFileCache gameFileCache, bool sounds = true, bool game = true)
         {
 
 
-            var rpfman = gameFileCache.RpfMan;
+            var rpfman = gameFileCache.RpfMan ?? throw new InvalidOperationException("The archive manager has not been initialized.");
 
             var datrelentries = new Dictionary<uint, RpfFileEntry>();
             var awcentries = new Dictionary<uint, RpfFileEntry>();
@@ -287,7 +289,7 @@ namespace CodeWalker.Utils
                 {
                     if (entry is RpfFileEntry)
                     {
-                        var fentry = entry as RpfFileEntry;
+                        if (entry is not RpfFileEntry fentry) continue;
                         //if (entry.NameLower.EndsWith(".rel"))
                         //{
                         //    datrels[entry.NameHash] = fentry;
@@ -310,7 +312,7 @@ namespace CodeWalker.Utils
                 {
                     if (entry is RpfFileEntry)
                     {
-                        var fentry = entry as RpfFileEntry;
+                        if (entry is not RpfFileEntry fentry) continue;
                         if (entry.NameLower.EndsWith(".awc"))
                         {
                             var shortname = entry.GetShortNameLower();

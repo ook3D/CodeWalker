@@ -57,7 +57,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 
 
-    c.rgb = FullLighting(c.rgb, 0, norm, input.Colour0, GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow);
+    c.rgb = FullLighting(MaterialDiffuseColour(c.rgb), 0, norm, input.Colour0, GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow);
 
     c.a = saturate(c.a);
 

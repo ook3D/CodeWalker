@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYnvPolyPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YnvPoly YnvPoly { get; set; }
+        public YnvPoly? YnvPoly { get; set; }
 
         private bool populatingui = false;
 
@@ -34,7 +34,7 @@ namespace CodeWalker.Project.Panels
 
         private void UpdateFormTitle()
         {
-            Text = "Nav Poly " + YnvPoly.Index.ToString();
+            Text = "Nav Poly " + YnvPoly?.Index.ToString();
         }
 
 

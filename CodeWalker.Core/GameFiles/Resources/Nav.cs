@@ -78,19 +78,19 @@ namespace CodeWalker.GameFiles
         public uint Unused_16Ch { get; set; } // 0x00000000
 
 
-        public NavMeshList<NavMeshVertex> Vertices { get; set; }
-        public NavMeshList<ushort> Indices { get; set; }
-        public NavMeshList<NavMeshEdge> Edges { get; set; }
-        public NavMeshList<NavMeshPoly> Polys { get; set; }
-        public NavMeshSector SectorTree { get; set; }
-        public NavMeshPortal[] Portals { get; set; }
-        public ushort[] PortalLinks { get; set; }
+        public NavMeshList<NavMeshVertex>? Vertices { get; set; }
+        public NavMeshList<ushort>? Indices { get; set; }
+        public NavMeshList<NavMeshEdge>? Edges { get; set; }
+        public NavMeshList<NavMeshPoly>? Polys { get; set; }
+        public NavMeshSector? SectorTree { get; set; }
+        public NavMeshPortal[] Portals { get; set; } = [];
+        public ushort[] PortalLinks { get; set; } = [];
 
 
 
 
-        private ResourceSystemStructBlock<NavMeshPortal> PortalsBlock = null;
-        private ResourceSystemStructBlock<ushort> PortalLinksBlock = null;
+        private ResourceSystemStructBlock<NavMeshPortal>? PortalsBlock;
+        private ResourceSystemStructBlock<ushort>? PortalLinksBlock;
 
 
         public Vector3 AABBMin
@@ -170,8 +170,8 @@ namespace CodeWalker.GameFiles
             Edges = reader.ReadBlockAt<NavMeshList<NavMeshEdge>>(EdgesPointer);
             Polys = reader.ReadBlockAt<NavMeshList<NavMeshPoly>>(PolysPointer);
             SectorTree = reader.ReadBlockAt<NavMeshSector>(SectorTreePointer);
-            Portals = reader.ReadStructsAt<NavMeshPortal>(PortalsPointer, PortalsCount);
-            PortalLinks = reader.ReadUshortsAt(PortalLinksPointer, PortalLinksCount);
+            Portals = reader.ReadStructsAt<NavMeshPortal>(PortalsPointer, PortalsCount) ?? [];
+            PortalLinks = reader.ReadUshortsAt(PortalLinksPointer, PortalLinksCount) ?? [];
 
 
 
@@ -522,10 +522,10 @@ namespace CodeWalker.GameFiles
         public uint Unknown_28h { get; set; } // 0x00000000
         public uint Unknown_2Ch { get; set; } // 0x00000000
 
-        public ResourceSimpleArray<NavMeshListPart<T>> ListParts { get; set; }
-        public uint[] ListOffsets { get; set; }
+        public ResourceSimpleArray<NavMeshListPart<T>>? ListParts { get; set; }
+        public uint[] ListOffsets { get; set; } = [];
 
-        private ResourceSystemStructBlock<uint> ListOffsetsBlock = null;
+        private ResourceSystemStructBlock<uint>? ListOffsetsBlock;
         public int ItemSize { get { return System.Runtime.InteropServices.Marshal.SizeOf<T>(); } }
 
         public uint ByteCount
@@ -552,7 +552,7 @@ namespace CodeWalker.GameFiles
             Unknown_2Ch = reader.ReadUInt32();
 
             ListParts = reader.ReadBlockAt<ResourceSimpleArray<NavMeshListPart<T>>>(ListPartsPointer, ListPartsCount);
-            ListOffsets = reader.ReadUintsAt(ListOffsetsPointer, ListPartsCount);
+            ListOffsets = reader.ReadUintsAt(ListOffsetsPointer, ListPartsCount) ?? [];
 
         }
 
@@ -661,9 +661,9 @@ namespace CodeWalker.GameFiles
         public uint Count { get; set; }
         public uint Unknown_0Ch { get; set; } // 0x00000000
 
-        public T[] Items { get; set; }
+        public T[] Items { get; set; } = [];
 
-        private ResourceSystemStructBlock<T> ItemsBlock = null;
+        private ResourceSystemStructBlock<T>? ItemsBlock;
 
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
@@ -672,7 +672,7 @@ namespace CodeWalker.GameFiles
             Count = reader.ReadUInt32();
             Unknown_0Ch = reader.ReadUInt32();
 
-            Items = reader.ReadStructsAt<T>(Pointer, Count);
+            Items = reader.ReadStructsAt<T>(Pointer, Count) ?? [];
 
         }
 
@@ -890,11 +890,11 @@ namespace CodeWalker.GameFiles
         public uint Unused_58h { get; set; } // 0x00000000
         public uint Unused_5Ch { get; set; } // 0x00000000
 
-        public NavMeshSectorData Data { get; set; }
-        public NavMeshSector SubTree1 { get; set; }
-        public NavMeshSector SubTree2 { get; set; }
-        public NavMeshSector SubTree3 { get; set; }
-        public NavMeshSector SubTree4 { get; set; }
+        public NavMeshSectorData? Data { get; set; }
+        public NavMeshSector? SubTree1 { get; set; }
+        public NavMeshSector? SubTree2 { get; set; }
+        public NavMeshSector? SubTree3 { get; set; }
+        public NavMeshSector? SubTree4 { get; set; }
 
         public uint ByteCount
         {
@@ -1002,11 +1002,11 @@ namespace CodeWalker.GameFiles
         public ushort PointsCount { get; set; }
         public uint Unused_1Ch { get; set; } // 0x00000000
 
-        public ushort[] PolyIDs { get; set; }
-        public NavMeshPoint[] Points { get; set; }
+        public ushort[] PolyIDs { get; set; } = [];
+        public NavMeshPoint[] Points { get; set; } = [];
 
-        public ResourceSystemStructBlock<ushort> PolyIDsBlock = null;
-        public ResourceSystemStructBlock<NavMeshPoint> PointsBlock = null;
+        public ResourceSystemStructBlock<ushort>? PolyIDsBlock;
+        public ResourceSystemStructBlock<NavMeshPoint>? PointsBlock;
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
@@ -1018,8 +1018,8 @@ namespace CodeWalker.GameFiles
             PointsCount = reader.ReadUInt16();
             Unused_1Ch = reader.ReadUInt32();
 
-            PolyIDs = reader.ReadUshortsAt(PolyIDsPointer, PolyIDsCount);
-            Points = reader.ReadStructsAt<NavMeshPoint>(PointsPointer, PointsCount);
+            PolyIDs = reader.ReadUshortsAt(PolyIDsPointer, PolyIDsCount) ?? [];
+            Points = reader.ReadStructsAt<NavMeshPoint>(PointsPointer, PointsCount) ?? [];
 
         }
 

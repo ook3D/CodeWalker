@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditYndPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public YndFile Ynd { get; set; }
+        public YndFile? Ynd { get; set; }
 
         private bool populatingui = false;
         private bool waschanged = false;
@@ -36,7 +36,7 @@ namespace CodeWalker.Project.Panels
 
         public void UpdateFormTitleYndChanged()
         {
-            bool changed = Ynd.HasChanged;
+            bool changed = Ynd?.HasChanged ?? false;
             if (!waschanged && changed)
             {
                 UpdateFormTitle();
@@ -50,9 +50,9 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = Ynd.RpfFileEntry?.Name ?? Ynd.Name;
+            string fn = Ynd?.RpfFileEntry?.Name ?? Ynd?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fn)) fn = "untitled.ynd";
-            Text = fn + (Ynd.HasChanged ? "*" : "");
+            Text = fn + (Ynd?.HasChanged == true ? "*" : "");
         }
 
 
@@ -78,9 +78,9 @@ namespace CodeWalker.Project.Panels
                 populatingui = true;
                 var nd = Ynd.NodeDictionary;
                 //YndPanel.Enabled = true;
-                YndRpfPathTextBox.Text = Ynd.RpfFileEntry.Path;
+                YndRpfPathTextBox.Text = Ynd.RpfFileEntry?.Path ?? string.Empty;
                 YndFilePathTextBox.Text = Ynd.FilePath;
-                YndProjectPathTextBox.Text = (Ynd != null) ? ProjectForm.CurrentProjectFile.GetRelativePath(Ynd.FilePath) : Ynd.FilePath;
+                YndProjectPathTextBox.Text = ProjectForm.CurrentProjectFile?.GetRelativePath(Ynd.FilePath) ?? Ynd.FilePath;
                 YndAreaIDXUpDown.Value = Ynd.CellX;
                 YndAreaIDYUpDown.Value = Ynd.CellY;
                 YndAreaIDInfoLabel.Text = "ID: " + Ynd.AreaID.ToString();

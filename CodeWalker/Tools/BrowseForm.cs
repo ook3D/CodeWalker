@@ -27,7 +27,7 @@ namespace CodeWalker.Tools
         private List<RpfFile> RootFiles = new();
 
         private List<SearchResult> SearchResults = new();
-        private RpfEntry SelectedEntry = null;
+        private RpfEntry? SelectedEntry = null;
         private int SelectedOffset = -1;
         private int SelectedLength = 0;
 
@@ -42,16 +42,13 @@ namespace CodeWalker.Tools
 
         private void BrowseForm_Load(object sender, EventArgs e)
         {
-            var info = DetailsPropertyGrid.GetType().GetProperty("Controls");
-            var collection = info.GetValue(DetailsPropertyGrid, null) as Control.ControlCollection;
-            foreach (var control in collection)
+            foreach (Control control in DetailsPropertyGrid.Controls)
             {
                 var ctyp = control.GetType();
                 if (ctyp.Name == "PropertyGridView")
                 {
                     var prop = ctyp.GetField("labelRatio");
-                    var val = prop.GetValue(control);
-                    prop.SetValue(control, 4.0); //somehow this sets the width of the property grid's label column...
+                    prop?.SetValue(control, 4.0); //somehow this sets the width of the property grid's label column...
                 }
             }
 
@@ -181,7 +178,7 @@ namespace CodeWalker.Tools
         {
             MainTreeView.Nodes.Clear();
         }
-        private void AddScannedFile(RpfFile file, TreeNode node, bool addToList = false)
+        private void AddScannedFile(RpfFile file, TreeNode? node, bool addToList = false)
         {
             try
             {
@@ -208,7 +205,7 @@ namespace CodeWalker.Tools
             }
             catch { }
         }
-        private TreeNode AddFileNode(RpfFile file, TreeNode n)
+        private TreeNode AddFileNode(RpfFile file, TreeNode? n)
         {
             var nodes = (n == null) ? MainTreeView.Nodes : n.Nodes;
             TreeNode node = nodes.Add(file.Path);
@@ -276,9 +273,9 @@ namespace CodeWalker.Tools
             //lastNode.Tag = file;
 
         }
-        private TreeNode AddEntryNode(RpfEntry entry, TreeNode node)
+        private TreeNode AddEntryNode(RpfEntry entry, TreeNode? node)
         {
-            string text = entry.Path.Substring(entry.File.Path.Length + 1); //includes \ on the end
+            string text = entry.File != null ? entry.Path.Substring(entry.File.Path.Length + 1) : entry.Path; //includes \ on the end
             TreeNode cnode = (node != null) ? node.Nodes.Add(text) : MainTreeView.Nodes.Add(text);
             cnode.Tag = entry;
             return cnode;
@@ -315,16 +312,16 @@ namespace CodeWalker.Tools
         {
             SelectFile(SelectedEntry, SelectedOffset, SelectedLength);
         }
-        private void SelectFile(RpfEntry entry, int offset, int length)
+        private void SelectFile(RpfEntry? entry, int offset, int length)
         {
             SelectedEntry = entry;
             SelectedOffset = offset;
             SelectedLength = length;
 
-            RpfFileEntry rfe = entry as RpfFileEntry;
+            RpfFileEntry? rfe = entry as RpfFileEntry;
             if (rfe == null)
             {
-                RpfDirectoryEntry rde = entry as RpfDirectoryEntry;
+                RpfDirectoryEntry? rde = entry as RpfDirectoryEntry;
                 if (rde != null)
                 {
                     FileInfoLabel.Text = rde.Path + " (Directory)";
@@ -348,9 +345,14 @@ namespace CodeWalker.Tools
                 typestr = "Binary";
             }
             
-            byte[] data = rfe.File.ExtractFile(rfe);
+            byte[]? data = rfe.File?.ExtractFile(rfe);
+            if (data == null)
+            {
+                DataTextBox.Text = "[Unable to extract file contents]";
+                return;
+            }
 
-            int datalen = (data != null) ? data.Length : 0;
+            int datalen = data.Length;
             FileInfoLabel.Text = rfe.Path + " (" + typestr + " file)  -  " + TextUtil.GetBytesReadable(datalen);
 
 
@@ -508,7 +510,7 @@ namespace CodeWalker.Tools
             if (data == null)
             {
                 Cursor = Cursors.Default;
-                DataTextBox.Text = "[Error extracting file! " + rfe.File.LastError + "]";
+                DataTextBox.Text = "[Error extracting file! " + rfe.File?.LastError + "]";
                 return;
             }
 
@@ -590,7 +592,7 @@ namespace CodeWalker.Tools
 
         }
 
-        private void ShowTextures(TextureDictionary td)
+        private void ShowTextures(TextureDictionary? td)
         {
             SelTexturesListView.Items.Clear();
             SelTexturePictureBox.Image = null;
@@ -631,7 +633,7 @@ namespace CodeWalker.Tools
             }
         }
 
-        private void ShowTextureMip(Texture tex, int mip, bool mipchange)
+        private void ShowTextureMip(Texture? tex, int mip, bool mipchange)
         {
             if (tex == null)
             {
@@ -659,7 +661,7 @@ namespace CodeWalker.Tools
             try
             {
                 int cmip = Math.Min(Math.Max(mip, 0), tex.Levels - 1);
-                byte[] pixels = DDSIO.GetPixels(tex, cmip);
+                var pixels = DDSIO.GetPixels(tex, cmip);
                 int w = tex.Width >> cmip;
                 int h = tex.Height >> cmip;
                 Bitmap bmp = new(w, h, PixelFormat.Format32bppArgb);
@@ -730,7 +732,7 @@ namespace CodeWalker.Tools
 
                     UpdateStatus(curfile.ToString() + "/" + totrpfs.ToString() + ": Testing " + file.FilePath + "...");
 
-                    string errorstr = file.TestExtractAllFiles();
+                    string? errorstr = file.TestExtractAllFiles();
 
                     if (!string.IsNullOrEmpty(errorstr))
                     {
@@ -808,9 +810,9 @@ namespace CodeWalker.Tools
                         {
                             if (entry is RpfDirectoryEntry)
                             {
-                                RpfDirectoryEntry direntry = entry as RpfDirectoryEntry;
+                                var direntry = (RpfDirectoryEntry)entry;
 
-                                TreeNode node = AddEntryNode(entry, null);
+                                TreeNode? node = AddEntryNode(entry, null);
 
                                 foreach (RpfFileEntry cfentry in direntry.Files)
                                 {
@@ -868,14 +870,14 @@ namespace CodeWalker.Tools
                 MessageBox.Show("Please scan the GTAV folder first.");
                 return;
             }
-            TreeNode node = MainTreeView.SelectedNode;
+            TreeNode? node = MainTreeView.SelectedNode;
             if (node == null)
             {
                 MessageBox.Show("Please select a file to export.");
                 return;
             }
 
-            RpfFileEntry rfe = node.Tag as RpfFileEntry;
+            RpfFileEntry? rfe = node.Tag as RpfFileEntry;
             if (rfe == null)
             {
                 MessageBox.Show("Please select a file to export.");
@@ -887,8 +889,14 @@ namespace CodeWalker.Tools
             {
                 string fpath = SaveFileDialog.FileName;
 
-                byte[] data = rfe.File.ExtractFile(rfe);
+                byte[]? data = rfe.File?.ExtractFile(rfe);
 
+
+                if (data == null)
+                {
+                    MessageBox.Show("Error extracting file! " + rfe.File?.LastError);
+                    return;
+                }
 
                 if (ExportCompressCheckBox.Checked)
                 {
@@ -896,17 +904,12 @@ namespace CodeWalker.Tools
                 }
 
 
-                RpfResourceFileEntry rrfe = rfe as RpfResourceFileEntry;
+                RpfResourceFileEntry? rrfe = rfe as RpfResourceFileEntry;
                 if (rrfe != null) //add resource header if this is a resource file.
                 {
                     data = ResourceBuilder.AddResourceHeader(rrfe, data);
                 }
 
-                if (data == null)
-                {
-                    MessageBox.Show("Error extracting file! " + rfe.File.LastError);
-                    return;
-                }
 
                 try
                 {
@@ -985,7 +988,7 @@ namespace CodeWalker.Tools
             bool hex = SearchHexRadioButton.Checked;
             bool casesen = SearchCaseSensitiveCheckBox.Checked || hex;
             bool bothdirs = SearchBothDirectionsCheckBox.Checked;
-            string[] ignoreexts = null;
+            string[]? ignoreexts = null;
             byte[] searchbytes1;
             byte[] searchbytes2;
             int bytelen;
@@ -1076,7 +1079,7 @@ namespace CodeWalker.Tools
                             return;
                         }
 
-                        RpfFileEntry fentry = entry as RpfFileEntry;
+                        RpfFileEntry? fentry = entry as RpfFileEntry;
                         if (fentry == null) continue;
 
                         curfile++;
@@ -1101,7 +1104,7 @@ namespace CodeWalker.Tools
 
                         UpdateStatus(string.Format("{0} - Searching {1}/{2} : {3}", duration.ToString(@"hh\:mm\:ss"), curfile, totfiles, fentry.Path));
 
-                        byte[] filebytes = fentry.File.ExtractFile(fentry);
+                        byte[]? filebytes = fentry.File?.ExtractFile(fentry);
                         if (filebytes == null) continue;
 
 
@@ -1241,7 +1244,7 @@ namespace CodeWalker.Tools
 
         private void SelTexturesListView_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Texture tex = null;
+            Texture? tex = null;
             if (SelTexturesListView.SelectedItems.Count == 1)
             {
                 tex = SelTexturesListView.SelectedItems[0].Tag as Texture;
@@ -1251,7 +1254,7 @@ namespace CodeWalker.Tools
 
         private void SelTextureMipTrackBar_Scroll(object sender, EventArgs e)
         {
-            Texture tex = null;
+            Texture? tex = null;
             if (SelTexturesListView.SelectedItems.Count == 1)
             {
                 tex = SelTexturesListView.SelectedItems[0].Tag as Texture;

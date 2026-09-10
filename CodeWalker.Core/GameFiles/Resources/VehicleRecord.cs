@@ -24,7 +24,7 @@ namespace CodeWalker.GameFiles
         {
             base.Read(reader, parameters);
 
-            this.Entries = reader.ReadBlock<ResourceSimpleList64<VehicleRecordEntry>>();
+            this.Entries = reader.ReadRequiredBlock<ResourceSimpleList64<VehicleRecordEntry>>();
         }
         public override void Write(ResourceDataWriter writer, params object[] parameters)
         {
@@ -65,7 +65,7 @@ namespace CodeWalker.GameFiles
             Entries.data_items = entries.ToArray();
 
         }
-        public static void WriteXmlNode(VehicleRecordList l, StringBuilder sb, int indent, string name = "VehicleRecordList")
+        public static void WriteXmlNode(VehicleRecordList? l, StringBuilder sb, int indent, string name = "VehicleRecordList")
         {
             if (l == null) return;
             if ((l.Entries?.data_items == null) || (l.Entries.data_items.Length == 0))
@@ -79,7 +79,7 @@ namespace CodeWalker.GameFiles
                 YvrXml.CloseTag(sb, indent, name);
             }
         }
-        public static VehicleRecordList ReadXmlNode(XmlNode node)
+        public static VehicleRecordList? ReadXmlNode(XmlNode? node)
         {
             if (node == null) return null;
             var l = new VehicleRecordList();

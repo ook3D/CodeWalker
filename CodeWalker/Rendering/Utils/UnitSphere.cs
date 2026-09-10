@@ -14,9 +14,9 @@ namespace CodeWalker.Rendering
 {
     public class UnitSphere
     {
-        private Buffer VertexBuffer { get; set; }
-        private Buffer IndexBuffer { get; set; }
-        private InputLayout InputLayout { get; set; }
+        private Buffer? VertexBuffer { get; set; }
+        private Buffer? IndexBuffer { get; set; }
+        private InputLayout? InputLayout { get; set; }
         private VertexBufferBinding vbbinding;
         private int indexcount;
 

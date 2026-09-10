@@ -9,7 +9,7 @@ namespace CodeWalker.GameFiles
 {
     public class AudioWorldSectorsFile : GameFile, PackedFile
     {
-        public byte[] RawFileData { get; set; }
+        public byte[] RawFileData { get; set; } = [];
 
         public const int NumSectorsX = 100;
         public const int NumSectorsY = 100;
@@ -37,7 +37,7 @@ namespace CodeWalker.GameFiles
             RpfFileEntry = entry;
         }
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             RawFileData = data;
             if (entry != null)
@@ -216,7 +216,7 @@ namespace CodeWalker.GameFiles
         public static AudioWorldSectorsFile GetAudWorldSectors(XmlDocument doc)
         {
             var awsf = new AudioWorldSectorsFile();
-            awsf.ReadXml(doc.DocumentElement);
+            awsf.ReadXml(doc.DocumentElement ?? throw new XmlException("Audio world sectors XML requires a root element."));
             return awsf;
         }
     }

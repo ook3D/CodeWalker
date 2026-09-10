@@ -9,7 +9,7 @@ namespace CodeWalker.World
     public class Heightmaps : BasePathData
     {
         public volatile bool Inited = false;
-        public GameFileCache GameFileCache;
+        public GameFileCache? GameFileCache;
 
         public List<HeightmapFile> HeightmapFiles = new();
 
@@ -20,15 +20,15 @@ namespace CodeWalker.World
         }
         public EditorVertex[] GetPathVertices()
         {
-            return null;
+            return [];
         }
         public EditorVertex[] GetTriangleVertices()
         {
             return TriangleVerts;
         }
 
-        public Vector4[] NodePositions;
-        public EditorVertex[] TriangleVerts;
+        public Vector4[] NodePositions = [];
+        public EditorVertex[] TriangleVerts = [];
 
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus)
@@ -59,8 +59,10 @@ namespace CodeWalker.World
 
         private void LoadHeightmap(string filename)
         {
-            var hmf = GameFileCache.RpfMan.GetFile<HeightmapFile>(filename);
-            HeightmapFiles.Add(hmf);
+            var manager = GameFileCache?.RpfMan
+                ?? throw new InvalidOperationException("An RPF manager is required to load heightmaps.");
+            var hmf = manager.GetFile<HeightmapFile>(filename);
+            if (hmf != null) HeightmapFiles.Add(hmf);
         }
 
 
@@ -82,7 +84,7 @@ namespace CodeWalker.World
             }
             else
             {
-                TriangleVerts = null;
+                TriangleVerts = [];
             }
             if (nlist.Count > 0)
             {
@@ -90,7 +92,7 @@ namespace CodeWalker.World
             }
             else
             {
-                NodePositions = null;
+                NodePositions = [];
             }
 
         }

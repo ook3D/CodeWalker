@@ -77,7 +77,7 @@ namespace ST.Library.UI.NodeEditor
         }
 
         public int IndexOf(STNodeOption option) {
-            return Array.IndexOf<STNodeOption>(m_options, option);
+            return Array.IndexOf<STNodeOption>(m_options, option, 0, _Count);
         }
 
         public void Insert(int index, STNodeOption option) {
@@ -163,7 +163,8 @@ namespace ST.Library.UI.NodeEditor
             }
         }
         //===================================================================================
-        int IList.Add(object value) {
+        int IList.Add(object? value) {
+            ArgumentNullException.ThrowIfNull(value);
             return this.Add((STNodeOption)value);
         }
 
@@ -171,15 +172,16 @@ namespace ST.Library.UI.NodeEditor
             this.Clear();
         }
 
-        bool IList.Contains(object value) {
-            return this.Contains((STNodeOption)value);
+        bool IList.Contains(object? value) {
+            return value is STNodeOption item && this.Contains(item);
         }
 
-        int IList.IndexOf(object value) {
-            return this.IndexOf((STNodeOption)value);
+        int IList.IndexOf(object? value) {
+            return value is STNodeOption item ? this.IndexOf(item) : -1;
         }
 
-        void IList.Insert(int index, object value) {
+        void IList.Insert(int index, object? value) {
+            ArgumentNullException.ThrowIfNull(value);
             this.Insert(index, (STNodeOption)value);
         }
 
@@ -191,20 +193,20 @@ namespace ST.Library.UI.NodeEditor
             get { return this.IsReadOnly; }
         }
 
-        void IList.Remove(object value) {
-            this.Remove((STNodeOption)value);
+        void IList.Remove(object? value) {
+            if (value is STNodeOption item) this.Remove(item);
         }
 
         void IList.RemoveAt(int index) {
             this.RemoveAt(index);
         }
 
-        object IList.this[int index] {
+        object? IList.this[int index] {
             get {
                 return this[index];
             }
             set {
-                this[index] = (STNodeOption)value;
+                throw new InvalidOperationException("No reassignment of elements");
             }
         }
 

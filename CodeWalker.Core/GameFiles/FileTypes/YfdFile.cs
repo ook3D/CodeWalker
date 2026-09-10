@@ -11,9 +11,9 @@ namespace CodeWalker.GameFiles
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public class YfdFile : GameFile, PackedFile
     {
-        public FrameFilterDictionary FrameFilterDictionary { get; set; }
+        public FrameFilterDictionary? FrameFilterDictionary { get; set; }
 
-        public string LoadException { get; set; }
+        public string? LoadException { get; set; }
 
 
         public YfdFile() : base(null, GameFileType.Yfd)
@@ -30,13 +30,13 @@ namespace CodeWalker.GameFiles
             //Hash = entry.ShortNameHash;
 
 
-            RpfResourceFileEntry resentry = entry as RpfResourceFileEntry;
+            RpfResourceFileEntry? resentry = entry as RpfResourceFileEntry;
             if (resentry == null)
             {
                 throw new Exception("File entry wasn't a resource! (is it binary data?)");
             }
 
-            ResourceDataReader rd = null;
+            ResourceDataReader? rd = null;
             try
             {
                 rd = new ResourceDataReader(resentry, data);
@@ -53,7 +53,8 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
-            byte[] data = ResourceBuilder.Build(FrameFilterDictionary, 4); //yfd is version 4...
+            byte[] data = ResourceBuilder.Build(FrameFilterDictionary
+                ?? throw new InvalidOperationException("A frame filter dictionary must be loaded before saving."), 4); //yfd is version 4...
 
             return data;
         }
@@ -90,7 +91,8 @@ namespace CodeWalker.GameFiles
         {
             YfdFile yfd = new();
             yfd.FrameFilterDictionary = new FrameFilterDictionary();
-            yfd.FrameFilterDictionary.ReadXml(doc.DocumentElement);
+            yfd.FrameFilterDictionary.ReadXml(doc.DocumentElement
+                ?? throw new XmlException("The frame filter document must have a root element."));
             return yfd;
         }
     }

@@ -24,7 +24,7 @@ namespace CodeWalker
     {
         public Form Form { get { return this; } } //for DXForm/DXManager use
 
-        public Renderer Renderer = null;
+        public readonly Renderer Renderer;
         public Lock RenderSyncRoot { get { return Renderer.RenderSyncRoot; } }
 
         volatile bool formopen = false;
@@ -125,7 +125,7 @@ namespace CodeWalker
 
 
             camera.FollowEntity = camEntity;
-            camera.FollowEntity.Position = Vector3.Zero;// prevworldpos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = Vector3.Zero;// prevworldpos;
             camera.FollowEntity.Orientation = Quaternion.LookAtLH(Vector3.Zero, Vector3.Up, Vector3.ForwardLH);
             camera.TargetDistance = 2.0f;
             camera.CurrentDistance = 2.0f;
@@ -168,54 +168,59 @@ namespace CodeWalker
 
             GameFileCache.BeginFrame();
 
-            if (!Monitor.TryEnter(Renderer.RenderSyncRoot, 50))
+            var renderLock = Renderer.RenderSyncRoot;
+            if (!renderLock.TryEnter(50))
             { return; } //couldn't get a lock, try again next time
+            try
+            {
+                UpdateControlInputs(elapsed);
+                //space.Update(elapsed);
 
-            UpdateControlInputs(elapsed);
-            //space.Update(elapsed);
-
-            Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
-
-
-
-            //UpdateWidgets();
-            //BeginMouseHitTest();
+                Renderer.Update(elapsed, MouseLastPoint.X, MouseLastPoint.Y);
 
 
 
-
-            Renderer.BeginRender(context);
-
-            Renderer.RenderSkyAndClouds();
-
-            Renderer.SelectedDrawable = null;// SelectedItem.Drawable;
+                //UpdateWidgets();
+                //BeginMouseHitTest();
 
 
-            RenderVehicle();
-
-            //UpdateMouseHitsFromRenderer();
-            //RenderSelection();
 
 
-            RenderGrid(context);
+                Renderer.BeginRender(context);
+
+                Renderer.RenderSkyAndClouds();
+
+                Renderer.SelectedDrawable = null;// SelectedItem.Drawable;
 
 
-            Renderer.RenderQueued();
+                RenderVehicle();
 
-            //Renderer.RenderBounds(MapSelectionMode.Entity);
+                //UpdateMouseHitsFromRenderer();
+                //RenderSelection();
 
-            Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
 
-            //RenderMoused();
+                RenderGrid(context);
 
-            Renderer.RenderFinalPass();
 
-            //RenderMarkers();
-            //RenderWidgets();
+                Renderer.RenderQueued();
 
-            Renderer.EndRender();
+                //Renderer.RenderBounds(MapSelectionMode.Entity);
 
-            Monitor.Exit(Renderer.RenderSyncRoot);
+                Renderer.RenderSelectionGeometry(MapSelectionMode.Entity);
+
+                //RenderMoused();
+
+                Renderer.RenderFinalPass();
+
+                //RenderMarkers();
+                //RenderWidgets();
+
+                Renderer.EndRender();
+            }
+            finally
+            {
+                renderLock.Exit();
+            }
 
             //UpdateMarkerSelectionPanelInvoke();
         }
@@ -445,7 +450,7 @@ namespace CodeWalker
 
             rad = Math.Max(0.01f, rad);
 
-            camera.FollowEntity.Position = pos;
+            if (camera.FollowEntity is { } followedEntity) followedEntity.Position = pos;
             camera.TargetDistance = rad * 1.6f;
             camera.CurrentDistance = rad * 1.6f;
 
@@ -469,7 +474,7 @@ namespace CodeWalker
             //AddDrawableModelsTreeNodes(drawable.DrawableModels?.Extra, "X Detail", false, dnode);
 
         }
-        private void AddDrawableModelsTreeNodes(DrawableModel[] models, string prefix, bool check, TreeNode parentDrawableNode = null)
+        private void AddDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check, TreeNode? parentDrawableNode = null)
         {
             if (models == null) return;
 
@@ -620,7 +625,7 @@ namespace CodeWalker
 
 
 
-        private void UpdateModelsUI(DrawableBase drawable)
+        private void UpdateModelsUI(DrawableBase? drawable)
         {
             DetailsPropertyGrid.SelectedObject = drawable;
 
@@ -707,7 +712,7 @@ namespace CodeWalker
 
         }
 
-        public void LoadModel(YftFile yft, bool movecamera = true)
+        public void LoadModel(YftFile? yft, bool movecamera = true)
         {
             if (yft == null) return;
 
@@ -720,7 +725,7 @@ namespace CodeWalker
                 MoveCameraToView(dr.BoundingCenter, dr.BoundingSphereRadius);
             }
 
-            UpdateModelsUI(yft.Fragment.Drawable);
+            UpdateModelsUI(yft.Fragment?.Drawable);
         }
 
 
@@ -887,7 +892,7 @@ namespace CodeWalker
 
         private void RenderVehicle()
         {
-            ClipMapEntry clip = null;
+            ClipMapEntry? clip = null;
             if (PlayConvRoofAnim)
             {
                 clip = SelectedVehicle.ConvRoofClip;
@@ -999,7 +1004,7 @@ namespace CodeWalker
 
         }
 
-        private void VehicleForm_MouseWheel(object sender, MouseEventArgs e)
+        private void VehicleForm_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (e.Delta != 0)
             {
@@ -1011,12 +1016,12 @@ namespace CodeWalker
         {
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //nontypable combobox
             }
 
@@ -1094,12 +1099,12 @@ namespace CodeWalker
 
             if (ActiveControl is TextBox)
             {
-                var tb = ActiveControl as TextBox;
+                var tb = (TextBox)ActiveControl;
                 if (!tb.ReadOnly) return; //don't move the camera when typing!
             }
             if (ActiveControl is ComboBox)
             {
-                var cb = ActiveControl as ComboBox;
+                var cb = (ComboBox)ActiveControl;
                 if (cb.DropDownStyle != ComboBoxStyle.DropDownList) return; //non-typable combobox
             }
 

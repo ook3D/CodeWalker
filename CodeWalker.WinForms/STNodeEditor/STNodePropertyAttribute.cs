@@ -57,14 +57,25 @@ namespace ST.Library.UI.NodeEditor
     /// </summary>
     public class STNodePropertyDescriptor
     {
+        // Descriptors are constructed by reflection and bound before they are used.
+        // Serialization binds Node and PropertyInfo; only the UI also binds Control.
+        private STNode? node;
+        private STNodePropertyGrid? control;
+        private PropertyInfo? propertyInfo;
         /// <summary>
         /// Get the target node
         /// </summary>
-        public STNode Node { get; internal set; }
+        public STNode Node {
+            get => node ?? throw new InvalidOperationException("The descriptor is not bound to a node.");
+            internal set => node = value;
+        }
         /// <summary>
         /// Get the node attribute editor control to which it belongs
         /// </summary>
-        public STNodePropertyGrid Control { get; internal set; }
+        public STNodePropertyGrid Control {
+            get => control ?? throw new InvalidOperationException("The descriptor is not attached to a property grid.");
+            internal set => control = value;
+        }
         /// <summary>
         /// Get the area where the option is located
         /// </summary>
@@ -80,15 +91,18 @@ namespace ST.Library.UI.NodeEditor
         /// <summary>
         /// Get the name of the option that needs to be displayed
         /// </summary>
-        public string Name { get; internal set; }
+        public string Name { get; internal set; } = string.Empty;
         /// <summary>
         /// Get the description information corresponding to the attribute
         /// </summary>
-        public string Description { get; internal set; }
+        public string Description { get; internal set; } = string.Empty;
         /// <summary>
         /// Get attribute information
         /// </summary>
-        public PropertyInfo PropertyInfo { get; internal set; }
+        public PropertyInfo PropertyInfo {
+            get => propertyInfo ?? throw new InvalidOperationException("The descriptor is not bound to a property.");
+            internal set => propertyInfo = value;
+        }
 
         private static Type m_t_int = typeof(int);
         private static Type m_t_float = typeof(float);
@@ -152,13 +166,13 @@ namespace ST.Library.UI.NodeEditor
         /// If you need special processing, please rewrite this function to convert it yourself
         /// </summary>
         /// <returns>String form of attribute value</returns>
-        protected internal virtual string GetStringFromValue() {
+        protected internal virtual string? GetStringFromValue() {
             var v = this.PropertyInfo.GetValue(this.Node, null);
             var t = this.PropertyInfo.PropertyType;
             if (v == null) return null;
             if (t.IsArray) {
-                List<string> lst = new();
-                foreach (var item in (Array)v) lst.Add(item.ToString());
+                List<string?> lst = new();
+                foreach (var item in (Array)v) lst.Add(item?.ToString());
                 return string.Join(",", lst.ToArray());
             }
             return v.ToString();
@@ -170,7 +184,7 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="byData">Binary data</param>
         /// <returns>The value of the real target type of the attribute</returns>
-        protected internal virtual object GetValueFromBytes(byte[] byData) {
+        protected internal virtual object? GetValueFromBytes(byte[]? byData) {
             if (byData == null) return null;
             string strText = Encoding.UTF8.GetString(byData);
             return this.GetValueFromString(strText);
@@ -181,8 +195,8 @@ namespace ST.Library.UI.NodeEditor
         /// For special handling, please rewrite this function to convert it yourself and rewrite GetValueFromBytes()
         /// </summary>
         /// <returns>Binary form of attribute value</returns>
-        protected internal virtual byte[] GetBytesFromValue() {
-            string strText = this.GetStringFromValue();
+        protected internal virtual byte[]? GetBytesFromValue() {
+            string? strText = this.GetStringFromValue();
             if (strText == null) return null;
             return Encoding.UTF8.GetBytes(strText);
         }
@@ -191,14 +205,14 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="index">The optional index value of the indexed attribute should be null for non-indexed attributes</param>
         /// <returns>Attribute value</returns>
-        protected internal virtual object GetValue(object[] index) {
+        protected internal virtual object? GetValue(object?[]? index) {
             return this.PropertyInfo.GetValue(this.Node, index);
         }
         /// <summary>
         /// This function corresponds to System.Reflection.PropertyInfo.SetValue()
         /// </summary>
         /// <param name="value">Attribute value to be set</param>
-        protected internal virtual void SetValue(object value) {
+        protected internal virtual void SetValue(object? value) {
             this.PropertyInfo.SetValue(this.Node, value, null);
         }
         /// <summary>
@@ -214,7 +228,7 @@ namespace ST.Library.UI.NodeEditor
         /// GetValueFromBytes(byte[]) will be processed by default before calling
         /// </summary>
         /// <param name="byData">Attribute binary data to be set</param>
-        protected internal virtual void SetValue(byte[] byData) {
+        protected internal virtual void SetValue(byte[]? byData) {
             this.PropertyInfo.SetValue(this.Node, this.GetValueFromBytes(byData), null);
         }
         /// <summary>
@@ -222,7 +236,7 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="value">Attribute value to be set</param>
         /// <param name="index">The optional index value of the indexed attribute should be null for non-indexed attributes</param>
-        protected internal virtual void SetValue(object value, object[] index) {
+        protected internal virtual void SetValue(object? value, object?[]? index) {
             this.PropertyInfo.SetValue(this.Node, value, index);
         }
         /// <summary>
@@ -231,7 +245,7 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="strValue">The value of the attribute string that needs to be set</param>
         /// <param name="index">The optional index value of the indexed attribute should be null for non-indexed attributes</param>
-        protected internal virtual void SetValue(string strValue, object[] index) {
+        protected internal virtual void SetValue(string strValue, object?[]? index) {
             this.PropertyInfo.SetValue(this.Node, this.GetValueFromString(strValue), index);
         }
         /// <summary>
@@ -240,7 +254,7 @@ namespace ST.Library.UI.NodeEditor
         /// </summary>
         /// <param name="byData">Attribute binary data to be set</param>
         /// <param name="index">The optional index value of the indexed attribute should be null for non-indexed attributes</param>
-        protected internal virtual void SetValue(byte[] byData, object[] index) {
+        protected internal virtual void SetValue(byte[]? byData, object?[]? index) {
             this.PropertyInfo.SetValue(this.Node, this.GetValueFromBytes(byData), index);
         }
         /// <summary>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,36 +29,31 @@ namespace CodeWalker.GameFiles
 
         public static uint GenHash(string text, JenkHashInputEncoding encoding)
         {
-            uint h = 0;
-            byte[] chars;
-
-            switch (encoding)
+            ArgumentNullException.ThrowIfNull(text);
+            var encoder = encoding == JenkHashInputEncoding.ASCII
+                ? System.Text.Encoding.ASCII : System.Text.Encoding.UTF8;
+            // Both encodings fit short names in this buffer, avoiding a byte-count pass.
+            int byteCount = text.Length <= 80 ? 256 : encoder.GetByteCount(text);
+            byte[]? rented = null;
+            Span<byte> bytes = byteCount <= 256
+                ? stackalloc byte[256]
+                : (rented = ArrayPool<byte>.Shared.Rent(byteCount));
+            try
             {
-                default:
-                case JenkHashInputEncoding.UTF8:
-                    chars = UTF8Encoding.UTF8.GetBytes(text);
-                    break;
-                case JenkHashInputEncoding.ASCII:
-                    chars = ASCIIEncoding.ASCII.GetBytes(text);
-                    break;
+                int written = encoder.GetBytes(text.AsSpan(), bytes);
+                return GenHash((ReadOnlySpan<byte>)bytes[..written]);
             }
-
-            for (uint i = 0; i < chars.Length; i++)
+            finally
             {
-                h += chars[i];
-                h += (h << 10);
-                h ^= (h >> 6);
+                if (rented != null) ArrayPool<byte>.Shared.Return(rented);
             }
-            h += (h << 3);
-            h ^= (h >> 11);
-            h += (h << 15);
-
-            return h;
         }
 
-        public static uint GenHash(string text)
+        public static uint GenHash(string text) => GenHash(text.AsSpan());
+
+        // Preserve the game's low-byte character hashing; this is not UTF-8 hashing.
+        public static uint GenHash(ReadOnlySpan<char> text)
         {
-            if (text == null) return 0;
             uint h = 0;
             for (int i = 0; i < text.Length; i++)
             {
@@ -72,10 +68,53 @@ namespace CodeWalker.GameFiles
             return h;
         }
 
-        public static uint GenHash(byte[] data)
+        /// <summary>Hashes invariant-lowercase text without allocating a lowercase string.</summary>
+        public static uint GenHashLowerInvariant(ReadOnlySpan<char> text)
         {
             uint h = 0;
-            for (uint i = 0; i < data.Length; i++)
+            foreach (char c in text)
+            {
+                // Unicode casing must operate on the complete span, including surrogate pairs.
+                if (c > 0x7F) return GenHashLowerUnicode(text);
+                uint value = c >= 'A' && c <= 'Z' ? (uint)(c + ('a' - 'A')) : c;
+                h += value;
+                h += h << 10;
+                h ^= h >> 6;
+            }
+            h += h << 3;
+            h ^= h >> 11;
+            h += h << 15;
+            return h;
+        }
+
+        private static uint GenHashLowerUnicode(ReadOnlySpan<char> text)
+        {
+            char[]? rented = null;
+            Span<char> buffer = text.Length <= 256
+                ? stackalloc char[text.Length]
+                : (rented = ArrayPool<char>.Shared.Rent(text.Length)).AsSpan(0, text.Length);
+            try
+            {
+                int written = text.ToLowerInvariant(buffer);
+                if (written < 0) throw new InvalidOperationException("Invariant casing exceeded the source length.");
+                return GenHash((ReadOnlySpan<char>)buffer[..written]);
+            }
+            finally
+            {
+                if (rented != null) ArrayPool<char>.Shared.Return(rented);
+            }
+        }
+
+        public static uint GenHash(byte[] data)
+        {
+            ArgumentNullException.ThrowIfNull(data);
+            return GenHash(data.AsSpan());
+        }
+
+        public static uint GenHash(ReadOnlySpan<byte> data)
+        {
+            uint h = 0;
+            for (int i = 0; i < data.Length; i++)
             {
                 h += data[i];
                 h += (h << 10);
@@ -199,7 +238,7 @@ namespace CodeWalker.GameFiles
     public static class JenkIndex
     {
         public static Dictionary<uint, string> Index = new();
-        private static object syncRoot = new object();
+        private static readonly System.Threading.Lock syncRoot = new();
 
         public static void Clear()
         {
@@ -215,13 +254,8 @@ namespace CodeWalker.GameFiles
             if (hash == 0) return true;
             lock (syncRoot)
             {
-                if (!Index.ContainsKey(hash))
-                {
-                    Index.Add(hash, str);
-                    return false;
-                }
+                return !Index.TryAdd(hash, str);
             }
-            return true;
         }
 
         public static void EnsureRange(IReadOnlyDictionary<uint, string> items)
@@ -239,7 +273,7 @@ namespace CodeWalker.GameFiles
 
         public static string GetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))
@@ -251,7 +285,7 @@ namespace CodeWalker.GameFiles
         }
         public static string TryGetString(uint hash)
         {
-            string res;
+            string? res;
             lock (syncRoot)
             {
                 if (!Index.TryGetValue(hash, out res))
@@ -264,7 +298,7 @@ namespace CodeWalker.GameFiles
 
         public static string[] GetAllStrings()
         {
-            string[] res = null;
+            string[]? res = null;
             lock (syncRoot)
             {
                 res = Index.Values.ToArray();

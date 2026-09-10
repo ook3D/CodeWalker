@@ -65,7 +65,7 @@ namespace CodeWalker.Utils
 
         public static string? NvttErrorMessage => _nvttErrorMessage;
         public static TextureCompressionResult CompressTexture(
-            string imagePath,
+            string? imagePath,
             TextureCompressionFormat format,
             TextureCompressionQuality quality,
             bool generateMipmaps,
@@ -97,7 +97,7 @@ namespace CodeWalker.Utils
         }
 
         public static TextureCompressionResult CompressTexture(
-            byte[] imageData,
+            byte[]? imageData,
             TextureCompressionFormat format,
             TextureCompressionQuality quality,
             bool generateMipmaps,

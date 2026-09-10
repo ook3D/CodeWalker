@@ -131,7 +131,7 @@ namespace CodeWalker.Tools
                             if (entry.NameLower.EndsWith(".fxc"))
                             {
                                 UpdateExtractStatus(entry.Path);
-                                FxcFile fxc = rpfman.GetFile<FxcFile>(entry);
+                                var fxc = rpfman.GetFile<FxcFile>(entry);
                                 if (fxc == null) throw new Exception("Couldn't load file.");
 
                                 string basepath = outputpath + "\\" + rpf.Name.Replace(".rpf", "");

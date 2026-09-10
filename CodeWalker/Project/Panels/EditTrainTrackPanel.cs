@@ -14,7 +14,7 @@ namespace CodeWalker.Project.Panels
     public partial class EditTrainTrackPanel : ProjectPanel
     {
         public ProjectForm ProjectForm;
-        public TrainTrack Track { get; set; }
+        public TrainTrack? Track { get; set; }
 
         //private bool populatingui = false;
         private bool waschanged = false;
@@ -36,7 +36,7 @@ namespace CodeWalker.Project.Panels
 
         public void UpdateFormTitleYnvChanged()
         {
-            bool changed = Track.HasChanged;
+            bool changed = Track?.HasChanged ?? false;
             if (!waschanged && changed)
             {
                 UpdateFormTitle();
@@ -50,9 +50,9 @@ namespace CodeWalker.Project.Panels
         }
         private void UpdateFormTitle()
         {
-            string fn = Track.RpfFileEntry?.Name ?? Track.Name;
+            string fn = Track?.RpfFileEntry?.Name ?? Track?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(fn)) fn = "Edit Train Track";
-            Text = fn + (Track.HasChanged ? "*" : "");
+            Text = fn + (Track?.HasChanged == true ? "*" : "");
         }
 
 

@@ -14,29 +14,30 @@ namespace CodeWalker.World
     {
         public string Name { get; set; } = string.Empty;
         public MetaHash NameHash { get; set; } = 0;//ped name hash
-        public CPedModelInfo__InitData InitData { get; set; } = null; //ped init data
-        public YddFile Ydd { get; set; } = null; //ped drawables
-        public YtdFile Ytd { get; set; } = null; //ped textures
-        public YldFile Yld { get; set; } = null; //ped clothes
-        public YcdFile Ycd { get; set; } = null; //ped animations
-        public YedFile Yed { get; set; } = null; //ped expressions
-        public YftFile Yft { get; set; } = null; //ped skeleton YFT
-        public PedFile Ymt { get; set; } = null; //ped variation info
-        public Dictionary<MetaHash, RpfFileEntry> DrawableFilesDict { get; set; } = null;
-        public Dictionary<MetaHash, RpfFileEntry> TextureFilesDict { get; set; } = null;
-        public Dictionary<MetaHash, RpfFileEntry> ClothFilesDict { get; set; } = null;
-        public RpfFileEntry[] DrawableFiles { get; set; } = null;
-        public RpfFileEntry[] TextureFiles { get; set; } = null;
-        public RpfFileEntry[] ClothFiles { get; set; } = null;
-        public ClipMapEntry AnimClip { get; set; } = null;
-        public Expression Expression { get; set; } = null;
-        public string[] DrawableNames { get; set; } = new string[12];
-        public Drawable[] Drawables { get; set; } = new Drawable[12];
-        public Texture[] Textures { get; set; } = new Texture[12];
-        public Expression[] Expressions { get; set; } = new Expression[12];
-        public ClothInstance[] Clothes { get; set; } = new ClothInstance[12];
+        public CPedModelInfo__InitData? InitData { get; set; } //ped init data
+        public YddFile? Ydd { get; set; } //ped drawables
+        public YtdFile? Ytd { get; set; } //ped textures
+        public YldFile? Yld { get; set; } //ped clothes
+        public YcdFile? Ycd { get; set; } //ped animations
+        public YedFile? Yed { get; set; } //ped expressions
+        public YftFile? Yft { get; set; } //ped skeleton YFT
+        public PedFile? Ymt { get; set; } //ped variation info
+        public Dictionary<MetaHash, RpfFileEntry>? DrawableFilesDict { get; set; }
+        public Dictionary<MetaHash, RpfFileEntry>? TextureFilesDict { get; set; }
+        public Dictionary<MetaHash, RpfFileEntry>? ClothFilesDict { get; set; }
+        public RpfFileEntry[] DrawableFiles { get; set; } = [];
+        public RpfFileEntry[] TextureFiles { get; set; } = [];
+        public RpfFileEntry[] ClothFiles { get; set; } = [];
+        public ClipMapEntry? AnimClip { get; set; }
+        public ClipMapEntry? FaceAnimClip { get; set; }
+        public Expression? Expression { get; set; }
+        public string?[] DrawableNames { get; set; } = new string?[12];
+        public Drawable?[] Drawables { get; set; } = new Drawable?[12];
+        public Texture?[] Textures { get; set; } = new Texture?[12];
+        public Expression?[] Expressions { get; set; } = new Expression?[12];
+        public ClothInstance?[] Clothes { get; set; } = new ClothInstance?[12];
         public bool EnableRootMotion { get; set; } = false; //used to toggle whether or not to include root motion when playing animations
-        public Skeleton Skeleton { get; set; } = null;
+        public Skeleton? Skeleton { get; set; }
 
         public Vector3 Position { get; set; } = Vector3.Zero;
         public Quaternion Rotation { get; set; } = Quaternion.Identity;
@@ -49,7 +50,7 @@ namespace CodeWalker.World
 
         public void Init(string name, GameFileCache gfc)
         {
-            var hash = JenkHash.GenHash(name.ToLowerInvariant());
+            var hash = JenkHash.GenHashLowerInvariant(name);
             Init(hash, gfc);
             Name = name;
         }
@@ -61,7 +62,7 @@ namespace CodeWalker.World
 
         public async Task InitAsync(string name, GameFileCache gfc)
         {
-            var hash = JenkHash.GenHash(name.ToLowerInvariant());
+            var hash = JenkHash.GenHashLowerInvariant(name);
             await InitAsync(hash, gfc);
             Name = name;
         }
@@ -81,6 +82,7 @@ namespace CodeWalker.World
             Yft = null;
             Ymt = null;
             AnimClip = null;
+            FaceAnimClip = null;
             for (int i = 0; i < 12; i++)
             {
                 Drawables[i] = null;
@@ -89,15 +91,15 @@ namespace CodeWalker.World
             }
 
 
-            CPedModelInfo__InitData initdata = null;
+            CPedModelInfo__InitData? initdata = null;
             if (!gfc.PedsInitDict.TryGetValue(pedhash, out initdata))
             {
                 IsLoading = false;
                 return;
             }
 
-            var ycdhash = JenkHash.GenHash(initdata.ClipDictionaryName.ToLowerInvariant());
-            var yedhash = JenkHash.GenHash(initdata.ExpressionDictionaryName.ToLowerInvariant());
+            var ycdhash = JenkHash.GenHashLowerInvariant(initdata.ClipDictionaryName);
+            var yedhash = JenkHash.GenHashLowerInvariant(initdata.ExpressionDictionaryName);
 
             NameHash = pedhash;
             InitData = initdata;
@@ -109,22 +111,22 @@ namespace CodeWalker.World
             Yed = gfc.GetYed(yedhash);
             Yft = gfc.GetYft(pedhash);
 
-            PedFile pedFile = null;
+            PedFile? pedFile = null;
             gfc.PedVariationsDict?.TryGetValue(pedhash, out pedFile);
             Ymt = pedFile;
 
-            Dictionary<MetaHash, RpfFileEntry> peddict = null;
+            Dictionary<MetaHash, RpfFileEntry>? peddict = null;
             gfc.PedDrawableDicts.TryGetValue(NameHash, out peddict);
             DrawableFilesDict = peddict;
-            DrawableFiles = DrawableFilesDict?.Values.ToArray();
+            DrawableFiles = DrawableFilesDict?.Values.ToArray() ?? [];
             gfc.PedTextureDicts.TryGetValue(NameHash, out peddict);
             TextureFilesDict = peddict;
-            TextureFiles = TextureFilesDict?.Values.ToArray();
+            TextureFiles = TextureFilesDict?.Values.ToArray() ?? [];
             gfc.PedClothDicts.TryGetValue(NameHash, out peddict);
             ClothFilesDict = peddict;
-            ClothFiles = ClothFilesDict?.Values.ToArray();
+            ClothFiles = ClothFilesDict?.Values.ToArray() ?? [];
 
-            RpfFileEntry clothFile = null;
+            RpfFileEntry? clothFile = null;
             if (ClothFilesDict?.TryGetValue(pedhash, out clothFile) ?? false)
             {
                 Yld = gfc.GetFileUncached<YldFile>(clothFile);
@@ -136,12 +138,12 @@ namespace CodeWalker.World
             Skeleton = Yft?.Fragment?.Drawable?.Skeleton?.Clone();
 
             MetaHash cliphash = JenkHash.GenHash("idle");
-            ClipMapEntry cme = null;
+            ClipMapEntry? cme = null;
             Ycd?.ClipMap?.TryGetValue(cliphash, out cme);
             AnimClip = cme;
 
-            var exprhash = JenkHash.GenHash(initdata.ExpressionName.ToLowerInvariant());
-            Expression expr = null;
+            var exprhash = JenkHash.GenHashLowerInvariant(initdata.ExpressionName);
+            Expression? expr = null;
             Yed?.ExprMap?.TryGetValue(exprhash, out expr);
             Expression = expr;
 
@@ -171,19 +173,31 @@ namespace CodeWalker.World
 
                 await Task.Delay(checkIntervalMs);
             }
+
+            if ((Ydd != null && !Ydd.Loaded) || (Ytd != null && !Ytd.Loaded) || (Ycd != null && !Ycd.Loaded) ||
+                (Yed != null && !Yed.Loaded) || (Yft != null && !Yft.Loaded) || (Yld != null && !Yld.Loaded))
+            {
+                gfc.ErrorLog?.Invoke($"Ped {JenkIndex.GetString(pedhash)}: timed out waiting for" +
+                    (Ydd != null && !Ydd.Loaded ? " Ydd" : "") +
+                    (Ytd != null && !Ytd.Loaded ? " Ytd" : "") +
+                    (Ycd != null && !Ycd.Loaded ? " Ycd" : "") +
+                    (Yed != null && !Yed.Loaded ? " Yed" : "") +
+                    (Yft != null && !Yft.Loaded ? " Yft" : "") +
+                    (Yld != null && !Yld.Loaded ? " Yld" : ""));
+            }
         }
 
 
 
 
 
-        public void SetComponentDrawable(int index, string name, string tex, GameFileCache gfc)
+        public void SetComponentDrawable(int index, string? name, string? tex, GameFileCache gfc)
         {
             // Use async version internally
             SetComponentDrawableAsync(index, name, tex, gfc).GetAwaiter().GetResult();
         }
 
-        public async Task SetComponentDrawableAsync(int index, string name, string tex, GameFileCache gfc)
+        public async Task SetComponentDrawableAsync(int index, string? name, string? tex, GameFileCache gfc)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -195,49 +209,49 @@ namespace CodeWalker.World
                 return;
             }
 
-            MetaHash namehash = JenkHash.GenHash(name.ToLowerInvariant());
-            MetaHash texhash = JenkHash.GenHash(tex.ToLowerInvariant());
+            MetaHash namehash = JenkHash.GenHashLowerInvariant(name);
+            MetaHash texhash = JenkHash.GenHashLowerInvariant(tex);
 
             // Start loading all required files in parallel
-            YddFile yddFile = null;
-            YtdFile ytdFile = null;
-            YldFile yldFile = null;
+            YddFile? yddFile = null;
+            YtdFile? ytdFile = null;
+            YldFile? yldFile = null;
 
             // Check if drawable is in the main ped YDD first
-            Drawable d = null;
+            Drawable? d = null;
             if (Ydd?.Dict != null)
             {
                 Ydd.Dict.TryGetValue(namehash, out d);
             }
 
             // If not found, need to load from component-specific file
-            if (d == null && DrawableFilesDict != null && DrawableFilesDict.TryGetValue(namehash, out RpfFileEntry drawableFile))
+            if (d == null && DrawableFilesDict != null && DrawableFilesDict.TryGetValue(namehash, out RpfFileEntry? drawableFile))
             {
                 yddFile = gfc.GetFileUncached<YddFile>(drawableFile);
             }
 
             // Check if texture is in the main ped YTD first
-            Texture t = null;
+            Texture? t = null;
             if (Ytd?.TextureDict?.Dict != null)
             {
                 Ytd.TextureDict.Dict.TryGetValue(texhash, out t);
             }
 
             // If not found, need to load from component-specific file
-            if (t == null && TextureFilesDict != null && TextureFilesDict.TryGetValue(texhash, out RpfFileEntry textureFile))
+            if (t == null && TextureFilesDict != null && TextureFilesDict.TryGetValue(texhash, out RpfFileEntry? textureFile))
             {
                 ytdFile = gfc.GetFileUncached<YtdFile>(textureFile);
             }
 
             // Check if cloth is in the main ped YLD first
-            CharacterCloth cc = null;
+            CharacterCloth? cc = null;
             if (Yld?.Dict != null)
             {
                 Yld.Dict.TryGetValue(namehash, out cc);
             }
 
             // If not found, need to load from component-specific file
-            if (cc == null && ClothFilesDict != null && ClothFilesDict.TryGetValue(namehash, out RpfFileEntry clothFile))
+            if (cc == null && ClothFilesDict != null && ClothFilesDict.TryGetValue(namehash, out RpfFileEntry? clothFile))
             {
                 yldFile = gfc.GetFileUncached<YldFile>(clothFile);
             }
@@ -276,20 +290,26 @@ namespace CodeWalker.World
                 cc = yldFile.ClothDictionary.Clothes.data_items[0];
             }
 
-            ClothInstance c = null;
+            ClothInstance? c = null;
             if (cc != null)
             {
                 c = new ClothInstance();
                 c.Init(cc, Skeleton);
             }
 
-            Expression e = null;
+            Expression? e = null;
             if (Yed?.ExprMap != null)
             {
                 Yed.ExprMap.TryGetValue(namehash, out e);
             }
 
-            if (d != null) Drawables[index] = d.ShallowCopy() as Drawable;
+            if (d != null)
+            {
+                var component = d.ShallowCopy() as Drawable;
+                // Binding a pose must not mutate a cached drawable or another actor's palette.
+                if (component != null) component.Skeleton = (d.Skeleton ?? Skeleton)?.Clone();
+                Drawables[index] = component;
+            }
             if (t != null) Textures[index] = t;
             if (c != null) Clothes[index] = c;
             if (e != null) Expressions[index] = e;
@@ -310,7 +330,7 @@ namespace CodeWalker.World
                 var compData = vi.GetComponentData(index);
                 if (compData?.DrawblData3 != null)
                 {
-                    var item = (drawbl < (compData.DrawblData3?.Length ?? 0)) ? compData.DrawblData3[drawbl] : null;
+                    var item = (drawbl >= 0 && drawbl < compData.DrawblData3.Length) ? compData.DrawblData3[drawbl] : null;
                     if (item != null)
                     {
                         var name = item?.GetDrawableName(alt);
