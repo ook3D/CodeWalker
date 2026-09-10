@@ -86,6 +86,7 @@ namespace CodeWalker.Rendering
 
 
         private RenderLodManager LodManager = new RenderLodManager();
+        private int streamingPrefetchCursor;
 
         private List<YmapEntityDef> renderworldentities = new List<YmapEntityDef>(512); //used when rendering world view.
         private List<RenderableEntity> renderworldrenderables = new List<RenderableEntity>(512);
@@ -2127,6 +2128,16 @@ namespace CodeWalker.Rendering
             }
 
 
+
+            // Visible requests have priority. Rotate bounded speculative requests so a
+            // large scene cannot submit its entire next LOD level in one frame.
+            var prefetch = LodManager.PrefetchEntities;
+            int requestCount = Math.Min(32, prefetch.Count);
+            for (int i = 0; i < requestCount; i++)
+            {
+                streamingPrefetchCursor %= prefetch.Count;
+                GetArchetypeRenderable(prefetch[streamingPrefetchCursor++].Archetype);
+            }
 
             for (int i = 0; i < ents.Count; i++) //make sure to remove the renderable references to avoid hogging memory
             {
@@ -4407,6 +4418,8 @@ namespace CodeWalker.Rendering
         private HashSet<YmapFile> RemoveYmapsSet = new HashSet<YmapFile>();
         public Dictionary<YmapEntityDef, YmapEntityDef> RootEntities = new Dictionary<YmapEntityDef, YmapEntityDef>();
         public List<YmapEntityDef> VisibleLeaves = new List<YmapEntityDef>();
+        public List<YmapEntityDef> PrefetchEntities { get; } = new();
+        private readonly HashSet<YmapEntityDef> prefetchSet = new();
 
         public Dictionary<uint, YmapLODLight> LodLightsDict = new Dictionary<uint, YmapLODLight>();
         public HashSet<YmapEntityDef.LightInstance> VisibleLights = new HashSet<YmapEntityDef.LightInstance>();
@@ -4537,6 +4550,8 @@ namespace CodeWalker.Rendering
 
 
             VisibleLeaves.Clear();
+            PrefetchEntities.Clear();
+            prefetchSet.Clear();
             VisibleLights.Clear();
             foreach (var kvp in RootEntities)
             {
@@ -4598,6 +4613,23 @@ namespace CodeWalker.Rendering
                 if (EntityVisible(ent))
                 {
                     VisibleLeaves.Add(ent);
+                    if (!MapViewEnabled)
+                    {
+                        // Keep the immediate coarse fallback warm while the detailed model
+                        // is visible, and request the next level before crossing its boundary.
+                        if (ent.Parent is { } parent && prefetchSet.Add(parent)) PrefetchEntities.Add(parent);
+                        if (EntityChildrenVisibleAtMaxLodLevel(ent) && ent.LodManagerChildren is { } children)
+                        {
+                            float threshold = ent.ChildLodDist * LodDistMult;
+                            bool near = ent.Distance <= threshold + Math.Min(100, Math.Max(10, threshold * 0.2f));
+                            foreach (var child in children)
+                            {
+                                float childThreshold = child.LodDist * LodDistMult;
+                                if ((near || Vector3.Distance(child.Position, Position) <= childThreshold + Math.Min(100, Math.Max(10, childThreshold * 0.2f)))
+                                    && prefetchSet.Add(child)) PrefetchEntities.Add(child);
+                            }
+                        }
+                    }
 
                     if (HDLightsEnabled && (ent.Lights != null))
                     {

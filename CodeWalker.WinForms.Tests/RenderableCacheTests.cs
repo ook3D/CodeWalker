@@ -82,6 +82,46 @@ public class RenderableCacheTests
         Assert.Equal(0, cache.CacheUse);
     }
 
+    [Fact]
+    public void ReturningCameraCancelsQueuedEvictionWithoutReupload()
+    {
+        var cache = new RenderableCacheLookup<string, TestItem>(100, 10);
+        var item = cache.Get("model");
+        cache.LoadProc(null!, 1);
+        item.LastUseTime = DateTime.UtcNow.AddMinutes(-1).ToBinary();
+        cache.UnloadProc();
+        Assert.Same(item, cache.Get("model"));
+        cache.RenderThreadSync(null!, 1);
+        Assert.True(item.IsLoaded);
+        Assert.False(item.Disposed);
+        Assert.Equal(10, cache.CacheUse);
+        Assert.Equal(0, cache.QueueLength);
+        cache.UnloadProc(); // content thread reclaims ownership of the retained item
+        Assert.Equal(1, cache.CurrentLoadedCount);
+        item.LastUseTime = DateTime.UtcNow.AddMinutes(-1).ToBinary();
+        cache.UnloadProc();
+        cache.RenderThreadSync(null!, 1);
+        Assert.True(item.Disposed);
+        Assert.Equal(0, cache.CacheUse);
+    }
+
+    [Fact]
+    public void ClearReleasesCancelledEvictionsBeforeContentThreadResumes()
+    {
+        var cache = new RenderableCacheLookup<string, TestItem>(100, 10);
+        var item = cache.Get("model");
+        cache.LoadProc(null!, 1);
+        item.LastUseTime = DateTime.UtcNow.AddMinutes(-1).ToBinary();
+        cache.UnloadProc();
+        cache.Get("model");
+        cache.RenderThreadSync(null!, 1);
+        cache.Clear();
+        Assert.True(item.Disposed);
+        Assert.Equal(0, cache.CacheUse);
+        cache.UnloadProc();
+        Assert.Equal(0, cache.CurrentLoadedCount);
+    }
+
     public class TestItem : RenderableCacheItem<string>
     {
         public bool Fail;

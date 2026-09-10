@@ -158,6 +158,32 @@ public class LodStreamingTests
         }
     }
 
+    [Fact]
+    public void NextLodIsRequestedEarlyWithoutChangingVisibleGeometry()
+    {
+        var manager = new RenderLodManager();
+        var camera = new Camera(0, 1, 1) { Position = new SharpDX.Vector3(110, 0, 0) };
+        var root = Map(1, 0);
+        var child = Map(2, 1);
+        root.AllEntities[0].ChildLodDist = 100;
+        child.AllEntities[0].LodDist = 100;
+        var maps = new Dictionary<MetaHash, YmapFile> { [1] = root, [2] = child };
+        manager.Update(maps, camera, 0);
+        Assert.Equal(new[] { root.AllEntities[0] }, manager.VisibleLeaves);
+        Assert.Contains(child.AllEntities[0], manager.PrefetchEntities);
+
+        camera.Position = new SharpDX.Vector3(90, 0, 0);
+        manager.Update(maps, camera, 0);
+        Assert.Equal(new[] { child.AllEntities[0] }, manager.VisibleLeaves);
+        Assert.Contains(root.AllEntities[0], manager.PrefetchEntities);
+
+        camera.Position = new SharpDX.Vector3(200, 0, 0);
+        manager.Update(maps, camera, 0);
+        Assert.Empty(manager.PrefetchEntities);
+        manager.Update([], camera, 0);
+        Assert.Empty(manager.PrefetchEntities);
+    }
+
     private static YmapFile Map(uint name, uint parent)
     {
         var map = new YmapFile { _CMapData = new CMapData { name = name, parent = parent } };

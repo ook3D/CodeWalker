@@ -811,7 +811,10 @@ namespace CodeWalker.Rendering
             context.PixelShader.SetShaderResource(8, hairNoise?.ShaderResourceView);
             PSGeomVars.Vars.HardAlphaBlend = geom.HardAlphaBlend;
             PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode(shaderFile.Hash, (geom.DrawableGeom?.Shader?.RenderBucket ?? 0));
-            if (PSGeomVars.Vars.AlphaMode == 3) PSGeomVars.Vars.IsDecal = 0;
+            // grass_batch has coverage alpha; COLOR0.a is a tint weight, not opacity.
+            if (VSEntityVars.Vars.IsInstanced != 0 && shaderFile.Hash == 916743331)
+                PSGeomVars.Vars.AlphaMode = 5;
+            if (PSGeomVars.Vars.AlphaMode is 3 or 5) PSGeomVars.Vars.IsDecal = 0;
             PSGeomVars.Vars.detailSettings = geom.detailSettings;
             PSGeomVars.Vars.specMapIntMask = geom.specMapIntMask;
             PSGeomVars.Vars.specularIntensityMult = SpecularEnable ? geom.specularIntensityMult : 0.0f;

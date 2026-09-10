@@ -8,6 +8,12 @@ float MaterialAlphaCoverage(float alpha, float hardAlphaBlend)
     return saturate(lerp(alpha, hardAlpha, saturate(hardAlphaBlend)));
 }
 
+void ClipGrassCoverage(float alpha)
+{
+    // grass_batch uses the grass-specific reference, before MSAA coverage.
+    clip(alpha - (32.0 / 255.0));
+}
+
 void ClipMaterialCoverage(float alpha, float hardAlphaBlend)
 {
     // Binary cutouts and shadow maps use a fixed threshold. Smooth fences

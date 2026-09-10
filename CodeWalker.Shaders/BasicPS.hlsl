@@ -64,12 +64,13 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         if (IsDistMap) c = float4(c.rgb*2, (c.r+c.g+c.b) - 1);
         c.a = HairCoverage(c.a, texc0);
         if (AlphaMode == 3) c.a = 1;
+        if (AlphaMode == 5) ClipGrassCoverage(c.a);
         if (AlphaMode == 4) c.a = MaterialAlphaCoverage(c.a, HardAlphaBlend);
         if (AlphaMode == 1) ClipMaterialCoverage(c.a * AlphaScale, HardAlphaBlend);
         if ((AlphaMode == 0) && (IsDecal == 0) && (c.a <= 0.33)) discard;
         if ((IsDecal == 1) && (c.a <= 0.0)) discard;
         if ((IsDecal >= 3) && (c.a <= 0.0)) discard;
-        if ((IsDecal == 0) && (AlphaMode != 2) && (AlphaMode != 4)) c.a = 1;
+        if ((IsDecal == 0) && (AlphaMode != 2) && (AlphaMode != 4) && (AlphaMode != 5)) c.a = 1;
 		if (IsDecal == 2)
 		{
 			float4 mask = TextureAlphaMask * c;

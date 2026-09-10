@@ -291,6 +291,7 @@ namespace CodeWalker.Rendering
         private ConcurrentQueue<TVal> itemsToLoad = new ConcurrentQueue<TVal>();
         private ConcurrentQueue<TVal> itemsToUnload = new ConcurrentQueue<TVal>();
         private readonly ConcurrentQueue<TVal> failedLoads = new();
+        private readonly ConcurrentQueue<TVal> retainedItems = new();
         private ConcurrentQueue<TKey> keysToInvalidate = new ConcurrentQueue<TKey>();
         private LinkedList<TVal> loadeditems = new LinkedList<TVal>();//only use from content thread!
         private Dictionary<TKey, TVal> cacheitems = new Dictionary<TKey, TVal>();//only use from render thread!
@@ -340,6 +341,7 @@ namespace CodeWalker.Rendering
             // These items have already left loadeditems but still own GPU resources.
             while (itemsToUnload.TryDequeue(out var pending)) pending.Unload();
             while (failedLoads.TryDequeue(out var failed)) failed.Unload();
+            while (retainedItems.TryDequeue(out var retained)) retained.Unload();
             cacheitems.Clear();
             itemsToUnload = new ConcurrentQueue<TVal>();
             keysToInvalidate = new ConcurrentQueue<TKey>();
@@ -384,6 +386,8 @@ namespace CodeWalker.Rendering
 
         public void UnloadProc()
         {
+            // Only the content thread owns loadeditems. Return cancelled evictions here.
+            while (retainedItems.TryDequeue(out var retained)) loadeditems.AddLast(retained);
             //unload items that haven't been used in longer than the cache period.
             var now = DateTime.UtcNow;
             var rnode = loadeditems.First;
@@ -436,6 +440,15 @@ namespace CodeWalker.Rendering
             int unloaded = 0;
             while (unloaded < maxUnloads && Stopwatch.GetTimestamp() < unloadDeadline && itemsToUnload.TryDequeue(out item))
             {
+                // Disposal is budgeted across frames. The camera may have returned since
+                // the content thread selected this item; keep its GPU resources in that case.
+                var lastUse = DateTime.FromBinary(Interlocked.Read(ref item.LastUseTime));
+                if ((DateTime.UtcNow - lastUse).TotalSeconds <= CacheTime)
+                {
+                    retainedItems.Enqueue(item);
+                    unloaded++;
+                    continue;
+                }
                 if (item.Key != null)
                 {
                     cacheitems.Remove(item.Key);

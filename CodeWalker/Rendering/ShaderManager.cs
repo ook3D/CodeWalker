@@ -1,4 +1,4 @@
-﻿using CodeWalker.GameFiles;
+using CodeWalker.GameFiles;
 using CodeWalker.Properties;
 using CodeWalker.World;
 using SharpDX;
@@ -27,6 +27,7 @@ namespace CodeWalker.Rendering
         RasterizerState rsWireframeDblSided;
         BlendState bsDefault;
         BlendState bsAlpha;
+        BlendState bsGrassCoverage;
         BlendState bsHairNormals;
         DepthStencilState dsHairMark;
         DepthStencilState dsHairNormals;
@@ -204,6 +205,11 @@ namespace CodeWalker.Rendering
 
             bsd.AlphaToCoverageEnable = true;
             bsAlpha = new BlendState(device, bsd);
+            // Coverage selects samples; G-buffer values must not blend with the
+            // surface behind the grass while writing the grass depth.
+            bsd.RenderTarget[0].IsBlendEnabled = false;
+            bsGrassCoverage = new BlendState(device, bsd);
+            bsd.RenderTarget[0].IsBlendEnabled = true;
 
             bsd.AlphaToCoverageEnable = false;
             bsd.RenderTarget[0].DestinationBlend = BlendOption.One;
@@ -291,6 +297,7 @@ namespace CodeWalker.Rendering
             dsDisableAll.Dispose();
             bsDefault.Dispose();
             bsAlpha.Dispose();
+            bsGrassCoverage.Dispose();
             bsHairNormals.Dispose();
             dsHairMark.Dispose();
             dsHairNormals.Dispose();
@@ -603,9 +610,9 @@ namespace CodeWalker.Rendering
             if (RenderInstBatches.Count > 0) //grass pass
             {
                 context.Rasterizer.State = wireframe ? rsWireframeDblSided : rsSolidDblSided;
-                context.OutputMerger.BlendState = bsAlpha; //alpha to coverage for grass...
-                Basic.DecalMode = true;
-                Basic.AlphaScale = 7.0f; //instanced grass alpha scale...
+                context.OutputMerger.BlendState = bsGrassCoverage;
+                Basic.DecalMode = false;
+                Basic.AlphaScale = 1.0f;
                 Basic.SetShader(context);
                 Basic.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
                 for (int i = 0; i < RenderInstBatches.Count; i++)
