@@ -328,4 +328,23 @@ public class FacialAnimationTests
             new ExpressionInstrBone { Type=ExpressionInstrType.TrackSetComp, BoneId=1, Track=0, ComponentIndex=0 }),renderable.Skeleton!,0));
         Assert.Equal(3f,bone.AnimTranslation.X);
     }
+    [Fact]
+    public void SpringDeclarationsDoNotDiscardFacialOutputsOrConsumeStackValues()
+    {
+        var (renderable, bone) = Create();
+        var evaluator = new ExpressionEvaluator();
+        var program = Program(
+            new ExpressionInstrVector { Type = ExpressionInstrType.PushVector, Value = new Vector4(1, 2, 3, 0) },
+            new ExpressionInstrBone { Type = ExpressionInstrType.TrackSet, BoneId = 1, Track = 0 },
+            new ExpressionInstrEmpty { Type = ExpressionInstrType.Push1 },
+            new ExpressionInstrSpring { Type = ExpressionInstrType.DefineSpring },
+            new ExpressionInstrSpring { Type = ExpressionInstrType.DefineSpring },
+            new ExpressionInstrFloat { Type = ExpressionInstrType.PushFloat, Value = 0.5f },
+            new ExpressionInstrEmpty { Type = ExpressionInstrType.VectorMul },
+            new ExpressionInstrBone { Type = ExpressionInstrType.TrackSet, BoneId = 1, Track = 2 });
+
+        Assert.True(evaluator.Evaluate(program, renderable.Skeleton!, 0), evaluator.LastError);
+        Assert.Equal(new Vector3(1, 2, 3), bone.AnimTranslation);
+        Assert.Equal(new Vector3(0.5f), bone.AnimScale);
+    }
 }

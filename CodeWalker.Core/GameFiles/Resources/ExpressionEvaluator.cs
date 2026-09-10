@@ -49,6 +49,10 @@ public sealed class ExpressionEvaluator
                     }
                     switch (op.Type)
                     {
+                        // OpMotion (legacy name DefineSpring) declares physical-motion data.
+                        // It has no stack effect; simulation is separate from expression evaluation.
+                        // Rejecting it would discard valid facial outputs from the whole program.
+                        case ExpressionInstrType.DefineSpring: break;
                         case ExpressionInstrType.Push0: stack.Push(Vector4.Zero); break;
                         case ExpressionInstrType.Push1: stack.Push(Vector4.One); break;
                         case ExpressionInstrType.PushFloat: stack.Push(new Vector4(((ExpressionInstrFloat)op).Value)); break;
