@@ -113,6 +113,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
     float3 spec = 0;
     float diffuseScale = 1;
+    float3 environmentSpec = 0;
 
     if (RenderMode == 0)
     {
@@ -125,6 +126,10 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         float3 viewDir = LightingDirection(-input.CamRelPos);
         float specularLight = MaterialSpecularLight(material, norm, materialLights.LightDir, viewDir);
         spec = materialLights.LightDirColour.rgb * specularLight;
+        float3 reflected = reflect(-viewDir, norm);
+        environmentSpec = AmbientEnvironment(reflected, input.Colour0.rg, materialLights)
+            * MaterialReflectionAmount(material, norm, viewDir)
+            * MaterialReflectionNormalization(material);
         diffuseScale = MaterialDiffuseScale(material, norm, viewDir);
         if (SpecOnly == 1)
         {
@@ -138,6 +143,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     float4 fc = c;
 
     c.rgb = FullLighting(c.rgb * diffuseScale, spec, norm, input.Colour0, materialLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
+    c.rgb += environmentSpec;
 
 
     if (IsEmissive==1)

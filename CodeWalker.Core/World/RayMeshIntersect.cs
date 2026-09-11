@@ -7,7 +7,7 @@ namespace CodeWalker.World
 {
     public static class RayMeshIntersect
     {
-        public static bool RayIntersectDrawable(DrawableBase drawable, ref Ray ray, float maxDist, out float hitDist)
+        public static bool RayIntersectDrawable(rmcDrawable drawable, ref Ray ray, float maxDist, out float hitDist)
         {
             hitDist = maxDist;
             bool anyHit = false;
@@ -18,8 +18,8 @@ namespace CodeWalker.World
             if (models == null) return false;
 
             // Only test the highest LOD models (first set)
-            // AllModels contains all LODs; we want the first DrawableModel entries (high detail)
-            var hdModels = (drawable as Drawable)?.DrawableModels?.High;
+            // AllModels contains all LODs; we want the first grmModel entries (high detail)
+            var hdModels = (drawable as gtaDrawable)?.DrawableModels?.High;
             if (hdModels == null)
             {
                 hdModels = (drawable as FragDrawable)?.DrawableModels?.High;
@@ -50,7 +50,7 @@ namespace CodeWalker.World
             return anyHit;
         }
 
-        public static bool RayIntersectGeometry(DrawableGeometry geom, ref Ray ray, float maxDist, out float hitDist)
+        public static bool RayIntersectGeometry(grmGeometryQB geom, ref Ray ray, float maxDist, out float hitDist)
         {
             hitDist = maxDist;
             bool anyHit = false;
@@ -60,11 +60,11 @@ namespace CodeWalker.World
             var vdata = geom.VertexData;
             var ibuf = geom.IndexBuffer;
 
-            if (vdata?.VertexBytes == null || ibuf?.Indices == null) return false;
+            if (vdata?.Data == null || ibuf?.Indices == null) return false;
 
-            int vertexStride = vdata.VertexStride;
+            int vertexStride = vdata.Stride;
             int vertexCount = vdata.VertexCount;
-            byte[] vertexBytes = vdata.VertexBytes;
+            byte[] vertexBytes = vdata.Data;
             ushort[] indices = ibuf.Indices;
 
             if (vertexStride < 12) return false; // Need at least 3 floats for position
@@ -139,7 +139,7 @@ namespace CodeWalker.World
             return t > epsilon;
         }
 
-        public static bool RayIntersectEntity(YmapEntityDef ent, DrawableBase drawable, ref Ray worldRay, float maxDist, out float hitDist)
+        public static bool RayIntersectEntity(YmapEntityDef ent, rmcDrawable drawable, ref Ray worldRay, float maxDist, out float hitDist)
         {
             hitDist = maxDist;
 

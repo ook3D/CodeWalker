@@ -152,10 +152,10 @@ namespace CodeWalker.Rendering
 
         private YmapEntityDef SelectedCarGenEntity = new YmapEntityDef(); //placeholder entity object for drawing cars
 
-        public DrawableBase? SelectedDrawable;
-        public Dictionary<DrawableBase, bool> SelectionDrawableDrawFlags = new Dictionary<DrawableBase, bool>();
-        public Dictionary<DrawableModel, bool> SelectionModelDrawFlags = new Dictionary<DrawableModel, bool>();
-        public Dictionary<DrawableGeometry, bool> SelectionGeometryDrawFlags = new Dictionary<DrawableGeometry, bool>();
+        public rmcDrawable? SelectedDrawable;
+        public Dictionary<rmcDrawable, bool> SelectionDrawableDrawFlags = new Dictionary<rmcDrawable, bool>();
+        public Dictionary<grmModel, bool> SelectionModelDrawFlags = new Dictionary<grmModel, bool>();
+        public Dictionary<grmGeometryQB, bool> SelectionGeometryDrawFlags = new Dictionary<grmGeometryQB, bool>();
         public bool SelectionFlagsTestAll = false; //to test all renderables for draw flags; for model form
 
 
@@ -452,7 +452,7 @@ namespace CodeWalker.Rendering
         }
 
 
-        public void UpdateSelectionDrawFlags(DrawableModel? model, DrawableGeometry? geom, bool rem)
+        public void UpdateSelectionDrawFlags(grmModel? model, grmGeometryQB? geom, bool rem)
         {
             lock (rendersyncroot)
             {
@@ -1008,7 +1008,7 @@ namespace CodeWalker.Rendering
             v.Position = c5; SelectionLineVerts.Add(v);
         }
 
-        public void RenderSelectionDrawableLight(LightAttributes light, Bone? bone)
+        public void RenderSelectionDrawableLight(CLightAttr light, crBoneData? bone)
         {
             var colblu = (uint)(new Color(0, 0, 255, 255).ToRgba());
             var colwht = (uint)(new Color(255, 255, 255, 255).ToRgba());
@@ -1040,7 +1040,7 @@ namespace CodeWalker.Rendering
                     RenderSelectionCone(pos, tx, ty, dir, (float)Math.Sin(innerAngle) * extent, (float)Math.Cos(innerAngle) * extent, colwht);
                     break;
                 case LightType.Capsule:
-                    outerAngle = light.Extent.X * 0.5f;
+                    outerAngle = light.Extents.X * 0.5f;
                     RenderSelectionCapsule(pos, tx, ty, dir, extent, outerAngle, colwht);
                     break;
             }
@@ -1449,8 +1449,8 @@ namespace CodeWalker.Rendering
             foreach (var item in renderskeletonlist)
             {
                 var entity = item.Entity;
-                DrawableBase drawable = item.Renderable.Key;
-                Skeleton? skeleton = drawable?.Skeleton;
+                rmcDrawable drawable = item.Renderable.Key;
+                crSkeletonData? skeleton = drawable?.SkeletonData;
                 if (skeleton == null) continue;
 
                 Vector3 campos = camera.Position - (entity?.Position ?? Vector3.Zero);
@@ -1458,7 +1458,7 @@ namespace CodeWalker.Rendering
                 var pinds = skeleton.ParentIndices;
                 var bones = skeleton.Bones?.Items;
                 if ((pinds == null) || (bones == null)) continue;
-                var xforms = skeleton.Transformations;
+                var xforms = skeleton.DefaultTransforms;
 
                 int cnt = Math.Min(pinds.Length, bones.Length);
                 for (int i = 0; i < cnt; i++)
@@ -1707,7 +1707,7 @@ namespace CodeWalker.Rendering
 
 
 
-            DrawableBase? skydomeydr = null;
+            rmcDrawable? skydomeydr = null;
             var skydomeydd = gameFileCache.GetYdd(2640562617); //skydome hash
             if ((skydomeydd != null) && (skydomeydd.Loaded) && (skydomeydd.Dict != null))
             {
@@ -1757,7 +1757,7 @@ namespace CodeWalker.Rendering
                 rinst.BBMin = skydomeydr.BoundingBoxMin;
                 rinst.BBMax = skydomeydr.BoundingBoxMax;
                 rinst.BSCenter = Vector3.Zero;
-                rinst.Radius = skydomeydr.BoundingSphereRadius;
+                rinst.Radius = skydomeydr.CullSphereRadius;
                 rinst.Orientation = Quaternion.Identity;
                 rinst.Scale = Vector3.One;
                 rinst.TintPaletteIndex = 0;
@@ -2482,6 +2482,7 @@ namespace CodeWalker.Rendering
                 }
             }
         }
+
         private void RenderWorldAdjustMapViewCamera()
         {
             if (MapViewEnabled)
@@ -2628,7 +2629,7 @@ namespace CodeWalker.Rendering
         private bool RenderIsModelFinalRender(RenderableModel model)
         {
 
-            if ((model.RenderMaskFlags & 1) == 0) //smallest bit is proxy/"final render" bit? seems to work...
+            if ((model.Mask & 1) == 0) //smallest bit is proxy/"final render" bit? seems to work...
             {
                 return renderproxies;
             }
@@ -3162,7 +3163,7 @@ namespace CodeWalker.Rendering
                         //var thick = gw.Thickness; //thickness of the glass
                         //var unkuv = new Vector2(gw.UnkFloat18, gw.UnkFloat19); //another scale in UV space..?
                         //var tangt = gw.Tangent;//direction of surface tangent
-                        //var bones = f.Drawable?.Skeleton?.Bones?.Items; //todo: use bones instead?
+                        //var bones = f.Drawable?.SkeletonData?.Bones?.Items; //todo: use bones instead?
                         var grp = gw.Group;
                         var grplod = gw.GroupLOD;
                         var xforms = grplod?.FragTransforms?.Matrices;
@@ -3352,7 +3353,7 @@ namespace CodeWalker.Rendering
             return res;
         }
 
-        public bool RenderDrawable(DrawableBase? drawable, Archetype? arche, YmapEntityDef? entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null, ClipMapEntry? faceClip = null)
+        public bool RenderDrawable(rmcDrawable? drawable, Archetype? arche, YmapEntityDef? entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null, ClipMapEntry? faceClip = null)
         {
             //enqueue a single drawable for rendering.
 
@@ -3411,8 +3412,8 @@ namespace CodeWalker.Rendering
             uint tintPaletteIndex = 0;
             Vector3 bbmin = (arche != null) ? arche.BBMin : rndbl.Key.BoundingBoxMin;
             Vector3 bbmax = (arche != null) ? arche.BBMax : rndbl.Key.BoundingBoxMax;
-            Vector3 bscen = (arche != null) ? arche.BSCenter : rndbl.Key.BoundingCenter;
-            float radius = (arche != null) ? arche.BSRadius : rndbl.Key.BoundingSphereRadius;
+            Vector3 bscen = (arche != null) ? arche.BSCenter : rndbl.Key.CullSphereCenter;
+            float radius = (arche != null) ? arche.BSRadius : rndbl.Key.CullSphereRadius;
             float distance = 0;// (camrel + bscen).Length();
 
             if (entity != null)
@@ -3457,10 +3458,10 @@ namespace CodeWalker.Rendering
             {
                 if ((entity == null) || ((entity._CEntityDef.flags & 4) == 0)) //skip if entity embedded collisions disabled
                 {
-                    Drawable? sdrawable = rndbl.Key as Drawable;
-                    if ((sdrawable != null) && (sdrawable.Bound != null))
+                    gtaDrawable? sdrawable = rndbl.Key as gtaDrawable;
+                    if ((sdrawable != null) && (sdrawable.PhBound != null))
                     {
-                        RenderCollisionMesh(sdrawable.Bound, entity);
+                        RenderCollisionMesh(sdrawable.PhBound, entity);
                     }
                     FragDrawable? fdrawable = rndbl.Key as FragDrawable;
                     if (fdrawable != null)
@@ -3489,9 +3490,9 @@ namespace CodeWalker.Rendering
 
 
                 //reinit lights when added/removed from editor
-                var dd = rndbl.Key as Drawable;
+                var dd = rndbl.Key as gtaDrawable;
                 var fd = rndbl.Key as FragDrawable;
-                var lights = dd?.LightAttributes?.data_items;
+                var lights = dd?.Lights?.data_items;
                 if ((lights == null) && (fd?.OwnerFragment is { } ownerFragment) && (ownerFragment.Drawable == fd))
                 {
                     lights = ownerFragment.LightAttributes.data_items;
@@ -3918,16 +3919,16 @@ namespace CodeWalker.Rendering
             var skel = ped.Skeleton;
             if (skel != null)
             {
-                if (drawable.Skeleton == null)
+                if (drawable.SkeletonData == null)
                 {
                     // Each component needs its own skinning matrices: later body updates
                     // must not overwrite a facial component before the queued draw.
-                    drawable.Skeleton = skel.Clone();
-                    drawable.Skeleton.BindAnimationSkeleton(skel);
+                    drawable.SkeletonData = skel.Clone();
+                    drawable.SkeletonData.BindAnimationSkeleton(skel);
                 }
-                else if (drawable.Skeleton != skel)
+                else if (drawable.SkeletonData != skel)
                 {
-                    drawable.Skeleton.BindAnimationSkeleton(skel);
+                    drawable.SkeletonData.BindAnimationSkeleton(skel);
                 }
             }
 
@@ -4030,7 +4031,7 @@ namespace CodeWalker.Rendering
 
 
 
-        private Renderable? TryGetRenderable(Archetype? arche, DrawableBase? drawable, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null)
+        private Renderable? TryGetRenderable(Archetype? arche, rmcDrawable? drawable, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null)
         {
             if (drawable == null) return null;
             //BUG: only last texdict used!! needs to cache textures per archetype........
@@ -4348,7 +4349,7 @@ namespace CodeWalker.Rendering
 
     public struct RenderedDrawable
     {
-        public DrawableBase Drawable;
+        public rmcDrawable Drawable;
         public Archetype? Archetype;
         public YmapEntityDef? Entity;
     }

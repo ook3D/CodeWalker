@@ -2492,16 +2492,16 @@ namespace CodeWalker.GameFiles
         public EnvironmentCloth? EnvCloth { get; set; }
         public ClothController? Controller { get; set; }
 
-        public Bone?[] Bones { get; set; } = [];
+        public crBoneData?[] Bones { get; set; } = [];
         public Matrix Transform { get; set; } = Matrix.Identity;
         public Vector4[] Vertices { get; set; } = [];
 
-        public Skeleton? Skeleton { get; set; }
+        public crSkeletonData? Skeleton { get; set; }
 
 
         double CurrentTime = 0.0;
 
-        public void Init(CharacterCloth c, Skeleton? s)
+        public void Init(CharacterCloth c, crSkeletonData? s)
         {
             CharCloth = c;
             EnvCloth = null;
@@ -2531,11 +2531,11 @@ namespace CodeWalker.GameFiles
             var boneIds = cc?.BoneIds?.data_items;
             if ((boneIds != null) && (Skeleton != null))
             {
-                Bones = new Bone?[boneIds.Length];
+                Bones = new crBoneData?[boneIds.Length];
                 for (int i = 0; i < Bones.Length; i++)
                 {
                     var boneid = (ushort)boneIds[i];
-                    Bone? bone = null;
+                    crBoneData? bone = null;
                     Skeleton.BonesMap.TryGetValue(boneid, out bone);
                     Bones[i] = bone;
                 }
@@ -2544,7 +2544,7 @@ namespace CodeWalker.GameFiles
 
 
         }
-        public void Init(EnvironmentCloth c, Skeleton? s)
+        public void Init(EnvironmentCloth c, crSkeletonData? s)
         {
             EnvCloth = c;
             CharCloth = null;

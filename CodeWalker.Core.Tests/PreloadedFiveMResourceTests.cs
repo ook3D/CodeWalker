@@ -6,6 +6,36 @@ namespace CodeWalker.Core.Tests;
 public class PreloadedFiveMResourceTests
 {
     [Fact]
+    public async Task PreloadedCacheIncludesGtxdParentingFromFiveMFolders()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "cw-fivem-gtxd-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "housing_gtxd.meta"),
+                "<CMapParentTxds><txdRelationships><Item><parent>GlobalRoads</parent><child>hns_mrp_culdesac_txd</child></Item></txdRelationships></CMapParentTxds>");
+
+            var cache = new GameFileCache(1024 * 1024, 10, "", false, "", false, "")
+            {
+                ExtraFolders = directory,
+                LoadAudio = false,
+                LoadPeds = false,
+                LoadVehicles = false,
+            };
+
+            await cache.InitAsync(null, null, []);
+
+            Assert.Equal(
+                JenkHash.GenHashLowerInvariant("GlobalRoads"),
+                cache.TryGetParentYtdHash(JenkHash.GenHashLowerInvariant("hns_mrp_culdesac_txd")));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
     public async Task PreloadedCacheIncludesExternalTextureDictionariesFromFiveMFolders()
     {
         var directory = Path.Combine(Path.GetTempPath(), "cw-fivem-textures-" + Guid.NewGuid().ToString("N"));

@@ -338,7 +338,10 @@ namespace CodeWalker.GameFiles
 
                 foreach (var f in files)
                 {
-                    if (!ExtraFileExtensions.Contains(System.IO.Path.GetExtension(f))) continue;
+                    var name = System.IO.Path.GetFileName(f);
+                    if (!ExtraFileExtensions.Contains(System.IO.Path.GetExtension(f)) &&
+                        !name.EndsWith("gtxd.meta", StringComparison.OrdinalIgnoreCase) &&
+                        !name.Equals("vehicles.meta", StringComparison.OrdinalIgnoreCase)) continue;
                     var entry = CreateLooseEntry(f, ExtraFolderPrefix + f.Substring(root.Length + 1).ToLowerInvariant());
                     if (entry?.File == null) continue;
                     EntryDict[entry.Path] = entry;

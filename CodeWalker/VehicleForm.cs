@@ -64,7 +64,7 @@ namespace CodeWalker
         int toolsPanelResizeStartLeft = 0;
         int toolsPanelResizeStartRight = 0;
 
-        Dictionary<DrawableBase, bool> DrawableDrawFlags = new();
+        Dictionary<rmcDrawable, bool> DrawableDrawFlags = new();
 
         bool enableGrid = false;
         float gridSize = 1.0f;
@@ -459,7 +459,7 @@ namespace CodeWalker
         }
 
 
-        private void AddDrawableTreeNode(DrawableBase drawable, uint hash, bool check)
+        private void AddDrawableTreeNode(rmcDrawable drawable, uint hash, bool check)
         {
             MetaHash mhash = new(hash);
 
@@ -471,10 +471,9 @@ namespace CodeWalker
             AddDrawableModelsTreeNodes(drawable.DrawableModels?.Med, "Medium Detail", false, dnode);
             AddDrawableModelsTreeNodes(drawable.DrawableModels?.Low, "Low Detail", false, dnode);
             AddDrawableModelsTreeNodes(drawable.DrawableModels?.VLow, "Very Low Detail", false, dnode);
-            //AddDrawableModelsTreeNodes(drawable.DrawableModels?.Extra, "X Detail", false, dnode);
 
         }
-        private void AddDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check, TreeNode? parentDrawableNode = null)
+        private void AddDrawableModelsTreeNodes(grmModel[]? models, string prefix, bool check, TreeNode? parentDrawableNode = null)
         {
             if (models == null) return;
 
@@ -508,15 +507,15 @@ namespace CodeWalker
                     var tgnode = tmnode.Nodes.Add(gname);
                     tgnode.Tag = geom;
 
-                    if ((geom.Shader != null) && (geom.Shader.ParametersList != null) && (geom.Shader.ParametersList.Hashes != null))
+                    if ((geom.Shader != null) && (geom.Shader.EntriesBlock != null) && (geom.Shader.EntriesBlock.NameHashes != null))
                     {
-                        var pl = geom.Shader.ParametersList;
-                        var h = pl.Hashes;
-                        var p = pl.Parameters;
+                        var pl = geom.Shader.EntriesBlock;
+                        var h = pl.NameHashes;
+                        var p = pl.Entries;
                         for (int ip = 0; ip < h.Length; ip++)
                         {
-                            var hash = pl.Hashes[ip];
-                            var parm = pl.Parameters[ip];
+                            var hash = pl.NameHashes[ip];
+                            var parm = pl.Entries[ip];
                             var tex = parm.Data as TextureBase;
                             if (tex != null)
                             {
@@ -542,9 +541,9 @@ namespace CodeWalker
         private void UpdateSelectionDrawFlags(TreeNode node)
         {
             //update the selection draw flags depending on tag and checked/unchecked
-            var drwbl = node.Tag as DrawableBase;
-            var model = node.Tag as DrawableModel;
-            var geom = node.Tag as DrawableGeometry;
+            var drwbl = node.Tag as rmcDrawable;
+            var model = node.Tag as grmModel;
+            var geom = node.Tag as grmGeometryQB;
             bool rem = node.Checked;
             lock (Renderer.RenderSyncRoot)
             {
@@ -625,7 +624,7 @@ namespace CodeWalker
 
 
 
-        private void UpdateModelsUI(DrawableBase? drawable)
+        private void UpdateModelsUI(rmcDrawable? drawable)
         {
             DetailsPropertyGrid.SelectedObject = drawable;
 
@@ -641,7 +640,6 @@ namespace CodeWalker
                 AddDrawableModelsTreeNodes(drawable.DrawableModels?.Med, "Medium Detail", false);
                 AddDrawableModelsTreeNodes(drawable.DrawableModels?.Low, "Low Detail", false);
                 AddDrawableModelsTreeNodes(drawable.DrawableModels?.VLow, "Very Low Detail", false);
-                //AddDrawableModelsTreeNodes(drawable.DrawableModels?.Extra, "X Detail", false);
 
 
                 var fdrawable = drawable as FragDrawable;
@@ -722,7 +720,7 @@ namespace CodeWalker
             var dr = yft.Fragment?.Drawable;
             if (movecamera && (dr != null))
             {
-                MoveCameraToView(dr.BoundingCenter, dr.BoundingSphereRadius);
+                MoveCameraToView(dr.CullSphereCenter, dr.CullSphereRadius);
             }
 
             UpdateModelsUI(yft.Fragment?.Drawable);

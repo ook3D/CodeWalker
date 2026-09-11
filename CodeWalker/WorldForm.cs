@@ -3385,7 +3385,7 @@ namespace CodeWalker
             var arche = gameFileCache.GetArchetype(hash);
 
             Archetype? selarch = null;
-            DrawableBase? seldrwbl = null;
+            rmcDrawable? seldrwbl = null;
             YmapEntityDef? selent = null;
 
             if (arche != null)
@@ -4877,7 +4877,7 @@ namespace CodeWalker
 
             }
         }
-        private float GetGeometryTriangleIntersection(DrawableGeometry geom, Ray ray, Vector3 scale, Matrix? modelTransform = null)
+        private float GetGeometryTriangleIntersection(grmGeometryQB geom, Ray ray, Vector3 scale, Matrix? modelTransform = null)
         {
             // this method attempts to find the closest triangle intersection
             // returns the hit distance, or -1 if no hit
@@ -4885,14 +4885,14 @@ namespace CodeWalker
             {
                 var vb = geom.VertexBuffer;
                 var ib = geom.IndexBuffer;
+                var vertices = (vb?.VertexData ?? vb?.LockData)?.Data;
 
-                if ((vb?.Data1?.VertexBytes == null) || (ib?.Indices == null)) return -1;
+                if ((vertices == null) || (ib?.Indices == null)) return -1;
 
                 // get vertex stride and position offset
-                int stride = vb.VertexStride;
+                int stride = vb?.Stride ?? 0;
                 if (stride <= 0 || stride < 12) return -1; // need at least 12 bytes for position
 
-                var vertices = vb.Data1.VertexBytes;
                 var indices = ib.Indices;
 
                 // early bounds check
@@ -4977,7 +4977,7 @@ namespace CodeWalker
             }
         }
 
-        private float GetCableLineIntersection(DrawableGeometry geom, Ray ray, Vector3 scale, Matrix? modelTransform = null, float cableRadius = 0.05f)
+        private float GetCableLineIntersection(grmGeometryQB geom, Ray ray, Vector3 scale, Matrix? modelTransform = null, float cableRadius = 0.05f)
         {
             // Ray-line segment proximity test for cable geometries (LineList topology)
             // Returns the ray hit distance if the ray passes within cableRadius of any line segment, or -1
@@ -4985,13 +4985,13 @@ namespace CodeWalker
             {
                 var vb = geom.VertexBuffer;
                 var ib = geom.IndexBuffer;
+                var vertices = (vb?.VertexData ?? vb?.LockData)?.Data;
 
-                if ((vb?.Data1?.VertexBytes == null) || (ib?.Indices == null)) return -1;
+                if ((vertices == null) || (ib?.Indices == null)) return -1;
 
-                int stride = vb.VertexStride;
+                int stride = vb?.Stride ?? 0;
                 if (stride <= 0 || stride < 12) return -1;
 
-                var vertices = vb.Data1.VertexBytes;
                 var indices = ib.Indices;
 
                 if (vertices.Length < stride * 2 || indices.Length < 2) return -1;
@@ -5084,7 +5084,7 @@ namespace CodeWalker
             }
         }
 
-        private void UpdateMouseHits(DrawableBase drawable, Archetype? arche, YmapEntityDef? entity)
+        private void UpdateMouseHits(rmcDrawable drawable, Archetype? arche, YmapEntityDef? entity)
         {
             //if ((SelectionMode == MapSelectionMode.Entity) && !MouseSelectEnabled) return; //performance improvement when not selecting entities...
             //test the selected entity/archetype for mouse hit.
@@ -5093,7 +5093,7 @@ namespace CodeWalker
             Ray mraytrn;
             float hitdist = 0.0f;
             int geometryIndex = 0;
-            DrawableGeometry? geometry = null;
+            grmGeometryQB? geometry = null;
             BoundingBox geometryAABB = new();
             BoundingSphere bsph = new();
             BoundingBox bbox = new();
@@ -5116,8 +5116,8 @@ namespace CodeWalker
             }
             else
             {
-                bsph.Center = camrel + drawable.BoundingCenter;
-                bsph.Radius = drawable.BoundingSphereRadius;
+                bsph.Center = camrel + drawable.CullSphereCenter;
+                bsph.Radius = drawable.CullSphereRadius;
                 bbox.Minimum = drawable.BoundingBoxMin * scale;
                 bbox.Maximum = drawable.BoundingBoxMax * scale;
             }
@@ -5211,7 +5211,7 @@ namespace CodeWalker
                 for (int i = 0; i < dmodels.Length; i++)
                 {
                     var m = dmodels[i];
-                    if ((m.BoundsData == null) || (m.Geometries == null))
+                    if ((m.AABBs == null) || (m.Geometries == null))
                     { usegeomboxes = false; break; }
                 }
             }
@@ -5230,7 +5230,7 @@ namespace CodeWalker
             {
                 //geometry-based selection with triangle intersection
                 float ghitdist = float.MaxValue;
-                DrawableGeometry? bestGeometry = null;
+                grmGeometryQB? bestGeometry = null;
                 BoundingBox bestAABB = new();
                 int bestGeomIndex = 0;
 
@@ -5240,7 +5240,7 @@ namespace CodeWalker
                 for (int i = 0; i < dmodels.Length; i++)
                 {
                     var m = dmodels[i];
-                    if ((m.Geometries == null) || (m.BoundsData == null)) continue;
+                    if ((m.Geometries == null) || (m.AABBs == null)) continue;
 
                     // Get the corresponding RenderableModel's transform if available
                     Matrix? modelTransform = null;
@@ -5253,15 +5253,15 @@ namespace CodeWalker
                         }
                     }
 
-                    // BoundsData may have a leading model-level box (boffset=1) or one box per geometry (boffset=0).
-                    // Map geometry j -> BoundsData[j + boffset]; test every geometry box independently (no early break).
+                    // AABBs may have a leading model-level box (boffset=1) or one box per geometry (boffset=0).
+                    // Map geometry j -> AABBs[j + boffset]; test every geometry box independently (no early break).
                     int geomcount = m.Geometries.Length;
-                    int boffset = (m.BoundsData.Length > geomcount) ? 1 : 0;
+                    int boffset = (m.AABBs.Length > geomcount) ? 1 : 0;
                     for (int j = 0; j < geomcount; j++)
                     {
                         int bidx = j + boffset;
-                        if (bidx >= m.BoundsData.Length) break;
-                        var gbox = m.BoundsData[bidx];
+                        if (bidx >= m.AABBs.Length) break;
+                        var gbox = m.AABBs[bidx];
                         gbbox.Minimum = gbox.Min.XYZ();
                         gbbox.Maximum = gbox.Max.XYZ();
 
@@ -5284,7 +5284,8 @@ namespace CodeWalker
 
                         var geom = m.Geometries[j];
                         bool isTreesLod = (geom?.Shader?.FileName == 4113118754); // trees_lod2.sps - vertices are billboard roots, shader generates geometry
-                        if (!isTreesLod && geom?.VertexBuffer?.Data1?.VertexBytes != null && geom?.IndexBuffer?.Indices != null)
+                        var vertexData = geom?.VertexBuffer?.VertexData ?? geom?.VertexBuffer?.LockData;
+                        if (!isTreesLod && vertexData?.Data != null && geom?.IndexBuffer?.Indices != null)
                         {
                             // Use cable line intersection for cable.sps, triangle intersection for everything else
                             bool isCable = (geom.Shader?.FileName == 3854885487); // cable.sps
@@ -5427,7 +5428,7 @@ namespace CodeWalker
 
 
             //Bounds b = null;
-            //var dd = drawable as Drawable;
+            //var dd = drawable as gtaDrawable;
             //if (dd != null)
             //{
             //    b = dd.Bound;
@@ -6589,7 +6590,6 @@ namespace CodeWalker
                 AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.Med, "Medium Detail", false);
                 AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.Low, "Low Detail", false);
                 AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.VLow, "Very Low Detail", false);
-                //AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.Extra, "X Detail", false);
             }
 
 
@@ -6834,7 +6834,7 @@ namespace CodeWalker
                 }
             }
         }
-        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check)
+        private void AddSelectionDrawableModelsTreeNodes(grmModel[]? models, string prefix, bool check)
         {
             if (models == null) return;
 
@@ -6866,15 +6866,15 @@ namespace CodeWalker
                     var tgnode = tmnode.Nodes.Add(gname);
                     tgnode.Tag = geom;
 
-                    if ((geom.Shader != null) && (geom.Shader.ParametersList != null) && (geom.Shader.ParametersList.Hashes != null))
+                    if ((geom.Shader != null) && (geom.Shader.EntriesBlock != null) && (geom.Shader.EntriesBlock.NameHashes != null))
                     {
-                        var pl = geom.Shader.ParametersList;
-                        var h = pl.Hashes;
-                        var p = pl.Parameters;
+                        var pl = geom.Shader.EntriesBlock;
+                        var h = pl.NameHashes;
+                        var p = pl.Entries;
                         for (int ip = 0; ip < h.Length; ip++)
                         {
-                            var hash = pl.Hashes[ip];
-                            var parm = pl.Parameters[ip];
+                            var hash = pl.NameHashes[ip];
+                            var parm = pl.Entries[ip];
                             var tex = parm.Data as TextureBase;
                             if (tex != null)
                             {
@@ -6900,8 +6900,8 @@ namespace CodeWalker
         private void UpdateSelectionDrawFlags(TreeNode node)
         {
             //update the selection draw flags depending on tag and checked/unchecked
-            var model = node.Tag as DrawableModel;
-            var geom = node.Tag as DrawableGeometry;
+            var model = node.Tag as grmModel;
+            var geom = node.Tag as grmGeometryQB;
             bool rem = node.Checked;
 
             Renderer.UpdateSelectionDrawFlags(model, geom, rem);

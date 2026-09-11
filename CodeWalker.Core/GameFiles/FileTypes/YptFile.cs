@@ -14,7 +14,7 @@ namespace CodeWalker.GameFiles
     {
         public ParticleEffectsList? PtfxList { get; set; }
 
-        public Dictionary<uint, DrawableBase> DrawableDict { get; set; } = new();
+        public Dictionary<uint, rmcDrawable> DrawableDict { get; set; } = new();
 
         public Dictionary<MetaHash, ParticleEffectRule> EffectDict { get; set; } = new();
         public ParticleEffectRule[] AllEffects { get; set; } = [];
@@ -136,7 +136,7 @@ namespace CodeWalker.GameFiles
 
         private void BuildDrawableDict()
         {
-            DrawableDict = new Dictionary<uint, DrawableBase>();
+            DrawableDict = new Dictionary<uint, rmcDrawable>();
             var dDict = PtfxList?.DrawableDictionary;
 
             if ((dDict?.Drawables?.data_items != null) && (dDict?.Hashes != null))

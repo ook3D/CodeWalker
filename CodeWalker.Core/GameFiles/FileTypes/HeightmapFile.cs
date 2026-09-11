@@ -16,10 +16,9 @@ namespace CodeWalker.GameFiles
         public Endianess Endianess { get; set; } = Endianess.BigEndian;
 
         public uint Magic { get; set; } = 0x484D4150; //'HMAP'
-        public byte VersionMajor { get; set; } = 1;
-        public byte VersionMinor { get; set; } = 1;
-        public ushort Pad { get; set; }
-        public uint Compressed { get; set; } = 1;
+        public byte Version { get; set; } = 1;
+        public byte CellSize { get; set; } = 1;
+        public uint Flags { get; set; } = 1;
         public ushort Width { get; set; }
         public ushort Height { get; set; }
         public Vector3 BBMin { get; set; }
@@ -28,6 +27,7 @@ namespace CodeWalker.GameFiles
         public CompHeader[] CompHeaders { get; set; } = [];
         public byte[] MaxHeights { get; set; } = [];
         public byte[] MinHeights { get; set; } = [];
+        public byte[] WaterMask { get; set; } = [];
 
         public HeightmapFile() : base(null, GameFileType.Heightmap)
         {
@@ -78,10 +78,10 @@ namespace CodeWalker.GameFiles
         private void Read(DataReader r)
         {
             Magic = r.ReadUInt32();
-            VersionMajor = r.ReadByte();
-            VersionMinor = r.ReadByte();
-            Pad = r.ReadUInt16();
-            Compressed = r.ReadUInt32();
+            Version = r.ReadByte();
+            CellSize = r.ReadByte();
+            _ = r.ReadUInt16();
+            Flags = r.ReadUInt32();
             Width = r.ReadUInt16();
             Height = r.ReadUInt16();
             BBMin = r.ReadVector3();
@@ -94,7 +94,7 @@ namespace CodeWalker.GameFiles
 
 
             var dlen = (int)Length;
-            if (Compressed > 0)
+            if ((Flags & 1) != 0)
             {
                 CompHeaders = new CompHeader[Height];
                 for (int i = 0; i < Height; i++)
@@ -112,7 +112,7 @@ namespace CodeWalker.GameFiles
             if ((r.Length - r.Position) != 0)
             { }
 
-            if (Compressed > 0)
+            if ((Flags & 1) != 0)
             {
                 MaxHeights = new byte[Width * Height];
                 MinHeights = new byte[Width * Height];
@@ -139,15 +139,18 @@ namespace CodeWalker.GameFiles
             }
             else
             {
-                MaxHeights = d; //no way to test this as vanilla heightmaps are compressed...
-                MinHeights = d; //this won't work anyway.
+                var cellCount = checked(Width * Height);
+                MaxHeights = d[..cellCount];
+                MinHeights = d[cellCount..];
             }
+
+            WaterMask = (Flags & 2) != 0 ? r.ReadBytes((Width * Height + 7) / 8) : [];
 
         }
         private void Write(DataWriter w)
         {
             var d = MaxHeights;
-            if (Compressed > 0)
+            if ((Flags & 1) != 0)
             {
                 var ch = new CompHeader[Height];
                 var d1 = new List<byte>();
@@ -158,11 +161,13 @@ namespace CodeWalker.GameFiles
                     var end = 0;
                     for (int x = 0; x < Width; x++)
                     {
-                        if (MaxHeights[y * Width + x] != 0) { start = x; break; }
+                        var n = y * Width + x;
+                        if ((MaxHeights[n] != 0) || (MinHeights[n] != 0)) { start = x; break; }
                     }
                     for (int x = Width - 1; x >= 0; x--)
                     {
-                        if (MaxHeights[y * Width + x] != 0) { end = x + 1; break; }
+                        var n = y * Width + x;
+                        if ((MaxHeights[n] != 0) || (MinHeights[n] != 0)) { end = x + 1; break; }
                     }
                     var count = end - start;
                     var offset = (count > 0) ? d1.Count - start : 0;
@@ -183,21 +188,26 @@ namespace CodeWalker.GameFiles
             }
             else
             {
+                d = new byte[MaxHeights.Length + MinHeights.Length];
+                Buffer.BlockCopy(MaxHeights, 0, d, 0, MaxHeights.Length);
+                Buffer.BlockCopy(MinHeights, 0, d, MaxHeights.Length, MinHeights.Length);
                 Length = (uint)d.Length;
             }
 
+            Flags = WaterMask.Length == 0 ? Flags & ~2u : Flags | 2u;
+
 
             w.Write(Magic);
-            w.Write(VersionMajor);
-            w.Write(VersionMinor);
-            w.Write(Pad);
-            w.Write(Compressed);
+            w.Write(Version);
+            w.Write(CellSize);
+            w.Write((ushort)0);
+            w.Write(Flags);
             w.Write(Width);
             w.Write(Height);
             w.Write(BBMin);
             w.Write(BBMax);
             w.Write(Length);
-            if (Compressed > 0)
+            if ((Flags & 1) != 0)
             {
                 for (int i = 0; i < Height; i++)
                 {
@@ -205,6 +215,7 @@ namespace CodeWalker.GameFiles
                 }
             }
             w.Write(d);
+            if ((Flags & 2) != 0) w.Write(WaterMask);
         }
 
 

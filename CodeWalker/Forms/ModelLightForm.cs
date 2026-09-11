@@ -17,11 +17,11 @@ namespace CodeWalker.Forms
     public partial class ModelLightForm : Form
     {
         private ModelForm ModelForm;
-        private Drawable? Drawable;
+        private gtaDrawable? Drawable;
         private FragDrawable? FragDrawable;
-        private Dictionary<uint, Drawable> DrawableDict = new();
+        private Dictionary<uint, gtaDrawable> DrawableDict = new();
 
-        LightAttributes? selectedLight;
+        CLightAttr? selectedLight;
 
         bool populatingui = false;
         
@@ -32,18 +32,18 @@ namespace CodeWalker.Forms
             ModelForm = modelForm;
         }
 
-        public void LoadModel(DrawableBase drawable)
+        public void LoadModel(rmcDrawable drawable)
         {
             LightsTreeView.Nodes.Clear();
             LightsTreeView.ShowRootLines = false;
 
-            var dr = drawable as Drawable;
+            var dr = drawable as gtaDrawable;
             var fr = drawable as FragDrawable;
 
             if (dr != null)
             {
                 Drawable = dr;
-                var lights = dr.LightAttributes;
+                var lights = dr.Lights;
                 if (lights != null)
                 {
                     AddLightsTreeNodes(lights.data_items);
@@ -59,7 +59,7 @@ namespace CodeWalker.Forms
                 }
             }
         }
-        public void LoadModels(Dictionary<uint, Drawable> dict)
+        public void LoadModels(Dictionary<uint, gtaDrawable> dict)
         {
             DrawableDict = dict;
 
@@ -75,7 +75,7 @@ namespace CodeWalker.Forms
                     var dnode = LightsTreeView.Nodes.Add(mhash.ToString());
                     dnode.Tag = drawable;
 
-                    var lights = drawable.LightAttributes.data_items;
+                    var lights = drawable.Lights.data_items;
                     if(lights != null)
                     {
                         AddLightsTreeNodes(lights, dnode);
@@ -85,7 +85,7 @@ namespace CodeWalker.Forms
                 }
             }
         }
-        private void AddLightsTreeNodes(LightAttributes[]? lights, TreeNode? parent = null)
+        private void AddLightsTreeNodes(CLightAttr[]? lights, TreeNode? parent = null)
         {
             if (lights == null) return;
 
@@ -171,7 +171,7 @@ namespace CodeWalker.Forms
                 UpdateFlagsCheckBoxes();
                 FlashinessComboBox.SelectedIndex = light.Flashiness;
                 LightHashUpDown.Value = light.LightHash;
-                BoneIDUpDown.Value = light.BoneId;
+                BoneIDUpDown.Value = unchecked((ushort)light.BoneTag);
                 GroupIDUpDown.Value = light.GroupId;
                 FalloffTextBox.Text = FloatUtil.ToString(light.Falloff);
                 FalloffExponentTextBox.Text = FloatUtil.ToString(light.FalloffExponent);
@@ -179,11 +179,11 @@ namespace CodeWalker.Forms
                 OuterAngleTextBox.Text = FloatUtil.ToString(light.ConeOuterAngle);
                 CoronaSizeTextBox.Text = FloatUtil.ToString(light.CoronaSize);
                 CoronaIntensityTextBox.Text = FloatUtil.ToString(light.CoronaIntensity);
-                ExtentTextBox.Text = FloatUtil.GetVector3String(light.Extent);
+                ExtentTextBox.Text = FloatUtil.GetVector3String(light.Extents);
                 ShadowBlurUpDown.Value = light.ShadowBlur;
                 LightFadeDistanceUpDown.Value = light.LightFadeDistance;
                 CoronaZBiasTextBox.Text = FloatUtil.ToString(light.CoronaZBias);
-                TextureHashTextBox.Text = light.ProjectedTextureHash.ToCleanString();
+                TextureHashTextBox.Text = light.ProjectedTextureKey.ToCleanString();
                 VolumeIntensityTextBox.Text = FloatUtil.ToString(light.VolumeIntensity);
                 VolumeSizeScaleTextBox.Text = FloatUtil.ToString(light.VolumeSizeScale);
                 VolumeColorRUpDown.Value = light.VolumeOuterColorR;
@@ -214,8 +214,8 @@ namespace CodeWalker.Forms
             var sl = selectedLight;
             if (sl == null) return;
             var pos = sl.Position;
-            Bone? bone = null;
-            ModelForm.Skeleton?.BonesMap?.TryGetValue(sl.BoneId, out bone);
+            crBoneData? bone = null;
+            ModelForm.Skeleton?.BonesMap?.TryGetValue(unchecked((ushort)sl.BoneTag), out bone);
             if (bone != null)
             {
                 var xform = bone.AbsTransform;
@@ -224,7 +224,7 @@ namespace CodeWalker.Forms
             if (sl == null) return;
             if (sl.Type == LightType.Capsule)
             {
-                ModelForm.SetWidgetTransform(pos, sl.Orientation, new Vector3(sl.Falloff, sl.Falloff, sl.Extent.X));
+                ModelForm.SetWidgetTransform(pos, sl.Orientation, new Vector3(sl.Falloff, sl.Falloff, sl.Extents.X));
             }
             else if (sl.Type == LightType.Spot)
             {
@@ -236,15 +236,15 @@ namespace CodeWalker.Forms
             }
         }
 
-        private LightAttributes NewLightAttribute()
+        private CLightAttr NewLightAttribute()
         {
-            LightAttributes light = new();
+            CLightAttr light = new();
             light.Direction = Vector3.BackwardLH;
             light.Tangent = Vector3.Left;
             light.Intensity = 5;
             light.ConeInnerAngle = 5;
             light.ConeOuterAngle = 35;
-            light.Extent = Vector3.One;
+            light.Extents = Vector3.One;
             light.Type = LightType.Spot;
             light.Falloff = 10;
             light.ColorR = 255;
@@ -253,21 +253,19 @@ namespace CodeWalker.Forms
             light.TimeFlags = 16777215;
             return light;
         }
-        private LightAttributes DuplicateLightAttribute()
+        private CLightAttr DuplicateLightAttribute()
         {
             if (selectedLight == null) throw new InvalidOperationException("No light selected.");
-            LightAttributes light = new();
-            light.Unknown_0h = selectedLight.Unknown_0h;
-            light.Unknown_4h = selectedLight.Unknown_4h;
+            CLightAttr light = new();
+            light.VFT = selectedLight.VFT;
             light.Position = selectedLight.Position;
-            light.Unknown_14h = selectedLight.Unknown_14h;
             light.ColorR = selectedLight.ColorR;
             light.ColorG = selectedLight.ColorG;
             light.ColorB = selectedLight.ColorB;
             light.Flashiness = selectedLight.Flashiness;
             light.Intensity = selectedLight.Intensity;
             light.Flags = selectedLight.Flags;
-            light.BoneId = selectedLight.BoneId;
+            light.BoneTag = selectedLight.BoneTag;
             light.Type = selectedLight.Type;
             light.GroupId = selectedLight.GroupId;
             light.TimeFlags = selectedLight.TimeFlags;
@@ -276,8 +274,8 @@ namespace CodeWalker.Forms
             light.CullingPlaneNormal = selectedLight.CullingPlaneNormal;
             light.CullingPlaneOffset = selectedLight.CullingPlaneOffset;
             light.ShadowBlur = selectedLight.ShadowBlur;
-            light.Unknown_45h = selectedLight.Unknown_45h;
-            light.Unknown_46h = selectedLight.Unknown_46h;
+            light.ExtraFlags = selectedLight.ExtraFlags;
+            light.ExtraFlagsBank = selectedLight.ExtraFlagsBank;
             light.VolumeIntensity = selectedLight.VolumeIntensity;
             light.VolumeSizeScale = selectedLight.VolumeSizeScale;
             light.VolumeOuterColorR = selectedLight.VolumeOuterColorR;
@@ -298,14 +296,13 @@ namespace CodeWalker.Forms
             light.Tangent = selectedLight.Tangent;
             light.ConeInnerAngle = selectedLight.ConeInnerAngle;
             light.ConeOuterAngle = selectedLight.ConeOuterAngle;
-            light.Extent = selectedLight.Extent;
-            light.ProjectedTextureHash = selectedLight.ProjectedTextureHash;
-            light.Unknown_A4h = selectedLight.Unknown_A4h;
+            light.Extents = selectedLight.Extents;
+            light.ProjectedTextureKey = selectedLight.ProjectedTextureKey;
            
             return light;
         }
 
-        private void SelectLight(LightAttributes? light)
+        private void SelectLight(CLightAttr? light)
         {
             if (light == null)
             {
@@ -321,7 +318,7 @@ namespace CodeWalker.Forms
                 UpdateWidgetTransform();
             }
         }
-        private void SelectLightTreeNode(LightAttributes light)
+        private void SelectLightTreeNode(CLightAttr light)
         {
             foreach (TreeNode rn in LightsTreeView.Nodes)
             {
@@ -351,17 +348,17 @@ namespace CodeWalker.Forms
             selectedLight = NewLightAttribute();
             if(Drawable != null)
             {
-                if (Drawable.LightAttributes == null) Drawable.LightAttributes = new ResourceSimpleList64<LightAttributes>();
-                List<LightAttributes> lights = Drawable.LightAttributes.data_items?.ToList() ?? new List<LightAttributes>();
+                if (Drawable.Lights == null) Drawable.Lights = new atArray<CLightAttr>();
+                List<CLightAttr> lights = Drawable.Lights.data_items?.ToList() ?? new List<CLightAttr>();
                 lights.Add(selectedLight);
-                Drawable.LightAttributes.data_items = lights.ToArray();
+                Drawable.Lights.data_items = lights.ToArray();
                 UpdateLightParams();
                 LoadModel(Drawable);
             }
             else if(FragDrawable?.OwnerFragment != null)
             {
-                if (FragDrawable.OwnerFragment.LightAttributes == null) FragDrawable.OwnerFragment.LightAttributes = new ResourceSimpleList64<LightAttributes>();
-                List<LightAttributes> lights = FragDrawable.OwnerFragment.LightAttributes.data_items?.ToList() ?? new List<LightAttributes>();
+                if (FragDrawable.OwnerFragment.LightAttributes == null) FragDrawable.OwnerFragment.LightAttributes = new ResourceSimpleList64<CLightAttr>();
+                List<CLightAttr> lights = FragDrawable.OwnerFragment.LightAttributes.data_items?.ToList() ?? new List<CLightAttr>();
                 lights.Add(selectedLight);
                 FragDrawable.OwnerFragment.LightAttributes.data_items = lights.ToArray();
                 UpdateLightParams();
@@ -372,14 +369,14 @@ namespace CodeWalker.Forms
                 var n = LightsTreeView.SelectedNode;
                 if (n != null)
                 {
-                    var dr = n.Tag as Drawable;
-                    if (dr == null) { dr = n.Parent?.Tag as Drawable; } //try parent node tag also
+                    var dr = n.Tag as gtaDrawable;
+                    if (dr == null) { dr = n.Parent?.Tag as gtaDrawable; } //try parent node tag also
                     if (dr!= null)
                     {
-                        if (dr.LightAttributes == null) dr.LightAttributes = new ResourceSimpleList64<LightAttributes>();
-                        List<LightAttributes> lights = dr.LightAttributes.data_items?.ToList() ?? new List<LightAttributes>();
+                        if (dr.Lights == null) dr.Lights = new atArray<CLightAttr>();
+                        List<CLightAttr> lights = dr.Lights.data_items?.ToList() ?? new List<CLightAttr>();
                         lights.Add(selectedLight);
-                        dr.LightAttributes.data_items = lights.ToArray();
+                        dr.Lights.data_items = lights.ToArray();
                         UpdateLightParams();
                         LoadModels(DrawableDict);
                     }
@@ -392,15 +389,15 @@ namespace CodeWalker.Forms
             if (selectedLight == null) return;
             if (Drawable != null)
             {
-                List<LightAttributes> lights = Drawable.LightAttributes.data_items.ToList();
+                List<CLightAttr> lights = Drawable.Lights.data_items.ToList();
                 lights.Remove(selectedLight);
-                Drawable.LightAttributes.data_items = lights.ToArray();
+                Drawable.Lights.data_items = lights.ToArray();
                 UpdateLightParams();
                 LoadModel(Drawable);
             }
             else if(FragDrawable?.OwnerFragment != null)
             {
-                List<LightAttributes> lights = FragDrawable.OwnerFragment.LightAttributes.data_items.ToList();
+                List<CLightAttr> lights = FragDrawable.OwnerFragment.LightAttributes.data_items.ToList();
                 lights.Remove(selectedLight);
                 FragDrawable.OwnerFragment.LightAttributes.data_items = lights.ToArray();
                 UpdateLightParams();
@@ -408,12 +405,12 @@ namespace CodeWalker.Forms
             }
             else
             {
-                var dr = LightsTreeView.SelectedNode?.Parent?.Tag as Drawable;
+                var dr = LightsTreeView.SelectedNode?.Parent?.Tag as gtaDrawable;
                 if (dr != null)
                 {
-                    List<LightAttributes> lights = dr.LightAttributes.data_items.ToList();
+                    List<CLightAttr> lights = dr.Lights.data_items.ToList();
                     lights.Remove(selectedLight);
-                    dr.LightAttributes.data_items = lights.ToArray();
+                    dr.Lights.data_items = lights.ToArray();
                     UpdateLightParams();
                     LoadModels(DrawableDict);
                 }
@@ -427,17 +424,17 @@ namespace CodeWalker.Forms
             selectedLight = DuplicateLightAttribute();
             if (Drawable != null)
             {
-                if (Drawable.LightAttributes == null) Drawable.LightAttributes = new ResourceSimpleList64<LightAttributes>();
-                List<LightAttributes> lights = Drawable.LightAttributes.data_items?.ToList() ?? new List<LightAttributes>();
+                if (Drawable.Lights == null) Drawable.Lights = new atArray<CLightAttr>();
+                List<CLightAttr> lights = Drawable.Lights.data_items?.ToList() ?? new List<CLightAttr>();
                 lights.Add(selectedLight);
-                Drawable.LightAttributes.data_items = lights.ToArray();
+                Drawable.Lights.data_items = lights.ToArray();
                 UpdateLightParams();
                 LoadModel(Drawable);
             }
             else if (FragDrawable?.OwnerFragment != null)
             {
-                if (FragDrawable.OwnerFragment.LightAttributes == null) FragDrawable.OwnerFragment.LightAttributes = new ResourceSimpleList64<LightAttributes>();
-                List<LightAttributes> lights = FragDrawable.OwnerFragment.LightAttributes.data_items?.ToList() ?? new List<LightAttributes>();
+                if (FragDrawable.OwnerFragment.LightAttributes == null) FragDrawable.OwnerFragment.LightAttributes = new ResourceSimpleList64<CLightAttr>();
+                List<CLightAttr> lights = FragDrawable.OwnerFragment.LightAttributes.data_items?.ToList() ?? new List<CLightAttr>();
                 lights.Add(selectedLight);
                 FragDrawable.OwnerFragment.LightAttributes.data_items = lights.ToArray();
                 UpdateLightParams();
@@ -448,14 +445,14 @@ namespace CodeWalker.Forms
                 var n = LightsTreeView.SelectedNode;
                 if (n != null)
                 {
-                    var dr = n.Tag as Drawable;
-                    if (dr == null) { dr = n.Parent?.Tag as Drawable; } //try parent node tag also
+                    var dr = n.Tag as gtaDrawable;
+                    if (dr == null) { dr = n.Parent?.Tag as gtaDrawable; } //try parent node tag also
                     if (dr != null)
                     {
-                        if (dr.LightAttributes == null) dr.LightAttributes = new ResourceSimpleList64<LightAttributes>();
-                        List<LightAttributes> lights = dr.LightAttributes.data_items?.ToList() ?? new List<LightAttributes>();
+                        if (dr.Lights == null) dr.Lights = new atArray<CLightAttr>();
+                        List<CLightAttr> lights = dr.Lights.data_items?.ToList() ?? new List<CLightAttr>();
                         lights.Add(selectedLight);
-                        dr.LightAttributes.data_items = lights.ToArray();
+                        dr.Lights.data_items = lights.ToArray();
                         UpdateLightParams();
                         LoadModels(DrawableDict);
                     }
@@ -577,7 +574,7 @@ namespace CodeWalker.Forms
 
         private void LightsTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            SelectLight(e.Node?.Tag as LightAttributes);
+            SelectLight(e.Node?.Tag as CLightAttr);
         }
 
         private void ModelLightForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -827,9 +824,9 @@ namespace CodeWalker.Forms
             if (populatingui) return;
             if (selectedLight == null) return;
             var v = (ushort)BoneIDUpDown.Value;
-            if (selectedLight.BoneId != v)
+            if (unchecked((ushort)selectedLight.BoneTag) != v)
             {
-                selectedLight.BoneId = v;
+                selectedLight.BoneTag = unchecked((short)v);
                 UpdateWidgetTransform();
                 UpdateLightParams();
             }
@@ -852,9 +849,9 @@ namespace CodeWalker.Forms
             if (populatingui) return;
             if (selectedLight == null) return;
             Vector3 v = FloatUtil.ParseVector3String(ExtentTextBox.Text);
-            if (selectedLight.Extent != v)
+            if (selectedLight.Extents != v)
             {
-                selectedLight.Extent = v;
+                selectedLight.Extents = v;
                 UpdateWidgetTransform();
                 UpdateLightParams();
             }
@@ -1091,9 +1088,9 @@ namespace CodeWalker.Forms
             {
                 v = JenkHash.GenHash(TextureHashTextBox.Text);
             }
-            if (selectedLight.ProjectedTextureHash != v)
+            if (selectedLight.ProjectedTextureKey != v)
             {
-                selectedLight.ProjectedTextureHash = v;
+                selectedLight.ProjectedTextureKey = v;
             }
         }
 

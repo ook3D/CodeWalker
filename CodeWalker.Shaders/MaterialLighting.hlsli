@@ -60,6 +60,16 @@ float MaterialDiffuseScale(MaterialSpecular material, float3 normal, float3 eyeD
     return 1.0 - material.Intensity * MaterialFresnel(material.Fresnel, dot(normal, eyeDirection));
 }
 
+float MaterialReflectionAmount(MaterialSpecular material, float3 normal, float3 eyeDirection)
+{
+    return material.Intensity * MaterialFresnel(material.Fresnel, dot(normal, eyeDirection));
+}
+
+float MaterialReflectionNormalization(MaterialSpecular material)
+{
+    return lerp(1.0 / 3.14159265, 1.0, saturate(material.Exponent / 563.0));
+}
+
 // lighting.fxh:GetLightValues: normalized Blinn-Phong, Schlick Fresnel,
 // and the projected light contribution. Shadowing/attenuation are applied by callers.
 float MaterialSpecularLight(MaterialSpecular material, float3 normal, float3 lightDirection, float3 eyeDirection)

@@ -62,7 +62,7 @@ namespace CodeWalker.Rendering
     }
 
 
-    public class Renderable : RenderableCacheItem<DrawableBase>
+    public class Renderable : RenderableCacheItem<rmcDrawable>
     {
         // Null means the hierarchy has not been resolved; empty means it was
         // resolved and no external texture dictionaries were found.
@@ -78,7 +78,7 @@ namespace CodeWalker.Rendering
         //public Dictionary<uint, Texture> TextureDict { get; private set; }
         //public long EmbeddedTextureSize { get; private set; }
 
-        public Skeleton? Skeleton { get; set; } = null;
+        public crSkeletonData? Skeleton { get; set; } = null;
         public bool HasSkeleton;
         public bool HasTransforms;
 
@@ -106,7 +106,7 @@ namespace CodeWalker.Rendering
 
 
 
-        public override void Init(DrawableBase drawable)
+        public override void Init(rmcDrawable drawable)
         {
             Key = drawable;
 
@@ -170,23 +170,23 @@ namespace CodeWalker.Rendering
 
 
             var fd = drawable as FragDrawable;
-            var dd = drawable as Drawable;
+            var dd = drawable as gtaDrawable;
 
 
             bool hasskeleton = false;
             bool hastransforms = false;
             bool hasbones = false;
-            var skeleton = drawable.Skeleton;
+            var skeleton = drawable.SkeletonData;
             Matrix[]? modeltransforms = null;
             Matrix[]? fragtransforms = null;
             Vector4 fragoffset = Vector4.Zero;
             int fragtransformid = 0;
-            Bone[]? bones = null;
+            crBoneData[]? bones = null;
             bool usepose = false;
             if (skeleton != null)
             {
                 hasskeleton = true;
-                modeltransforms = skeleton.Transformations;
+                modeltransforms = skeleton.DefaultTransforms;
 
                 //for fragments, get the default pose from the root fragment...
                 if (fd != null)
@@ -280,14 +280,14 @@ namespace CodeWalker.Rendering
                     int boneidx = model.BoneIndex;
 
                     Matrix trans = (modeltransforms != null && boneidx < modeltransforms.Length) ? modeltransforms[boneidx] : Matrix.Identity;
-                    Bone? bone = (bones != null && boneidx < bones.Length) ? bones[boneidx] : null;
+                    crBoneData? bone = (bones != null && boneidx < bones.Length) ? bones[boneidx] : null;
 
                     if (mi < HDModels.Length) //populate bone links map for hd models
                     {
                         if (bone != null)
                         {
                             if (ModelBoneLinks == null) ModelBoneLinks = new Dictionary<ushort, RenderableModel>();
-                            ModelBoneLinks[bone.Tag] = model;
+                            ModelBoneLinks[bone.BoneId] = model;
                         }
                     }
 
@@ -330,7 +330,7 @@ namespace CodeWalker.Rendering
 
 
 
-            var lights = dd?.LightAttributes?.data_items;
+            var lights = dd?.Lights?.data_items;
             if ((lights == null) && (fd?.OwnerFragment is { } ownerFragment) && (ownerFragment.Drawable == fd))
             {
                 lights = ownerFragment.LightAttributes.data_items;
@@ -345,7 +345,7 @@ namespace CodeWalker.Rendering
 
         }
 
-        public void InitLights(LightAttributes[] lights)
+        public void InitLights(CLightAttr[] lights)
         {
             var rlights = new RenderableLight[lights.Length];
             for (int i = 0; i < lights.Length; i++)
@@ -358,7 +358,7 @@ namespace CodeWalker.Rendering
             Lights = rlights;
         }
 
-        private RenderableModel InitModel(DrawableModel dm)
+        private RenderableModel InitModel(grmModel dm)
         {
             var rmodel = new RenderableModel();
             rmodel.Owner = this;
@@ -431,7 +431,7 @@ namespace CodeWalker.Rendering
                 for (int g = 0; g < model.Geometries.Length; g++)
                 {
                     var geom = model.Geometries[g];
-                    var boneids = geom?.DrawableGeom?.BoneIds;
+                    var boneids = geom?.DrawableGeom?.MatrixPalette;
                     if (boneids == null || boneids.Length == 0 || geom == null || bones == null) continue;
                     if (boneids.Length != bones.Length)
                     {
@@ -505,9 +505,9 @@ namespace CodeWalker.Rendering
             if (Skeleton?.BonesSorted is { } poseBones)
                 foreach (var bone in poseBones)
                 {
-                    bone.AnimTranslation = bone.Translation;
-                    bone.AnimRotation = bone.Rotation;
-                    bone.AnimScale = bone.Scale;
+                    bone.AnimTranslation = bone.DefaultTranslation;
+                    bone.AnimRotation = bone.DefaultRotation;
+                    bone.AnimScale = bone.DefaultScale;
                 }
             FacialEvaluator.Frame.Clear();
             RootMotionPosition = Vector3.Zero;
@@ -544,15 +544,15 @@ namespace CodeWalker.Rendering
                 for (int i = 0; i < bones.Length; i++)
                 {
                     var bone = bones[i];
-                    var tag = bone.Tag;
-                    switch (bone.Tag)
+                    var tag = bone.BoneId;
+                    switch (bone.BoneId)
                     {
                         case 23639: tag = 58271; break; //RB_L_ThighRoll: SKEL_L_Thigh
                         case 6442:  tag = 51826; break; //RB_R_ThighRoll: SKEL_R_Thigh
                         //case 61007: tag = 61163; break; //RB_L_ForeArmRoll: SKEL_L_Forearm //NOT GOOD
                         //case 5232: tag = 45509; break; //RB_L_ArmRoll: SKEL_L_UpperArm
                     }
-                    if ((tag != bone.Tag) && (tag != bone.Parent?.Tag))
+                    if ((tag != bone.BoneId) && (tag != bone.Parent?.BoneId))
                     {
                         if ((bonesmap != null) && bonesmap.TryGetValue(tag, out var obone))
                         {
@@ -564,7 +564,7 @@ namespace CodeWalker.Rendering
                 {
                     var bone = bones[i];
                     
-                    if (EnableRootMotion && (bone.Tag == 0))
+                    if (EnableRootMotion && (bone.BoneId == 0))
                     {
                         bone.AnimTranslation = RootMotionPosition + RootMotionRotation.Multiply(bone.AnimTranslation);
                         bone.AnimRotation = RootMotionRotation * bone.AnimRotation;
@@ -575,7 +575,7 @@ namespace CodeWalker.Rendering
 
                     //update model's transform from animated bone
                     RenderableModel? bmodel = null;
-                    ModelBoneLinks?.TryGetValue(bone.Tag, out bmodel);
+                    ModelBoneLinks?.TryGetValue(bone.BoneId, out bmodel);
 
 
                     if (bmodel == null)
@@ -622,13 +622,13 @@ namespace CodeWalker.Rendering
                 // Applying guessed rotations/translations here distorts eyes and mouths.
                 if (Expression != null)
                 {
-                    var sample = track is 1 or 6 or 8 or 26 || boneiditem.Unk0 == 1
+                    var sample = track is 1 or 6 or 8 or 26 || boneiditem.Type == 1
                         ? anim.EvaluateQuaternion(frame, i, interpolate).ToVector4() : anim.EvaluateVector4(frame, i, interpolate);
                     FacialEvaluator.Frame[(boneid, track)] = sample;
                 }
                 if (track is 24 or 25 or 26 or 37) continue;
 
-                Bone? bone = null;
+                crBoneData? bone = null;
                 skel?.BonesMap?.TryGetValue(boneid, out bone);
                 if (bone == null)
                 {
@@ -672,11 +672,11 @@ namespace CodeWalker.Rendering
                     case 138:
                     case 139:
                     case 140:
-                        if (bone.Tag != 0)
+                        if (bone.BoneId != 0)
                         { }
                         break;
                     default:
-                        if (bone.Tag != 0)
+                        if (bone.BoneId != 0)
                         { }
                         break;
                 }
@@ -766,13 +766,11 @@ namespace CodeWalker.Rendering
     public class RenderableModel
     {
         public Renderable? Owner;
-        public DrawableModel? DrawableModel;
+        public grmModel? DrawableModel;
         public RenderableGeometry[] Geometries = [];
         public AABB_s[] GeometryBounds = [];
         public long GeometrySize { get; private set; }
-
-        public uint SkeletonBinding;
-        public uint RenderMaskFlags; //flags.......
+        public byte Mask;
 
         public bool UseTransform;
         public Matrix Transform;
@@ -780,13 +778,11 @@ namespace CodeWalker.Rendering
         public int BoneIndex = 0;
         public bool IsSkinMesh = false;
 
-        public void Init(DrawableModel dmodel)
+        public void Init(grmModel dmodel)
         {
-            SkeletonBinding = dmodel.SkeletonBinding;//4th byte is bone index, 2nd byte for skin meshes
-            RenderMaskFlags = dmodel.RenderMaskFlags; //only the first byte seems be related to this
-
-            IsSkinMesh = ((SkeletonBinding >> 8) & 0xFF) > 0;
-            BoneIndex = (int)((SkeletonBinding >> 24) & 0xFF);
+            Mask = dmodel.Mask;
+            IsSkinMesh = (dmodel.Flags & grmModelFlags.MODEL_RELATIVE) != 0;
+            BoneIndex = dmodel.MatrixIndex;
 
             DrawableModel = dmodel;
             long geomcount = dmodel.Geometries.Length;
@@ -803,9 +799,9 @@ namespace CodeWalker.Rendering
                 Geometries[i] = rgeom;
                 GeometrySize += rgeom.TotalDataSize;
 
-                if ((dmodel.BoundsData != null) && (i < dmodel.BoundsData.Length))
+                if ((dmodel.AABBs != null) && (i < dmodel.AABBs.Length))
                 {
-                    GeometryBounds[i] = dmodel.BoundsData[i];
+                    GeometryBounds[i] = dmodel.AABBs[i];
                 }
                 else
                 {
@@ -829,7 +825,7 @@ namespace CodeWalker.Rendering
         public Buffer? VertexBuffer { get; set; }
         public Buffer? IndexBuffer { get; set; }
         public VertexBufferBinding VBBinding;
-        public DrawableGeometry? DrawableGeom;
+        public grmGeometryQB? DrawableGeom;
         public VertexType VertexType { get; set; }
         public int VertexStride { get; set; }
         public int VertexCount { get; set; }
@@ -956,20 +952,20 @@ namespace CodeWalker.Rendering
             };
         }
 
-        public void Init(DrawableGeometry dgeom)
+        public void Init(grmGeometryQB dgeom)
         {
             DrawableGeom = dgeom;
             VertexType = dgeom.VertexData?.VertexType ?? VertexType.Default;
-            VertexStride = dgeom.VertexStride;
-            VertexCount = dgeom.VerticesCount;
-            IndexCount = (int)dgeom.IndicesCount;
+            VertexStride = dgeom.Stride;
+            VertexCount = dgeom.VertexCount;
+            IndexCount = (int)dgeom.IndexCount;
             VertexDataSize = (uint)(VertexCount * VertexStride);
             IndexDataSize = (uint)(IndexCount * 2); //ushort indices...
             TotalDataSize = VertexDataSize + IndexDataSize;
             Topology = PrimitiveTopology.TriangleList;
 
             var shader = DrawableGeom.Shader;
-            if ((shader != null) && (shader.ParametersList != null))
+            if ((shader != null) && (shader.EntriesBlock != null))
             {
                 if (shader.FileName == 3854885487)//{cable.sps}
                 {
@@ -1041,8 +1037,8 @@ namespace CodeWalker.Rendering
 
 
 
-                var pl = shader.ParametersList.Parameters;
-                var hl = shader.ParametersList.Hashes;
+                var pl = shader.EntriesBlock.Entries;
+                var hl = shader.EntriesBlock.NameHashes;
                 List<TextureBase> texs = new List<TextureBase>();
                 List<ShaderParamNames> phashes = new List<ShaderParamNames>();
                 if ((pl != null) && (hl != null))
@@ -1227,7 +1223,7 @@ namespace CodeWalker.Rendering
         public void Load(Device device)
         {
 
-            if (DrawableGeom?.VertexData?.VertexBytes is not { Length: > 0 } vertexBytes) return;
+            if (DrawableGeom?.VertexData?.Data is not { Length: > 0 } vertexBytes) return;
             VertexBuffer = Buffer.Create(device, BindFlags.VertexBuffer, vertexBytes);
 
             //object v = DrawableGeom.VertexData.Vertices;
@@ -1521,9 +1517,9 @@ namespace CodeWalker.Rendering
 
     public class RenderableLight
     {
-        public LightAttributes? OwnerLight;
+        public CLightAttr? OwnerLight;
         public Renderable? Owner;
-        public Bone? Bone;
+        public crBoneData? Bone;
         public Vector3 Position;
         public Vector3 Colour;
         public Vector3 Direction;
@@ -1542,14 +1538,14 @@ namespace CodeWalker.Rendering
         public uint Flags;
         public MetaHash TextureHash;
 
-        public void Init(LightAttributes l)
+        public void Init(CLightAttr l)
         {
             OwnerLight = l;
             var pos = l.Position;
             var dir = l.Direction;
             var tan = l.Tangent;
             var bones = Owner?.Skeleton?.BonesMap;
-            bones?.TryGetValue(l.BoneId, out Bone);
+            bones?.TryGetValue(unchecked((ushort)l.BoneTag), out Bone);
             Position = pos;
             Colour = new Vector3(l.ColorR, l.ColorG, l.ColorB) * (2.0f * l.Intensity  / 255.0f);
             Direction = dir;
@@ -1561,12 +1557,12 @@ namespace CodeWalker.Rendering
             FalloffExponent = l.FalloffExponent;
             ConeInnerAngle = Math.Min(l.ConeInnerAngle, l.ConeOuterAngle) * 0.01745329f; //is this right??
             ConeOuterAngle = Math.Max(l.ConeInnerAngle, l.ConeOuterAngle) * 0.01745329f; //pi/180
-            CapsuleExtent = l.Extent;
+            CapsuleExtent = l.Extents;
             CullingPlaneNormal = l.CullingPlaneNormal;
             CullingPlaneOffset = l.CullingPlaneOffset;
             TimeFlags = l.TimeFlags;
             Flags = l.Flags;
-            TextureHash = l.ProjectedTextureHash;
+            TextureHash = l.ProjectedTextureKey;
         }
     }
 

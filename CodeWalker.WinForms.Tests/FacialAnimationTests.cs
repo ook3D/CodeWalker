@@ -17,10 +17,10 @@ public class FacialAnimationTests
                     [new AnimSequence { Channels = [new AnimChannelStaticVector3 { Value = value }] }] }] } } }
     };
 
-    private static (Renderable Renderable, Bone Bone) Create()
+    private static (Renderable Renderable, crBoneData Bone) Create()
     {
-        var bone = new Bone { Tag = 1, Translation = new Vector3(1, 2, 3), Rotation = Quaternion.Identity, Scale = Vector3.One };
-        var renderable = new Renderable { Skeleton = new Skeleton { BonesSorted = [bone], BonesMap = new() { [1] = bone } } };
+        var bone = new crBoneData { BoneId = 1, DefaultTranslation = new Vector3(1, 2, 3), DefaultRotation = Quaternion.Identity, DefaultScale = Vector3.One };
+        var renderable = new Renderable { Skeleton = new crSkeletonData { BonesSorted = [bone], BonesMap = new() { [1] = bone } } };
         return (renderable, bone);
     }
 
@@ -34,9 +34,9 @@ public class FacialAnimationTests
         var (renderable, bone) = Create();
         renderable.ClipMapEntry = Clip(track, new Vector3(50));
         renderable.UpdateAnims(0);
-        Assert.Equal(bone.Translation, bone.AnimTranslation);
-        Assert.Equal(bone.Rotation, bone.AnimRotation);
-        Assert.Equal(bone.Scale, bone.AnimScale);
+        Assert.Equal(bone.DefaultTranslation, bone.AnimTranslation);
+        Assert.Equal(bone.DefaultRotation, bone.AnimRotation);
+        Assert.Equal(bone.DefaultScale, bone.AnimScale);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class FacialAnimationTests
         Assert.Equal(new Vector3(5), bone.AnimTranslation);
         renderable.ClipMapEntry = Clip(25, new Vector3(90));
         renderable.UpdateAnims(0);
-        Assert.Equal(bone.Translation, bone.AnimTranslation);
+        Assert.Equal(bone.DefaultTranslation, bone.AnimTranslation);
         Assert.Equal(Quaternion.Identity, bone.AnimRotation);
     }
 
@@ -69,7 +69,7 @@ public class FacialAnimationTests
             new ExpressionInstrBone { Type=ExpressionInstrType.TrackGet, BoneId=1, Track=25 },
             new ExpressionInstrBone { Type=ExpressionInstrType.TrackSetOffset, BoneId=1, Track=0 });
         renderable.UpdateAnims(0);
-        Assert.Equal(bone.Translation+new Vector3(0.25f),bone.AnimTranslation);
+        Assert.Equal(bone.DefaultTranslation+new Vector3(0.25f),bone.AnimTranslation);
         Assert.Null(renderable.FacialExpressionError);
     }
 
@@ -83,10 +83,10 @@ public class FacialAnimationTests
             new ExpressionInstrBone { Type=ExpressionInstrType.TrackGet, BoneId=1, Track=25 },
             new ExpressionInstrBone { Type=ExpressionInstrType.TrackSetOffset, BoneId=1, Track=0 });
         renderable.UpdateAnims(0);
-        Assert.Equal(bone.Translation+new Vector3(0.5f),bone.AnimTranslation);
+        Assert.Equal(bone.DefaultTranslation+new Vector3(0.5f),bone.AnimTranslation);
         renderable.FaceClip=null;
         renderable.UpdateAnims(0);
-        Assert.Equal(bone.Translation,bone.AnimTranslation);
+        Assert.Equal(bone.DefaultTranslation,bone.AnimTranslation);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class FacialAnimationTests
         expression.Tracks.data_items=[new ExpressionTrack { BoneId=1,Track=25 }];
         renderable.Expression=expression;
         renderable.UpdateAnims(0);
-        Assert.Equal(bone.Translation+new Vector3(6,0,0),bone.AnimTranslation);
+        Assert.Equal(bone.DefaultTranslation+new Vector3(6,0,0),bone.AnimTranslation);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class FacialAnimationTests
         evaluator.Frame[(1,0)]=new Vector4(9,9,9,0);
         evaluator.Frame[(1,1)]=Quaternion.Identity.ToVector4();
         evaluator.Frame[(1,2)]=Vector4.One;
-        var skeleton=new Skeleton { BonesMap=new() { [1]=bone } };
+        var skeleton=new crSkeletonData { BonesMap=new() { [1]=bone } };
         Assert.True(evaluator.Evaluate(Program(new ExpressionInstrEmpty { Type=ExpressionInstrType.End }),skeleton,0));
         Assert.Equal(new Vector3(100),bone.AnimTranslation);
         Assert.Equal(expectedRotation,bone.AnimRotation);
@@ -174,7 +174,7 @@ public class FacialAnimationTests
         var evaluator=new ExpressionEvaluator();
         evaluator.Frame[(1,0)]=new Vector4(9);
         evaluator.Frame[(1,2)]=Vector4.One;
-        var skeleton=new Skeleton { BonesMap=new() { [1]=bone } };
+        var skeleton=new crSkeletonData { BonesMap=new() { [1]=bone } };
         var program=Program(new ExpressionInstrVector { Type=ExpressionInstrType.PushVector,Value=new Vector4(3,3,3,0) },
             new ExpressionInstrBone { Type=ExpressionInstrType.TrackSet,BoneId=1,Track=2 });
         Assert.True(evaluator.Evaluate(program,skeleton,0));
@@ -191,7 +191,7 @@ public class FacialAnimationTests
     {
         var (_,bone)=Create();
         var evaluator=new ExpressionEvaluator();
-        var skeleton=new Skeleton { BonesMap=new() { [1]=bone } };
+        var skeleton=new crSkeletonData { BonesMap=new() { [1]=bone } };
         var program=Program(
             new ExpressionInstrFloat { Type=ExpressionInstrType.PushFloat, Value=condition },
             new ExpressionInstrJump { Type=(ExpressionInstrType)opcode, Data3Offset=3 },
@@ -214,7 +214,7 @@ public class FacialAnimationTests
     {
         var (_,bone)=Create();
         var evaluator=new ExpressionEvaluator();
-        var skeleton=new Skeleton { BonesMap=new() { [1]=bone } };
+        var skeleton=new crSkeletonData { BonesMap=new() { [1]=bone } };
         // Same comparison/branch/pop structure found in choice_int's head expression.
         var program=Program(
             new ExpressionInstrFloat { Type=ExpressionInstrType.PushFloat, Value=input },
@@ -234,12 +234,12 @@ public class FacialAnimationTests
     [Fact]
     public void ComponentAnimationIncludesAncestorsOutsideItsSkinningPalette()
     {
-        var root = new Bone { Tag=1, Index=0, Rotation=Quaternion.Identity, Scale=Vector3.One };
-        var hand = new Bone { Tag=2, Index=1, Parent=root, Translation=Vector3.UnitX, Rotation=Quaternion.Identity, Scale=Vector3.One };
-        var actor = new Skeleton { Bones=new SkeletonBonesBlock { Items=[root,hand] }, BonesSorted=[root,hand], BonesMap=new() { [1]=root,[2]=hand } };
-        var component = new Skeleton { Bones=new SkeletonBonesBlock { Items=[new Bone { Tag=2,Index=0 }] }, BonesMap=new() };
+        var root = new crBoneData { BoneId=1, Index=0, DefaultRotation=Quaternion.Identity, DefaultScale=Vector3.One };
+        var hand = new crBoneData { BoneId=2, Index=1, Parent=root, DefaultTranslation=Vector3.UnitX, DefaultRotation=Quaternion.Identity, DefaultScale=Vector3.One };
+        var actor = new crSkeletonData { Bones=new crBoneDataArrayBlock { Items=[root,hand] }, BonesSorted=[root,hand], BonesMap=new() { [1]=root,[2]=hand } };
+        var component = new crSkeletonData { Bones=new crBoneDataArrayBlock { Items=[new crBoneData { BoneId=2,Index=0 }] }, BonesMap=new() };
         component.BindAnimationSkeleton(actor);
-        var renderable = new Renderable { Skeleton=component, Key=new Drawable(), ClipMapEntry=Clip(0,new Vector3(4)) };
+        var renderable = new Renderable { Skeleton=component, Key=new gtaDrawable(), ClipMapEntry=Clip(0,new Vector3(4)) };
         renderable.UpdateAnims(0);
         Assert.Equal(new Vector3(4),root.AnimTranslation);
         Assert.Single(component.Bones.Items);
@@ -251,9 +251,9 @@ public class FacialAnimationTests
     [Fact]
     public void BindingRetainsComponentPaletteOrderAcrossRepeatedUpdates()
     {
-        var a=new Bone { Tag=1 }; var b=new Bone { Tag=2 };
-        var actor=new Skeleton { Bones=new SkeletonBonesBlock { Items=[a,b] }, BonesSorted=[a,b], BonesMap=new() { [1]=a,[2]=b } };
-        var component=new Skeleton { Bones=new SkeletonBonesBlock { Items=[new Bone { Tag=2 },new Bone { Tag=1 }] } };
+        var a=new crBoneData { BoneId=1 }; var b=new crBoneData { BoneId=2 };
+        var actor=new crSkeletonData { Bones=new crBoneDataArrayBlock { Items=[a,b] }, BonesSorted=[a,b], BonesMap=new() { [1]=a,[2]=b } };
+        var component=new crSkeletonData { Bones=new crBoneDataArrayBlock { Items=[new crBoneData { BoneId=2 },new crBoneData { BoneId=1 }] } };
         component.BindAnimationSkeleton(actor);
         component.BindAnimationSkeleton(actor);
         Assert.Same(b,component.Bones.Items[0]);
@@ -262,20 +262,20 @@ public class FacialAnimationTests
     [Fact]
     public void LaterBodyUpdateDoesNotOverwriteQueuedFacialSkinningMatrices()
     {
-        var jaw = new Bone { Tag=1, Index=0, ParentIndex=-1, Rotation=Quaternion.Identity,
-            Scale=Vector3.One, BindTransformInv=Matrix.Identity };
-        var actor = new Skeleton { Bones=new SkeletonBonesBlock { Items=[jaw] },
+        var jaw = new crBoneData { BoneId=1, Index=0, ParentIndex=-1, DefaultRotation=Quaternion.Identity,
+            DefaultScale=Vector3.One, BindTransformInv=Matrix.Identity };
+        var actor = new crSkeletonData { Bones=new crBoneDataArrayBlock { Items=[jaw] },
             BonesSorted=[jaw], BonesMap=new() { [1]=jaw } };
         // Components with no embedded skeleton inherit the actor's palette, with independent storage.
         var teeth=actor.Clone(); teeth.BindAnimationSkeleton(actor);
         var body=actor.Clone(); body.BindAnimationSkeleton(actor);
         var clip=Clip(0,Vector3.Zero);
-        var face=new Renderable { Skeleton=teeth, Key=new Drawable(), ClipMapEntry=clip,
+        var face=new Renderable { Skeleton=teeth, Key=new gtaDrawable(), ClipMapEntry=clip,
             Expression=Program(new ExpressionInstrVector { Type=ExpressionInstrType.PushVector, Value=new Vector4(0,0,0.05f,0) },
                 new ExpressionInstrBone { Type=ExpressionInstrType.TrackSet, BoneId=1, Track=0 }) };
         face.UpdateAnims(0);
         var queuedJaw=teeth.BoneTransforms[0];
-        var torso=new Renderable { Skeleton=body, Key=new Drawable(), ClipMapEntry=clip };
+        var torso=new Renderable { Skeleton=body, Key=new gtaDrawable(), ClipMapEntry=clip };
         torso.UpdateAnims(0);
         Assert.NotSame(teeth.BoneTransforms,body.BoneTransforms);
         Assert.Equal(queuedJaw,teeth.BoneTransforms[0]);
@@ -321,7 +321,7 @@ public class FacialAnimationTests
     public void MissingSkeletalScaleComponentUsesBindScale()
     {
         var (renderable,bone)=Create();
-        bone.Scale=new Vector3(2,3,4);
+        bone.DefaultScale=new Vector3(2,3,4);
         var evaluator=new ExpressionEvaluator();
         Assert.True(evaluator.Evaluate(Program(
             new ExpressionInstrBone { Type=ExpressionInstrType.TrackGetComp, BoneId=1, Track=2, ComponentIndex=1 },

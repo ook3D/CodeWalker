@@ -48,8 +48,8 @@ namespace CodeWalker
         public WorldForm? WorldForm { get; set; }
         public YmapEntityDef? EntityDef { get; set; }
         public Archetype? Archetype { get; set; }
-        public DrawableBase? Drawable { get; set; }
-        public DrawableGeometry? Geometry { get; set; }
+        public rmcDrawable? Drawable { get; set; }
+        public grmGeometryQB? Geometry { get; set; }
         public MetaWrapper? EntityExtension { get; set; }
         public MetaWrapper? ArchetypeExtension { get; set; }
         public YmapTimeCycleModifier? TimeCycleModifier { get; set; }

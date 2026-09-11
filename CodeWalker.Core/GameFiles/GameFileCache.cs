@@ -1526,7 +1526,7 @@ namespace CodeWalker.GameFiles
                     foreach (RpfEntry entry in file.AllEntries)
                     {
                         var nl = entry.NameLower;
-                        if (nl == "gtxd.ymt" || nl == "gtxd.meta" || nl == "mph4_gtxd.ymt" || nl == "vehicles.meta")
+                        if (nl == "gtxd.ymt" || nl.EndsWith("gtxd.meta") || nl == "mph4_gtxd.ymt" || nl == "vehicles.meta")
                         {
                             txdEntries.Add(entry);
                         }
@@ -3053,11 +3053,11 @@ namespace CodeWalker.GameFiles
 
 
 
-        public DrawableBase? TryGetDrawable(Archetype? arche)
+        public rmcDrawable? TryGetDrawable(Archetype? arche)
         {
             if (arche == null) return null;
             uint drawhash = arche.Hash;
-            DrawableBase? drawable = null;
+            rmcDrawable? drawable = null;
             if ((arche.DrawableDict != 0))// && (arche.DrawableDict != arche.Hash))
             {
                 //try get drawable from ydd...
@@ -3066,7 +3066,7 @@ namespace CodeWalker.GameFiles
                 {
                     if (ydd.Loaded && (ydd.Dict != null))
                     {
-                        Drawable? d;
+                        gtaDrawable? d;
                         ydd.Dict.TryGetValue(drawhash, out d); //can't out to base class?
                         drawable = d;
                         if (drawable == null)
@@ -3114,7 +3114,7 @@ namespace CodeWalker.GameFiles
             return drawable;
         }
 
-        public async Task<(DrawableBase? drawable, bool waitingForLoad)> TryGetDrawableAsync(Archetype? arche)
+        public async Task<(rmcDrawable? drawable, bool waitingForLoad)> TryGetDrawableAsync(Archetype? arche)
         {
             if (arche == null) return (null, false);
 
@@ -3143,12 +3143,12 @@ namespace CodeWalker.GameFiles
 
         // Helper functions for Ydd, Ydr, and Yft - return results instead of using ref
 
-        private DrawableBase? TryGetDrawableFromYdd(Archetype arche, uint drawhash)
+        private rmcDrawable? TryGetDrawableFromYdd(Archetype arche, uint drawhash)
         {
             if (arche.DrawableDict != 0)
             {
                 YddFile? ydd = GetYdd(arche.DrawableDict);
-                if (ydd != null && ydd.Loaded && ydd.Dict != null && ydd.Dict.TryGetValue(drawhash, out Drawable? d))
+                if (ydd != null && ydd.Loaded && ydd.Dict != null && ydd.Dict.TryGetValue(drawhash, out gtaDrawable? d))
                 {
                     return d;
                 }
@@ -3156,7 +3156,7 @@ namespace CodeWalker.GameFiles
             return null;
         }
 
-        private DrawableBase? TryGetDrawableFromYdr(uint drawhash)
+        private rmcDrawable? TryGetDrawableFromYdr(uint drawhash)
         {
             YdrFile? ydr = GetYdr(drawhash);
             if (ydr != null && ydr.Loaded)
@@ -3166,7 +3166,7 @@ namespace CodeWalker.GameFiles
             return null;
         }
 
-        private DrawableBase? TryGetDrawableFromYft(uint drawhash)
+        private rmcDrawable? TryGetDrawableFromYft(uint drawhash)
         {
             YftFile? yft = GetYft(drawhash);
             if (yft != null && yft.Loaded)
@@ -4429,7 +4429,7 @@ namespace CodeWalker.GameFiles
                                 if (fentry == null)
                                 { continue; } //shouldn't happen
 
-                                if (boundsonly && (ydr.Drawable.Bound == null))
+                                if (boundsonly && (ydr.Drawable.PhBound == null))
                                 { continue; }
 
                                 var bytes = ydr.Save();
@@ -5322,7 +5322,7 @@ namespace CodeWalker.GameFiles
             bool doyft = true;
 
             List<string> errs = new();
-            Dictionary<ulong, VertexDeclaration> vdecls = new();
+            Dictionary<ulong, grcFvf> vdecls = new();
             Dictionary<ulong, int> vdecluse = new();
             int drawablecount = 0;
             foreach (RpfFile file in AllRpfs)
@@ -5479,16 +5479,16 @@ namespace CodeWalker.GameFiles
             {
                 var vd = kvp.Value;
                 int usage = vdecluse[kvp.Key];
-                sbverts.AppendFormat("public struct VertexType{0} //id: {1}, stride: {2}, flags: {3}, types: {4}, refs: {5}", vd.Flags, kvp.Key, vd.Stride, vd.Flags, vd.Types, usage);
+                sbverts.AppendFormat("public struct VertexType{0} //id: {1}, stride: {2}, flags: {3}, types: {4}, refs: {5}", vd.Fvf, kvp.Key, vd.FvfSize, vd.Fvf, vd.FvfChannelSizes, usage);
                 sbverts.AppendLine();
                 sbverts.AppendLine("{");
                 uint compid = 1;
                 for (int i = 0; i < 16; i++)
                 {
-                    if (((vd.Flags >> i) & 1) == 1)
+                    if (((vd.Fvf >> i) & 1) == 1)
                     {
                         string typestr = "Unknown";
-                        uint type = (uint)(((ulong)vd.Types >> (4 * i)) & 0xF);
+                        uint type = (uint)(((ulong)vd.FvfChannelSizes >> (4 * i)) & 0xF);
                         switch (type)
                         {
                             case 0: typestr = "ushort"; break;// Data[i] = new ushort[1 * count]; break;
@@ -5644,7 +5644,7 @@ namespace CodeWalker.GameFiles
 
             var data = new Dictionary<MetaHash, ShaderXmlDataCollection>();
 
-            void collectDrawable(DrawableBase? d)
+            void collectDrawable(rmcDrawable? d)
             {
                 if (d?.AllModels == null) return;
                 foreach (var model in d.AllModels)
@@ -5656,11 +5656,11 @@ namespace CodeWalker.GameFiles
                         var s = geom.Shader;
                         if (s == null) continue;
                         ShaderXmlDataCollection? dc = null;
-                        if (!data.TryGetValue(s.Name, out dc))
+                        if (!data.TryGetValue(s.BasisHashCode, out dc))
                         {
                             dc = new ShaderXmlDataCollection();
-                            dc.Name = s.Name;
-                            data.Add(s.Name, dc);
+                            dc.Name = s.BasisHashCode;
+                            data.Add(s.BasisHashCode, dc);
                         }
                         dc.AddShaderUse(s, geom);
                     }
@@ -5762,9 +5762,9 @@ namespace CodeWalker.GameFiles
                 var layouts = s.GetSortedList(s.VertexLayouts);
                 foreach (var l in layouts)
                 {
-                    var vd = new VertexDeclaration();
-                    vd.Types = l.Types;
-                    vd.Flags = l.Flags;
+                    var vd = new grcFvf();
+                    vd.FvfChannelSizes = l.Types;
+                    vd.Fvf = l.Flags;
                     vd.WriteXml(sb, 3, "Item");
                 }
                 MetaXml.CloseTag(sb, 2, "Layout");
@@ -5895,10 +5895,10 @@ namespace CodeWalker.GameFiles
 
             var data = new Dictionary<MetaHash, ShaderGen9XmlDataCollection>();
 
-            void updateDC(ShaderGen9XmlDataCollection dc, ShaderParamInfoG9[] infos, ShaderFX s)
+            void updateDC(ShaderGen9XmlDataCollection dc, ShaderParamInfoG9[] infos, grcInstanceData s)
             {
                 var pi = s.G9_ParamInfos ?? throw new InvalidOperationException("Gen9 shader parameter information is missing.");
-                var pb = s.ParametersList ?? throw new InvalidOperationException("Gen9 shader parameters are missing.");
+                var pb = s.EntriesBlock ?? throw new InvalidOperationException("Gen9 shader parameters are missing.");
                 var bc = pi.NumBuffers;
                 var bsizs = pb.G9_BufferSizes;
 
@@ -5912,7 +5912,7 @@ namespace CodeWalker.GameFiles
                 dc.SamplerValues = pb.G9_Samplers;
 
             }
-            void collectDrawable(DrawableBase? d)
+            void collectDrawable(rmcDrawable? d)
             {
                 if (d?.AllModels == null) return;
                 foreach (var model in d.AllModels)
@@ -5923,19 +5923,19 @@ namespace CodeWalker.GameFiles
                         if (geom == null) continue;
                         var s = geom.Shader;
                         if (s == null) continue;
-                        if (s.G9_ParamInfos == null || s.ParametersList == null) continue;
-                        data.TryGetValue(s.Name, out var dc);
+                        if (s.G9_ParamInfos == null || s.EntriesBlock == null) continue;
+                        data.TryGetValue(s.BasisHashCode, out var dc);
                         if (dc == null)
                         {
                             dc = new ShaderGen9XmlDataCollection();
-                            dc.Name = s.Name;
+                            dc.Name = s.BasisHashCode;
                             updateDC(dc, s.G9_ParamInfos.Params, s);
-                            data[s.Name] = dc;
+                            data[s.BasisHashCode] = dc;
                         }
                         else
                         {
                             var pi = s.G9_ParamInfos;
-                            var pb = s.ParametersList;
+                            var pb = s.EntriesBlock;
                             var bc = pi.NumBuffers;
                             var bsizs = pb.G9_BufferSizes;
                             var changed = false;//sometimes params don't all match... ugh
@@ -6264,32 +6264,32 @@ namespace CodeWalker.GameFiles
             public int GeomCount { get; set; } = 0;
 
 
-            public void AddShaderUse(ShaderFX s, DrawableGeometry g)
+            public void AddShaderUse(grcInstanceData s, grmGeometryQB g)
             {
                 GeomCount++;
 
-                AddItem(s.FileName, FileNames);
-                AddItem(s.RenderBucket, RenderBuckets);
+                AddItem(s.MaterialHashCode, FileNames);
+                AddItem(s.DrawBucket, RenderBuckets);
 
-                var info = g.VertexBuffer?.Info;
+                var info = g.VertexBuffer?.VertexFormat;
                 if (info != null)
                 {
-                    AddItem(new ShaderXmlVertexLayout() { Flags = info.Flags, Types = info.Types }, VertexLayouts);
+                    AddItem(new ShaderXmlVertexLayout() { Flags = info.Fvf, Types = info.FvfChannelSizes }, VertexLayouts);
                 }
 
-                if (s.ParametersList?.Parameters == null) return;
-                if (s.ParametersList?.Hashes == null) return;
+                if (s.EntriesBlock?.Entries == null) return;
+                if (s.EntriesBlock?.NameHashes == null) return;
 
-                for (int i = 0; i < s.ParametersList.Count; i++)
+                for (int i = 0; i < s.EntriesBlock.Entries.Length; i++)
                 {
-                    var h = s.ParametersList.Hashes[i];
-                    var p = s.ParametersList.Parameters[i];
+                    var h = s.EntriesBlock.NameHashes[i];
+                    var p = s.EntriesBlock.Entries[i];
 
-                    if (p.DataType == 0)//texture
+                    if (p.Count == 0)//texture
                     {
                         AddItem(h, TexParams);
                     }
-                    else if (p.DataType == 1)//vector
+                    else if (p.Count == 1)//vector
                     {
                         var vp = GetItem(h, ValParams);
                         if (p.Data is Vector4 vec)
@@ -6297,7 +6297,7 @@ namespace CodeWalker.GameFiles
                             AddItem(vec, vp);
                         }
                     }
-                    else if (p.DataType > 1)//array
+                    else if (p.Count > 1)//array
                     {
                         var ap = GetItem(h, ArrParams);
                         if (p.Data is Vector4[] arr)

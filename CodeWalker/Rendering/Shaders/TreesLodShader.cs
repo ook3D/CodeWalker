@@ -202,8 +202,8 @@ namespace CodeWalker.Rendering
             if (shader?.Name.Hash == 1874959840)
             {
 
-                var hashes = shader.ParametersList?.Hashes ?? [];
-                var sparams = shader.ParametersList?.Parameters ?? [];
+                var hashes = shader.EntriesBlock?.NameHashes ?? [];
+                var sparams = shader.EntriesBlock?.Entries ?? [];
                 int nparams = Math.Min(hashes.Length, sparams.Length);
 
                 // Start with values parsed from material during Renderable init

@@ -2463,26 +2463,26 @@ namespace CodeWalker.GameFiles
 
 
 
-        public void EnsureLights(DrawableBase db)
+        public void EnsureLights(rmcDrawable db)
         {
             if (Lights != null) return;
             if (Archetype == null) return;
             if (db == null) return;
 
-            var dd = db as Drawable;
+            var dd = db as gtaDrawable;
             var fd = db as FragDrawable;
-            var skel = db.Skeleton;
-            LightAttributes[]? lightAttrs = null;
+            var skel = db.SkeletonData;
+            CLightAttr[]? lightAttrs = null;
             Bounds? b = null;
             if (dd != null)
             {
-                lightAttrs = dd.LightAttributes?.data_items;
-                b = dd.Bound;
+                lightAttrs = dd.Lights?.data_items;
+                b = dd.PhBound;
             }
             else if (fd != null)
             {
                 var frag = fd?.OwnerFragment;
-                skel = skel ?? frag?.Drawable?.Skeleton;
+                skel = skel ?? frag?.Drawable?.SkeletonData;
                 lightAttrs = frag?.LightAttributes?.data_items;
                 b = frag?.PhysicsLODGroup?.PhysicsLOD1?.Bound;
             }
@@ -2515,7 +2515,7 @@ namespace CodeWalker.GameFiles
                 var la = lightAttrs[i];
 
                 var xform = Matrix.Identity;
-                if ((bones != null) && (bones.TryGetValue(la.BoneId, out Bone? bone)))
+                if ((bones != null) && (bones.TryGetValue(unchecked((ushort)la.BoneTag), out crBoneData? bone)))
                 {
                     xform = bone.AbsTransform;
                 }
@@ -2600,7 +2600,7 @@ namespace CodeWalker.GameFiles
         [TypeConverter(typeof(ExpandableObjectConverter))]
         public class LightInstance
         {
-            public LightAttributes? Attributes { get; set; } //just for display purposes!
+            public CLightAttr? Attributes { get; set; } //just for display purposes!
             public uint Hash { get; set; }
             public Vector3 Position { get; set; }
             public Vector3 Direction { get; set; }

@@ -81,7 +81,6 @@ namespace CodeWalker.World
                 AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.Med, "Medium Detail", false);
                 AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.Low, "Low Detail", false);
                 AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.VLow, "Very Low Detail", false);
-                //AddSelectionDrawableModelsTreeNodes(item.Drawable.DrawableModels?.Extra, "X Detail", false);
             }
 
             if (item.EntityDef != null)
@@ -213,7 +212,7 @@ namespace CodeWalker.World
             }
 
         }
-        private void AddSelectionDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check)
+        private void AddSelectionDrawableModelsTreeNodes(grmModel[]? models, string prefix, bool check)
         {
             if (models == null) return;
 
@@ -240,15 +239,15 @@ namespace CodeWalker.World
                     var tgnode = tmnode.Nodes.Add(gname);
                     tgnode.Tag = geom;
 
-                    if ((geom.Shader != null) && (geom.Shader.ParametersList != null) && (geom.Shader.ParametersList.Hashes != null))
+                    if ((geom.Shader != null) && (geom.Shader.EntriesBlock != null) && (geom.Shader.EntriesBlock.NameHashes != null))
                     {
-                        var pl = geom.Shader.ParametersList;
-                        var h = pl.Hashes;
-                        var p = pl.Parameters;
+                        var pl = geom.Shader.EntriesBlock;
+                        var h = pl.NameHashes;
+                        var p = pl.Entries;
                         for (int ip = 0; ip < h.Length; ip++)
                         {
-                            var hash = pl.Hashes[ip];
-                            var parm = pl.Parameters[ip];
+                            var hash = pl.NameHashes[ip];
+                            var parm = pl.Entries[ip];
                             var tex = parm.Data as TextureBase;
                             if (tex != null)
                             {

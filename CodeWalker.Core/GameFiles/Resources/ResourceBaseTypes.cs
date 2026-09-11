@@ -37,51 +37,6 @@ namespace CodeWalker.GameFiles
 
 
 
-    [TypeConverter(typeof(ExpandableObjectConverter))] public class string_r : ResourceSystemBlock
-    {
-        // Represents a string that can be referenced in a resource structure.
-
-        /// <summary>
-        /// Gets the length of the string.
-        /// </summary>
-        public override long BlockLength
-        {
-            get { return Value.Length + 1; }
-        }
-
-        /// <summary>
-        /// Gets or sets the string value.
-        /// </summary>
-        public string Value { get; set; } = string.Empty;
-
-        public override void Read(ResourceDataReader reader, params object[] parameters)
-        {
-            Value = reader.ReadString();
-        }
-
-        public override void Write(ResourceDataWriter writer, params object[] parameters)
-        {
-            writer.Write(Value);
-        }
-
-        public static explicit operator string(string_r value)
-        {
-            return value.Value;
-        }
-
-        public static explicit operator string_r(string value)
-        {
-            var x = new string_r();
-            x.Value = value;
-            return x;
-        }
-        public override string ToString()
-        {
-            return Value;
-        }
-    }
-
-
     [TypeConverter(typeof(ExpandableObjectConverter))] public struct Matrix3_s
     {
         public Vector4 Row1 { get; set; }
@@ -1002,7 +957,7 @@ namespace CodeWalker.GameFiles
         public ushort EntriesCapacity { get; private set; }
 
         // reference data
-        public byte[] data_items { get; private set; } = [];
+        public byte[] data_items { get; set; } = [];
 
         private ResourceSystemStructBlock<byte>? data_block;//used for saving.
 
@@ -1729,23 +1684,6 @@ namespace CodeWalker.GameFiles
             return "(Count: " + EntriesCount.ToString() + ")";
         }
     }
-
-
-    [TypeConverter(typeof(ExpandableObjectConverter))] public struct ResourcePointerListHeader
-    {
-        public ulong Pointer { get; set; }
-        public ushort Count { get; set; }
-        public ushort Capacity { get; set; }
-        public uint Unknown { get; set; }
-    }
-
-
-
-
-
-
-
-
 
 
     public class ResourceSystemDataBlock : ResourceSystemBlock //used for writing resources.

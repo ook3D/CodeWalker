@@ -43,11 +43,12 @@ public class Gxt2Tests
                 new() { Hash = 3, Text = null! }
             ]
         };
-        var expected = PreviousSave(file.TextEntries);
+        var sorted = file.TextEntries.OrderBy(e => e.Hash).ToArray();
+        var expected = PreviousSave(sorted);
         Assert.Equal(expected, file.Save());
         Assert.Equal(expected, file.Save()); // Saving again must not accumulate offsets.
         uint offset = 16 + (uint)file.TextEntries.Length * 8;
-        foreach (var entry in file.TextEntries)
+        foreach (var entry in sorted)
         {
             Assert.Equal(offset, entry.Offset);
             offset += (uint)Encoding.UTF8.GetByteCount(entry.Text + "\0");

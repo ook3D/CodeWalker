@@ -119,6 +119,42 @@ public class ResourceFileInitializationTests
     }
 
     [Fact]
+    public void UncompressedHeightmapAndWaterMaskRoundTrip()
+    {
+        var original = new HeightmapFile
+        {
+            Flags = 2,
+            Width = 2,
+            Height = 2,
+            MaxHeights = [1, 2, 3, 4],
+            MinHeights = [5, 6, 7, 8],
+            WaterMask = [0b00001001]
+        };
+        var loaded = new HeightmapFile();
+        loaded.Load(original.Save(), null);
+
+        Assert.Equal(original.MaxHeights, loaded.MaxHeights);
+        Assert.Equal(original.MinHeights, loaded.MinHeights);
+        Assert.Equal(original.WaterMask, loaded.WaterMask);
+    }
+
+    [Fact]
+    public void CompressedHeightmapKeepsMinOnlyCells()
+    {
+        var original = new HeightmapFile
+        {
+            Width = 3,
+            Height = 1,
+            MaxHeights = [0, 0, 0],
+            MinHeights = [0, 7, 0]
+        };
+        var loaded = new HeightmapFile();
+        loaded.Load(original.Save(), null);
+
+        Assert.Equal(original.MinHeights, loaded.MinHeights);
+    }
+
+    [Fact]
     public void ResourceXmlRequiresARootElement()
     {
         Assert.Throws<XmlException>(() => XmlHmap.GetHeightmap(new XmlDocument()));

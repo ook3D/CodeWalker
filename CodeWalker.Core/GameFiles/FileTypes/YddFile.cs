@@ -13,8 +13,8 @@ namespace CodeWalker.GameFiles
     {
         public DrawableDictionary? DrawableDict { get; set; }
 
-        public Dictionary<uint, Drawable> Dict { get; set; } = new();
-        public Drawable[] Drawables { get; set; } = [];
+        public Dictionary<uint, gtaDrawable> Dict { get; set; } = new();
+        public gtaDrawable[] Drawables { get; set; } = [];
 
         public YddFile() : base(null, GameFileType.Ydd)
         {
@@ -73,7 +73,7 @@ namespace CodeWalker.GameFiles
                 (DrawableDict.Drawables.data_items != null) && 
                 (DrawableDict.Hashes != null))
             {
-                Dict = new Dictionary<uint, Drawable>();
+                Dict = new Dictionary<uint, gtaDrawable>();
                 var drawables = DrawableDict.Drawables.data_items;
                 var hashes = DrawableDict.Hashes;
                 for (int i = 0; (i < drawables.Length) && (i < hashes.Length); i++)
@@ -89,9 +89,9 @@ namespace CodeWalker.GameFiles
                 {
                     var drawable = drawables[i];
                     var hash = hashes[i];
-                    if ((drawable.Name == null) || (JenkHash.GenHash(drawable.Name) != hash))
+                    if (string.IsNullOrEmpty(drawable.DebugName) || (JenkHash.GenHash(drawable.DebugName) != hash))
                     {
-                        drawable.Name = YddXml.HashString((MetaHash)hash);
+                        drawable.DebugName = YddXml.HashString((MetaHash)hash);
                     }
                 }
 

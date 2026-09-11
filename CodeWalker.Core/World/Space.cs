@@ -1542,9 +1542,9 @@ namespace CodeWalker.World
                 eray.Position = eorinv.Multiply(ray.Position - ent.Position);
                 eray.Direction = eorinv.Multiply(ray.Direction);
 
-                if ((drawable is Drawable sdrawable) && (sdrawable.Bound != null))
+                if ((drawable is gtaDrawable sdrawable) && (sdrawable.PhBound != null))
                 {
-                    var dhit = sdrawable.Bound.RayIntersect(ref eray, res.HitDist);
+                    var dhit = sdrawable.PhBound.RayIntersect(ref eray, res.HitDist);
                     if (dhit.Hit)
                     {
                         dhit.Position = eori.Multiply(dhit.Position) + ent.Position;
@@ -1781,9 +1781,9 @@ namespace CodeWalker.World
                 var esph = sph;
                 esph.Center = eorinv.Multiply(sph.Center - ent.Position);
 
-                if ((drawable is Drawable sdrawable) && (sdrawable.Bound != null))
+                if ((drawable is gtaDrawable sdrawable) && (sdrawable.PhBound != null))
                 {
-                    var dhit = sdrawable.Bound.SphereIntersect(ref esph);
+                    var dhit = sdrawable.PhBound.SphereIntersect(ref esph);
                     if (dhit.Hit)
                     {
                         dhit.Position = eori.Multiply(dhit.Position) + ent.Position;

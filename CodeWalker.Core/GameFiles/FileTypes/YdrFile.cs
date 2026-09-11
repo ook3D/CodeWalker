@@ -10,7 +10,7 @@ namespace CodeWalker.GameFiles
 {
     public class YdrFile : GameFile, PackedFile
     {
-        public Drawable? Drawable { get; set; }
+        public gtaDrawable? Drawable { get; set; }
 
         public YdrFile() : base(null, GameFileType.Ydr)
         {
@@ -62,7 +62,7 @@ namespace CodeWalker.GameFiles
             try
 #endif
             {
-                Drawable = rd.ReadRequiredBlock<Drawable>();
+                Drawable = rd.ReadRequiredBlock<gtaDrawable>();
                 Drawable.Owner = this;
                 //MemoryUsage += Drawable.MemoryUsage; //uses decompressed filesize now...
             }
@@ -111,7 +111,7 @@ namespace CodeWalker.GameFiles
 
             if (ydr?.Drawable != null)
             {
-                Drawable.WriteXmlNode(ydr.Drawable, sb, 0, outputFolder);
+                gtaDrawable.WriteXmlNode(ydr.Drawable, sb, 0, outputFolder);
             }
 
             return sb.ToString();
@@ -138,7 +138,7 @@ namespace CodeWalker.GameFiles
             var node = doc.DocumentElement;
             if (node != null)
             {
-                r.Drawable = Drawable.ReadXmlNode(node, ddsfolder);
+                r.Drawable = gtaDrawable.ReadXmlNode(node, ddsfolder);
             }
 
             r.Name = Path.GetFileName(inputFolder);

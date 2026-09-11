@@ -87,7 +87,7 @@ namespace CodeWalker.Forms
         int toolsPanelResizeStartLeft = 0;
         int toolsPanelResizeStartRight = 0;
 
-        Dictionary<DrawableBase, bool> DrawableDrawFlags = new();
+        Dictionary<rmcDrawable, bool> DrawableDrawFlags = new();
 
 
         bool enableGrid = false;
@@ -123,9 +123,9 @@ namespace CodeWalker.Forms
         TransformWidget? GrabbedWidget = null;
         ModelLightForm? lightForm = null;
         bool editingLights = false;
-        public LightAttributes? selectedLight = null;
+        public CLightAttr? selectedLight = null;
         public bool showLightGizmos = true;
-        public Skeleton? Skeleton = null;
+        public crSkeletonData? Skeleton = null;
 
         ExploreForm? exploreForm = null;
         RpfFileEntry? rpfFileEntry;
@@ -603,8 +603,8 @@ namespace CodeWalker.Forms
                 {
                     if (showLightGizmos)
                     {
-                        Bone? bone = null;
-                        Skeleton?.BonesMap?.TryGetValue(selectedLight.BoneId, out bone);
+                        crBoneData? bone = null;
+                        Skeleton?.BonesMap?.TryGetValue(unchecked((ushort)selectedLight.BoneTag), out bone);
                         Renderer.RenderSelectionDrawableLight(selectedLight, bone);
                     }
                 }
@@ -647,8 +647,8 @@ namespace CodeWalker.Forms
             if (newpos == oldpos) return;
             if (selectedLight == null || lightForm == null || !editingLights) return;
 
-            Bone? bone = null;
-            Skeleton?.BonesMap?.TryGetValue(selectedLight.BoneId, out bone);
+            crBoneData? bone = null;
+            Skeleton?.BonesMap?.TryGetValue(unchecked((ushort)selectedLight.BoneTag), out bone);
             if (bone != null)
             {
                 var xforminv = Matrix.Invert(bone.AbsTransform);
@@ -674,7 +674,7 @@ namespace CodeWalker.Forms
             if (selectedLight.Type == LightType.Capsule)
             {
                 selectedLight.Falloff = newscale.X;
-                selectedLight.Extent = new Vector3(newscale.Z, newscale.Z, newscale.Z);
+                selectedLight.Extents = new Vector3(newscale.Z, newscale.Z, newscale.Z);
             }
             else if (selectedLight.Type == LightType.Spot)
             {
@@ -804,8 +804,8 @@ namespace CodeWalker.Forms
 
             if (ydr.Drawable != null)
             {
-                var cen = ydr.Drawable.BoundingCenter;
-                var rad = ydr.Drawable.BoundingSphereRadius;
+                var cen = ydr.Drawable.CullSphereCenter;
+                var rad = ydr.Drawable.CullSphereRadius;
                 if (ModelArchetype != null)
                 {
                     cen = ModelArchetype.BSCenter;
@@ -814,10 +814,10 @@ namespace CodeWalker.Forms
 
                 MoveCameraToView(cen, rad);
 
-                Skeleton = ydr.Drawable.Skeleton;
+                Skeleton = ydr.Drawable.SkeletonData;
             }
 
-            if(ydr.Drawable?.LightAttributes.data_items.Length > 0)
+            if(ydr.Drawable?.Lights.data_items.Length > 0)
             {
                 DeferredShadingCheckBox.Checked = true;
             }
@@ -837,11 +837,11 @@ namespace CodeWalker.Forms
                 float maxrad = 0.01f;
                 foreach (var d in Ydd.Drawables)
                 {
-                    maxrad = Math.Max(maxrad, d.BoundingSphereRadius);
+                    maxrad = Math.Max(maxrad, d.CullSphereRadius);
 
-                    if (d.Skeleton != null)
+                    if (d.SkeletonData != null)
                     {
-                        Skeleton = d.Skeleton;
+                        Skeleton = d.SkeletonData;
                     }
                 }
                 MoveCameraToView(Vector3.Zero, maxrad);
@@ -849,7 +849,7 @@ namespace CodeWalker.Forms
 
             foreach(var draw in ydd.Drawables)
             {
-                if (draw?.LightAttributes.data_items.Length > 0)
+                if (draw?.Lights.data_items.Length > 0)
                 {
                     DeferredShadingCheckBox.Checked = true;
                     break;
@@ -882,8 +882,8 @@ namespace CodeWalker.Forms
             var dr = yft.Fragment?.Drawable;
             if (dr != null)
             {
-                var cen = dr.BoundingCenter;
-                var rad = dr.BoundingSphereRadius;
+                var cen = dr.CullSphereCenter;
+                var rad = dr.CullSphereRadius;
                 if (ModelArchetype != null)
                 {
                     cen = ModelArchetype.BSCenter;
@@ -892,7 +892,7 @@ namespace CodeWalker.Forms
 
                 MoveCameraToView(cen, rad);
 
-                Skeleton = dr.Skeleton;
+                Skeleton = dr.SkeletonData;
             }
 
             if (yft.Fragment?.LightAttributes.data_items.Length > 0)
@@ -930,7 +930,7 @@ namespace CodeWalker.Forms
                 float maxrad = 0.01f;
                 foreach (var d in ypt.DrawableDict.Values)
                 {
-                    maxrad = Math.Max(maxrad, d.BoundingSphereRadius);
+                    maxrad = Math.Max(maxrad, d.CullSphereRadius);
                 }
                 MoveCameraToView(Vector3.Zero, maxrad);
             }
@@ -1339,7 +1339,7 @@ namespace CodeWalker.Forms
 
 
 
-        private void UpdateModelsUI(DrawableBase? drawable, object? detailsObject = null)
+        private void UpdateModelsUI(rmcDrawable? drawable, object? detailsObject = null)
         {
             DetailsPropertyGrid.SelectedObject = detailsObject ?? drawable;
 
@@ -1355,7 +1355,6 @@ namespace CodeWalker.Forms
                 AddDrawableModelsTreeNodes(drawable.DrawableModels?.Med, "Medium Detail", false);
                 AddDrawableModelsTreeNodes(drawable.DrawableModels?.Low, "Low Detail", false);
                 AddDrawableModelsTreeNodes(drawable.DrawableModels?.VLow, "Very Low Detail", false);
-                //AddDrawableModelsTreeNodes(drawable.DrawableModels?.Extra, "X Detail", false);
 
                 var fdrawable = drawable as FragDrawable;
                 if (fdrawable != null)
@@ -1401,7 +1400,7 @@ namespace CodeWalker.Forms
                 }
             }
         }
-        private void UpdateModelsUI(Dictionary<uint, Drawable> dict)
+        private void UpdateModelsUI(Dictionary<uint, gtaDrawable> dict)
         {
             //DetailsPropertyGrid.SelectedObject = dict; //this won't look good...
 
@@ -1415,12 +1414,12 @@ namespace CodeWalker.Forms
             bool check = true;
             if (dict != null)
             {
-                List<KeyValuePair<uint, Drawable>> items = new List<KeyValuePair<uint, Drawable>>();
+                List<KeyValuePair<uint, gtaDrawable>> items = new List<KeyValuePair<uint, gtaDrawable>>();
                 foreach (var kvp in dict)
                 {
                     items.Add(kvp);
                 }
-                items.Sort((a, b) => { return a.Value?.Name?.CompareTo(b.Value?.Name ?? "") ?? 0; });
+                items.Sort((a, b) => { return a.Value?.DebugName?.CompareTo(b.Value?.DebugName ?? "") ?? 0; });
                 foreach (var kvp in items)
                 {
                     AddDrawableTreeNode(kvp.Value, kvp.Key, check);
@@ -1430,7 +1429,7 @@ namespace CodeWalker.Forms
 
             ToolsPanel.Visible = true; //show the panel by default for dictionaries...
         }
-        private void UpdateModelsUI(Dictionary<uint, DrawableBase>? dict)
+        private void UpdateModelsUI(Dictionary<uint, rmcDrawable>? dict)
         {
             //DetailsPropertyGrid.SelectedObject = dict; //this won't look good...
 
@@ -1444,7 +1443,7 @@ namespace CodeWalker.Forms
             bool check = true;
             if (dict != null)
             {
-                List<KeyValuePair<uint, DrawableBase>> items = new List<KeyValuePair<uint, DrawableBase>>();
+                List<KeyValuePair<uint, rmcDrawable>> items = new List<KeyValuePair<uint, rmcDrawable>>();
                 foreach (var kvp in dict)
                 {
                     items.Add(kvp);
@@ -1469,7 +1468,7 @@ namespace CodeWalker.Forms
         }
 
 
-        private void AddDrawableTreeNode(DrawableBase drawable, uint hash, bool check)
+        private void AddDrawableTreeNode(rmcDrawable drawable, uint hash, bool check)
         {
             MetaHash mhash = new(hash);
             
@@ -1481,10 +1480,9 @@ namespace CodeWalker.Forms
             AddDrawableModelsTreeNodes(drawable.DrawableModels?.Med, "Medium Detail", false, dnode);
             AddDrawableModelsTreeNodes(drawable.DrawableModels?.Low, "Low Detail", false, dnode);
             AddDrawableModelsTreeNodes(drawable.DrawableModels?.VLow, "Very Low Detail", false, dnode);
-            //AddDrawableModelsTreeNodes(drawable.DrawableModels?.Extra, "X Detail", false, dnode);
 
         }
-        private void AddDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, bool check, TreeNode? parentDrawableNode = null)
+        private void AddDrawableModelsTreeNodes(grmModel[]? models, string prefix, bool check, TreeNode? parentDrawableNode = null)
         {
             if (models == null) return;
 
@@ -1518,15 +1516,15 @@ namespace CodeWalker.Forms
                     var tgnode = tmnode.Nodes.Add(gname);
                     tgnode.Tag = geom;
 
-                    if ((geom.Shader != null) && (geom.Shader.ParametersList != null) && (geom.Shader.ParametersList.Hashes != null))
+                    if ((geom.Shader != null) && (geom.Shader.EntriesBlock != null) && (geom.Shader.EntriesBlock.NameHashes != null))
                     {
-                        var pl = geom.Shader.ParametersList;
-                        var h = pl.Hashes;
-                        var p = pl.Parameters;
+                        var pl = geom.Shader.EntriesBlock;
+                        var h = pl.NameHashes;
+                        var p = pl.Entries;
                         for (int ip = 0; ip < h.Length; ip++)
                         {
-                            var hash = pl.Hashes[ip];
-                            var parm = pl.Parameters[ip];
+                            var hash = pl.NameHashes[ip];
+                            var parm = pl.Entries[ip];
                             var tex = parm.Data as TextureBase;
                             if (tex != null)
                             {
@@ -1552,9 +1550,9 @@ namespace CodeWalker.Forms
         private void UpdateSelectionDrawFlags(TreeNode node)
         {
             //update the selection draw flags depending on tag and checked/unchecked
-            var drwbl = node.Tag as DrawableBase;
-            var model = node.Tag as DrawableModel;
-            var geom = node.Tag as DrawableGeometry;
+            var drwbl = node.Tag as rmcDrawable;
+            var model = node.Tag as grmModel;
+            var geom = node.Tag as grmGeometryQB;
             bool rem = node.Checked;
             lock (Renderer.RenderSyncRoot)
             {
@@ -1606,7 +1604,7 @@ namespace CodeWalker.Forms
 
 
 
-        private void UpdateEmbeddedTextures(DrawableBase? dwbl)
+        private void UpdateEmbeddedTextures(rmcDrawable? dwbl)
         {
             if (dwbl == null) return;
 
@@ -1620,8 +1618,8 @@ namespace CodeWalker.Forms
             var updated = false;
             foreach (var s in sd)
             {
-                if (s?.ParametersList == null) continue;
-                foreach (var p in s.ParametersList.Parameters)
+                if (s?.EntriesBlock == null) continue;
+                foreach (var p in s.EntriesBlock.Entries)
                 {
                     if (p.Data is TextureBase tex)
                     {
@@ -1717,8 +1715,8 @@ namespace CodeWalker.Forms
 
         private void ShowMaterialEditor()
         {
-            DrawableBase? drawable = null;
-            Dictionary<uint, Drawable>? dict = null;
+            rmcDrawable? drawable = null;
+            Dictionary<uint, gtaDrawable>? dict = null;
 
 
             if ((Ydr != null) && (Ydr.Loaded))
@@ -1799,8 +1797,8 @@ namespace CodeWalker.Forms
 
         private void ShowLightEditor()
         {
-            DrawableBase? drawable = null;
-            Dictionary<uint, Drawable>? dict = null;
+            rmcDrawable? drawable = null;
+            Dictionary<uint, gtaDrawable>? dict = null;
 
             if ((Ydr != null) && (Ydr.Loaded))
             {
@@ -2071,7 +2069,7 @@ namespace CodeWalker.Forms
 
             var textures = new HashSet<Texture>();
             var texturesMissing = new HashSet<string>();
-            var collectTextures = new Action<DrawableBase?>((d) =>
+            var collectTextures = new Action<rmcDrawable?>((d) =>
             {
                 if (includeEmbedded)
                 {
@@ -2095,9 +2093,9 @@ namespace CodeWalker.Forms
                 if (d?.ShaderGroup?.Shaders?.data_items == null) return;
 
                 var archhash = 0u;
-                if (d is Drawable dwbl)
+                if (d is gtaDrawable dwbl)
                 {
-                    var dname = dwbl.Name.ToLowerInvariant();
+                    var dname = dwbl.DebugName.ToLowerInvariant();
                     dname = dname.Replace(".#dr", "").Replace(".#dd", "");
                     archhash = JenkHash.GenHash(dname);
                 }
@@ -2119,8 +2117,8 @@ namespace CodeWalker.Forms
 
                 foreach (var s in d.ShaderGroup.Shaders.data_items)
                 {
-                    if (s?.ParametersList?.Parameters == null) continue;
-                    foreach (var p in s.ParametersList.Parameters)
+                    if (s?.EntriesBlock?.Entries == null) continue;
+                    foreach (var p in s.EntriesBlock.Entries)
                     {
                         var t = p.Data as TextureBase;
                         if (t == null) continue;

@@ -28,6 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -47,22 +48,16 @@ namespace CodeWalker.GameFiles
         public uint NodesCount { get; set; }                // s32 NumNodes
         public uint NodesCountVehicle { get; set; }         // s32 NumNodesCarNodes
         public uint NodesCountPed { get; set; }             // s32 NumNodesPedNodes
-        public uint Padding24 { get; set; }                 // 0x00000000 (alignment padding)
         public ulong LinksPtr { get; set; }                 // CPathNodeLink* aLinks
         public uint LinksCount { get; set; }                // s32 NumLinks
-        public uint Padding34 { get; set; }                 // 0x00000000 (alignment padding)
         public ulong JunctionsPtr { get; set; }             // CPathVirtualJunction* aVirtualJunctions
         public ulong JunctionHeightmapBytesPtr { get; set; }// u8* aHeightSamples
         public uint JunctionMapFlag { get; set; } = 1;      // JunctionMapContainer flag (always 1)
-        public uint JunctionMapPadding { get; set; }        // 0x00000000
         public ulong JunctionRefsPtr { get; set; }          // atBinaryMap<s32,u32> data pointer (JunctionMap.JunctionMap)
         public ushort JunctionRefsCount0 { get; set; }      // atBinaryMap count
         public ushort JunctionRefsCount1 { get; set; }      // atBinaryMap capacity (same as Count0)
-        public uint JunctionMapPadding2 { get; set; }       // 0x00000000
         public uint JunctionsCount { get; set; }            // s32 NumJunctions
         public uint JunctionHeightmapBytesCount { get; set; }// u32 NumHeightSamples
-        public uint Padding68 { get; set; }                 // 0x00000000
-        public uint Padding6C { get; set; }                 // 0x00000000
 
         public Node[] Nodes { get; set; } = [];
         public NodeLink[] Links { get; set; } = [];
@@ -87,22 +82,22 @@ namespace CodeWalker.GameFiles
             this.NodesCount = reader.ReadUInt32();
             this.NodesCountVehicle = reader.ReadUInt32();
             this.NodesCountPed = reader.ReadUInt32();
-            this.Padding24 = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
             this.LinksPtr = reader.ReadUInt64();
             this.LinksCount = reader.ReadUInt32();
-            this.Padding34 = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
             this.JunctionsPtr = reader.ReadUInt64();
             this.JunctionHeightmapBytesPtr = reader.ReadUInt64();
             this.JunctionMapFlag = reader.ReadUInt32();
-            this.JunctionMapPadding = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
             this.JunctionRefsPtr = reader.ReadUInt64();
             this.JunctionRefsCount0 = reader.ReadUInt16();
             this.JunctionRefsCount1 = reader.ReadUInt16();
-            this.JunctionMapPadding2 = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
             this.JunctionsCount = reader.ReadUInt32();
             this.JunctionHeightmapBytesCount = reader.ReadUInt32();
-            this.Padding68 = reader.ReadUInt32();
-            this.Padding6C = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
 
             this.Nodes = reader.ReadStructsAt<Node>(this.NodesPointer, this.NodesCount) ?? [];
             this.Links = reader.ReadStructsAt<NodeLink>(this.LinksPtr, this.LinksCount) ?? [];
@@ -137,22 +132,22 @@ namespace CodeWalker.GameFiles
             writer.Write(this.NodesCount);
             writer.Write(this.NodesCountVehicle);
             writer.Write(this.NodesCountPed);
-            writer.Write(this.Padding24);
+            writer.Write(0u);
             writer.Write(this.LinksPtr);
             writer.Write(this.LinksCount);
-            writer.Write(this.Padding34);
+            writer.Write(0u);
             writer.Write(this.JunctionsPtr);
             writer.Write(this.JunctionHeightmapBytesPtr);
             writer.Write(this.JunctionMapFlag);
-            writer.Write(this.JunctionMapPadding);
+            writer.Write(0u);
             writer.Write(this.JunctionRefsPtr);
             writer.Write(this.JunctionRefsCount0);
             writer.Write(this.JunctionRefsCount1);
-            writer.Write(this.JunctionMapPadding2);
+            writer.Write(0u);
             writer.Write(this.JunctionsCount);
             writer.Write(this.JunctionHeightmapBytesCount);
-            writer.Write(this.Padding68);
-            writer.Write(this.Padding6C);
+            writer.Write(0u);
+            writer.Write(0u);
         }
 
         public override IResourceBlock[] GetReferences()
@@ -579,12 +574,12 @@ namespace CodeWalker.GameFiles
     // Entry in atBinaryMap<s32, u32> JunctionMap
     // Key = CNodeAddress (u32 packed as region:16 + index:16)
     // Value = junction index (u32, only lower 16 bits used since max 256 junctions per region)
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 8)]
     [TypeConverter(typeof(ExpandableObjectConverter))] public struct NodeJunctionRef : IMetaXmlItem
     {
         public ushort AreaID { get; set; }          // CNodeAddress.m_region (key high 16 bits)
         public ushort NodeID { get; set; }          // CNodeAddress.m_Index (key low 16 bits)
         public ushort JunctionID { get; set; }      // Junction index (value low 16 bits)
-        public ushort Padding0 { get; set; }        // Value high 16 bits (always 0)
 
         public override string ToString()
         {
@@ -596,14 +591,12 @@ namespace CodeWalker.GameFiles
             YndXml.ValueTag(sb, indent, "AreaID", AreaID.ToString());
             YndXml.ValueTag(sb, indent, "NodeID", NodeID.ToString());
             YndXml.ValueTag(sb, indent, "JunctionID", JunctionID.ToString());
-            YndXml.ValueTag(sb, indent, "Padding0", Padding0.ToString());
         }
         public void ReadXml(XmlNode node)
         {
             AreaID = (ushort)Xml.GetChildUIntAttribute(node, "AreaID", "value");
             NodeID = (ushort)Xml.GetChildUIntAttribute(node, "NodeID", "value");
             JunctionID = (ushort)Xml.GetChildUIntAttribute(node, "JunctionID", "value");
-            Padding0 = (ushort)Xml.GetChildUIntAttribute(node, "Padding0", "value");
         }
     }
 

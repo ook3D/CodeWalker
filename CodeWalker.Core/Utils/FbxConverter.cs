@@ -33,7 +33,7 @@ namespace CodeWalker
 
 
 
-        private Drawable TryConvertDrawable(FbxDocument fdoc, string name)
+        private gtaDrawable TryConvertDrawable(FbxDocument fdoc, string name)
         {
 
             var rootnodes = fdoc.GetSceneNodes() ?? [];
@@ -54,12 +54,12 @@ namespace CodeWalker
                 }
             }
 
-            List<DrawableModel> mlHigh = [];
-            List<DrawableModel> mlMed = [];
-            List<DrawableModel> mlLow = [];
-            List<DrawableModel> mlVlow = [];
-            List<DrawableModel> mlUnks = [];
-            List<DrawableModel> mlAll = [];
+            List<grmModel> mlHigh = [];
+            List<grmModel> mlMed = [];
+            List<grmModel> mlLow = [];
+            List<grmModel> mlVlow = [];
+            List<grmModel> mlUnks = [];
+            List<grmModel> mlAll = [];
             foreach (var m in mlistall)
             {
                 var mnl = m.Name.ToLowerInvariant();
@@ -106,8 +106,8 @@ namespace CodeWalker
                 foreach (var g in m.Model.Geometries)
                 {
                     if (g.VertexData == null) continue;
-                    var vb = g.VertexData.VertexBytes;
-                    var vs = g.VertexData.VertexStride;
+                    var vb = g.VertexData.Data;
+                    var vs = g.VertexData.Stride;
                     var vc = g.VertexData.VertexCount;
                     for (int i = 0; i < vc; i++)
                     {
@@ -131,8 +131,8 @@ namespace CodeWalker
 
 
 
-            var sgrp = new ShaderGroup();
-            List<ShaderFX> slist = [];
+            var sgrp = new grmShaderGroup();
+            List<grcInstanceData> slist = [];
             List<ushort> smapp = [];
             foreach (var m in mlAll)
             {
@@ -143,30 +143,29 @@ namespace CodeWalker
                     smapp.Add((ushort)slist.Count);
                     slist.Add(g.Shader ?? throw new InvalidOperationException("An exported geometry has no shader."));
                 }
-                m.ShaderMapping = smapp.ToArray();//TODO: re-use shaders!!
+                m.ShaderIndices = smapp.ToArray();//TODO: re-use shaders!!
             }
-            sgrp.Shaders = new ResourcePointerArray64<ShaderFX>();
+            sgrp.Shaders = new ResourcePointerArray64<grcInstanceData>();
             sgrp.Shaders.data_items = slist.ToArray();
-            sgrp.ShadersCount1 = (ushort)slist.Count;
-            sgrp.ShadersCount2 = (ushort)slist.Count;
+            sgrp.ShadersCount = (ushort)slist.Count;
+            sgrp.ShadersCapacity = (ushort)slist.Count;
             sgrp.VFT = 1080113376;//is this needed?
-            sgrp.Unknown_4h = 1;
 
 
-            var d = new Drawable();
-            d.Name = name + ".#dr";
+            var d = new gtaDrawable();
+            d.DebugName = name + ".#dr";
             d.ShaderGroup = sgrp;
-            d.BoundingCenter = bsCen;
-            d.BoundingSphereRadius = bsRad;
+            d.CullSphereCenter = bsCen;
+            d.CullSphereRadius = bsRad;
             d.BoundingBoxMin = bbMin;
             d.BoundingBoxMax = bbMax;
-            d.LodDistHigh = 9998;//lod dist defaults
-            d.LodDistMed = 9998;
-            d.LodDistLow = 9998;
-            d.LodDistVlow = 9998;
+            d.LodThresholdHigh = 9998;//lod dist defaults
+            d.LodThresholdMed = 9998;
+            d.LodThresholdLow = 9998;
+            d.LodThresholdVlow = 9998;
             d.FileVFT = 1079446584;
             d.FileUnknown = 1;
-            d.DrawableModels = new DrawableModelsBlock();
+            d.DrawableModels = new rmcLodContainer();
             if (mlHigh.Count > 0)
             {
                 d.DrawableModels.High = mlHigh.ToArray();
@@ -175,25 +174,25 @@ namespace CodeWalker
             if (mlMed.Count > 0)
             {
                 d.DrawableModels.Med = mlMed.ToArray();
-                d.LodDistHigh = bsRad * 2.0f; //when med models present, generate a high lod dist..
+                d.LodThresholdHigh = bsRad * 2.0f; //when med models present, generate a high lod dist..
                 d.FlagsMed = 1;
             }
             if (mlLow.Count > 0)
             {
                 d.DrawableModels.Low = mlLow.ToArray();
-                d.LodDistMed = bsRad * 8.0f; //when low models present, generate a med lod dist..
+                d.LodThresholdMed = bsRad * 8.0f; //when low models present, generate a med lod dist..
                 d.FlagsLow = 1;
             }
             if (mlVlow.Count > 0)
             {
                 d.DrawableModels.VLow = mlVlow.ToArray();
-                d.LodDistLow = bsRad * 32.0f; //when vlow models present, generate a low lod dist..
+                d.LodThresholdLow = bsRad * 32.0f; //when vlow models present, generate a low lod dist..
                 d.FlagsVlow = 1;
             }
 
             d.BuildRenderMasks();
 
-            d.LightAttributes = new ResourceSimpleList64<LightAttributes>();
+            d.Lights = new atArray<CLightAttr>();
             //todo: light attributes?
 
 
@@ -460,9 +459,9 @@ namespace CodeWalker
 
 
 
-            var dModel = new DrawableModel();
+            var dModel = new grmModel();
             
-            List<DrawableGeometry> dGeoms = [];
+            List<grmGeometryQB> dGeoms = [];
             List<AABB_s> dGeomAABBs = [];
             var dModelAABB = new AABB_s();
             for (int i = 0; i < fPolysByMat.Length; i++)
@@ -492,13 +491,12 @@ namespace CodeWalker
 
 
             dModel.VFT = 1080101496;//is this needed?
-            dModel.Unknown_4h = 1;
-            dModel.RenderMaskFlags = 0x00FF; //GIMS "Mask"
+            dModel.Mask = 0xFF;
             dModel.Geometries = dGeoms.ToArray();
-            dModel.GeometriesCount1 = (ushort)dGeoms.Count;
-            dModel.GeometriesCount2 = (ushort)dGeoms.Count;
-            dModel.GeometriesCount3 = (ushort)dGeoms.Count;
-            dModel.BoundsData = dGeomAABBs.ToArray();
+            dModel.GeometriesCount = (ushort)dGeoms.Count;
+            dModel.GeometriesCapacity = (ushort)dGeoms.Count;
+            dModel.Count = (ushort)dGeoms.Count;
+            dModel.AABBs = dGeomAABBs.ToArray();
             //shader mappings array will be added when adding models to drawable.
 
 
@@ -513,7 +511,7 @@ namespace CodeWalker
             return fModel;
         }
 
-        private DrawableGeometry? TryConvertGeometry(List<FbxPolygon> fPolys, FbxNode matNode, out AABB_s aabb)
+        private grmGeometryQB? TryConvertGeometry(List<FbxPolygon> fPolys, FbxNode matNode, out AABB_s aabb)
         {
             aabb = new AABB_s();
 
@@ -593,49 +591,46 @@ namespace CodeWalker
 
 
             var vData = new VertexData();
-            vData.Info = dVertDecl;
+            vData.VertexFormat = dVertDecl;
             vData.VertexType = (VertexType)dVertDecl.Flags;
-            vData.VertexStride = dVertDecl.Stride;
+            vData.Stride = dVertDecl.Stride;
             vData.VertexCount = vList.Count;
-            vData.VertexBytes = vBytes;
+            vData.Data = vBytes;
 
-            var vBuff = new VertexBuffer();
-            vBuff.Data1 = vData;
-            vBuff.Data2 = vData;
-            vBuff.Info = dVertDecl;
+            var vBuff = new grcVertexBuffer();
+            vBuff.LockData = vData;
+            vBuff.VertexData = vData;
+            vBuff.VertexFormat = dVertDecl;
             vBuff.VertexCount = (uint)vList.Count;
-            vBuff.VertexStride = vStride;
+            vBuff.Stride = vStride;
             vBuff.VFT = 1080153064;//is this needed?
-            vBuff.Unknown_4h = 1;
 
-            var iBuff = new IndexBuffer();
-            iBuff.IndicesCount = (uint)iList.Count;
+            var iBuff = new grcIndexBuffer();
+            iBuff.IndexCount = (uint)iList.Count;
             iBuff.Indices = iList.ToArray();
             iBuff.VFT = 1080111576;//is this needed?
-            iBuff.Unknown_4h = 1;
 
 
-            var dGeom = new DrawableGeometry();
+            var dGeom = new grmGeometryQB();
             dGeom.Shader = dShader;
             dGeom.VertexData = vData;
             dGeom.VertexBuffer = vBuff;
             dGeom.IndexBuffer = iBuff;
             dGeom.VFT = 1080133736;//is this needed?
-            dGeom.Unknown_4h = 1;
-            dGeom.IndicesCount = (uint)iList.Count;
-            dGeom.TrianglesCount = (uint)iList.Count / 3;
-            dGeom.VerticesCount = (ushort)vList.Count;
-            dGeom.IndicesPerPrimitive = 3; //indices per triangle..?
-            dGeom.VertexStride = vStride;
-            dGeom.BoneIdsCount = 0;//todo: bones
+            dGeom.IndexCount = (uint)iList.Count;
+            dGeom.PrimitiveCount = (uint)iList.Count / 3;
+            dGeom.VertexCount = (ushort)vList.Count;
+            dGeom.PrimitiveType = grcDrawMode.drawTris;
+            dGeom.Stride = vStride;
+            dGeom.MatrixCount = 0;//todo: bones
 
 
             return dGeom;
         }
 
-        private ShaderFX TryConvertMaterial(FbxNode matNode)
+        private grcInstanceData TryConvertMaterial(FbxNode matNode)
         {
-            var shader = new ShaderFX();
+            var shader = new grcInstanceData();
 
             var spsName = "default";
             List<FbxNode> texConns = [];
@@ -689,22 +684,20 @@ namespace CodeWalker
 
             var spsFileName = spsName + ".sps";
 
-            shader.Name = JenkHash.GenHash(spsName);
-            shader.FileName = JenkHash.GenHash(spsFileName);
+            shader.BasisHashCode = JenkHash.GenHash(spsName);
+            shader.MaterialHashCode = JenkHash.GenHash(spsFileName);
 
-            shader.ParametersList = new ShaderParametersBlock();
-            var paramsBlock = shader.ParametersList;
+            shader.EntriesBlock = new grcInstanceDataEntriesBlock();
+            var entriesBlock = shader.EntriesBlock;
             List<ShaderParamNames> pNames = [];
-            List<ShaderParameter> pVals = [];
+            List<grcInstanceData.Entry> pVals = [];
 
 
-            shader.Unknown_Ch = 0;
-            shader.RenderBucket = 0;
-            shader.Unknown_12h = 32768;//shrugs
-            shader.Unknown_1Ch = 0;
-            shader.Unknown_24h = 0;
-            shader.Unknown_26h = 0;
-            shader.Unknown_28h = 0;
+            shader.DrawBucket = 0;
+            shader.Flags = 0x80;
+            shader.IsInstanced = false;
+            shader.UserFlags = 0;
+            shader.SortKeyDeprecated = 0;
 
 
             switch (spsName)
@@ -743,9 +736,9 @@ namespace CodeWalker
             for (int i = 0; i < pVals.Count; i++)
             {
                 var pVal = pVals[i];
-                if (pVal.DataType == 1)
+                if (pVal.Count == 1)
                 {
-                    pVal.Unknown_1h = (byte)(160 + ((pVals.Count - 1) - i));//seriously wtf is this and why
+                    pVal.Register = (byte)(160 + ((pVals.Count - 1) - i));
                 }
             }
 
@@ -755,15 +748,13 @@ namespace CodeWalker
                 nameHashes[i] = (MetaName)pNames[i];
             }
 
-            paramsBlock.Hashes = nameHashes;
-            paramsBlock.Parameters = pVals.ToArray();
-            paramsBlock.Count = pVals.Count;
-
-            shader.ParameterSize = paramsBlock.ParametersSize;
-            shader.ParameterDataSize = (ushort)(paramsBlock.BlockLength + 36);//but why +36?
-            shader.ParameterCount = (byte)pVals.Count;
-            shader.TextureParametersCount = paramsBlock.TextureParamsCount;
-            shader.RenderBucketMask = (1u << shader.RenderBucket) | 0xFF00;
+            entriesBlock.NameHashes = nameHashes;
+            entriesBlock.Entries = pVals.ToArray();
+            shader.SpuSize = entriesBlock.SpuSize;
+            shader.TotalSize = entriesBlock.TotalSize;
+            shader.Count = (byte)pVals.Count;
+            shader.TextureCount = entriesBlock.TextureCount;
+            shader.DrawBucketMask = (1u << shader.DrawBucket) | 0xFF00;
 
 
             return shader;
@@ -788,18 +779,18 @@ namespace CodeWalker
             texParam.NameHash = JenkHash.GenHash(name.ToLowerInvariant());
             return texParam;
         }
-        private void AddShaderParam(List<ShaderParamNames> paramNames, List<ShaderParameter> paramValues, ShaderParamNames paramName, object paramValue)
+        private void AddShaderParam(List<ShaderParamNames> paramNames, List<grcInstanceData.Entry> paramValues, ShaderParamNames paramName, object paramValue)
         {
-            var p = new ShaderParameter();
+            var p = new grcInstanceData.Entry();
             p.Data = paramValue;
             if (paramValue is TextureBase)
             {
-                p.DataType = 0;
-                p.Unknown_1h = (byte)((paramNames.Count > 0) ? paramNames.Count + 1 : 0);//seriously wtf is this?
+                p.Count = 0;
+                p.Register = (byte)((paramNames.Count > 0) ? paramNames.Count + 1 : 0);
             }
             else if (paramValue is Vector4)
             {
-                p.DataType = 1;
+                p.Count = 1;
             }
             else
             { }
@@ -808,24 +799,24 @@ namespace CodeWalker
             paramValues.Add(p);
         }
 
-        private VertexDeclaration GetVertexDeclaration(ShaderFX shader)
+        private grcFvf GetVertexDeclaration(grcInstanceData shader)
         {
-            var d = new VertexDeclaration();
-            d.Types = VertexDeclarationTypes.GTAV1;
-            d.Unknown_6h = 0;
+            var d = new grcFvf();
+            d.FvfChannelSizes = VertexDeclarationTypes.GTAV1;
+            d.DynamicOrder = 0;
 
-            switch (shader.Name)
+            switch (shader.BasisHashCode)
             {
                 default:
                 case 3839837909: //default
-                    d.Flags = 89;
-                    d.Stride = 36;
-                    d.Count = 4;
+                    d.Fvf = 89;
+                    d.FvfSize = 36;
+                    d.ChannelCount = 4;
                     break;
                 case 1330140418: //normal
-                    d.Flags = 16473;
-                    d.Stride = 52;
-                    d.Count = 5;
+                    d.Fvf = 16473;
+                    d.FvfSize = 52;
+                    d.ChannelCount = 5;
                     break;
             }
 
@@ -913,7 +904,7 @@ namespace CodeWalker
     {
         public string Name { get; set; } = string.Empty;
         public required FbxNode Node { get; set; }
-        public required DrawableModel Model { get; set; }
+        public required grmModel Model { get; set; }
 
         public override string ToString()
         {
@@ -937,11 +928,11 @@ namespace CodeWalker
         public Vector4[] Colours { get; set; } = [];
         public byte[] Bytes { get; set; } = [];
 
-        public void GenVertexBytes(VertexDeclaration decl)
+        public void GenVertexBytes(grcFvf decl)
         {
-            Bytes = new byte[decl.Stride];
+            Bytes = new byte[decl.FvfSize];
 
-            switch ((VertexType)decl.Flags)
+            switch ((VertexType)decl.Fvf)
             {
                 default:
                 case VertexType.Default://PNCT

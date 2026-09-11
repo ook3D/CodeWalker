@@ -17,7 +17,7 @@ namespace CodeWalker.World
         public MetaHash ModelHash { get; set; } = 0;//weapon model name hash, can be _hi
 
         public YdrFile? Ydr { get; set; }
-        public Drawable? Drawable { get; set; }
+        public gtaDrawable? Drawable { get; set; }
 
         public YmapEntityDef RenderEntity = new(); //placeholder entity object for rendering
 
@@ -52,7 +52,7 @@ namespace CodeWalker.World
 
             if (Ydr != null)
             {
-                Drawable = Ydr.Drawable?.ShallowCopy() as Drawable;
+                Drawable = Ydr.Drawable?.ShallowCopy() as gtaDrawable;
             }
 
 

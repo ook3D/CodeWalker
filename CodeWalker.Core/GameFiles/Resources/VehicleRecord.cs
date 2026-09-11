@@ -13,18 +13,18 @@ namespace CodeWalker.GameFiles
     {
         public override long BlockLength => 0x20;
 
-        public ResourceSimpleList64<VehicleRecordEntry> Entries { get; set; }
+        public atArray<VehicleRecordEntry> Entries { get; set; }
 
         public VehicleRecordList()
         {
-            this.Entries = new ResourceSimpleList64<VehicleRecordEntry>();
+            this.Entries = new atArray<VehicleRecordEntry>();
         }
 
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             base.Read(reader, parameters);
 
-            this.Entries = reader.ReadRequiredBlock<ResourceSimpleList64<VehicleRecordEntry>>();
+            this.Entries = reader.ReadRequiredBlock<atArray<VehicleRecordEntry>>();
         }
         public override void Write(ResourceDataWriter writer, params object[] parameters)
         {
@@ -35,9 +35,9 @@ namespace CodeWalker.GameFiles
         public void WriteXml(StringBuilder sb, int indent)
         {
 
-            if (Entries?.data_items != null)
+            if (Entries?.Items != null)
             {
-                foreach (var e in Entries.data_items)
+                foreach (var e in Entries.Items)
                 {
                     YvrXml.OpenTag(sb, indent, "Item");
                     e.WriteXml(sb, indent + 1);
@@ -61,14 +61,14 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            Entries = new ResourceSimpleList64<VehicleRecordEntry>();
-            Entries.data_items = entries.ToArray();
+            Entries = new atArray<VehicleRecordEntry>();
+            Entries.Items = entries.ToArray();
 
         }
         public static void WriteXmlNode(VehicleRecordList? l, StringBuilder sb, int indent, string name = "VehicleRecordList")
         {
             if (l == null) return;
-            if ((l.Entries?.data_items == null) || (l.Entries.data_items.Length == 0))
+            if ((l.Entries?.Items == null) || (l.Entries.Items.Length == 0))
             {
                 YvrXml.SelfClosingTag(sb, indent, name);
             }

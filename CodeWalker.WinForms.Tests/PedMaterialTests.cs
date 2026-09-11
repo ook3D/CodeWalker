@@ -47,12 +47,12 @@ public class PedMaterialTests
     public void HairNormalCapIsRetainedWithoutDrawingShadowProxyAsColour(int order, bool hidden)
     {
         var geometry = new RenderableGeometry();
-        geometry.Init(new DrawableGeometry { Shader = new ShaderFX {
+        geometry.Init(new grmGeometryQB { Shader = new grcInstanceData {
             FileName = JenkHash.GenHash("ped_hair_spiked.sps"), RenderBucket = 3,
-            ParametersList = new ShaderParametersBlock {
-                Hashes = [(MetaName)ShaderParamNames.orderNumber, (MetaName)ShaderParamNames.anisotropicSpecularIntensity],
-                Parameters = [new ShaderParameter { Data = new SharpDX.Vector4(order, 0, 0, 0) },
-                    new ShaderParameter { Data = new SharpDX.Vector4(0.05f, 0.15f, 0, 0) }]
+            EntriesBlock = new grcInstanceDataEntriesBlock {
+                NameHashes = [(MetaName)ShaderParamNames.orderNumber, (MetaName)ShaderParamNames.anisotropicSpecularIntensity],
+                Entries = [new grcInstanceData.Entry { Data = new SharpDX.Vector4(order, 0, 0, 0) },
+                    new grcInstanceData.Entry { Data = new SharpDX.Vector4(0.05f, 0.15f, 0, 0) }]
             }
         }});
         Assert.Equal(order, geometry.HairOrder);

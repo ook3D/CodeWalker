@@ -115,7 +115,7 @@ namespace CodeWalker.Project.Panels
             return (byte)Math.Max(Math.Min(Math.Round(val * (255.0f / range)), 255), 0);
         }
 
-        private static int GetLightCategory(LightAttributes la, float capsuleExtent)
+        private static int GetLightCategory(CLightAttr la, float capsuleExtent)
         {
             uint flags = la.Flags;
 
@@ -188,7 +188,7 @@ namespace CodeWalker.Project.Panels
 
                 // Pre-request all unique drawables so they start loading in parallel
                 UpdateStatus($"Requesting {uniqueArchetypes.Count} unique drawables...");
-                var drawableCache = new Dictionary<uint, DrawableBase>();
+                var drawableCache = new Dictionary<uint, rmcDrawable>();
                 var pendingArchetypes = new HashSet<uint>();
 
                 foreach (var (ent, _) in allEntities)
@@ -313,7 +313,7 @@ namespace CodeWalker.Project.Panels
                             continue;
 
                         uint type = (uint)la.Type;
-                        float capsuleExtent = la.Extent.X;
+                        float capsuleExtent = la.Extents.X;
 
                         if (type == (uint)LightType.Capsule)
                         {

@@ -101,11 +101,11 @@ public class NullableDataFileTests
     public void ClothReinitializationClearsPreviousGeometryAndOwner()
     {
         var cloth = new ClothInstance();
-        cloth.Init(new CharacterCloth(), new Skeleton());
+        cloth.Init(new CharacterCloth(), new crSkeletonData());
         cloth.Vertices = [SharpDX.Vector4.One];
-        cloth.Bones = [new Bone()];
+        cloth.Bones = [new crBoneData()];
         var environment = new EnvironmentCloth();
-        cloth.Init(environment, new Skeleton());
+        cloth.Init(environment, new crSkeletonData());
         Assert.Empty(cloth.Vertices);
         Assert.Empty(cloth.Bones);
         Assert.Null(cloth.CharCloth);
@@ -128,12 +128,12 @@ public class NullableDataFileTests
     [Fact]
     public void EmptySkeletonCloneHasIndependentCollections()
     {
-        var original = new Skeleton();
+        var original = new crSkeletonData();
         var clone = original.Clone();
         Assert.Empty(clone.ParentIndices);
-        Assert.Empty(clone.ChildIndices);
-        Assert.Empty(clone.Transformations);
-        Assert.Empty(clone.TransformationsInverted);
+        Assert.Empty(clone.ChildParentIndices);
+        Assert.Empty(clone.DefaultTransforms);
+        Assert.Empty(clone.CumulativeInverseTransforms);
     }
 
     [Fact]

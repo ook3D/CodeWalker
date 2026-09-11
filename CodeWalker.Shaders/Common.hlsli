@@ -301,6 +301,16 @@ float3 AmbientLight(float3 diff, float normz, float4 upcolour, float4 downcolour
     return diff * ambient * amount;
 }
 
+float3 AmbientEnvironment(float3 direction, float2 ambientScale, uniform ShaderGlobalLightParams lights)
+{
+    float naturalScale = max(ambientScale.x, 0);
+    float artificialScale = max(ambientScale.y, 0);
+    naturalScale *= naturalScale;
+    artificialScale *= artificialScale;
+    return AmbientLight(1, direction.z, lights.LightNaturalAmbUp, lights.LightNaturalAmbDown, naturalScale)
+        + AmbientLight(1, direction.z, lights.LightArtificialAmbUp, lights.LightArtificialAmbDown, artificialScale);
+}
+
 float3 GlobalLighting(float3 diff, float3 norm, float4 vc0, float lf, uniform ShaderGlobalLightParams globalLights)
 {
     float3 c = max(diff, 0);

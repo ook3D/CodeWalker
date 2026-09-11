@@ -72,9 +72,10 @@ namespace CodeWalker.GameFiles
         {
             TextEntries ??= [];
             EntryCount = (uint)TextEntries.Length;
+            var entries = TextEntries.OrderBy(e => e.Hash).ToArray();
             int dataOffset = checked(16 + TextEntries.Length * 8);
             int size = dataOffset;
-            foreach (var entry in TextEntries)
+            foreach (var entry in entries)
             {
                 size = checked(size + Encoding.UTF8.GetByteCount(entry.Text.AsSpan()) + 1);
             }
@@ -83,7 +84,7 @@ namespace CodeWalker.GameFiles
             BinaryPrimitives.WriteUInt32LittleEndian(data, 1196971058); // GXT2
             BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(4), EntryCount);
             int tableOffset = 8;
-            foreach (var entry in TextEntries)
+            foreach (var entry in entries)
             {
                 entry.Offset = (uint)dataOffset;
                 BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(tableOffset), entry.Hash);

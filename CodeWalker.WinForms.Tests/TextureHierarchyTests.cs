@@ -16,14 +16,14 @@ public class TextureHierarchyTests
         cache.YtdDict[hd] = new RpfResourceFileEntry { Name = "hd.ytd", ShortNameHash = hd };
         GetLookup<MetaHash>(cache, "hdtexturelookup")[sd] = hd;
         var renderer = new Renderer(null!, cache) { renderhdtextures = true };
-        var drawable = new Drawable();
+        var drawable = new gtaDrawable();
         var archetype = new Archetype { TextureDict = sd };
         var renderable = Resolve(renderer, archetype, drawable);
         Assert.False(renderable.SDtxds![0].LoadQueued);
         Assert.Equal(0u, renderable.SDtxds[0].Key.Hash);
         renderable.AllModels = [new RenderableModel
         {
-            RenderMaskFlags = 1,
+            Mask = 1,
             Geometries = [new RenderableGeometry
             {
                 Textures = [new TextureBase { NameHash = 7 }],
@@ -71,7 +71,7 @@ public class TextureHierarchyTests
         GetLookup<MetaHash>(cache, "textureParents")[sd] = parent;
         GetLookup<MetaHash>(cache, "hdtexturelookup")[sd] = hd;
         var renderer = new Renderer(null!, cache) { renderhdtextures = false };
-        var drawable = new Drawable();
+        var drawable = new gtaDrawable();
         var archetype = new Archetype { TextureDict = sd };
 
         var renderable = Resolve(renderer, archetype, drawable);
@@ -91,7 +91,7 @@ public class TextureHierarchyTests
     {
         var cache = new GameFileCache(1024 * 1024, 10, "", false, "", false, "") { IsInited = true };
         var renderer = new Renderer(null!, cache);
-        var drawable = new Drawable();
+        var drawable = new gtaDrawable();
         var archetype = new Archetype();
 
         var renderable = Resolve(renderer, archetype, drawable);
@@ -110,7 +110,7 @@ public class TextureHierarchyTests
     private static Dictionary<T, T> GetLookup<T>(GameFileCache cache, string name) where T : notnull =>
         (Dictionary<T, T>)typeof(GameFileCache).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cache)!;
 
-    private static Renderable Resolve(Renderer renderer, Archetype archetype, Drawable drawable) =>
+    private static Renderable Resolve(Renderer renderer, Archetype archetype, gtaDrawable drawable) =>
         (Renderable)typeof(Renderer).GetMethod("TryGetRenderable", BindingFlags.Instance | BindingFlags.NonPublic)!
             .Invoke(renderer, [archetype, drawable, 0u, null, null])!;
 }

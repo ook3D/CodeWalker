@@ -3671,12 +3671,12 @@ namespace CodeWalker.Project
                 archetype._BaseArchetypeDef.flags = 32;
                 archetype._BaseArchetypeDef.bbMin = ydr.Drawable.BoundingBoxMin;
                 archetype._BaseArchetypeDef.bbMax = ydr.Drawable.BoundingBoxMax;
-                archetype._BaseArchetypeDef.bsCentre = ydr.Drawable.BoundingCenter;
-                archetype._BaseArchetypeDef.bsRadius = ydr.Drawable.BoundingSphereRadius;
+                archetype._BaseArchetypeDef.bsCentre = ydr.Drawable.CullSphereCenter;
+                archetype._BaseArchetypeDef.bsRadius = ydr.Drawable.CullSphereRadius;
                 archetype._BaseArchetypeDef.hdTextureDist = 60.0f;
                 archetype._BaseArchetypeDef.lodDist = 60.0f;
                 if (ydr.Drawable.ShaderGroup?.TextureDictionary != null) archetype._BaseArchetypeDef.textureDictionary = hash;
-                if (ydr.Drawable.Bound != null) archetype._BaseArchetypeDef.physicsDictionary = hash;
+                if (ydr.Drawable.PhBound != null) archetype._BaseArchetypeDef.physicsDictionary = hash;
 
                 AddProjectArchetype(archetype);
             }

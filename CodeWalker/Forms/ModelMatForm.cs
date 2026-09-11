@@ -15,8 +15,8 @@ namespace CodeWalker.Forms
     public partial class ModelMatForm : Form
     {
         private ModelForm ModelForm;
-        private DrawableBase? Drawable;
-        private Dictionary<uint, Drawable>? DrawableDict;
+        private rmcDrawable? Drawable;
+        private Dictionary<uint, gtaDrawable>? DrawableDict;
 
 
         public ModelMatForm(ModelForm modelForm)
@@ -28,7 +28,7 @@ namespace CodeWalker.Forms
         }
 
 
-        public void LoadModel(DrawableBase? drawable)
+        public void LoadModel(rmcDrawable? drawable)
         {
             Drawable = drawable;
 
@@ -85,7 +85,7 @@ namespace CodeWalker.Forms
                 }
             }
         }
-        public void LoadModels(Dictionary<uint, Drawable>? dict)
+        public void LoadModels(Dictionary<uint, gtaDrawable>? dict)
         {
             DrawableDict = dict;
 
@@ -112,7 +112,7 @@ namespace CodeWalker.Forms
             }
         }
 
-        private void AddDrawableModelsTreeNodes(DrawableModel[]? models, string prefix, TreeNode? parentDrawableNode = null)
+        private void AddDrawableModelsTreeNodes(grmModel[]? models, string prefix, TreeNode? parentDrawableNode = null)
         {
             if (models == null) return;
 
@@ -139,11 +139,11 @@ namespace CodeWalker.Forms
         }
 
 
-        private void SelectGeometry(DrawableGeometry? geom)
+        private void SelectGeometry(grmGeometryQB? geom)
         {
             MaterialPropertiesPanel.Controls.Clear();
 
-            var pl = geom?.Shader?.ParametersList;
+            var pl = geom?.Shader?.EntriesBlock;
 
             if (pl == null) return;
 
@@ -154,12 +154,12 @@ namespace CodeWalker.Forms
 
             var w = MaterialPropertiesPanel.Width - 140;
 
-            var h = pl.Hashes;
-            var p = pl.Parameters;
+            var h = pl.NameHashes;
+            var p = pl.Entries;
             for (int ip = 0; ip < h.Length; ip++)
             {
-                var hash = pl.Hashes[ip];
-                var parm = pl.Parameters[ip];
+                var hash = pl.NameHashes[ip];
+                var parm = pl.Entries[ip];
                 var data = parm?.Data;
 
                 tmpPanel.Height += 25;
@@ -213,10 +213,10 @@ namespace CodeWalker.Forms
 
         private void ParamTextBox_TextChanged(object? sender, EventArgs e)
         {
-            if (sender is not TextBox { Tag: ShaderParameter parm } tb) return;
+            if (sender is not TextBox { Tag: grcInstanceData.Entry parm } tb) return;
             var txt = tb.Text;
 
-            if (parm.DataType == 0)//texture
+            if (parm.Count == 0)//texture
             {
                 if (parm.Data is not TextureBase tex) return;
                 if (tex is not Texture)//don't do this for embedded textures!
@@ -229,15 +229,15 @@ namespace CodeWalker.Forms
                     //TODO: modify embedded textures!
                 }
             }
-            else if (parm.DataType == 1)//Vector4
+            else if (parm.Count == 1)//Vector4
             {
                 parm.Data = FloatUtil.ParseVector4String(txt);
             }
             else //Vector4 array
             {
                 var strs = txt.Split(';');
-                var vecs = new Vector4[parm.DataType];
-                for (int i = 0; i < parm.DataType; i++)
+                var vecs = new Vector4[parm.Count];
+                for (int i = 0; i < parm.Count; i++)
                 {
                     var vec = Vector4.Zero;
                     if (i < strs.Length)
@@ -250,7 +250,7 @@ namespace CodeWalker.Forms
             }
 
 
-            var geom = ModelsTreeView.SelectedNode?.Tag as DrawableGeometry;
+            var geom = ModelsTreeView.SelectedNode?.Tag as grmGeometryQB;
             if (geom != null)
             {
                 if (Drawable != null)
@@ -270,7 +270,7 @@ namespace CodeWalker.Forms
 
         }
 
-        private void UpdateRenderableParams(DrawableBase dwbl, ShaderFX? shader)
+        private void UpdateRenderableParams(rmcDrawable dwbl, grcInstanceData? shader)
         {
             foreach (var model in dwbl.AllModels)
             {
@@ -293,7 +293,7 @@ namespace CodeWalker.Forms
 
         private void ModelsTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            SelectGeometry(e.Node?.Tag as DrawableGeometry);
+            SelectGeometry(e.Node?.Tag as grmGeometryQB);
         }
     }
 }

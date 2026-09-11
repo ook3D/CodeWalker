@@ -126,6 +126,10 @@ float3 DeferredDirectionalLight(float3 camRel, float3 norm, float4 diffuse, floa
         materialLights.LightArtificialAmbDown = InteriorAmbientDown;
     }
     float3 c = FullLighting(diffuse.rgb * diffuseScale, spec, norm, ambient, materialLights, EnableShadows, shadowdepth, lightspacepos);
+    float3 reflected = reflect(-viewDir, norm);
+    c += AmbientEnvironment(reflected, ambient.rg, materialLights)
+        * MaterialReflectionAmount(material, norm, viewDir)
+        * MaterialReflectionNormalization(material);
     c += diffuse.rgb * saturate(irradiance.b * 3 - (interior ? 2 : 0)); //emissive multiplier
     return c;
 }

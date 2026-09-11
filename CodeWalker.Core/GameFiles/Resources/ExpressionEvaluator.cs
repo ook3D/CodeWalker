@@ -12,9 +12,9 @@ public sealed class ExpressionEvaluator
     private readonly Stack<Vector4> stack = new();
     private readonly HashSet<(ushort Bone, byte Track)> outputs = new();
     public string? LastError { get; private set; }
-    private Skeleton skeleton = null!;
+    private crSkeletonData skeleton = null!;
 
-    public bool Evaluate(Expression expression, Skeleton target, float time)
+    public bool Evaluate(Expression expression, crSkeletonData target, float time)
     {
         skeleton = target;
         working.Clear();
@@ -41,7 +41,7 @@ public sealed class ExpressionEvaluator
                             (op.Type == ExpressionInstrType.JumpIfTrue ? stack.Peek() == Vector4.Zero : stack.Peek() != Vector4.Zero);
                         if (take)
                         {
-                            long next = (long)pc + 1 + jump.Data3Offset;
+                            long next = (long)pc + 1 + jump.OperationOffset;
                             if (next < 0 || next >= instructions.Length) throw new InvalidOperationException("Invalid expression jump.");
                             pc = (int)next - 1;
                         }
@@ -142,9 +142,9 @@ public sealed class ExpressionEvaluator
         if (skeleton.BonesMap.TryGetValue(id, out var bone))
             switch (track)
             {
-                case 0: return new Vector4(bone.Translation, 0);
-                case 1: return bone.Rotation.ToVector4();
-                case 2: return new Vector4(bone.Scale, 0);
+                case 0: return new Vector4(bone.DefaultTranslation, 0);
+                case 1: return bone.DefaultRotation.ToVector4();
+                case 2: return new Vector4(bone.DefaultScale, 0);
             }
         return track is 2 or 37 or 38 ? new Vector4(1,1,1,0) : new Vector4(0,0,0,1);
     }
@@ -204,17 +204,17 @@ public sealed class ExpressionEvaluator
     {
         Vector3 sum = Vector3.Zero;
         Quaternion[] lanes = [Quaternion.Identity,Quaternion.Identity,Quaternion.Identity,Quaternion.Identity];
-        int stride = checked(6 + ((int)blend.NumSourceWeights-1)*9);
+        int stride = checked(6 + ((int)blend.IntervalsPerSource-1)*9);
         for (int i=0; i<blend.SourceInfos.Length; i++)
         {
             var source = blend.SourceInfos[i];
-            var track = expression.Tracks.data_items[source.TrackIndex];
+            var track = expression.Tracks.data_items[source.AcceleratorIndex];
             float input = working.TryGetValue((track.BoneId,track.Track), out var v) ? v[source.ComponentOffset/4] : 0;
             int lane = i%4, offset = i/4*stride;
             float Component(int axis)
             {
                 float result = blend.Values[offset+axis][lane]*input + blend.Values[offset+3+axis][lane];
-                for (int n=1;n<blend.NumSourceWeights;n++)
+                for (int n=1;n<blend.IntervalsPerSource;n++)
                 {
                     int k=offset+6+(n-1)*9;
                     if (input>blend.Values[k+axis][lane]) result=blend.Values[k+3+axis][lane]*input+blend.Values[k+6+axis][lane];

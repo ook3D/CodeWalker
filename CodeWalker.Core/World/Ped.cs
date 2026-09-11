@@ -32,12 +32,12 @@ namespace CodeWalker.World
         public ClipMapEntry? FaceAnimClip { get; set; }
         public Expression? Expression { get; set; }
         public string?[] DrawableNames { get; set; } = new string?[12];
-        public Drawable?[] Drawables { get; set; } = new Drawable?[12];
+        public gtaDrawable?[] Drawables { get; set; } = new gtaDrawable?[12];
         public Texture?[] Textures { get; set; } = new Texture?[12];
         public Expression?[] Expressions { get; set; } = new Expression?[12];
         public ClothInstance?[] Clothes { get; set; } = new ClothInstance?[12];
         public bool EnableRootMotion { get; set; } = false; //used to toggle whether or not to include root motion when playing animations
-        public Skeleton? Skeleton { get; set; }
+        public crSkeletonData? Skeleton { get; set; }
 
         public Vector3 Position { get; set; } = Vector3.Zero;
         public Quaternion Rotation { get; set; } = Quaternion.Identity;
@@ -135,7 +135,7 @@ namespace CodeWalker.World
             // Wait for all files to load in parallel using async delay instead of Thread.Sleep
             await WaitForFilesAsync(gfc, pedhash, ycdhash, yedhash);
 
-            Skeleton = Yft?.Fragment?.Drawable?.Skeleton?.Clone();
+            Skeleton = Yft?.Fragment?.Drawable?.SkeletonData?.Clone();
 
             MetaHash cliphash = JenkHash.GenHash("idle");
             ClipMapEntry? cme = null;
@@ -218,7 +218,7 @@ namespace CodeWalker.World
             YldFile? yldFile = null;
 
             // Check if drawable is in the main ped YDD first
-            Drawable? d = null;
+            gtaDrawable? d = null;
             if (Ydd?.Dict != null)
             {
                 Ydd.Dict.TryGetValue(namehash, out d);
@@ -305,9 +305,9 @@ namespace CodeWalker.World
 
             if (d != null)
             {
-                var component = d.ShallowCopy() as Drawable;
+                var component = d.ShallowCopy() as gtaDrawable;
                 // Binding a pose must not mutate a cached drawable or another actor's palette.
-                if (component != null) component.Skeleton = (d.Skeleton ?? Skeleton)?.Clone();
+                if (component != null) component.SkeletonData = (d.SkeletonData ?? Skeleton)?.Clone();
                 Drawables[index] = component;
             }
             if (t != null) Textures[index] = t;

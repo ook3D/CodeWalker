@@ -223,7 +223,6 @@ namespace CodeWalker.GameFiles
         public uint UsageData { get; set; }
         public uint Unknown_44h { get; set; } // 0x00000000
         public uint ExtraFlags { get; set; } // 0, 1
-        public uint ExtraFlagsPadding { get; set; } // grcTexturePC m_ExtraFlagsPadding (64-bit pad)
 
         //Texture subclass structure data - moved here for gen9 compatibility
         public ushort Width { get; set; }
@@ -471,7 +470,7 @@ namespace CodeWalker.GameFiles
                 this.UsageData = reader.ReadUInt32();
                 this.Unknown_44h = reader.ReadUInt32();
                 this.ExtraFlags = reader.ReadUInt32();
-                this.ExtraFlagsPadding = reader.ReadUInt32();
+                _ = reader.ReadUInt32();
 
 
 
@@ -636,7 +635,7 @@ namespace CodeWalker.GameFiles
                 writer.Write(this.UsageData);
                 writer.Write(this.Unknown_44h);
                 writer.Write(this.ExtraFlags);
-                writer.Write(this.ExtraFlagsPadding);
+                writer.Write(0u);
             }
         }
         public virtual void WriteXml(StringBuilder sb, int indent, string ddsfolder)

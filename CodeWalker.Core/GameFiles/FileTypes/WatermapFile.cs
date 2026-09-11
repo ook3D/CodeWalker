@@ -13,6 +13,7 @@ namespace CodeWalker.GameFiles
     public class WatermapFile : GameFile, PackedFile
     {
         public byte[] RawFileData { get; set; } = [];
+        public Endianess Endianess { get; set; } = Endianess.BigEndian;
 
         public uint Magic { get; set; } = 0x574D4150; //'WMAP'
         public uint Version { get; set; } = 100;
@@ -30,13 +31,19 @@ namespace CodeWalker.GameFiles
         public ushort LakeVecsCount { get; set; } //28
         public ushort LakeCount { get; set; } //15
         public ushort PoolCount { get; set; } //314
-        public ushort ColoursOffset { get; set; } //13316 
-        public byte[] Unks1 { get; set; } = [];//2,2,16,48,16,48,32,0   ..?
+        public byte HeaderSize { get; set; } = 52;
+        public byte TileRowSize { get; set; } = 4;
+        public byte TileSize { get; set; } = 2;
+        public byte RefSize { get; set; } = 2;
+        public byte RiverPointSize { get; set; } = 16;
+        public byte RiverSize { get; set; } = 48;
+        public byte LakeBoxSize { get; set; } = 16;
+        public byte LakeSize { get; set; } = 48;
+        public byte PoolSize { get; set; } = 32;
 
         public CompHeader[] CompHeaders { get; set; } = [];
         public short[] CompWatermapInds { get; set; } = [];//indices into CompWatermapRefs
         public WaterItemRef[] CompWatermapRefs { get; set; } = [];//contains multibit, type, index1, [index2](optional)
-        public byte[] Zeros1 { get; set; } = [];//x12
         public Vector4[] RiverVecs { get; set; } = [];
         public WaterFlow[] Rivers { get; set; } = [];
         public Vector4[] LakeVecs { get; set; } = [];
@@ -58,7 +65,7 @@ namespace CodeWalker.GameFiles
             RpfFileEntry = entry;
         }
 
-        public void Load(byte[] data, RpfFileEntry entry)
+        public void Load(byte[] data, RpfFileEntry? entry)
         {
             RawFileData = data;
             if (entry != null)
@@ -67,9 +74,14 @@ namespace CodeWalker.GameFiles
                 Name = entry.Name;
             }
 
+            if (BitConverter.ToUInt32(data, 0) == Magic)
+            {
+                Endianess = Endianess.LittleEndian;
+            }
+
             using (MemoryStream ms = new(data))
             {
-                DataReader r = new(ms, Endianess.BigEndian);
+                DataReader r = new(ms, Endianess);
 
                 Read(r);
             }
@@ -107,46 +119,56 @@ namespace CodeWalker.GameFiles
             LakeVecsCount = r.ReadUInt16();//28
             LakeCount = r.ReadUInt16();//15
             PoolCount = r.ReadUInt16();//314
-            ColoursOffset = r.ReadUInt16();//13316    
-            Unks1 = r.ReadBytes(8);//2,2,16,48,16,48,32,0      flags..?
+            HeaderSize = r.ReadByte();
+            TileRowSize = r.ReadByte();
+            TileSize = r.ReadByte();
+            RefSize = r.ReadByte();
+            RiverPointSize = r.ReadByte();
+            RiverSize = r.ReadByte();
+            LakeBoxSize = r.ReadByte();
+            LakeSize = r.ReadByte();
+            PoolSize = r.ReadByte();
+            _ = r.ReadByte();
 
-
-            var shortslen = (int)((WatermapIndsCount + WatermapRefsCount) * 2) + (Height * 4);//offset from here to Zeros1
-            var padcount = (16 - (shortslen % 16)) % 16;//12 .. is this right? all are zeroes.
-            var strucslen = ((RiverVecsCount + LakeVecsCount) * 16) + ((RiverCount + LakeCount) * 48) + (PoolCount * 32);
-            var datalen = shortslen + padcount + strucslen; //DataLength calculation
-            var extoffs = padcount + strucslen - 60 - 60;//ExtraFlagsOffset calculation
+            var dataStart = r.Position;
 
 
             CompHeaders = new CompHeader[Height];//249 - image height
             for (int i = 0; i < Height; i++) CompHeaders[i].Read(r);
 
+            Align(r, dataStart, 4);
             CompWatermapInds = new short[WatermapIndsCount];//10668
             for (int i = 0; i < WatermapIndsCount; i++) CompWatermapInds[i] = r.ReadInt16();
 
+            Align(r, dataStart, 4);
             CompWatermapRefs = new WaterItemRef[WatermapRefsCount];//11796
             for (int i = 0; i < WatermapRefsCount; i++) CompWatermapRefs[i] = new WaterItemRef(r.ReadUInt16());
 
-            Zeros1 = r.ReadBytes(padcount);//align to 16 bytes (position:45984)
+            Align(r, dataStart, 16);
             
             RiverVecs = new Vector4[RiverVecsCount];//99
             for (int i = 0; i < RiverVecsCount; i++) RiverVecs[i] = r.ReadVector4();
             
+            Align(r, dataStart, 16);
             Rivers = new WaterFlow[RiverCount];//13
             for (int i = 0; i < RiverCount; i++) Rivers[i] = new WaterFlow(WaterItemType.River, r, RiverVecs);
             
+            Align(r, dataStart, 16);
             LakeVecs = new Vector4[LakeVecsCount];//28
             for (int i = 0; i < LakeVecsCount; i++) LakeVecs[i] = r.ReadVector4();
             
+            Align(r, dataStart, 16);
             Lakes = new WaterFlow[LakeCount];//15
             for (int i = 0; i < LakeCount; i++) Lakes[i] = new WaterFlow(WaterItemType.Lake, r, LakeVecs);
             
+            Align(r, dataStart, 16);
             Pools = new WaterPool[PoolCount];//314
             for (int i = 0; i < PoolCount; i++) Pools[i] = new WaterPool(r);
 
             ColourCount = (uint)(RiverCount + LakeCount + PoolCount); //342
             Colours = new Color[ColourCount]; //342
-            for (int i = 0; i < 342; i++) Colours[i] = Color.FromAbgr(r.ReadUInt32());
+            r.Position = dataStart + DataLength;
+            for (int i = 0; i < Colours.Length; i++) Colours[i] = Color.FromAbgr(r.ReadUInt32());
 
 
             var flagoff = 0; //assign extra colours out of the main array
@@ -251,6 +273,12 @@ namespace CodeWalker.GameFiles
 
 
 
+        }
+
+        private static void Align(DataReader reader, long start, int alignment)
+        {
+            var offset = reader.Position - start;
+            reader.Position += (alignment - offset % alignment) % alignment;
         }
         private void Write(DataWriter w)
         {
