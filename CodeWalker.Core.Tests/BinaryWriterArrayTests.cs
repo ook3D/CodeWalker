@@ -129,12 +129,327 @@ public class BinaryWriterArrayTests
     [Fact]
     public void MovementSizingPassStillCountsEveryWrite()
     {
-        var movement = new MrfFile { UnkBytes = [1, 2, 3], UnkBytesCount = 3 };
+        var movement = new MrfFile { StringTable = [1, 2, 3] };
         byte[] bytes = movement.Save();
         Assert.Equal(43, bytes.Length);
-        Assert.Equal(8u, movement.DataLength);
-        Assert.Equal(8u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(20)));
+        Assert.Equal(8, movement.DefinitionLength);
+        Assert.Equal(8, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(20)));
         Assert.Equal(new byte[] { 1, 2, 3 }, bytes[^3..]);
+    }
+
+    [Fact]
+    public void MovementHeaderAndDefinitionBoundaryMatchNativeFormat()
+    {
+        var movement = new MrfFile
+        {
+            VersionPatch = 7,
+            ExternalReferences =
+            [
+                new MrfExternalReference { Data = [(byte)'a', 0, 0, 0] },
+            ],
+            StringTable = [1, 0, 3],
+        };
+
+        byte[] bytes = movement.Save();
+
+        Assert.Equal(51, bytes.Length);
+        Assert.Equal(MrfFile.ExpectedMagic, BinaryPrimitives.ReadUInt32LittleEndian(bytes));
+        Assert.Equal(2, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(4)));
+        Assert.Equal(7, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(12)));
+        Assert.Equal(8, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(20)));
+        Assert.Equal(3, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(24)));
+        Assert.Equal(1, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(28)));
+        Assert.Equal(4u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(32)));
+
+        var loaded = new MrfFile();
+        loaded.Load(bytes, null!);
+        Assert.Equal(7, loaded.VersionPatch);
+        Assert.Equal(new byte[] { 1, 0, 3 }, loaded.StringTable);
+        Assert.Single(loaded.ExternalReferences);
+        Assert.Empty(loaded.AllNodes);
+        Assert.Null(loaded.FindMoveNetworkTriggerByName(123u));
+
+        bytes[16] = 1;
+        Assert.Throws<InvalidDataException>(() => new MrfFile().Load(bytes, null!));
+    }
+
+    [Fact]
+    public void MovementNodeParameterIdsMatchNativeDefinitions()
+    {
+        Assert.Equal((ushort)5, (ushort)MrfNodeParameterId.Animation_Absolute);
+        Assert.Equal((ushort)1, (ushort)MrfNodeParameterId.Frame_Owner);
+        Assert.Equal((ushort)0, (ushort)MrfNodeParameterId.BlendN_FilterN);
+        Assert.Equal((ushort)5, (ushort)MrfNodeParameterId.Clip_Property);
+        Assert.Equal((ushort)4, (ushort)MrfNodeParameterId.Pm_ParameterValue);
+        Assert.Equal((ushort)5, (ushort)MrfNodeParameterId.Extrapolate_DeltaTime);
+        Assert.Equal((ushort)3, (ushort)MrfNodeParameterId.AddN_InputFilter);
+        Assert.Equal((ushort)3, (ushort)MrfNodeParameterId.MergeN_InputFilter);
+    }
+
+    [Fact]
+    public void MovementNodeEventIdsMatchNativeResolvers()
+    {
+        Assert.Equal((ushort)1, (ushort)MrfNodeEventId.Animation_AnimationEnded);
+        Assert.Equal((ushort)4, (ushort)MrfNodeEventId.Clip_ClipTagUpdate);
+        Assert.Equal((ushort)1, (ushort)MrfNodeEventId.Pm_PmEnded);
+    }
+
+    [Fact]
+    public void MovementSignalTypesMatchNativeDefinition()
+    {
+        Assert.Equal(0u, (uint)MrfSignalType.Animation);
+        Assert.Equal(3u, (uint)MrfSignalType.Filter);
+        Assert.Equal(6u, (uint)MrfSignalType.ParameterizedMotion);
+        Assert.Equal(7u, (uint)MrfSignalType.Real);
+        Assert.Equal(12u, (uint)MrfSignalType.Network);
+        Assert.Equal(4, (int)MrfWeightModifierType.Step);
+    }
+
+    [Fact]
+    public void MovementNodeHeaderMatchesNativeDefinition()
+    {
+        var node = new MrfNodeTail { Index = 7, ID = 0x12345678 };
+        using var stream = new MemoryStream();
+        var writer = new DataWriter(stream);
+        node.Write(writer);
+
+        Assert.Equal(new byte[] { 2, 0, 7, 0, 0x78, 0x56, 0x34, 0x12 }, stream.ToArray());
+
+        stream.Position = 0;
+        var loaded = new MrfNodeTail();
+        loaded.Read(new DataReader(stream));
+        Assert.Equal(MrfNodeType.Tail, loaded.Type);
+        Assert.Equal((ushort)7, loaded.Index);
+        Assert.Equal((MetaHash)0x12345678, loaded.ID);
+    }
+
+    [Fact]
+    public void MovementNodeFlagsMatchNativeDefinition()
+    {
+        var node = new MrfNodeAnimation { Index = 3, ID = 0x12345678, Flags = 0x80000000 };
+        using var stream = new MemoryStream();
+        var writer = new DataWriter(stream);
+        node.Write(writer);
+
+        Assert.Equal(
+            new byte[] { 4, 0, 3, 0, 0x78, 0x56, 0x34, 0x12, 0, 0, 0, 0x80 },
+            stream.ToArray());
+
+        stream.Position = 0;
+        var loaded = new MrfNodeAnimation();
+        loaded.Read(new DataReader(stream));
+        Assert.Equal(0x80000000u, loaded.Flags);
+    }
+
+    [Fact]
+    public void MovementPairNodeHeaderMatchesNativeDefinition()
+    {
+        var node = new MrfNodeBlend
+        {
+            Index = 4,
+            ID = 0x12345678,
+            Input0Offset = 0x11223344,
+            Input1Offset = 0x55667788,
+        };
+        using var stream = new MemoryStream();
+        node.Write(new DataWriter(stream));
+        byte[] bytes = stream.ToArray();
+
+        Assert.Equal(20, bytes.Length);
+        Assert.Equal(0x11223344, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(12)));
+        Assert.Equal(0x55667788, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(16)));
+
+        stream.Position = 0;
+        var loaded = new MrfNodeBlend();
+        loaded.Read(new DataReader(stream));
+        Assert.Equal(0x11223344, loaded.Input0Offset);
+        Assert.Equal(0x55667788, loaded.Input1Offset);
+    }
+
+    [Fact]
+    public void MovementWeightedPairDataMatchesNativeDefinition()
+    {
+        var node = new MrfNodeBlend
+        {
+            WeightType = MrfValueType.Literal,
+            Weight = 0.25f,
+            FilterType = MrfValueType.Literal,
+            FilterDictionaryName = 0x10203040,
+            FilterName = 0x50607080,
+            Transitional = true,
+            Source0Immutable = true,
+            Source1Immutable = true,
+            Source0InfluenceOverride = MrfInfluenceOverride.Zero,
+            Source1InfluenceOverride = MrfInfluenceOverride.One,
+            SynchronizerType = MrfSynchronizerType.Tag,
+            SynchronizerTag = MrfSynchronizerTagFlags.LeftFootHeel,
+            MergeBlend = true,
+        };
+        using var stream = new MemoryStream();
+        node.Write(new DataWriter(stream));
+        byte[] bytes = stream.ToArray();
+        uint expectedFlags = 1u | (1u << 2) | (1u << 6) | (1u << 7) | (1u << 8)
+            | (1u << 12) | (2u << 14) | (1u << 19) | (1u << 31);
+
+        Assert.Equal(36, bytes.Length);
+        Assert.Equal(expectedFlags, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(8)));
+        Assert.Equal((uint)MrfSynchronizerTagFlags.LeftFootHeel, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(20)));
+        Assert.Equal(0.25f, BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(24)));
+        Assert.Equal(0x10203040u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(28)));
+        Assert.Equal(0x50607080u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(32)));
+
+        stream.Position = 0;
+        var loaded = new MrfNodeBlend();
+        loaded.Read(new DataReader(stream));
+        Assert.True(loaded.Transitional);
+        Assert.True(loaded.Source0Immutable);
+        Assert.True(loaded.Source1Immutable);
+        Assert.Equal(MrfInfluenceOverride.Zero, loaded.Source0InfluenceOverride);
+        Assert.Equal(MrfInfluenceOverride.One, loaded.Source1InfluenceOverride);
+        Assert.Equal(MrfSynchronizerTagFlags.LeftFootHeel, loaded.SynchronizerTag);
+        Assert.Equal(0.25f, loaded.Weight);
+        Assert.Equal((MetaHash)0x10203040, loaded.FilterDictionaryName);
+        Assert.Equal((MetaHash)0x50607080, loaded.FilterName);
+
+        using var invalidStream = new MemoryStream();
+        var invalid = new MrfNodeBlend { WeightType = (MrfValueType)3 };
+        Assert.Throws<InvalidDataException>(() => invalid.Write(new DataWriter(invalidStream)));
+    }
+
+    [Fact]
+    public void MovementStateNodeHeaderMatchesNativeDefinition()
+    {
+        var node = new MrfNodeStateMachine
+        {
+            Index = 2,
+            ID = 0x12345678,
+            InitialOffset = 0x11223344,
+            DeferBlockUpdate = 1,
+            OnEnterEnabled = true,
+            OnEnterID = 0x90ABCDEF,
+            OnExitID = 0x10203040,
+            TransitionsOffset = 0x55667788,
+        };
+        using var stream = new MemoryStream();
+        node.Write(new DataWriter(stream));
+        byte[] bytes = stream.ToArray();
+
+        Assert.Equal(32, bytes.Length);
+        Assert.Equal(0x11223344, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(8)));
+        Assert.Equal(1u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(12)));
+        Assert.Equal(new byte[] { 1, 0, 0, 0 }, bytes[16..20]);
+        Assert.Equal(0x90ABCDEFu, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(20)));
+        Assert.Equal(0x10203040u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(24)));
+        Assert.Equal(0x55667788, BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(28)));
+
+        stream.Position = 0;
+        var loaded = new MrfNodeStateMachine();
+        loaded.Read(new DataReader(stream));
+        Assert.Equal(1u, loaded.DeferBlockUpdate);
+        Assert.True(loaded.OnEnterEnabled);
+        Assert.False(loaded.OnExitEnabled);
+        Assert.Equal((MetaHash)0x90ABCDEF, loaded.OnEnterID);
+        Assert.Equal((MetaHash)0x10203040, loaded.OnExitID);
+    }
+
+    [Fact]
+    public void MovementTransitionMatchesNativeFlagsAndPayload()
+    {
+        var transition = new MrfStateTransition
+        {
+            SynchronizerType = MrfSynchronizerType.Tag,
+            SynchronizerTag = MrfSynchronizerTagFlags.RightFootHeel,
+            Duration = 0.5f,
+            DurationFromParameter = true,
+            DurationParameterName = 0x10203040,
+            HasTransitionWeightParameter = true,
+            TransitionWeightParameterName = 0x50607080,
+            TargetStateOffset = 0x11223344,
+            BlockUpdateAfterTransition = true,
+            Transitional = true,
+            Immutable = true,
+            Modifier = MrfWeightModifierType.SlowIn,
+            ReEvaluate = true,
+            HasFilter = true,
+            FilterDictionaryName = 0x90ABCDEF,
+            FilterName = 0x12345678,
+            MergeBlend = true,
+            Conditions = [new MrfConditionTimeGreaterThan { Set = 1, Value = 2.0f }],
+        };
+        using var stream = new MemoryStream();
+        transition.Write(new DataWriter(stream));
+        byte[] bytes = stream.ToArray();
+
+        uint expectedFlags = (1u << 1) | (1u << 2) | (1u << 3) | (40u << 4)
+            | (1u << 18) | (1u << 19) | (1u << 20) | (2u << 24)
+            | (1u << 27) | (1u << 28) | (1u << 30) | (1u << 31);
+        Assert.Equal(40, bytes.Length);
+        Assert.Equal(expectedFlags, BinaryPrimitives.ReadUInt32LittleEndian(bytes));
+
+        stream.Position = 0;
+        var loaded = new MrfStateTransition(new DataReader(stream));
+        Assert.True(loaded.ReEvaluate);
+        Assert.True(loaded.MergeBlend);
+        Assert.Equal((ushort)1, loaded.Conditions[0].Set);
+        Assert.Equal((MetaHash)0x50607080, loaded.TransitionWeightParameterName);
+        Assert.Equal((MetaHash)0x90ABCDEF, loaded.FilterDictionaryName);
+    }
+
+    [Fact]
+    public void MovementPushValueOperatorReadsItsPacket()
+    {
+        using var stream = new MemoryStream();
+        var writer = new DataWriter(stream);
+        writer.Write((uint)MrfOperatorType.PushValue);
+        writer.Write(3.25f);
+        stream.Position = 0;
+
+        var op = new MrfStateOperatorPushValue(new DataReader(stream));
+        Assert.Equal(3.25f, op.Value);
+    }
+
+    [Fact]
+    public void MovementClipContextsAndPackedBoolsMatchNativeWriter()
+    {
+        Assert.Equal(1u, (uint)MrfClipContainerType.ClipDictionary);
+        Assert.Equal(2u, (uint)MrfClipContainerType.AbsoluteClipSet);
+        Assert.Equal(3u, (uint)MrfClipContainerType.LocalFile);
+
+        var clip = new MrfNodeClip
+        {
+            ClipType = MrfValueType.Literal,
+            ClipContainerType = MrfClipContainerType.LocalFile,
+            ClipName = 0x12345678,
+        };
+        using var clipStream = new MemoryStream();
+        clip.Write(new DataWriter(clipStream));
+        Assert.Equal(20, clipStream.Length);
+        Assert.Equal(0x12345678u, BinaryPrimitives.ReadUInt32LittleEndian(clipStream.ToArray().AsSpan(16)));
+
+        var frame = new MrfNodeFrame { OwnerType = MrfValueType.Literal, Owner = true };
+        using var frameStream = new MemoryStream();
+        frame.Write(new DataWriter(frameStream));
+        Assert.Equal(0x01000000u, BinaryPrimitives.ReadUInt32LittleEndian(frameStream.ToArray().AsSpan(12)));
+    }
+
+    [Fact]
+    public void MovementInlinedStateMachineSerializesTransitions()
+    {
+        var node = new MrfNodeInlinedStateMachine
+        {
+            FallbackNodeOffset = 4,
+            TransitionsOffset = 8,
+            Transitions = [new MrfStateTransition { Duration = 0.25f, TargetStateOffset = 4 }],
+        };
+        using var stream = new MemoryStream();
+        node.Write(new DataWriter(stream));
+        Assert.Equal(60, stream.Length);
+
+        stream.Position = 0;
+        var loaded = new MrfNodeInlinedStateMachine();
+        loaded.Read(new DataReader(stream));
+        Assert.Single(loaded.Transitions);
+        Assert.Equal(0.25f, loaded.Transitions[0].Duration);
     }
 
     private sealed class PartialReadStream(byte[] bytes) : MemoryStream(bytes)

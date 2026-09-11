@@ -11,22 +11,24 @@ namespace CodeWalker.GameFiles
 {
     [TC(typeof(EXP))] public class MrfFile : GameFile, PackedFile
     {
-        public byte[] RawFileData { get; set; } = [];
-        public uint Magic { get; set; } = 0x45566F4D; // 'MoVE'
-        public uint Version { get; set; } = 2;
-        public uint HeaderUnk1 { get; set; } = 0;
-        public uint HeaderUnk2 { get; set; } = 0;
-        public uint HeaderUnk3 { get; set; } = 0;
-        public uint DataLength { get; set; } // doesn't include the header (Magic to Unk1_Items) nor UnkBytes
-        public uint UnkBytesCount { get; set; }
-        public uint Unk1_Count { get; set; }
-        public uint MoveNetworkTriggerCount { get; set; }
-        public uint MoveNetworkFlagCount { get; set; }
+        public const uint ExpectedMagic = 0x45566F4D; // 'MoVE'
 
-        public MrfHeaderUnk1[] Unk1_Items { get; set; } = [];
-        public MrfMoveNetworkBit[] MoveNetworkTriggers { get; set; } = [];
-        public MrfMoveNetworkBit[] MoveNetworkFlags { get; set; } = [];
-        public byte[] UnkBytes { get; set; } = [];
+        public byte[] RawFileData { get; set; } = [];
+        public uint Magic { get; set; } = ExpectedMagic;
+        public int VersionMajor { get; set; } = 2;
+        public int VersionMinor { get; set; }
+        public int VersionPatch { get; set; }
+        public int VersionRevision { get; set; }
+        public int DefinitionLength { get; set; }
+        public int StringTableLength { get; set; }
+        public int ExternalReferenceCount { get; set; }
+        public uint RequestCount { get; set; }
+        public uint FlagCount { get; set; }
+
+        public MrfExternalReference[] ExternalReferences { get; set; } = [];
+        public MrfMoveNetworkBit[] Requests { get; set; } = [];
+        public MrfMoveNetworkBit[] Flags { get; set; } = [];
+        public byte[] StringTable { get; set; } = [];
 
         public MrfNode[] AllNodes { get; set; } = [];
         public MrfNodeStateBase? RootState { get; set; }
@@ -67,54 +69,68 @@ namespace CodeWalker.GameFiles
             DataWriter w = new(s);
             NoOpDataWriter nw = new();
 
+            ExternalReferences ??= [];
+            Requests ??= [];
+            Flags ??= [];
+            StringTable ??= [];
+            foreach (var reference in ExternalReferences)
+            {
+                reference.Length = checked((uint)reference.Data.Length);
+            }
+            ExternalReferenceCount = ExternalReferences.Length;
+            RequestCount = checked((uint)Requests.Length);
+            FlagCount = checked((uint)Flags.Length);
+            StringTableLength = StringTable.Length;
+
             Write(nw, updateOffsets: true); // first pass to calculate relative offsets
-            DataLength = (uint)(nw.Length - 32 - (Unk1_Items?.Sum(i => i.Size) ?? 0) - UnkBytesCount);
+            var externalReferencesLength = ExternalReferences.Sum(reference => 4L + reference.Length);
+            DefinitionLength = checked((int)(nw.Length - 32 - externalReferencesLength - StringTableLength));
             Write(w, updateOffsets: false); // now write the MRF
 
             var buf = new byte[s.Length];
             s.Position = 0;
             s.Read(buf, 0, buf.Length);
+            RawFileData = buf;
             return buf;
         }
 
         private void Write(DataWriter w, bool updateOffsets)
         {
-            if (Magic != 0x45566F4D || Version != 2 || HeaderUnk1 != 0 || HeaderUnk2 != 0)
-                throw new Exception("Failed to write MRF, header is invalid!");
+            if (Magic != ExpectedMagic || VersionMajor != 2 || VersionMinor != 0 || VersionRevision != 0)
+                throw new InvalidOperationException("Failed to write MRF: incompatible MoVE header.");
 
             w.Write(Magic);
-            w.Write(Version);
-            w.Write(HeaderUnk1);
-            w.Write(HeaderUnk2);
-            w.Write(HeaderUnk3);
-            w.Write(DataLength);
-            w.Write(UnkBytesCount);
+            w.Write(VersionMajor);
+            w.Write(VersionMinor);
+            w.Write(VersionPatch);
+            w.Write(VersionRevision);
+            w.Write(DefinitionLength);
+            w.Write(StringTableLength);
 
-            // Unused in final game
-            w.Write(Unk1_Count);
-            if (Unk1_Count > 0)
+            w.Write(ExternalReferenceCount);
+            if (ExternalReferenceCount > 0)
             {
-                foreach (var entry in Unk1_Items)
+                foreach (var entry in ExternalReferences)
                 {
-                    w.Write(entry.Size);
-                    w.Write(entry.Bytes);
+                    w.Write(entry.Length);
+                    w.Write(entry.Data);
                 }
             }
 
-            w.Write(MoveNetworkTriggerCount);
-            if (MoveNetworkTriggerCount > 0)
+            w.Write(RequestCount);
+            if (RequestCount > 0)
             {
-                foreach (var entry in MoveNetworkTriggers)
+                foreach (var entry in Requests)
                 {
                     w.Write(entry.Name);
                     w.Write(entry.BitPosition);
                 }
             }
 
-            w.Write(MoveNetworkFlagCount);
-            if (MoveNetworkFlagCount > 0)
+            w.Write(FlagCount);
+            if (FlagCount > 0)
             {
-                foreach (var entry in MoveNetworkFlags)
+                foreach (var entry in Flags)
                 {
                     w.Write(entry.Name);
                     w.Write(entry.BitPosition);
@@ -139,60 +155,59 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            for (int i = 0; i < UnkBytesCount; i++)
-                w.Write(UnkBytes[i]);
+            w.Write(StringTable);
         }
 
         private void Read(DataReader r)
         {
             Magic = r.ReadUInt32(); // Should be 'MoVE'
-            Version = r.ReadUInt32(); // GTA5 = 2, RDR3 = 11
-            HeaderUnk1 = r.ReadUInt32(); // Should be 0
-            HeaderUnk2 = r.ReadUInt32();
-            HeaderUnk3 = r.ReadUInt32(); // Should be 0
-            DataLength = r.ReadUInt32();
-            UnkBytesCount = r.ReadUInt32();
+            VersionMajor = r.ReadInt32();
+            VersionMinor = r.ReadInt32();
+            VersionPatch = r.ReadInt32();
+            VersionRevision = r.ReadInt32();
+            DefinitionLength = r.ReadInt32();
+            StringTableLength = r.ReadInt32();
 
-            if (Magic != 0x45566F4D || Version != 2 || HeaderUnk1 != 0 || HeaderUnk2 != 0)
-                throw new Exception("Failed to read MRF, header is invalid!");
+            if (Magic != ExpectedMagic || VersionMajor != 2 || VersionMinor != 0 || VersionRevision != 0)
+                throw new InvalidDataException("Failed to read MRF: incompatible MoVE header.");
+            if (DefinitionLength < 8 || StringTableLength < 0)
+                throw new InvalidDataException("Failed to read MRF: invalid data length.");
 
-            // Unused in final game
-            Unk1_Count = r.ReadUInt32();
-            if (Unk1_Count > 0)
-            {
-                Unk1_Items = new MrfHeaderUnk1[Unk1_Count];
+            ExternalReferenceCount = r.ReadInt32();
+            if (ExternalReferenceCount < 0 || ExternalReferenceCount > (r.Length - r.Position) / 4)
+                throw new InvalidDataException("Failed to read MRF: invalid external-reference count.");
+            ExternalReferences = new MrfExternalReference[ExternalReferenceCount];
+            for (int i = 0; i < ExternalReferenceCount; i++)
+                ExternalReferences[i] = new MrfExternalReference(r);
 
-                for (int i = 0; i < Unk1_Count; i++)
-                    Unk1_Items[i] = new MrfHeaderUnk1(r);
-            }
+            var definitionStart = r.Position;
+            var definitionEnd = checked(definitionStart + DefinitionLength);
+            if (definitionEnd > r.Length - StringTableLength)
+                throw new InvalidDataException("Failed to read MRF: definition extends beyond the file.");
 
-            MoveNetworkTriggerCount = r.ReadUInt32();
-            if (MoveNetworkTriggerCount > 0)
-            {
-                MoveNetworkTriggers = new MrfMoveNetworkBit[MoveNetworkTriggerCount];
+            RequestCount = r.ReadUInt32();
+            if (RequestCount > (definitionEnd - r.Position) / 8)
+                throw new InvalidDataException("Failed to read MRF: invalid request count.");
+            Requests = new MrfMoveNetworkBit[RequestCount];
+            for (int i = 0; i < RequestCount; i++)
+                Requests[i] = new MrfMoveNetworkBit(r);
 
-                for (int i = 0; i < MoveNetworkTriggerCount; i++)
-                    MoveNetworkTriggers[i] = new MrfMoveNetworkBit(r);
-            }
-
-            MoveNetworkFlagCount = r.ReadUInt32();
-            if (MoveNetworkFlagCount > 0)
-            {
-                MoveNetworkFlags = new MrfMoveNetworkBit[MoveNetworkFlagCount];
-
-                for (int i = 0; i < MoveNetworkFlagCount; i++)
-                    MoveNetworkFlags[i] = new MrfMoveNetworkBit(r);
-            }
+            FlagCount = r.ReadUInt32();
+            if (FlagCount > (definitionEnd - r.Position) / 8)
+                throw new InvalidDataException("Failed to read MRF: invalid flag count.");
+            Flags = new MrfMoveNetworkBit[FlagCount];
+            for (int i = 0; i < FlagCount; i++)
+                Flags[i] = new MrfMoveNetworkBit(r);
 
             var nodes = new List<MrfNode>();
 
-            while (true)
+            while (r.Position < definitionEnd)
             {
                 var index = nodes.Count;
 
                 var node = ReadNode(r);
-                
-                if (node == null) break;
+                if (node == null || r.Position > definitionEnd)
+                    throw new InvalidDataException("Failed to read MRF: invalid node data.");
 
                 node.FileIndex = index;
                 nodes.Add(node);
@@ -200,13 +215,7 @@ namespace CodeWalker.GameFiles
 
             AllNodes = nodes.ToArray();
 
-            if (UnkBytesCount != 0)
-            {
-                UnkBytes = new byte[UnkBytesCount];
-
-                for (int i = 0; i < UnkBytesCount; i++)
-                    UnkBytes[i] = r.ReadByte();
-            }
+            StringTable = r.ReadBytes(StringTableLength);
 
             RootState = AllNodes.Length > 0 ? (MrfNodeStateBase)AllNodes[0] : null; // the first node is always a state or state machine node (not inlined state machine)
             ResolveRelativeOffsets();
@@ -214,11 +223,8 @@ namespace CodeWalker.GameFiles
             DebugTreeGraph = DumpTreeGraph();
             DebugStateGraph = DumpStateGraph();
 
-            if (r.Length != (DataLength + 32 + (Unk1_Items?.Sum(i => i.Size) ?? 0) + UnkBytesCount))
-            { } // no hits
-
             if (r.Position != r.Length)
-                throw new Exception($"Failed to read MRF ({r.Position} / {r.Length})");
+                throw new InvalidDataException($"Failed to read MRF ({r.Position} / {r.Length}).");
         }
 
         private MrfNode? ReadNode(DataReader r)
@@ -315,25 +321,25 @@ namespace CodeWalker.GameFiles
 
         public void WriteXml(StringBuilder sb, int indent)
         {
-            MrfXml.WriteItemArray(sb, MoveNetworkTriggers.Where(t => !t.IsEndMarker).ToArray(), indent, "MoveNetworkTriggers");
-            MrfXml.WriteItemArray(sb, MoveNetworkFlags.Where(t => !t.IsEndMarker).ToArray(), indent, "MoveNetworkFlags");
+            MrfXml.WriteItemArray(sb, Requests.Where(t => !t.IsEndMarker).ToArray(), indent, "MoveNetworkTriggers");
+            MrfXml.WriteItemArray(sb, Flags.Where(t => !t.IsEndMarker).ToArray(), indent, "MoveNetworkFlags");
             MrfXml.WriteNode(sb, indent, "RootState", RootState);
-            MrfXml.WriteItemArray(sb, Unk1_Items, indent, "Unk1");
-            MrfXml.WriteRawArray(sb, UnkBytes, indent, "UnkBytes", "", MrfXml.FormatHexByte, 16);
+            MrfXml.WriteItemArray(sb, ExternalReferences, indent, "Unk1");
+            MrfXml.WriteRawArray(sb, StringTable, indent, "UnkBytes", "", MrfXml.FormatHexByte, 16);
         }
         public void ReadXml(XmlNode node)
         {
             var triggers = XmlMeta.ReadItemArray<MrfMoveNetworkBit>(node, "MoveNetworkTriggers");
             var flags = XmlMeta.ReadItemArray<MrfMoveNetworkBit>(node, "MoveNetworkFlags");
-            MoveNetworkTriggers = SortMoveNetworkBitsArray(triggers);
-            MoveNetworkFlags = SortMoveNetworkBitsArray(flags);
+            Requests = SortMoveNetworkBitsArray(triggers);
+            Flags = SortMoveNetworkBitsArray(flags);
             RootState = (MrfNodeStateBase?)XmlMrf.ReadChildNode(node, "RootState");
-            Unk1_Items = XmlMeta.ReadItemArrayNullable<MrfHeaderUnk1>(node, "Unk1") ?? [];
-            UnkBytes = Xml.GetChildRawByteArrayNullable(node, "UnkBytes") ?? [];
-            MoveNetworkTriggerCount = (uint)(MoveNetworkTriggers.Length);
-            MoveNetworkFlagCount = (uint)(MoveNetworkFlags.Length);
-            Unk1_Count = (uint)(Unk1_Items?.Length ?? 0);
-            UnkBytesCount = (uint)(UnkBytes?.Length ?? 0);
+            ExternalReferences = XmlMeta.ReadItemArrayNullable<MrfExternalReference>(node, "Unk1") ?? [];
+            StringTable = Xml.GetChildRawByteArrayNullable(node, "UnkBytes") ?? [];
+            RequestCount = (uint)Requests.Length;
+            FlagCount = (uint)Flags.Length;
+            ExternalReferenceCount = ExternalReferences.Length;
+            StringTableLength = StringTable.Length;
 
             AllNodes = BuildNodesArray(RootState);
 
@@ -351,7 +357,7 @@ namespace CodeWalker.GameFiles
                 {
                     if (t.TargetState != null) continue;
 
-                    t.TargetState = stateNodes.FirstOrDefault(n => n.Name == t.XmlTargetStateName);
+                    t.TargetState = stateNodes.FirstOrDefault(n => n.ID == t.XmlTargetStateName);
                 }
             }
             
@@ -386,7 +392,7 @@ namespace CodeWalker.GameFiles
 
                 if (children != null)
                 {
-                    foreach (var c in children.OrderBy(s => s is MrfNodeTail ? ushort.MaxValue : s.NodeIndex)) // NodeTail is placed after other nodes, their NodeIndex is ignored
+                    foreach (var c in children.OrderBy(s => s is MrfNodeTail ? ushort.MaxValue : s.Index)) // NodeTail is placed after other nodes, their index is ignored
                     {
                         AddRecursive(c);
                     }
@@ -406,11 +412,11 @@ namespace CodeWalker.GameFiles
 
         public MrfMoveNetworkBit? FindMoveNetworkTriggerForBit(int bitPosition)
         {
-            return FindMoveNetworkBitByBitPosition(MoveNetworkTriggers, bitPosition);
+            return FindMoveNetworkBitByBitPosition(Requests, bitPosition);
         }
         public MrfMoveNetworkBit? FindMoveNetworkFlagForBit(int bitPosition)
         {
-            return FindMoveNetworkBitByBitPosition(MoveNetworkFlags, bitPosition);
+            return FindMoveNetworkBitByBitPosition(Flags, bitPosition);
         }
         public static MrfMoveNetworkBit? FindMoveNetworkBitByBitPosition(MrfMoveNetworkBit[]? bits, int bitPosition)
         {
@@ -427,18 +433,18 @@ namespace CodeWalker.GameFiles
             return null;
         }
 
-        // MoveNetworkTriggers and MoveNetworkFlags getters by name for reference of how the arrays should be sorted in buckets
+        // Request and flag getters by name for reference of how the arrays should be sorted in buckets
         public MrfMoveNetworkBit? FindMoveNetworkTriggerByName(MetaHash name)
         {
-            return FindMoveNetworkBitByName(MoveNetworkTriggers, name);
+            return FindMoveNetworkBitByName(Requests, name);
         }
         public MrfMoveNetworkBit? FindMoveNetworkFlagByName(MetaHash name)
         {
-            return FindMoveNetworkBitByName(MoveNetworkFlags, name);
+            return FindMoveNetworkBitByName(Flags, name);
         }
         public static MrfMoveNetworkBit? FindMoveNetworkBitByName(MrfMoveNetworkBit[]? bits, MetaHash name)
         {
-            if (bits == null)
+            if (bits is not { Length: > 0 })
             {
                 return null;
             }
@@ -455,7 +461,7 @@ namespace CodeWalker.GameFiles
 
         public static MrfMoveNetworkBit[] SortMoveNetworkBitsArray(MrfMoveNetworkBit[]? bits)
         {
-            if (bits == null)
+            if (bits is not { Length: > 0 })
             {
                 return [];
             }
@@ -509,7 +515,7 @@ namespace CodeWalker.GameFiles
                 foreach (var n in AllNodes)
                 {
                     var id = n.FileOffset;
-                    var label = $"{n.NodeType} '{n.Name}'";
+                    var label = $"{n.Type} '{n.ID}'";
                     w.WriteLine("    n{0} [label=\"{1}\"];", id, label);
                 }
                 w.WriteLine();
@@ -534,13 +540,13 @@ namespace CodeWalker.GameFiles
 
                     if (n is MrfNodeWithChildBase f)
                     {
-                        if (f.Child != null) w.WriteLine("    n{1} -> n{0} [color = black, xlabel=\"child\"]", n.FileOffset, f.Child.FileOffset);
+                        if (f.Input != null) w.WriteLine("    n{1} -> n{0} [color = black, xlabel=\"input\"]", n.FileOffset, f.Input.FileOffset);
                     }
 
                     if (n is MrfNodePairBase p)
                     {
-                        if (p.Child0 != null) w.WriteLine("    n{1} -> n{0} [color = black, xlabel=\"#0\"]", n.FileOffset, p.Child0.FileOffset);
-                        if (p.Child1 != null) w.WriteLine("    n{1} -> n{0} [color = black, xlabel=\"#1\"]", n.FileOffset, p.Child1.FileOffset);
+                        if (p.Input0 != null) w.WriteLine("    n{1} -> n{0} [color = black, xlabel=\"#0\"]", n.FileOffset, p.Input0.FileOffset);
+                        if (p.Input1 != null) w.WriteLine("    n{1} -> n{0} [color = black, xlabel=\"#1\"]", n.FileOffset, p.Input1.FileOffset);
                     }
 
                     if (n is MrfNodeNBase nn && nn.Children != null)
@@ -608,7 +614,7 @@ namespace CodeWalker.GameFiles
         {
             // header
             w.WriteLine($@"subgraph ""clusterS{sm.FileOffset}"" {{");
-            w.WriteLine($@"    label=""State Machine '{sm.Name}'""");
+            w.WriteLine($@"    label=""State Machine '{sm.ID}'""");
             w.WriteLine($@"    labelloc=""t""");
             w.WriteLine($@"    concentrate=true");
             w.WriteLine($@"    rankdir=""RL""");
@@ -642,7 +648,7 @@ namespace CodeWalker.GameFiles
         {
             // header
             w.WriteLine($@"subgraph ""clusterS{sm.FileOffset}"" {{");
-            w.WriteLine($@"    label=""Inlined State Machine '{sm.Name}'""");
+            w.WriteLine($@"    label=""Inlined State Machine '{sm.ID}'""");
             w.WriteLine($@"    labelloc=""t""");
             w.WriteLine($@"    concentrate=true");
             w.WriteLine($@"    rankdir=""RL""");
@@ -708,7 +714,7 @@ namespace CodeWalker.GameFiles
 
             // header
             w.WriteLine($@"subgraph clusterS{state.FileOffset} {{");
-            w.WriteLine($@"    label=""State '{state.Name}'""");
+            w.WriteLine($@"    label=""State '{state.ID}'""");
             w.WriteLine($@"    labelloc=""t""");
             w.WriteLine($@"    concentrate=true");
             w.WriteLine($@"    rankdir=""LR""");
@@ -733,7 +739,7 @@ namespace CodeWalker.GameFiles
                 return;
             }
 
-            var label = $"{n.NodeType} '{n.Name}'";
+            var label = $"{n.Type} '{n.ID}'";
             if (n is MrfNodeSubNetwork sub)
             {
                 label += $"\\n'{sub.SubNetworkParameterName}'";
@@ -756,16 +762,16 @@ namespace CodeWalker.GameFiles
 
             if (n is MrfNodeWithChildBase f)
             {
-                DumpNode(f.Child, w, visitedNodes);
-                writeConnection(f.Child, "");
+                DumpNode(f.Input, w, visitedNodes);
+                writeConnection(f.Input, "");
             }
 
             if (n is MrfNodePairBase p)
             {
-                DumpNode(p.Child0, w, visitedNodes);
-                DumpNode(p.Child1, w, visitedNodes);
-                writeConnection(p.Child0, "#0");
-                writeConnection(p.Child1, "#1");
+                DumpNode(p.Input0, w, visitedNodes);
+                DumpNode(p.Input1, w, visitedNodes);
+                writeConnection(p.Input0, "#0");
+                writeConnection(p.Input1, "#1");
             }
 
             if (n is MrfNodeNBase nn && nn.Children != null)
@@ -859,12 +865,12 @@ namespace CodeWalker.GameFiles
         // none
 
         // Animation
-        Animation_Animation = 0, // rage::crAnimation (only setter)
-        Animation_Unk1 = 1, // float
-        Animation_Unk2 = 2, // float
-        Animation_Unk3 = 3, // float
-        Animation_Unk4 = 4, // bool
-        Animation_Unk5 = 5, // bool
+        Animation_Animation = 0, // rage::crAnimation
+        Animation_Phase = 1,     // float
+        Animation_Rate = 2,      // float
+        Animation_Delta = 3,     // float
+        Animation_Looped = 4,    // bool
+        Animation_Absolute = 5,  // bool
 
         // Blend
         Blend_Filter = 0, // rage::crFrameFilter
@@ -882,14 +888,16 @@ namespace CodeWalker.GameFiles
 
         // Frame
         Frame_Frame = 0, // rage::crFrame
+        Frame_Owner = 1, // exporter-only parameter
 
         // Ik
         // none
 
         // BlendN
-        BlendN_Filter = 1,      // rage::crFrameFilter
-        BlendN_ChildWeight = 2, // float (extra arg is the child index)
-        BlendN_ChildFilter = 3, // rage::crFrameFilter (extra arg is the child index)
+        BlendN_FilterN = 0,      // rage::crFrameFilterN (no direct getter/setter)
+        BlendN_Filter = 1,       // rage::crFrameFilter
+        BlendN_Weight = 2,       // float (extra arg is the child index)
+        BlendN_InputFilter = 3,  // rage::crFrameFilter (extra arg is the child index)
 
         // Clip
         Clip_Clip = 0,   // rage::crClip
@@ -897,19 +905,26 @@ namespace CodeWalker.GameFiles
         Clip_Rate = 2,   // float
         Clip_Delta = 3,  // float
         Clip_Looped = 4, // bool
+        Clip_Property = 5, // float (getter only; extra arg is the property name)
 
         // Pm
-        Pm_Motion = 0, // rage::crpmMotion
-        Pm_Unk1 = 1, // float
-        Pm_Unk2 = 2, // float
-        Pm_Unk3 = 3, // float
-        Pm_Unk4 = 4, // float
+        Pm_ParameterizedMotion = 0, // rage::crpmMotion
+        Pm_Phase = 1,               // float
+        Pm_Delta = 2,               // float
+        Pm_Rate = 3,                // float
+        Pm_ParameterValue = 4,      // float (extra arg is the parameter index)
 
         // Extrapolate
-        Extrapolate_Damping = 0, // float
+        // The exporter defines all six IDs; the runtime getter table only exposes a mismatched subset.
+        Extrapolate_Damping = 0,       // float
+        Extrapolate_LastFrame = 1,     // rage::crFrame
+        Extrapolate_OwnLastFrame = 2,  // bool
+        Extrapolate_DeltaFrame = 3,    // rage::crFrame
+        Extrapolate_OwnDeltaFrame = 4, // bool
+        Extrapolate_DeltaTime = 5,     // float
 
         // Expression
-        Expression_Expression = 0, // rage::crExpressions
+        Expression_Expressions = 0, // rage::crExpressions
         Expression_Weight = 1,     // float
         Expression_Variable = 2,   // float (extra arg is the variable name)
 
@@ -920,9 +935,10 @@ namespace CodeWalker.GameFiles
         Proxy_Node = 0, // rage::crmtNode (the type resolver returns rage::crmtObserver but the getter/setter expect a rage::crmtNode, R* bug?)
 
         // AddN
-        AddN_Filter = 1,      // rage::crFrameFilter
-        AddN_ChildWeight = 2, // float (extra arg is the child index)
-        AddN_ChildFilter = 3, // rage::crFrameFilter (extra arg is the child index)
+        AddN_FilterN = 0,      // rage::crFrameFilterN (no direct getter/setter)
+        AddN_Filter = 1,       // rage::crFrameFilter
+        AddN_Weight = 2,       // float (extra arg is the child index)
+        AddN_InputFilter = 3,  // rage::crFrameFilter (extra arg is the child index)
 
         // Identity
         // none
@@ -934,9 +950,10 @@ namespace CodeWalker.GameFiles
         Pose_IsNormalized = 0, // bool (getter hardcoded to true, setter does nothing)
 
         // MergeN
-        MergeN_Filter = 1,      // rage::crFrameFilter
-        MergeN_ChildWeight = 2, // float (extra arg is the child index)
-        MergeN_ChildFilter = 3, // rage::crFrameFilter (extra arg is the child index)
+        MergeN_FilterN = 0,      // rage::crFrameFilterN (no direct getter/setter)
+        MergeN_Filter = 1,       // rage::crFrameFilter
+        MergeN_Weight = 2,       // float (extra arg is the child index)
+        MergeN_InputFilter = 3,  // rage::crFrameFilter (extra arg is the child index)
 
         // State
         // none
@@ -966,8 +983,8 @@ namespace CodeWalker.GameFiles
         // none
 
         // Animation
-        Animation_Unk0 = 0,
-        Animation_Unk1 = 1,
+        Animation_AnimationLooped = 0,
+        Animation_AnimationEnded = 1,
 
         // Blend
         // none
@@ -991,15 +1008,15 @@ namespace CodeWalker.GameFiles
         // none
 
         // Clip
-        Clip_IterationFinished = 0, // triggered when a looped clip iteration finishes playing
-        Clip_Finished = 1,          // triggered when a non-looped clip finishes playing
-        Clip_Unk2 = 2,
-        Clip_Unk3 = 3,
-        Clip_Unk4 = 4,
+        Clip_ClipLooped = 0,
+        Clip_ClipEnded = 1,
+        Clip_ClipTagEnter = 2,
+        Clip_ClipTagExit = 3,
+        Clip_ClipTagUpdate = 4,
 
         // Pm
-        Pm_Unk0 = 0,
-        Pm_Unk1 = 1,
+        Pm_PmLooped = 0,
+        Pm_PmEnded = 1,
 
         // Extrapolate
         // none
@@ -1047,49 +1064,48 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public abstract class MrfNode : IMetaXmlItem
     {
-        public MrfNodeType NodeType { get; set; }
-        public ushort NodeIndex { get; set; } //index in the parent state node
-        public MetaHash Name { get; set; }
+        public MrfNodeType Type { get; set; }
+        public ushort Index { get; set; } // index in the parent state's children array
+        public MetaHash ID { get; set; } // unique ID generated from the node name
 
         public int FileIndex { get; set; } //index in the file
         public int FileOffset { get; set; } //offset in the file
         public int FileDataSize { get; set; } //number of bytes read from the file (this node only)
 
-        public MrfNode(MrfNodeType type)
+        protected MrfNode(MrfNodeType type)
         {
-            NodeType = type;
+            Type = type;
         }
 
         public virtual void Read(DataReader r)
         {
-            NodeType = (MrfNodeType)r.ReadUInt16();
-            NodeIndex = r.ReadUInt16();
-            Name = r.ReadUInt32();
+            Type = (MrfNodeType)r.ReadUInt16();
+            Index = r.ReadUInt16();
+            ID = r.ReadUInt32();
         }
 
         public virtual void Write(DataWriter w)
         {
-            w.Write((ushort)NodeType);
-            w.Write(NodeIndex);
-            w.Write(Name);
+            w.Write((ushort)Type);
+            w.Write(Index);
+            w.Write(ID);
         }
 
         public virtual void ReadXml(XmlNode node)
         {
-            Name = XmlMeta.GetHash(Xml.GetChildInnerText(node, "Name"));
-            NodeIndex = (ushort)Xml.GetChildUIntAttribute(node, "NodeIndex");
+            ID = XmlMeta.GetHash(Xml.GetChildInnerText(node, "Name"));
+            Index = (ushort)Xml.GetChildUIntAttribute(node, "NodeIndex");
         }
 
         public virtual void WriteXml(StringBuilder sb, int indent)
         {
-            MrfXml.StringTag(sb, indent, "Name", MrfXml.HashString(Name));
-            MrfXml.ValueTag(sb, indent, "NodeIndex", NodeIndex.ToString());
+            MrfXml.StringTag(sb, indent, "Name", MrfXml.HashString(ID));
+            MrfXml.ValueTag(sb, indent, "NodeIndex", Index.ToString());
         }
 
         public override string ToString()
         {
-            return /* FileIndex.ToString() + ":" + FileOffset.ToString() + "+" + FileDataSize.ToString() + ": " +  */
-                NodeType.ToString() + " - " + NodeIndex.ToString() + " - " + Name.ToString();
+            return Type + " - " + Index + " - " + ID;
         }
 
         public virtual void ResolveRelativeOffsets(MrfFile mrf)
@@ -1105,7 +1121,7 @@ namespace CodeWalker.GameFiles
     {
         public uint Flags { get; set; }
 
-        public MrfNodeWithFlagsBase(MrfNodeType type) : base(type) { }
+        protected MrfNodeWithFlagsBase(MrfNodeType type) : base(type) { }
 
         public override void Read(DataReader r)
         {
@@ -1119,12 +1135,12 @@ namespace CodeWalker.GameFiles
             w.Write(Flags);
         }
 
-        public uint GetFlagsSubset(int bitOffset, uint mask)
+        protected uint GetFlagsSubset(int bitOffset, uint mask)
         {
             return (Flags >> bitOffset) & mask;
         }
 
-        public void SetFlagsSubset(int bitOffset, uint mask, uint value)
+        protected void SetFlagsSubset(int bitOffset, uint mask, uint value)
         {
             Flags = (Flags & ~(mask << bitOffset)) | ((value & mask) << bitOffset);
         }
@@ -1137,35 +1153,35 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public abstract class MrfNodeStateBase : MrfNode
     {
-        public int InitialNodeOffset { get; set; } // offset from the start of this field
-        public int InitialNodeFileOffset { get; set; }
-        public uint StateUnk3 { get; set; }
-        public bool HasEntryParameter { get; set; }
-        public bool HasExitParameter { get; set; }
-        public byte StateChildCount { get; set; } // for Node(Inlined)StateMachine the number of states, for NodeState the number of children excluding NodeTails
+        public int InitialOffset { get; set; } // offset from the start of this field
+        public int InitialFileOffset { get; set; }
+        public uint DeferBlockUpdate { get; set; } // logical boolean stored as u32 for alignment
+        public bool OnEnterEnabled { get; set; }
+        public bool OnExitEnabled { get; set; }
+        public byte ChildCount { get; set; } // states for state machines; non-tail children for states
         public byte TransitionCount { get; set; }
-        public MetaHash EntryParameterName { get; set; } // bool parameter set to true when the network enters this node
-        public MetaHash ExitParameterName { get; set; } // bool parameter set to true when the network leaves this node
+        public MetaHash OnEnterID { get; set; } // inserted as true when the network enters this node
+        public MetaHash OnExitID { get; set; } // inserted as true when the network leaves this node
         public int TransitionsOffset { get; set; } // offset from the start of this field
         public int TransitionsFileOffset { get; set; }
 
         public MrfNode? InitialNode { get; set; } // for Node(Inlined)StateMachine this is a NodeStateBase, for NodeState it can be any node
         public MrfStateTransition[] Transitions { get; set; } = [];
 
-        public MrfNodeStateBase(MrfNodeType type) : base(type) { }
+        protected MrfNodeStateBase(MrfNodeType type) : base(type) { }
 
         public override void Read(DataReader r)
         {
             base.Read(r);
-            InitialNodeOffset = r.ReadInt32();
-            InitialNodeFileOffset = (int)(r.Position + InitialNodeOffset - 4);
-            StateUnk3 = r.ReadUInt32();
-            HasEntryParameter = r.ReadByte() != 0;
-            HasExitParameter = r.ReadByte() != 0;
-            StateChildCount = r.ReadByte();
+            InitialOffset = r.ReadInt32();
+            InitialFileOffset = (int)(r.Position + InitialOffset - 4);
+            DeferBlockUpdate = r.ReadUInt32();
+            OnEnterEnabled = r.ReadByte() != 0;
+            OnExitEnabled = r.ReadByte() != 0;
+            ChildCount = r.ReadByte();
             TransitionCount = r.ReadByte();
-            EntryParameterName = r.ReadUInt32();
-            ExitParameterName = r.ReadUInt32();
+            OnEnterID = r.ReadUInt32();
+            OnExitID = r.ReadUInt32();
             TransitionsOffset = r.ReadInt32();
             TransitionsFileOffset = (int)(r.Position + TransitionsOffset - 4);
         }
@@ -1173,45 +1189,47 @@ namespace CodeWalker.GameFiles
         public override void Write(DataWriter w)
         {
             base.Write(w);
-            w.Write(InitialNodeOffset);
-            w.Write(StateUnk3);
-            w.Write((byte)(HasEntryParameter ? 1 : 0));
-            w.Write((byte)(HasExitParameter ? 1 : 0));
-            w.Write(StateChildCount);
+            w.Write(InitialOffset);
+            w.Write(DeferBlockUpdate);
+            w.Write((byte)(OnEnterEnabled ? 1 : 0));
+            w.Write((byte)(OnExitEnabled ? 1 : 0));
+            w.Write(ChildCount);
             w.Write(TransitionCount);
-            w.Write(EntryParameterName);
-            w.Write(ExitParameterName);
+            w.Write(OnEnterID);
+            w.Write(OnExitID);
             w.Write(TransitionsOffset);
         }
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            StateUnk3 = Xml.GetChildUIntAttribute(node, "StateUnk3");
-            EntryParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "EntryParameterName"));
-            ExitParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "ExitParameterName"));
-            HasEntryParameter = EntryParameterName != 0;
-            HasExitParameter = ExitParameterName != 0;
+            DeferBlockUpdate = Xml.GetChildUIntAttribute(node, "DeferBlockUpdate");
+            if (node.SelectSingleNode("DeferBlockUpdate") == null)
+                DeferBlockUpdate = Xml.GetChildUIntAttribute(node, "StateUnk3");
+            OnEnterID = XmlMeta.GetHash(Xml.GetChildInnerText(node, "EntryParameterName"));
+            OnExitID = XmlMeta.GetHash(Xml.GetChildInnerText(node, "ExitParameterName"));
+            OnEnterEnabled = OnEnterID != 0;
+            OnExitEnabled = OnExitID != 0;
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
             base.WriteXml(sb, indent);
-            MrfXml.ValueTag(sb, indent, "StateUnk3", StateUnk3.ToString());
-            if (HasEntryParameter) MrfXml.StringTag(sb, indent, "EntryParameterName", MrfXml.HashString(EntryParameterName));
-            if (HasExitParameter) MrfXml.StringTag(sb, indent, "ExitParameterName", MrfXml.HashString(ExitParameterName));
+            MrfXml.ValueTag(sb, indent, "DeferBlockUpdate", DeferBlockUpdate.ToString());
+            if (OnEnterEnabled) MrfXml.StringTag(sb, indent, "EntryParameterName", MrfXml.HashString(OnEnterID));
+            if (OnExitEnabled) MrfXml.StringTag(sb, indent, "ExitParameterName", MrfXml.HashString(OnExitID));
         }
 
         public override void ResolveRelativeOffsets(MrfFile mrf)
         {
             base.ResolveRelativeOffsets(mrf);
 
-            var initNode = mrf.FindNodeAtFileOffset(InitialNodeFileOffset);
+            var initNode = mrf.FindNodeAtFileOffset(InitialFileOffset);
             if (initNode == null)
-            { } // no hits
+                throw new InvalidDataException($"Movement initial node at file offset {InitialFileOffset} could not be resolved.");
 
             if ((this is MrfNodeStateMachine || this is MrfNodeInlinedStateMachine) && !(initNode is MrfNodeStateBase))
-            { } // no hits, state machines initial node is always a MrfNodeStateBase
+                throw new InvalidDataException("Movement state-machine initial nodes must also be state nodes.");
 
             InitialNode = initNode;
         }
@@ -1220,8 +1238,8 @@ namespace CodeWalker.GameFiles
         {
             base.UpdateRelativeOffsets();
 
-            InitialNodeFileOffset = (InitialNode ?? throw new InvalidDataException("A movement node reference is unresolved.")).FileOffset;
-            InitialNodeOffset = InitialNodeFileOffset - (FileOffset + 0x8);
+            InitialFileOffset = (InitialNode ?? throw new InvalidDataException("A movement node reference is unresolved.")).FileOffset;
+            InitialOffset = InitialFileOffset - (FileOffset + 0x8);
         }
 
         protected void ResolveNodeOffsetsInTransitions(MrfStateTransition[]? transitions, MrfFile mrf)
@@ -1235,10 +1253,10 @@ namespace CodeWalker.GameFiles
             {
                 var node = mrf.FindNodeAtFileOffset(t.TargetStateFileOffset);
                 if (node == null)
-                { } // no hits
+                    throw new InvalidDataException($"Movement transition target at file offset {t.TargetStateFileOffset} could not be resolved.");
 
                 if (!(node is MrfNodeStateBase))
-                { } // no hits
+                    throw new InvalidDataException("Movement transition targets must be state nodes.");
 
                 t.TargetState = (MrfNodeStateBase?)node;
             }
@@ -1255,10 +1273,10 @@ namespace CodeWalker.GameFiles
             {
                 var node = mrf.FindNodeAtFileOffset(s.StateFileOffset);
                 if (node == null)
-                { } // no hits
+                    throw new InvalidDataException($"Movement state at file offset {s.StateFileOffset} could not be resolved.");
 
                 if (!(node is MrfNodeStateBase))
-                { } // no hits
+                    throw new InvalidDataException("Movement state references must target state nodes.");
 
                 s.State = (MrfNodeStateBase?)node;
             }
@@ -1275,8 +1293,8 @@ namespace CodeWalker.GameFiles
                 {
                     transition.TargetStateFileOffset = (transition.TargetState ?? throw new InvalidDataException("A movement node reference is unresolved.")).FileOffset;
                     transition.TargetStateOffset = transition.TargetStateFileOffset - (offset + 0x14);
-                    transition.CalculateDataSize();
-                    offset += (int)transition.DataSize;
+                    transition.CalculateSize();
+                    offset += (int)transition.Size;
                 }
             }
             else if (offsetSetToZeroIfNoTransitions)
@@ -1327,92 +1345,88 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return base.ToString() + " - " + Name.ToString()
-                + " - Init:" + InitialNodeOffset.ToString()
-                + " - CC:" + StateChildCount.ToString()
+            return base.ToString()
+                + " - Init:" + InitialOffset.ToString()
+                + " - CC:" + ChildCount.ToString()
                 + " - TC:" + TransitionCount.ToString()
-                + " - " + StateUnk3.ToString()
-                + " - OnEntry(" + HasEntryParameter.ToString() + "):" + EntryParameterName.ToString()
-                + " - OnExit(" + HasExitParameter.ToString() + "):" + ExitParameterName.ToString()
+                + " - DeferBlockUpdate:" + DeferBlockUpdate.ToString()
+                + " - OnEnter(" + OnEnterEnabled.ToString() + "):" + OnEnterID.ToString()
+                + " - OnExit(" + OnExitEnabled.ToString() + "):" + OnExitID.ToString()
                 + " - TO:" + TransitionsOffset.ToString();
         }
     }
 
     [TC(typeof(EXP))] public abstract class MrfNodePairBase : MrfNodeWithFlagsBase
     {
-        public int Child0Offset { get; set; }
-        public int Child0FileOffset { get; set; }
-        public int Child1Offset { get; set; }
-        public int Child1FileOffset { get; set; }
+        // rage::mvNodePairDef stores these as m_Inputs[2]. mvNodeMergeDef uses the same serialized prefix.
+        public int Input0Offset { get; set; }
+        public int Input0FileOffset { get; set; }
+        public int Input1Offset { get; set; }
+        public int Input1FileOffset { get; set; }
 
-        public MrfNode? Child0 { get; set; }
-        public MrfNode? Child1 { get; set; }
+        public MrfNode? Input0 { get; set; }
+        public MrfNode? Input1 { get; set; }
 
-        public MrfNodePairBase(MrfNodeType type) : base(type) { }
+        protected MrfNodePairBase(MrfNodeType type) : base(type) { }
 
         public override void Read(DataReader r)
         {
             base.Read(r);
 
-            Child0Offset = r.ReadInt32();
-            Child0FileOffset = (int)(r.Position + Child0Offset - 4);
-            Child1Offset = r.ReadInt32();
-            Child1FileOffset = (int)(r.Position + Child1Offset - 4);
+            Input0Offset = r.ReadInt32();
+            Input0FileOffset = checked((int)(r.Position + Input0Offset - 4));
+            Input1Offset = r.ReadInt32();
+            Input1FileOffset = checked((int)(r.Position + Input1Offset - 4));
         }
 
         public override void Write(DataWriter w)
         {
             base.Write(w);
 
-            w.Write(Child0Offset);
-            w.Write(Child1Offset);
+            w.Write(Input0Offset);
+            w.Write(Input1Offset);
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
             base.WriteXml(sb, indent);
-            MrfXml.WriteNode(sb, indent, "Child0", Child0);
-            MrfXml.WriteNode(sb, indent, "Child1", Child1);
+            MrfXml.WriteNode(sb, indent, "Child0", Input0);
+            MrfXml.WriteNode(sb, indent, "Child1", Input1);
         }
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            Child0 = XmlMrf.ReadChildNode(node, "Child0");
-            Child1 = XmlMrf.ReadChildNode(node, "Child1");
+            Input0 = XmlMrf.ReadChildNode(node, "Child0");
+            Input1 = XmlMrf.ReadChildNode(node, "Child1");
         }
 
         public override void ResolveRelativeOffsets(MrfFile mrf)
         {
             base.ResolveRelativeOffsets(mrf);
 
-            var child0 = mrf.FindNodeAtFileOffset(Child0FileOffset);
-            if (child0 == null)
-            { } // no hits
+            var input0 = mrf.FindNodeAtFileOffset(Input0FileOffset);
+            var input1 = mrf.FindNodeAtFileOffset(Input1FileOffset);
 
-            var child1 = mrf.FindNodeAtFileOffset(Child1FileOffset);
-            if (child1 == null)
-            { } // no hits
-
-            Child0 = child0;
-            Child1 = child1;
+            Input0 = input0;
+            Input1 = input1;
         }
 
         public override void UpdateRelativeOffsets()
         {
             base.UpdateRelativeOffsets();
 
-            Child0FileOffset = (Child0 ?? throw new InvalidDataException("A movement node reference is unresolved.")).FileOffset;
-            Child0Offset = Child0FileOffset - (FileOffset + 0xC + 0);
-            Child1FileOffset = (Child1 ?? throw new InvalidDataException("A movement node reference is unresolved.")).FileOffset;
-            Child1Offset = Child1FileOffset - (FileOffset + 0xC + 4);
+            Input0FileOffset = (Input0 ?? throw new InvalidDataException("Movement node input 0 is unresolved.")).FileOffset;
+            Input0Offset = Input0FileOffset - (FileOffset + 0xC);
+            Input1FileOffset = (Input1 ?? throw new InvalidDataException("Movement node input 1 is unresolved.")).FileOffset;
+            Input1Offset = Input1FileOffset - (FileOffset + 0x10);
         }
     }
 
     public enum MrfSynchronizerType
     {
         Phase = 0, // attaches a rage::mvSynchronizerPhase instance to the node
-        Tag = 1,   // attaches a rage::mvSynchronizerTag instance to the node, sets the SynchronizerTagFlags field too
+        Tag = 1,   // attaches a rage::mvSynchronizerTag instance and serializes its tag bit field
         None = 2,
     }
 
@@ -1438,42 +1452,45 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public abstract class MrfNodePairWeightedBase : MrfNodePairBase
     {
-        // rage::mvNodePairDef
-
-        public MrfSynchronizerTagFlags SynchronizerTagFlags { get; set; }
+        // Optional data serialized after the fixed rage::mvNodePairDef header.
+        public MrfSynchronizerTagFlags SynchronizerTag { get; set; }
         public float Weight { get; set; }
         public MetaHash WeightParameterName { get; set; }
-        public MetaHash FrameFilterDictionaryName { get; set; }
-        public MetaHash FrameFilterName { get; set; }
-        public MetaHash FrameFilterParameterName { get; set; }
+        public MetaHash FilterDictionaryName { get; set; }
+        public MetaHash FilterName { get; set; }
+        public MetaHash FilterParameterName { get; set; }
 
-        // flags getters and setters
         public MrfValueType WeightType
         {
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
         }
-        public MrfValueType FrameFilterType
+        public MrfValueType FilterType
         {
             get => (MrfValueType)GetFlagsSubset(2, 3);
             set => SetFlagsSubset(2, 3, (uint)value);
         }
-        public bool UnkFlag6 // Transitional? RDR3's rage::mvNodePairDef::GetTransitionalFlagFrom(uint) reads these bits
-        {                    // always 0
+        public bool Transitional
+        {
             get => GetFlagsSubset(6, 1) != 0;
             set => SetFlagsSubset(6, 1, value ? 1 : 0u);
         }
-        public uint UnkFlag7 // Immutable? RDR3's rage::mvNodePairDef::GetImmutableFlagFrom(uint) reads these bits
-        {                    // 0 or 1
-            get => GetFlagsSubset(7, 3);
-            set => SetFlagsSubset(7, 3, value);
+        public bool Source0Immutable
+        {
+            get => GetFlagsSubset(7, 1) != 0;
+            set => SetFlagsSubset(7, 1, value ? 1u : 0u);
         }
-        public MrfInfluenceOverride Child0InfluenceOverride
+        public bool Source1Immutable
+        {
+            get => GetFlagsSubset(8, 1) != 0;
+            set => SetFlagsSubset(8, 1, value ? 1u : 0u);
+        }
+        public MrfInfluenceOverride Source0InfluenceOverride
         {
             get => (MrfInfluenceOverride)GetFlagsSubset(12, 3);
             set => SetFlagsSubset(12, 3, (uint)value);
         }
-        public MrfInfluenceOverride Child1InfluenceOverride
+        public MrfInfluenceOverride Source1InfluenceOverride
         {
             get => (MrfInfluenceOverride)GetFlagsSubset(14, 3);
             set => SetFlagsSubset(14, 3, (uint)value);
@@ -1483,35 +1500,21 @@ namespace CodeWalker.GameFiles
             get => (MrfSynchronizerType)GetFlagsSubset(19, 3);
             set => SetFlagsSubset(19, 3, (uint)value);
         }
-        public uint UnkFlag21 // OutputParameterRuleSet? RDR3's rage::mvNodePairDef::GetOutputParameterRuleSetFrom(uint) reads these bits
-        {                     // always 0
-            get => GetFlagsSubset(21, 3);
-            set => SetFlagsSubset(21, 3, value);
-        }
-        public uint UnkFlag23 // FirstFrameSyncOnly? RDR3's rage::mvNodePairDef::GetFirstFrameSyncOnlyFrom(uint) reads these bits
-        {                     // always 0
-            get => GetFlagsSubset(23, 3);
-            set => SetFlagsSubset(23, 3, value);
-        }
-        public bool UnkFlag25 // SortTargets? RDR3's rage::mvNodePairDef::GetSortTargetsFrom(uint) reads these bits
-        {                     // always 0
-            get => GetFlagsSubset(25, 1) != 0;
-            set => SetFlagsSubset(25, 1, value ? 1 : 0u);
-        }
         public bool MergeBlend
         {
             get => GetFlagsSubset(31, 1) != 0;
             set => SetFlagsSubset(31, 1, value ? 1 : 0u);
         }
 
-        public MrfNodePairWeightedBase(MrfNodeType type) : base(type) { }
+        protected MrfNodePairWeightedBase(MrfNodeType type) : base(type) { }
 
         public override void Read(DataReader r)
         {
             base.Read(r);
+            ValidateFlags();
 
             if (SynchronizerType == MrfSynchronizerType.Tag)
-                SynchronizerTagFlags = (MrfSynchronizerTagFlags)r.ReadUInt32();
+                SynchronizerTag = (MrfSynchronizerTagFlags)r.ReadUInt32();
 
             switch (WeightType)
             {
@@ -1523,24 +1526,25 @@ namespace CodeWalker.GameFiles
                     break;
             }
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    FrameFilterDictionaryName = r.ReadUInt32();
-                    FrameFilterName = r.ReadUInt32();
+                    FilterDictionaryName = r.ReadUInt32();
+                    FilterName = r.ReadUInt32();
                     break;
                 case MrfValueType.Parameter:
-                    FrameFilterParameterName = r.ReadUInt32();
+                    FilterParameterName = r.ReadUInt32();
                     break;
             }
         }
 
         public override void Write(DataWriter w)
         {
+            ValidateFlags();
             base.Write(w);
 
             if (SynchronizerType == MrfSynchronizerType.Tag)
-                w.Write((uint)SynchronizerTagFlags);
+                w.Write((uint)SynchronizerTag);
 
             switch (WeightType)
             {
@@ -1552,14 +1556,14 @@ namespace CodeWalker.GameFiles
                     break;
             }
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    w.Write(FrameFilterDictionaryName);
-                    w.Write(FrameFilterName);
+                    w.Write(FilterDictionaryName);
+                    w.Write(FilterName);
                     break;
                 case MrfValueType.Parameter:
-                    w.Write(FrameFilterParameterName);
+                    w.Write(FilterParameterName);
                     break;
             }
         }
@@ -1568,144 +1572,148 @@ namespace CodeWalker.GameFiles
         {
             base.ReadXml(node);
 
-            Child0InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child0InfluenceOverride");
-            Child1InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child1InfluenceOverride");
+            Source0InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child0InfluenceOverride");
+            Source1InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child1InfluenceOverride");
             (WeightType, Weight, WeightParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Weight");
-            (FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName) =  XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
+            (FilterType, FilterDictionaryName, FilterName, FilterParameterName) = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
             SynchronizerType = Xml.GetChildEnumInnerText<MrfSynchronizerType>(node, "SynchronizerType");
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                SynchronizerTagFlags = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
+                SynchronizerTag = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
             }
             MergeBlend = Xml.GetChildBoolAttribute(node, "MergeBlend");
-            UnkFlag6 = Xml.GetChildBoolAttribute(node, "UnkFlag6");
-            UnkFlag7 = Xml.GetChildUIntAttribute(node, "UnkFlag7");
-            UnkFlag21 = Xml.GetChildUIntAttribute(node, "UnkFlag21");
-            UnkFlag23 = Xml.GetChildUIntAttribute(node, "UnkFlag23");
-            UnkFlag25 = Xml.GetChildBoolAttribute(node, "UnkFlag25");
+            Transitional = Xml.GetChildBoolAttribute(node, "Transitional") || Xml.GetChildBoolAttribute(node, "UnkFlag6");
+            var legacyImmutable = Xml.GetChildUIntAttribute(node, "UnkFlag7");
+            Source0Immutable = Xml.GetChildBoolAttribute(node, "Source0Immutable") || (legacyImmutable & 1) != 0;
+            Source1Immutable = Xml.GetChildBoolAttribute(node, "Source1Immutable") || (legacyImmutable & 2) != 0;
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
             base.WriteXml(sb, indent);
 
-            MrfXml.StringTag(sb, indent, "Child0InfluenceOverride", Child0InfluenceOverride.ToString());
-            MrfXml.StringTag(sb, indent, "Child1InfluenceOverride", Child1InfluenceOverride.ToString());
+            MrfXml.StringTag(sb, indent, "Child0InfluenceOverride", Source0InfluenceOverride.ToString());
+            MrfXml.StringTag(sb, indent, "Child1InfluenceOverride", Source1InfluenceOverride.ToString());
             MrfXml.ParameterizedFloatTag(sb, indent, "Weight", WeightType, Weight, WeightParameterName);
-            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName);
+            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FilterType, FilterDictionaryName, FilterName, FilterParameterName);
             MrfXml.StringTag(sb, indent, "SynchronizerType", SynchronizerType.ToString());
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                MrfXml.StringTag(sb, indent, "SynchronizerTagFlags", SynchronizerTagFlags.ToString());
+                MrfXml.StringTag(sb, indent, "SynchronizerTagFlags", SynchronizerTag.ToString());
             }
             MrfXml.ValueTag(sb, indent, "MergeBlend", MergeBlend.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag6", UnkFlag6.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag7", UnkFlag7.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag21", UnkFlag21.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag23", UnkFlag23.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag25", UnkFlag25.ToString());
+            MrfXml.ValueTag(sb, indent, "Transitional", Transitional.ToString());
+            MrfXml.ValueTag(sb, indent, "Source0Immutable", Source0Immutable.ToString());
+            MrfXml.ValueTag(sb, indent, "Source1Immutable", Source1Immutable.ToString());
+        }
+
+        private void ValidateFlags()
+        {
+            if (WeightType > MrfValueType.Parameter || FilterType > MrfValueType.Parameter || SynchronizerType > MrfSynchronizerType.None)
+                throw new InvalidDataException("Movement pair node flags contain an invalid value type or synchronizer.");
         }
     }
 
     [TC(typeof(EXP))] public abstract class MrfNodeWithChildBase : MrfNodeWithFlagsBase
     {
-        public int ChildOffset { get; set; }
-        public int ChildFileOffset { get; set; }
+        public int InputOffset { get; set; }
+        public int InputFileOffset { get; set; }
 
-        public MrfNode? Child { get; set; }
+        public MrfNode? Input { get; set; }
 
-        public MrfNodeWithChildBase(MrfNodeType type) : base(type) { }
+        protected MrfNodeWithChildBase(MrfNodeType type) : base(type) { }
 
         public override void Read(DataReader r)
         {
             base.Read(r);
 
-            ChildOffset = r.ReadInt32();
-            ChildFileOffset = (int)(r.Position + ChildOffset - 4);
+            InputOffset = r.ReadInt32();
+            InputFileOffset = checked((int)(r.Position + InputOffset - 4));
         }
 
         public override void Write(DataWriter w)
         {
             base.Write(w);
 
-            w.Write(ChildOffset);
+            w.Write(InputOffset);
         }
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            Child = XmlMrf.ReadChildNode(node, "Child");
+            Input = XmlMrf.ReadChildNode(node, "Child");
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
             base.WriteXml(sb, indent);
-            MrfXml.WriteNode(sb, indent, "Child", Child);
+            MrfXml.WriteNode(sb, indent, "Child", Input);
         }
 
         public override void ResolveRelativeOffsets(MrfFile mrf)
         {
             base.ResolveRelativeOffsets(mrf);
 
-            var node = mrf.FindNodeAtFileOffset(ChildFileOffset);
+            var node = mrf.FindNodeAtFileOffset(InputFileOffset);
             if (node == null)
-            { } // no hits
+                throw new InvalidDataException($"Movement child node at file offset {InputFileOffset} could not be resolved.");
 
-            Child = node;
+            Input = node;
         }
 
         public override void UpdateRelativeOffsets()
         {
             base.UpdateRelativeOffsets();
 
-            ChildFileOffset = (Child ?? throw new InvalidDataException("A movement node reference is unresolved.")).FileOffset;
-            ChildOffset = ChildFileOffset - (FileOffset + 0xC);
+            InputFileOffset = (Input ?? throw new InvalidDataException("A movement node input is unresolved.")).FileOffset;
+            InputOffset = InputFileOffset - (FileOffset + 0xC);
         }
     }
 
     [TC(typeof(EXP))] public abstract class MrfNodeWithChildAndFilterBase : MrfNodeWithChildBase
     {
-        public MetaHash FrameFilterDictionaryName { get; set; }
-        public MetaHash FrameFilterName { get; set; }
-        public MetaHash FrameFilterParameterName { get; set; }
+        public MetaHash FilterDictionaryName { get; set; }
+        public MetaHash FilterName { get; set; }
+        public MetaHash FilterParameterName { get; set; }
 
-        // flags getters and setters
-        public MrfValueType FrameFilterType
+        public MrfValueType FilterType
         {
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
         }
 
-        public MrfNodeWithChildAndFilterBase(MrfNodeType type) : base(type) { }
+        protected MrfNodeWithChildAndFilterBase(MrfNodeType type) : base(type) { }
 
         public override void Read(DataReader r)
         {
             base.Read(r);
+            ValidateFilterType();
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    FrameFilterDictionaryName = r.ReadUInt32();
-                    FrameFilterName = r.ReadUInt32();
+                    FilterDictionaryName = r.ReadUInt32();
+                    FilterName = r.ReadUInt32();
                     break;
                 case MrfValueType.Parameter:
-                    FrameFilterParameterName = r.ReadUInt32();
+                    FilterParameterName = r.ReadUInt32();
                     break;
             }
         }
 
         public override void Write(DataWriter w)
         {
+            ValidateFilterType();
             base.Write(w);
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    w.Write(FrameFilterDictionaryName);
-                    w.Write(FrameFilterName);
+                    w.Write(FilterDictionaryName);
+                    w.Write(FilterName);
                     break;
                 case MrfValueType.Parameter:
-                    w.Write(FrameFilterParameterName);
+                    w.Write(FilterParameterName);
                     break;
             }
         }
@@ -1713,75 +1721,92 @@ namespace CodeWalker.GameFiles
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            (FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName) = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
+            (FilterType, FilterDictionaryName, FilterName, FilterParameterName) = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
             base.WriteXml(sb, indent);
-            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName);
+            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FilterType, FilterDictionaryName, FilterName, FilterParameterName);
+        }
+
+        private void ValidateFilterType()
+        {
+            if (FilterType > MrfValueType.Parameter)
+                throw new InvalidDataException("Movement node flags contain an invalid filter type.");
         }
     }
 
     [TC(typeof(EXP))] public abstract class MrfNodeNBase : MrfNodeWithFlagsBase
     {
-        // rage::mvNodeNDef
-
-        public MrfSynchronizerTagFlags SynchronizerTagFlags { get; set; }
-        public byte[] Unk2 { get; set; } = []; // unused
-        public MetaHash Unk2ParameterName { get; set; } // unused
-        public MetaHash FrameFilterDictionaryName { get; set; }
-        public MetaHash FrameFilterName { get; set; }
-        public MetaHash FrameFilterParameterName { get; set; }
-        public int[] ChildrenOffsets { get; set; } = [];
-        public int[] ChildrenFileOffsets { get; set; } = [];
+        public MrfSynchronizerTagFlags SynchronizerTag { get; set; }
+        public float[] FilterNValues { get; set; } = [];
+        public MetaHash FilterNParameterName { get; set; }
+        public MetaHash FilterDictionaryName { get; set; }
+        public MetaHash FilterName { get; set; }
+        public MetaHash FilterParameterName { get; set; }
+        public int[] InputOffsets { get; set; } = [];
+        public int[] InputFileOffsets { get; set; } = [];
         public MrfNodeNChildData[] ChildrenData { get; set; } = [];
-        public uint[] ChildrenFlags { get; set; } = []; // 8 bits per child
+        public uint[] InputFlags { get; set; } = []; // four 8-bit source flag sets per word
 
         public MrfNode[] Children { get; set; } = [];
 
-        // flags getters and setters
-        public MrfValueType Unk2Type
+        public MrfValueType FilterNType
         {
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
         }
-        public MrfValueType FrameFilterType
+        public MrfValueType FilterType
         {
             get => (MrfValueType)GetFlagsSubset(2, 3);
             set => SetFlagsSubset(2, 3, (uint)value);
         }
-        public bool ZeroDestination // name is correct based on RDR3 symbols but not sure about its use
-        {                           // only difference I found is when true the weight of child #0 returns 1.0 instead of the weight in ChildrenData
+        public bool ZeroDestination
+        {
             get => GetFlagsSubset(4, 1) != 0;
             set => SetFlagsSubset(4, 1, value ? 1 : 0u);
+        }
+        public bool Transitional
+        {
+            get => GetFlagsSubset(6, 1) != 0;
+            set => SetFlagsSubset(6, 1, value ? 1u : 0u);
         }
         public MrfSynchronizerType SynchronizerType
         {
             get => (MrfSynchronizerType)GetFlagsSubset(19, 3);
             set => SetFlagsSubset(19, 3, (uint)value);
         }
-        public uint ChildrenCount
+        public uint SourceCount
         {
             get => GetFlagsSubset(26, 0x3F);
             set => SetFlagsSubset(26, 0x3F, value);
         }
         
-        // ChildrenFlags getters and setters
         public byte GetChildFlags(int index)
         {
             int blockIndex = 8 * index / 32;
             int bitOffset = 8 * index % 32;
-            uint block = ChildrenFlags[blockIndex];
+            uint block = InputFlags[blockIndex];
             return (byte)((block >> bitOffset) & 0xFF);
         }
         public void SetChildFlags(int index, byte flags)
         {
             int blockIndex = 8 * index / 32;
             int bitOffset = 8 * index % 32;
-            uint block = ChildrenFlags[blockIndex];
+            uint block = InputFlags[blockIndex];
             block = (block & ~(0xFFu << bitOffset)) | ((uint)flags << bitOffset);
-            ChildrenFlags[blockIndex] = block;
+            InputFlags[blockIndex] = block;
+        }
+        public bool GetChildImmutable(int index)
+        {
+            if ((uint)index >= 8) return false;
+            return GetFlagsSubset(index + 7, 1) != 0;
+        }
+        public void SetChildImmutable(int index, bool value)
+        {
+            if ((uint)index >= 8) throw new ArgumentOutOfRangeException(nameof(index));
+            SetFlagsSubset(index + 7, 1, value ? 1u : 0u);
         }
         public MrfValueType GetChildWeightType(int index)
         {
@@ -1793,71 +1818,74 @@ namespace CodeWalker.GameFiles
             flags = (byte)(flags & ~3u | ((uint)type & 3u));
             SetChildFlags(index, flags);
         }
-        public MrfValueType GetChildFrameFilterType(int index)
+        public MrfValueType GetChildFilterType(int index)
         {
             return (MrfValueType)((GetChildFlags(index) >> 4) & 3);
         }
-        public void SetChildFrameFilterType(int index, MrfValueType type)
+        public void SetChildFilterType(int index, MrfValueType type)
         {
             var flags = GetChildFlags(index);
             flags = (byte)(flags & ~(3u << 4) | (((uint)type & 3u) << 4));
             SetChildFlags(index, flags);
         }
 
-        public MrfNodeNBase(MrfNodeType type) : base(type) { }
+        protected MrfNodeNBase(MrfNodeType type) : base(type) { }
 
         public override void Read(DataReader r)
         {
             base.Read(r);
+            ValidateFlags();
 
             if (SynchronizerType == MrfSynchronizerType.Tag)
-                SynchronizerTagFlags = (MrfSynchronizerTagFlags)r.ReadUInt32();
+                SynchronizerTag = (MrfSynchronizerTagFlags)r.ReadUInt32();
 
-            switch (Unk2Type)
+            switch (FilterNType)
             {
                 case MrfValueType.Literal:
-                    Unk2 = r.ReadBytes(76); // Unused?
+                    FilterNValues = new float[19];
+                    for (int i = 0; i < FilterNValues.Length; i++)
+                        FilterNValues[i] = r.ReadSingle();
                     break;
                 case MrfValueType.Parameter:
-                    Unk2ParameterName = r.ReadUInt32();
+                    FilterNParameterName = r.ReadUInt32();
                     break;
             }
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    FrameFilterDictionaryName = r.ReadUInt32();
-                    FrameFilterName = r.ReadUInt32();
+                    FilterDictionaryName = r.ReadUInt32();
+                    FilterName = r.ReadUInt32();
                     break;
                 case MrfValueType.Parameter:
-                    FrameFilterParameterName = r.ReadUInt32();
+                    FilterParameterName = r.ReadUInt32();
                     break;
             }
 
-            var childrenCount = ChildrenCount;
+            var childrenCount = SourceCount;
             if (childrenCount > 0)
             {
-                ChildrenOffsets = new int[childrenCount];
-                ChildrenFileOffsets = new int[childrenCount];
+                InputOffsets = new int[childrenCount];
+                InputFileOffsets = new int[childrenCount];
 
                 for (int i = 0; i < childrenCount; i++)
                 {
-                    ChildrenOffsets[i] = r.ReadInt32();
-                    ChildrenFileOffsets[i] = (int)(r.Position + ChildrenOffsets[i] - 4);
+                    InputOffsets[i] = r.ReadInt32();
+                    InputFileOffsets[i] = checked((int)(r.Position + InputOffsets[i] - 4));
                 }
             }
 
-            var childrenFlagsBlockCount = childrenCount * 8 / 32 + 1;
+            var inputFlagsWordCount = GetInputFlagsWordCount(childrenCount);
 
-            if (childrenFlagsBlockCount > 0)
+            if (inputFlagsWordCount > 0)
             {
-                ChildrenFlags = new uint[childrenFlagsBlockCount];
+                InputFlags = new uint[inputFlagsWordCount];
 
-                for (int i = 0; i < childrenFlagsBlockCount; i++)
-                    ChildrenFlags[i] = r.ReadUInt32();
+                for (int i = 0; i < inputFlagsWordCount; i++)
+                    InputFlags[i] = r.ReadUInt32();
             }
 
-            if (ChildrenCount == 0)
+            if (SourceCount == 0)
                 return;
 
             ChildrenData = new MrfNodeNChildData[childrenCount];
@@ -1865,6 +1893,8 @@ namespace CodeWalker.GameFiles
             for (int i = 0; i < childrenCount; i++)
             {
                 var item = new MrfNodeNChildData();
+                if (GetChildWeightType(i) > MrfValueType.Parameter || GetChildFilterType(i) > MrfValueType.Parameter)
+                    throw new InvalidDataException($"Movement N-way child {i} contains an invalid value type.");
 
                 switch (GetChildWeightType(i))
                 {
@@ -1876,14 +1906,14 @@ namespace CodeWalker.GameFiles
                         break;
                 }
 
-                switch (GetChildFrameFilterType(i))
+                switch (GetChildFilterType(i))
                 {
                     case MrfValueType.Literal:
-                        item.FrameFilterDictionaryName = r.ReadUInt32();
-                        item.FrameFilterName = r.ReadUInt32();
+                        item.FilterDictionaryName = r.ReadUInt32();
+                        item.FilterName = r.ReadUInt32();
                         break;
                     case MrfValueType.Parameter:
-                        item.FrameFilterParameterName = r.ReadUInt32();
+                        item.FilterParameterName = r.ReadUInt32();
                         break;
                 }
 
@@ -1893,46 +1923,45 @@ namespace CodeWalker.GameFiles
 
         public override void Write(DataWriter w)
         {
+            PrepareForWrite();
+            ValidateFlags();
             base.Write(w);
 
             if (SynchronizerType == MrfSynchronizerType.Tag)
-                w.Write((uint)SynchronizerTagFlags);
+                w.Write((uint)SynchronizerTag);
 
-            switch (Unk2Type)
+            switch (FilterNType)
             {
                 case MrfValueType.Literal:
-                    w.Write(Unk2);
+                    if (FilterNValues.Length != 19)
+                        throw new InvalidDataException("A literal movement FilterN must contain 19 values.");
+                    foreach (var value in FilterNValues)
+                        w.Write(value);
                     break;
                 case MrfValueType.Parameter:
-                    w.Write(Unk2ParameterName);
+                    w.Write(FilterNParameterName);
                     break;
             }
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    w.Write(FrameFilterDictionaryName);
-                    w.Write(FrameFilterName);
+                    w.Write(FilterDictionaryName);
+                    w.Write(FilterName);
                     break;
                 case MrfValueType.Parameter:
-                    w.Write(FrameFilterParameterName);
+                    w.Write(FilterParameterName);
                     break;
             }
 
-            var childrenCount = ChildrenCount;
-            if (childrenCount > 0)
-            {
-                foreach (var value in ChildrenOffsets)
-                    w.Write(value);
-            }
+            var childrenCount = SourceCount;
+            for (int i = 0; i < childrenCount; i++)
+                w.Write(InputOffsets[i]);
 
-            var childrenFlagsBlockCount = childrenCount * 8 / 32 + 1;
+            var inputFlagsWordCount = GetInputFlagsWordCount(childrenCount);
 
-            if (childrenFlagsBlockCount > 0)
-            {
-                foreach (var value in ChildrenFlags)
-                    w.Write(value);
-            }
+            for (int i = 0; i < inputFlagsWordCount; i++)
+                w.Write(InputFlags[i]);
 
             if (childrenCount == 0)
                 return;
@@ -1951,14 +1980,14 @@ namespace CodeWalker.GameFiles
                         break;
                 }
 
-                switch (GetChildFrameFilterType(i))
+                switch (GetChildFilterType(i))
                 {
                     case MrfValueType.Literal:
-                        w.Write(item.FrameFilterDictionaryName);
-                        w.Write(item.FrameFilterName);
+                        w.Write(item.FilterDictionaryName);
+                        w.Write(item.FilterName);
                         break;
                     case MrfValueType.Parameter:
-                        w.Write(item.FrameFilterParameterName);
+                        w.Write(item.FilterParameterName);
                         break;
                 }
             }
@@ -1968,29 +1997,35 @@ namespace CodeWalker.GameFiles
         {
             base.ReadXml(node);
 
-            (FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName) = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
+            FilterNType = Xml.GetChildEnumInnerText<MrfValueType>(node, "FilterNType");
+            if (FilterNType == MrfValueType.Literal)
+                FilterNValues = Xml.GetChildRawFloatArray(node, "FilterNValues");
+            else if (FilterNType == MrfValueType.Parameter)
+                FilterNParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "FilterNParameterName"));
+            (FilterType, FilterDictionaryName, FilterName, FilterParameterName) = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
             SynchronizerType = Xml.GetChildEnumInnerText<MrfSynchronizerType>(node, "SynchronizerType");
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                SynchronizerTagFlags = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
+                SynchronizerTag = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
             }
             ZeroDestination = Xml.GetChildBoolAttribute(node, "ZeroDestination");
+            Transitional = Xml.GetChildBoolAttribute(node, "Transitional");
             Children = [];
             ChildrenData = [];
-            ChildrenFlags = [];
-            ChildrenOffsets = [];
-            ChildrenCount = 0;
+            InputFlags = [];
+            InputOffsets = [];
+            SourceCount = 0;
             var statesNode = node.SelectSingleNode("Children");
             if (statesNode != null)
             {
                 var inodes = statesNode.SelectNodes("Item");
                 if (inodes?.Count > 0)
                 {
-                    ChildrenCount = (uint)inodes.Count;
-                    Children = new MrfNode[ChildrenCount];
-                    ChildrenData = new MrfNodeNChildData[ChildrenCount];
-                    ChildrenFlags = new uint[ChildrenCount * 8 / 32 + 1];
-                    ChildrenOffsets = new int[ChildrenCount];
+                    SourceCount = checked((uint)inodes.Count);
+                    Children = new MrfNode[SourceCount];
+                    ChildrenData = new MrfNodeNChildData[SourceCount];
+                    InputFlags = new uint[GetInputFlagsWordCount(SourceCount)];
+                    InputOffsets = new int[SourceCount];
                     int i = 0;
                     foreach (XmlNode inode in inodes)
                     {
@@ -2000,10 +2035,11 @@ namespace CodeWalker.GameFiles
                         ChildrenData[i].Weight = weight.Value;
                         ChildrenData[i].WeightParameterName = weight.ParameterName;
                         SetChildWeightType(i, weight.Type);
-                        ChildrenData[i].FrameFilterDictionaryName = filter.DictionaryName;
-                        ChildrenData[i].FrameFilterName = filter.AssetName;
-                        ChildrenData[i].FrameFilterParameterName = filter.ParameterName;
-                        SetChildFrameFilterType(i, filter.Type);
+                        ChildrenData[i].FilterDictionaryName = filter.DictionaryName;
+                        ChildrenData[i].FilterName = filter.AssetName;
+                        ChildrenData[i].FilterParameterName = filter.ParameterName;
+                        SetChildFilterType(i, filter.Type);
+                        SetChildImmutable(i, Xml.GetChildBoolAttribute(inode, "Immutable"));
                         Children[i] = XmlMrf.ReadChildNode(inode, "Node") ?? throw new InvalidDataException("Movement XML contains an invalid child element.");
                         i++;
                     }
@@ -2015,17 +2051,19 @@ namespace CodeWalker.GameFiles
         {
             base.WriteXml(sb, indent);
 
-            Unk2Type = MrfValueType.None;
-            Unk2 = [];
-            Unk2ParameterName = 0;
-
-            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName);
+            MrfXml.StringTag(sb, indent, "FilterNType", FilterNType.ToString());
+            if (FilterNType == MrfValueType.Literal)
+                MrfXml.WriteRawArray(sb, FilterNValues, indent, "FilterNValues", "", FloatUtil.ToString, 19);
+            else if (FilterNType == MrfValueType.Parameter)
+                MrfXml.StringTag(sb, indent, "FilterNParameterName", MrfXml.HashString(FilterNParameterName));
+            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FilterType, FilterDictionaryName, FilterName, FilterParameterName);
             MrfXml.StringTag(sb, indent, "SynchronizerType", SynchronizerType.ToString());
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                MrfXml.StringTag(sb, indent, "SynchronizerTagFlags", SynchronizerTagFlags.ToString());
+                MrfXml.StringTag(sb, indent, "SynchronizerTagFlags", SynchronizerTag.ToString());
             }
             MrfXml.ValueTag(sb, indent, "ZeroDestination", ZeroDestination.ToString());
+            MrfXml.ValueTag(sb, indent, "Transitional", Transitional.ToString());
             int cindent = indent + 1;
             int cindent2 = cindent + 1;
             int childIndex = 0;
@@ -2035,7 +2073,8 @@ namespace CodeWalker.GameFiles
                 var childData = ChildrenData[childIndex];
                 MrfXml.OpenTag(sb, cindent, "Item");
                 MrfXml.ParameterizedFloatTag(sb, cindent2, "Weight", GetChildWeightType(childIndex), childData.Weight, childData.WeightParameterName);
-                MrfXml.ParameterizedAssetTag(sb, cindent2, "FrameFilter", GetChildFrameFilterType(childIndex), childData.FrameFilterDictionaryName, childData.FrameFilterName, childData.FrameFilterParameterName);
+                MrfXml.ParameterizedAssetTag(sb, cindent2, "FrameFilter", GetChildFilterType(childIndex), childData.FilterDictionaryName, childData.FilterName, childData.FilterParameterName);
+                MrfXml.ValueTag(sb, cindent2, "Immutable", GetChildImmutable(childIndex).ToString());
                 MrfXml.WriteNode(sb, cindent2, "Node", child);
                 MrfXml.CloseTag(sb, cindent, "Item");
                 childIndex++;
@@ -2047,12 +2086,12 @@ namespace CodeWalker.GameFiles
         {
             base.ResolveRelativeOffsets(mrf);
 
-            if (ChildrenFileOffsets != null)
+            if (InputFileOffsets != null)
             {
-                Children = new MrfNode[ChildrenFileOffsets.Length];
-                for (int i = 0; i < ChildrenFileOffsets.Length; i++)
+                Children = new MrfNode[InputFileOffsets.Length];
+                for (int i = 0; i < InputFileOffsets.Length; i++)
                 {
-                    var node = mrf.FindNodeAtFileOffset(ChildrenFileOffsets[i]);
+                    var node = mrf.FindNodeAtFileOffset(InputFileOffsets[i]);
                     if (node == null)
                     { } // no hits
 
@@ -2065,25 +2104,53 @@ namespace CodeWalker.GameFiles
         {
             base.UpdateRelativeOffsets();
 
+            SourceCount = checked((uint)(Children?.Length ?? 0));
             var offset = FileOffset + 0xC/*sizeof(MrfNodeWithFlagsBase)*/;
             offset += SynchronizerType == MrfSynchronizerType.Tag ? 4 : 0;
-            offset += Unk2Type == MrfValueType.Literal ? 76 : 0;
-            offset += Unk2Type == MrfValueType.Parameter ? 4 : 0;
-            offset += FrameFilterType == MrfValueType.Literal ? 8 : 0;
-            offset += FrameFilterType == MrfValueType.Parameter ? 4 : 0;
+            offset += FilterNType == MrfValueType.Literal ? 76 : 0;
+            offset += FilterNType == MrfValueType.Parameter ? 4 : 0;
+            offset += FilterType == MrfValueType.Literal ? 8 : 0;
+            offset += FilterType == MrfValueType.Parameter ? 4 : 0;
             
             if (Children != null)
             {
-                ChildrenOffsets = new int[Children.Length];
-                ChildrenFileOffsets = new int[Children.Length];
+                InputOffsets = new int[Children.Length];
+                InputFileOffsets = new int[Children.Length];
                 for (int i = 0; i < Children.Length; i++)
                 {
                     var node = Children[i];
-                    ChildrenFileOffsets[i] = node.FileOffset;
-                    ChildrenOffsets[i] = node.FileOffset - offset;
+                    InputFileOffsets[i] = node.FileOffset;
+                    InputOffsets[i] = node.FileOffset - offset;
                     offset += 4;
                 }
             }
+        }
+
+        private static int GetInputFlagsWordCount(uint sourceCount) => checked((int)(sourceCount / 4 + 1));
+
+        private void PrepareForWrite()
+        {
+            Children ??= [];
+            SourceCount = checked((uint)Children.Length);
+            if (SourceCount > 8)
+                throw new InvalidDataException("Movement N-way nodes support at most 8 children.");
+            if (ChildrenData?.Length != Children.Length)
+                throw new InvalidDataException("Movement N-way child data count does not match its child count.");
+            if (InputOffsets?.Length != Children.Length)
+                InputOffsets = new int[Children.Length];
+            int flagsCount = GetInputFlagsWordCount(SourceCount);
+            if (InputFlags?.Length != flagsCount)
+            {
+                var flags = InputFlags ?? [];
+                Array.Resize(ref flags, flagsCount);
+                InputFlags = flags;
+            }
+        }
+
+        private void ValidateFlags()
+        {
+            if (FilterNType > MrfValueType.Parameter || FilterType > MrfValueType.Parameter || SynchronizerType > MrfSynchronizerType.None || SourceCount > 8)
+                throw new InvalidDataException("Movement N-way node flags contain an invalid type, synchronizer, or source count.");
         }
     }
     
@@ -2091,13 +2158,13 @@ namespace CodeWalker.GameFiles
     {
         public float Weight { get; set; }
         public MetaHash WeightParameterName { get; set; }
-        public MetaHash FrameFilterDictionaryName { get; set; }
-        public MetaHash FrameFilterName { get; set; }
-        public MetaHash FrameFilterParameterName { get; set; }
+        public MetaHash FilterDictionaryName { get; set; }
+        public MetaHash FilterName { get; set; }
+        public MetaHash FilterParameterName { get; set; }
 
         public override string ToString()
         {
-            return $"{FloatUtil.ToString(Weight)} - {WeightParameterName} - {FrameFilterDictionaryName} - {FrameFilterName} - {FrameFilterParameterName}";
+            return $"{FloatUtil.ToString(Weight)} - {WeightParameterName} - {FilterDictionaryName} - {FilterName} - {FilterParameterName}";
         }
     }
 
@@ -2107,52 +2174,55 @@ namespace CodeWalker.GameFiles
 
 #region mrf node structs
 
-    [TC(typeof(EXP))] public class MrfHeaderUnk1 : IMetaXmlItem
+    [TC(typeof(EXP))] public class MrfExternalReference : IMetaXmlItem
     {
-        public uint Size { get; set; }
-        public byte[] Bytes { get; set; } = [];
+        public uint Length { get; set; }
+        public byte[] Data { get; set; } = [];
 
-        public MrfHeaderUnk1()
+        public MrfExternalReference()
         {
         }
 
-        public MrfHeaderUnk1(DataReader r)
+        public MrfExternalReference(DataReader r)
         {
-            Size = r.ReadUInt32();
-            Bytes = r.ReadBytes((int)Size);
+            Length = r.ReadUInt32();
+            if (Length > r.Length - r.Position)
+                throw new InvalidDataException("Failed to read MRF: invalid external-reference length.");
+            Data = r.ReadBytes(checked((int)Length));
         }
 
         public void Write(DataWriter w)
         {
-            w.Write(Size);
-            w.Write(Bytes);
+            Length = checked((uint)Data.Length);
+            w.Write(Length);
+            w.Write(Data);
         }
 
         public void ReadXml(XmlNode node)
         {
-            Bytes = Xml.GetChildRawByteArrayNullable(node, "Bytes") ?? [];
-            Size = (uint)(Bytes?.Length ?? 0);
+            Data = Xml.GetChildRawByteArrayNullable(node, "Bytes") ?? [];
+            Length = checked((uint)Data.Length);
         }
 
         public void WriteXml(StringBuilder sb, int indent)
         {
-            MrfXml.WriteRawArray(sb, Bytes, indent, "Bytes", "", MrfXml.FormatHexByte, 16);
+            MrfXml.WriteRawArray(sb, Data, indent, "Bytes", "", MrfXml.FormatHexByte, 16);
         }
 
         public override string ToString()
         {
-            return Size.ToString() + " bytes";
+            return Length + " bytes";
         }
     }
 
     /// <summary>
-    /// If used as <see cref="MrfFile.MoveNetworkTriggers"/>:
+    /// If used as <see cref="MrfFile.Requests"/>:
     /// Parameter that can be triggered by the game to control transitions.
     /// Only active for 1 tick.
     /// The native `REQUEST_TASK_MOVE_NETWORK_STATE_TRANSITION` uses these triggers but appends "request" to the passed string,
     /// e.g. `REQUEST_TASK_MOVE_NETWORK_STATE_TRANSITION(ped, "running")` will trigger "runningrequest".
     /// <para>
-    /// If used as <see cref="MrfFile.MoveNetworkFlags"/>:
+    /// If used as <see cref="MrfFile.Flags"/>:
     /// Parameter that can be toggled by the game to control transitions.
     /// Can be enabled with fwClipSet.moveNetworkFlags too (seems like only if the game uses it as a MrfClipContainerType.VariableClipSet).
     /// </para>
@@ -2198,10 +2268,16 @@ namespace CodeWalker.GameFiles
 
     public enum MrfWeightModifierType
     {
-        SlowInSlowOut = 0,
-        SlowOut = 1,
-        SlowIn = 2,
-        None = 3,
+        EaseInOut = 0,
+        EaseOut = 1,
+        EaseIn = 2,
+        Linear = 3,
+        Step = 4,
+
+        SlowInSlowOut = EaseInOut,
+        SlowOut = EaseOut,
+        SlowIn = EaseIn,
+        None = Linear,
     }
 
     [TC(typeof(EXP))] public class MrfStateTransition : IMetaXmlItem
@@ -2209,45 +2285,45 @@ namespace CodeWalker.GameFiles
         // rage::mvTransitionDef
 
         public uint Flags { get; set; }
-        public MrfSynchronizerTagFlags SynchronizerTagFlags { get; set; }
+        public MrfSynchronizerTagFlags SynchronizerTag { get; set; }
         public float Duration { get; set; } // time in seconds it takes for the transition to blend between the source and target states
         public MetaHash DurationParameterName { get; set; }
-        public MetaHash ProgressParameterName { get; set; } // parameter where to store the transition progress percentage (0.0 to 1.0)
+        public MetaHash TransitionWeightParameterName { get; set; }
         public int TargetStateOffset { get; set; } // offset from the start of this field
         public int TargetStateFileOffset { get; set; }
-        public MetaHash FrameFilterDictionaryName { get; set; }
-        public MetaHash FrameFilterName { get; set; }
+        public MetaHash FilterDictionaryName { get; set; }
+        public MetaHash FilterName { get; set; }
         public MrfCondition[] Conditions { get; set; } = [];
 
         public MrfNodeStateBase? TargetState { get; set; }
 
         // flags getters and setters
-        public bool HasProgressParameter // if set, the transition progress percentage (0.0 to 1.0) is stored in ProgressParameterName
+        public bool HasTransitionWeightParameter
         {
             get => GetFlagsSubset(1, 1) != 0;
             set => SetFlagsSubset(1, 1, value ? 1 : 0u);
         }
-        public bool UnkFlag2_DetachUpdateObservers // if set, executes rage::DetachUpdateObservers on the source state
+        public bool BlockUpdateAfterTransition
         {
             get => GetFlagsSubset(2, 1) != 0;
             set => SetFlagsSubset(2, 1, value ? 1 : 0u);
         }
-        public bool HasDurationParameter // if set use DurationParameterName instead of Duration. Duration is used as default if the paramter is not found
+        public bool DurationFromParameter
         {
             get => GetFlagsSubset(3, 1) != 0;
             set => SetFlagsSubset(3, 1, value ? 1 : 0u);
         }
-        public uint DataSize // number of bytes this transition takes, used to iterate the transitions array
+        public uint Size
         {
             get => GetFlagsSubset(4, 0x3FFF); 
             set => SetFlagsSubset(4, 0x3FFF, value);
         }
-        public bool UnkFlag18
+        public bool Transitional
         {
             get => GetFlagsSubset(18, 1) != 0;
             set => SetFlagsSubset(18, 1, value ? 1 : 0u);
         }
-        public bool UnkFlag19
+        public bool Immutable
         {
             get => GetFlagsSubset(19, 1) != 0;
             set => SetFlagsSubset(19, 1, value ? 1 : 0u);
@@ -2257,7 +2333,7 @@ namespace CodeWalker.GameFiles
             get => GetFlagsSubset(20, 0xF);
             set => SetFlagsSubset(20, 0xF, value);
         }
-        public MrfWeightModifierType BlendModifier // modifier for the blend between source and target states
+        public MrfWeightModifierType Modifier
         {
             get => (MrfWeightModifierType)GetFlagsSubset(24, 7);
             set => SetFlagsSubset(24, 7, (uint)value);
@@ -2267,10 +2343,20 @@ namespace CodeWalker.GameFiles
             get => (MrfSynchronizerType)GetFlagsSubset(28, 3);
             set => SetFlagsSubset(28, 3, (uint)value);
         }
-        public bool HasFrameFilter
+        public bool ReEvaluate
+        {
+            get => GetFlagsSubset(27, 1) != 0;
+            set => SetFlagsSubset(27, 1, value ? 1 : 0u);
+        }
+        public bool HasFilter
         {
             get => GetFlagsSubset(30, 1) != 0;
             set => SetFlagsSubset(30, 1, value ? 1 : 0u);
+        }
+        public bool MergeBlend
+        {
+            get => GetFlagsSubset(31, 1) != 0;
+            set => SetFlagsSubset(31, 1, value ? 1 : 0u);
         }
 
         [System.ComponentModel.Browsable(false)]
@@ -2285,12 +2371,14 @@ namespace CodeWalker.GameFiles
             var startReadPosition = r.Position;
 
             Flags = r.ReadUInt32();
-            SynchronizerTagFlags = (MrfSynchronizerTagFlags)r.ReadUInt32();
+            SynchronizerTag = (MrfSynchronizerTagFlags)r.ReadUInt32();
             Duration = r.ReadSingle();
             DurationParameterName = r.ReadUInt32();
-            ProgressParameterName = r.ReadUInt32();
+            TransitionWeightParameterName = r.ReadUInt32();
             TargetStateOffset = r.ReadInt32();
-            TargetStateFileOffset = (int)(r.Position + TargetStateOffset - 4);
+            TargetStateFileOffset = checked((int)(r.Position + TargetStateOffset - 4));
+
+            ValidateFlags();
 
             if (ConditionCount > 0)
             {
@@ -2324,40 +2412,45 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            if (HasFrameFilter)
+            if (HasFilter)
             {
-                FrameFilterDictionaryName = r.ReadUInt32();
-                FrameFilterName = r.ReadUInt32();
+                FilterDictionaryName = r.ReadUInt32();
+                FilterName = r.ReadUInt32();
             }
             else
             {
-                FrameFilterDictionaryName = 0;
-                FrameFilterName = 0;
+                FilterDictionaryName = 0;
+                FilterName = 0;
             }
 
-            if ((r.Position - startReadPosition) != DataSize)
-            { } // not hits
+            if ((r.Position - startReadPosition) != Size)
+                throw new InvalidDataException($"Movement transition size is {Size}, but {r.Position - startReadPosition} bytes were read.");
         }
 
         public void Write(DataWriter w)
         {
-            ConditionCount = (uint)(Conditions?.Length ?? 0);
+            int conditionCount = Conditions?.Length ?? 0;
+            if (conditionCount > 15)
+                throw new InvalidDataException("Movement transitions support at most 15 conditions.");
+            ConditionCount = (uint)conditionCount;
+            CalculateSize();
+            ValidateFlags();
 
             w.Write(Flags);
-            w.Write((uint)SynchronizerTagFlags);
+            w.Write((uint)SynchronizerTag);
             w.Write(Duration);
             w.Write(DurationParameterName);
-            w.Write(ProgressParameterName);
+            w.Write(TransitionWeightParameterName);
             w.Write(TargetStateOffset);
 
             if (Conditions != null)
                 for (int i = 0; i < Conditions.Length; i++)
                     Conditions[i].Write(w);
 
-            if (HasFrameFilter)
+            if (HasFilter)
             {
-                w.Write(FrameFilterDictionaryName);
-                w.Write(FrameFilterName);
+                w.Write(FilterDictionaryName);
+                w.Write(FilterName);
             }
         }
 
@@ -2366,38 +2459,46 @@ namespace CodeWalker.GameFiles
             XmlTargetStateName = XmlMrf.ReadChildNodeRef(node, "TargetState");
             Duration = Xml.GetChildFloatAttribute(node, "Duration");
             DurationParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "DurationParameterName"));
-            ProgressParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "ProgressParameterName"));
-            HasDurationParameter = DurationParameterName != 0;
-            HasProgressParameter = ProgressParameterName != 0;
-            BlendModifier = Xml.GetChildEnumInnerText<MrfWeightModifierType>(node, "BlendModifier");
+            TransitionWeightParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "TransitionWeightParameterName"));
+            if (TransitionWeightParameterName == 0)
+                TransitionWeightParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "ProgressParameterName"));
+            DurationFromParameter = DurationParameterName != 0;
+            HasTransitionWeightParameter = TransitionWeightParameterName != 0;
+            Modifier = node.SelectSingleNode("Modifier") != null
+                ? Xml.GetChildEnumInnerText<MrfWeightModifierType>(node, "Modifier")
+                : Xml.GetChildEnumInnerText<MrfWeightModifierType>(node, "BlendModifier");
 
             SynchronizerType = Xml.GetChildEnumInnerText<MrfSynchronizerType>(node, "SynchronizerType");
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                SynchronizerTagFlags = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
+                SynchronizerTag = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTag");
+                if (SynchronizerTag == 0)
+                    SynchronizerTag = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
             }
             else
             {
-                SynchronizerTagFlags = (MrfSynchronizerTagFlags)0xFFFFFFFF;
+                SynchronizerTag = (MrfSynchronizerTagFlags)0xFFFFFFFF;
             }
             
             var filter = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
             if (filter.Type == MrfValueType.Literal)
             {
-                HasFrameFilter = true;
-                FrameFilterDictionaryName = filter.DictionaryName;
-                FrameFilterName = filter.AssetName;
+                HasFilter = true;
+                FilterDictionaryName = filter.DictionaryName;
+                FilterName = filter.AssetName;
             }
             else
             {
-                HasFrameFilter = false;
-                FrameFilterDictionaryName = 0;
-                FrameFilterName = 0;
+                HasFilter = false;
+                FilterDictionaryName = 0;
+                FilterName = 0;
             }
             
-            UnkFlag2_DetachUpdateObservers = Xml.GetChildBoolAttribute(node, "UnkFlag2_DetachUpdateObservers");
-            UnkFlag18 = Xml.GetChildBoolAttribute(node, "UnkFlag18");
-            UnkFlag19 = Xml.GetChildBoolAttribute(node, "UnkFlag19");
+            BlockUpdateAfterTransition = Xml.GetChildBoolAttribute(node, "BlockUpdateAfterTransition") || Xml.GetChildBoolAttribute(node, "UnkFlag2_DetachUpdateObservers");
+            Transitional = Xml.GetChildBoolAttribute(node, "Transitional") || Xml.GetChildBoolAttribute(node, "UnkFlag18");
+            Immutable = Xml.GetChildBoolAttribute(node, "Immutable") || Xml.GetChildBoolAttribute(node, "UnkFlag19");
+            ReEvaluate = Xml.GetChildBoolAttribute(node, "ReEvaluate");
+            MergeBlend = Xml.GetChildBoolAttribute(node, "MergeBlend");
 
             Conditions = [];
             var conditionsNode = node.SelectSingleNode("Conditions");
@@ -2416,7 +2517,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            CalculateDataSize();
+            CalculateSize();
         }
 
         public void WriteXml(StringBuilder sb, int indent)
@@ -2424,28 +2525,30 @@ namespace CodeWalker.GameFiles
             //MrfXml.ValueTag(sb, indent, "Flags", Flags.ToString());
             MrfXml.WriteNodeRef(sb, indent, "TargetState", TargetState);
             MrfXml.ValueTag(sb, indent, "Duration", FloatUtil.ToString(Duration));
-            if (HasDurationParameter) MrfXml.StringTag(sb, indent, "DurationParameterName", MrfXml.HashString(DurationParameterName));
-            if (HasProgressParameter) MrfXml.StringTag(sb, indent, "ProgressParameterName", MrfXml.HashString(ProgressParameterName));
-            MrfXml.StringTag(sb, indent, "BlendModifier", BlendModifier.ToString());
+            if (DurationFromParameter) MrfXml.StringTag(sb, indent, "DurationParameterName", MrfXml.HashString(DurationParameterName));
+            if (HasTransitionWeightParameter) MrfXml.StringTag(sb, indent, "TransitionWeightParameterName", MrfXml.HashString(TransitionWeightParameterName));
+            MrfXml.StringTag(sb, indent, "Modifier", Modifier.ToString());
 
             MrfXml.StringTag(sb, indent, "SynchronizerType", SynchronizerType.ToString());
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                MrfXml.StringTag(sb, indent, "SynchronizerTagFlags", SynchronizerTagFlags.ToString());
+                MrfXml.StringTag(sb, indent, "SynchronizerTag", SynchronizerTag.ToString());
             }
 
-            if (HasFrameFilter)
+            if (HasFilter)
             {
-                MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", MrfValueType.Literal, FrameFilterDictionaryName, FrameFilterName, 0);
+                MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", MrfValueType.Literal, FilterDictionaryName, FilterName, 0);
             }
             else
             {
                 MrfXml.SelfClosingTag(sb, indent, "FrameFilter");
             }
 
-            MrfXml.ValueTag(sb, indent, "UnkFlag2_DetachUpdateObservers", UnkFlag2_DetachUpdateObservers.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag18", UnkFlag18.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag19", UnkFlag19.ToString());
+            MrfXml.ValueTag(sb, indent, "BlockUpdateAfterTransition", BlockUpdateAfterTransition.ToString());
+            MrfXml.ValueTag(sb, indent, "Transitional", Transitional.ToString());
+            MrfXml.ValueTag(sb, indent, "Immutable", Immutable.ToString());
+            MrfXml.ValueTag(sb, indent, "ReEvaluate", ReEvaluate.ToString());
+            MrfXml.ValueTag(sb, indent, "MergeBlend", MergeBlend.ToString());
             
             if (Conditions != null)
             {
@@ -2473,7 +2576,7 @@ namespace CodeWalker.GameFiles
             Flags = (Flags & ~(mask << bitOffset)) | ((value & mask) << bitOffset);
         }
 
-        public void CalculateDataSize()
+        public void CalculateSize()
         {
             uint dataSize = 0x18;
             if (Conditions != null)
@@ -2481,35 +2584,59 @@ namespace CodeWalker.GameFiles
                 dataSize += (uint)Conditions.Sum(c => c.DataSize);
             }
 
-            if (HasFrameFilter)
+            if (HasFilter)
             {
                 dataSize += 8;
             }
 
-            DataSize = dataSize;
+            Size = dataSize;
+        }
+
+        private void ValidateFlags()
+        {
+            if ((uint)Modifier > (uint)MrfWeightModifierType.Step)
+                throw new InvalidDataException($"Unknown movement transition modifier ({Modifier}).");
+            if ((uint)SynchronizerType > (uint)MrfSynchronizerType.None)
+                throw new InvalidDataException($"Unknown movement transition synchronizer ({SynchronizerType}).");
+            if (Duration < 0)
+                throw new InvalidDataException("Movement transition duration cannot be negative.");
         }
 
         public override string ToString()
         {
-            return $"{TargetState?.Name.ToString() ?? TargetStateFileOffset.ToString()} - {FloatUtil.ToString(Duration)} - {Conditions?.Length ?? 0} conditions";
+            return $"{TargetState?.ID.ToString() ?? TargetStateFileOffset.ToString()} - {FloatUtil.ToString(Duration)} - {Conditions?.Length ?? 0} conditions";
         }
     }
 
     public enum MrfConditionType : ushort
     {
-        ParameterInsideRange = 0,     // condition = Param > MinValue && Param < MaxValue
-        ParameterOutsideRange = 1,    // condition = Param < MinValue || Param > MaxValue
-        MoveNetworkTrigger = 2,       // condition = bittest(rage::mvMotionWeb.field_8, BitPosition) != Invert (each bit of field_8 represents a MrfMoveNetworkTrigger)
-        MoveNetworkFlag = 3,          // condition = bittest(rage::mvMotionWeb.field_C, BitPosition) != Invert (each bit of field_C represents a MrfMoveNetworkFlag)
-        EventOccurred = 4,            // condition = same behaviour as BoolParamExists but seems to be used with event names only
-        ParameterGreaterThan = 5,     // condition = Param > Value
-        ParameterGreaterOrEqual = 6,  // condition = Param >= Value
-        ParameterLessThan = 7,        // condition = Param < Value
-        ParameterLessOrEqual = 8,     // condition = Param <= Value
-        TimeGreaterThan = 9,          // condition = Time > Value (time since tha state started in seconds)
-        TimeLessThan = 10,            // condition = Time < Value
-        BoolParameterExists = 11,     // condition = exists(Param) != Invert
-        BoolParameterEquals = 12,     // condition = Param == Value
+        InRange = 0,
+        OutOfRange = 1,
+        OnRequest = 2,
+        OnFlag = 3,
+        AtEvent = 4,
+        GreaterThan = 5,
+        GreaterThanEqual = 6,
+        LessThan = 7,
+        LessThanEqual = 8,
+        LifetimeGreaterThan = 9,
+        LifetimeLessThan = 10,
+        OnMoveEventTag = 11,
+        BoolEquals = 12,
+
+        ParameterInsideRange = InRange,
+        ParameterOutsideRange = OutOfRange,
+        MoveNetworkTrigger = OnRequest,
+        MoveNetworkFlag = OnFlag,
+        EventOccurred = AtEvent,
+        ParameterGreaterThan = GreaterThan,
+        ParameterGreaterOrEqual = GreaterThanEqual,
+        ParameterLessThan = LessThan,
+        ParameterLessOrEqual = LessThanEqual,
+        TimeGreaterThan = LifetimeGreaterThan,
+        TimeLessThan = LifetimeLessThan,
+        BoolParameterExists = OnMoveEventTag,
+        BoolParameterEquals = BoolEquals,
     }
 
     [TC(typeof(EXP))] public abstract class MrfCondition : IMetaXmlItem
@@ -2517,33 +2644,35 @@ namespace CodeWalker.GameFiles
         // rage::mvConditionDef
 
         public MrfConditionType Type { get; set; }
-        public short Unk2 { get; set; } = 0; // always 0
+        public ushort Set { get; set; }
 
         public abstract uint DataSize { get; }
 
-        public MrfCondition(MrfConditionType type)
+        protected MrfCondition(MrfConditionType type)
         {
             Type = type;
         }
 
-        public MrfCondition(DataReader r)
+        protected MrfCondition(DataReader r)
         {
             Type = (MrfConditionType)r.ReadUInt16();
-            Unk2 = r.ReadInt16();
+            Set = r.ReadUInt16();
         }
 
         public virtual void Write(DataWriter w)
         {
             w.Write((ushort)Type);
-            w.Write(Unk2);
+            w.Write(Set);
         }
 
         public virtual void WriteXml(StringBuilder sb, int indent)
         {
+            if (Set != 0) MrfXml.ValueTag(sb, indent, "Set", Set.ToString());
         }
 
         public virtual void ReadXml(XmlNode node)
         {
+            Set = (ushort)Xml.GetChildUIntAttribute(node, "Set");
         }
 
         public override string ToString()
@@ -2584,8 +2713,8 @@ namespace CodeWalker.GameFiles
         public float MaxValue { get; set; }
         public float MinValue { get; set; }
 
-        public MrfConditionWithParameterAndRangeBase(MrfConditionType type) : base(type) { }
-        public MrfConditionWithParameterAndRangeBase(DataReader r) : base(r)
+        protected MrfConditionWithParameterAndRangeBase(MrfConditionType type) : base(type) { }
+        protected MrfConditionWithParameterAndRangeBase(DataReader r) : base(r)
         {
             ParameterName = r.ReadUInt32();
             MaxValue = r.ReadSingle();
@@ -2627,8 +2756,8 @@ namespace CodeWalker.GameFiles
         public MetaHash ParameterName { get; set; }
         public float Value { get; set; }
 
-        public MrfConditionWithParameterAndValueBase(MrfConditionType type) : base(type) { }
-        public MrfConditionWithParameterAndValueBase(DataReader r) : base(r)
+        protected MrfConditionWithParameterAndValueBase(MrfConditionType type) : base(type) { }
+        protected MrfConditionWithParameterAndValueBase(DataReader r) : base(r)
         {
             ParameterName = r.ReadUInt32();
             Value = r.ReadSingle();
@@ -2665,8 +2794,8 @@ namespace CodeWalker.GameFiles
         public override uint DataSize => 8;
         public float Value { get; set; }
 
-        public MrfConditionWithValueBase(MrfConditionType type) : base(type) { }
-        public MrfConditionWithValueBase(DataReader r) : base(r)
+        protected MrfConditionWithValueBase(MrfConditionType type) : base(type) { }
+        protected MrfConditionWithValueBase(DataReader r) : base(r)
         {
             Value = r.ReadSingle();
         }
@@ -2700,8 +2829,8 @@ namespace CodeWalker.GameFiles
         public MetaHash ParameterName { get; set; }
         public bool Value { get; set; }
 
-        public MrfConditionWithParameterAndBoolValueBase(MrfConditionType type) : base(type) { }
-        public MrfConditionWithParameterAndBoolValueBase(DataReader r) : base(r)
+        protected MrfConditionWithParameterAndBoolValueBase(MrfConditionType type) : base(type) { }
+        protected MrfConditionWithParameterAndBoolValueBase(DataReader r) : base(r)
         {
             ParameterName = r.ReadUInt32();
             Value = r.ReadUInt32() != 0;
@@ -2739,8 +2868,8 @@ namespace CodeWalker.GameFiles
         public int BitPosition { get; set; }
         public bool Invert { get; set; }
 
-        public MrfConditionBitTestBase(MrfConditionType type) : base(type) { }
-        public MrfConditionBitTestBase(DataReader r) : base(r)
+        protected MrfConditionBitTestBase(MrfConditionType type) : base(type) { }
+        protected MrfConditionBitTestBase(DataReader r) : base(r)
         {
             BitPosition = r.ReadInt32();
             Invert = r.ReadUInt32() != 0;
@@ -2930,7 +3059,7 @@ namespace CodeWalker.GameFiles
         public MetaHash SourceParameterName { get; set; }
         public ushort TargetNodeIndex { get; set; }
         public /*MrfNodeParameterId*/ushort TargetNodeParameterId { get; set; }
-        public uint TargetNodeParameterExtraArg { get; set; } // some node parameters require an additional argument to be passed (e.g. a name hash)
+        public uint TargetParameterIndex { get; set; }
 
         public MrfStateInputParameter() { }
         public MrfStateInputParameter(DataReader r)
@@ -2938,7 +3067,7 @@ namespace CodeWalker.GameFiles
             SourceParameterName = r.ReadUInt32();
             TargetNodeIndex = r.ReadUInt16();
             TargetNodeParameterId = r.ReadUInt16();
-            TargetNodeParameterExtraArg = r.ReadUInt32();
+            TargetParameterIndex = r.ReadUInt32();
         }
 
         public void Write(DataWriter w)
@@ -2946,7 +3075,7 @@ namespace CodeWalker.GameFiles
             w.Write(SourceParameterName);
             w.Write(TargetNodeIndex);
             w.Write(TargetNodeParameterId);
-            w.Write(TargetNodeParameterExtraArg);
+            w.Write(TargetParameterIndex);
         }
 
         public void ReadXml(XmlNode node)
@@ -2954,7 +3083,9 @@ namespace CodeWalker.GameFiles
             SourceParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "SourceParameterName"));
             TargetNodeIndex = (ushort)Xml.GetChildUIntAttribute(node, "TargetNodeIndex");
             TargetNodeParameterId = (ushort)Xml.GetChildUIntAttribute(node, "TargetNodeParameterId");
-            TargetNodeParameterExtraArg = Xml.GetChildUIntAttribute(node, "TargetNodeParameterExtraArg");
+            TargetParameterIndex = Xml.GetChildUIntAttribute(node, "TargetParameterIndex");
+            if (node.SelectSingleNode("TargetParameterIndex") == null)
+                TargetParameterIndex = Xml.GetChildUIntAttribute(node, "TargetNodeParameterExtraArg");
         }
 
         public void WriteXml(StringBuilder sb, int indent)
@@ -2962,12 +3093,12 @@ namespace CodeWalker.GameFiles
             MrfXml.StringTag(sb, indent, "SourceParameterName", MrfXml.HashString(SourceParameterName));
             MrfXml.ValueTag(sb, indent, "TargetNodeIndex", TargetNodeIndex.ToString());
             MrfXml.ValueTag(sb, indent, "TargetNodeParameterId", TargetNodeParameterId.ToString());
-            MrfXml.ValueTag(sb, indent, "TargetNodeParameterExtraArg", TargetNodeParameterExtraArg.ToString());
+            MrfXml.ValueTag(sb, indent, "TargetParameterIndex", TargetParameterIndex.ToString());
         }
 
         public override string ToString()
         {
-            return SourceParameterName.ToString() + " - " + TargetNodeIndex.ToString() + " - " + TargetNodeParameterId.ToString() + " - " + TargetNodeParameterExtraArg.ToString();
+            return SourceParameterName.ToString() + " - " + TargetNodeIndex.ToString() + " - " + TargetNodeParameterId.ToString() + " - " + TargetParameterIndex.ToString();
         }
     }
 
@@ -3027,7 +3158,7 @@ namespace CodeWalker.GameFiles
         public MetaHash TargetParameterName { get; set; }
         public ushort SourceNodeIndex { get; set; }
         public /*MrfNodeParameterId*/ushort SourceNodeParameterId { get; set; } // if 0xFFFF, it stores the node itself, so it can be used by NodeProxy
-        public uint SourceNodeParameterExtraArg { get; set; }
+        public uint SourceParameterIndex { get; set; }
 
         public MrfStateOutputParameter() { }
         public MrfStateOutputParameter(DataReader r)
@@ -3035,7 +3166,7 @@ namespace CodeWalker.GameFiles
             TargetParameterName = r.ReadUInt32();
             SourceNodeIndex = r.ReadUInt16();
             SourceNodeParameterId = r.ReadUInt16();
-            SourceNodeParameterExtraArg = r.ReadUInt32();
+            SourceParameterIndex = r.ReadUInt32();
         }
 
         public void Write(DataWriter w)
@@ -3043,7 +3174,7 @@ namespace CodeWalker.GameFiles
             w.Write(TargetParameterName);
             w.Write(SourceNodeIndex);
             w.Write(SourceNodeParameterId);
-            w.Write(SourceNodeParameterExtraArg);
+            w.Write(SourceParameterIndex);
         }
 
         public void ReadXml(XmlNode node)
@@ -3051,7 +3182,9 @@ namespace CodeWalker.GameFiles
             TargetParameterName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "TargetParameterName"));
             SourceNodeIndex = (ushort)Xml.GetChildUIntAttribute(node, "SourceNodeIndex");
             SourceNodeParameterId = (ushort)Xml.GetChildUIntAttribute(node, "SourceNodeParameterId");
-            SourceNodeParameterExtraArg = Xml.GetChildUIntAttribute(node, "SourceNodeParameterExtraArg");
+            SourceParameterIndex = Xml.GetChildUIntAttribute(node, "SourceParameterIndex");
+            if (node.SelectSingleNode("SourceParameterIndex") == null)
+                SourceParameterIndex = Xml.GetChildUIntAttribute(node, "SourceNodeParameterExtraArg");
         }
 
         public void WriteXml(StringBuilder sb, int indent)
@@ -3059,12 +3192,12 @@ namespace CodeWalker.GameFiles
             MrfXml.StringTag(sb, indent, "TargetParameterName", MrfXml.HashString(TargetParameterName));
             MrfXml.ValueTag(sb, indent, "SourceNodeIndex", SourceNodeIndex.ToString());
             MrfXml.ValueTag(sb, indent, "SourceNodeParameterId", SourceNodeParameterId.ToString());
-            MrfXml.ValueTag(sb, indent, "SourceNodeParameterExtraArg", SourceNodeParameterExtraArg.ToString());
+            MrfXml.ValueTag(sb, indent, "SourceParameterIndex", SourceParameterIndex.ToString());
         }
 
         public override string ToString()
         {
-            return TargetParameterName.ToString() + " - " + SourceNodeIndex.ToString() + " - " + SourceNodeParameterId.ToString() + " - " + SourceNodeParameterExtraArg.ToString();
+            return TargetParameterName.ToString() + " - " + SourceNodeIndex.ToString() + " - " + SourceNodeParameterId.ToString() + " - " + SourceParameterIndex.ToString();
         }
     }
 
@@ -3084,7 +3217,7 @@ namespace CodeWalker.GameFiles
         {
             StateName = r.ReadUInt32();
             StateOffset = r.ReadInt32();
-            StateFileOffset = (int)(r.Position + StateOffset - 4);
+            StateFileOffset = checked((int)(r.Position + StateOffset - 4));
         }
 
         public void Write(DataWriter w)
@@ -3101,12 +3234,17 @@ namespace CodeWalker.GameFiles
 
     public enum MrfOperatorType : uint
     {
-        Finish = 0,         // finish the operation
-        PushLiteral = 1,    // push a specific value, not used in vanilla MRFs
-        PushParameter = 2,  // push a network parameter value
+        End = 0,
+        PushValue = 1,
+        FindAndPushValue = 2,
         Add = 3,            // adds the two values at the top of the stack, not used in vanilla MRFs
         Multiply = 4,       // multiplies the two values at the top of the stack
-        Remap = 5,          // remaps the value at the top of the stack to another range
+        FCurve = 5,
+
+        Finish = End,
+        PushLiteral = PushValue,
+        PushParameter = FindAndPushValue,
+        Remap = FCurve,
     }
 
     [TC(typeof(EXP))] public abstract class MrfStateOperator : IMetaXmlItem
@@ -3141,41 +3279,40 @@ namespace CodeWalker.GameFiles
         {
             switch (type)
             {
-                case MrfOperatorType.Finish:        return new MrfStateOperatorFinish();
-                case MrfOperatorType.PushLiteral:   return new MrfStateOperatorPushLiteral();
-                case MrfOperatorType.PushParameter: return new MrfStateOperatorPushParameter();
+                case MrfOperatorType.Finish:        return new MrfStateOperatorEnd();
+                case MrfOperatorType.PushLiteral:   return new MrfStateOperatorPushValue();
+                case MrfOperatorType.PushParameter: return new MrfStateOperatorFindAndPushValue();
                 case MrfOperatorType.Add:           return new MrfStateOperatorAdd();
                 case MrfOperatorType.Multiply:      return new MrfStateOperatorMultiply();
-                case MrfOperatorType.Remap:         return new MrfStateOperatorRemap();
+                case MrfOperatorType.Remap:         return new MrfStateOperatorFCurve();
                 default: throw new Exception($"Unknown operator type ({type})");
             }
         }
     }
 
-    [TC(typeof(EXP))] public class MrfStateOperatorFinish : MrfStateOperator
+    [TC(typeof(EXP))] public class MrfStateOperatorEnd : MrfStateOperator
     {
-        public uint Unk1_Unused { get; set; }
-
-        public MrfStateOperatorFinish() : base(MrfOperatorType.Finish) { }
-        public MrfStateOperatorFinish(DataReader r) : base(r)
+        public MrfStateOperatorEnd() : base(MrfOperatorType.End) { }
+        public MrfStateOperatorEnd(DataReader r) : base(r)
         {
-            Unk1_Unused = r.ReadUInt32();
+            r.Position += sizeof(uint);
         }
 
         public override void Write(DataWriter w)
         {
             base.Write(w);
-            w.Write(Unk1_Unused);
+            w.Write(0u);
         }
     }
 
-    [TC(typeof(EXP))] public class MrfStateOperatorPushLiteral : MrfStateOperator
+    [TC(typeof(EXP))] public class MrfStateOperatorPushValue : MrfStateOperator
     {
         public float Value { get; set; }
 
-        public MrfStateOperatorPushLiteral() : base(MrfOperatorType.PushLiteral) { }
-        public MrfStateOperatorPushLiteral(DataReader r) : base(r)
+        public MrfStateOperatorPushValue() : base(MrfOperatorType.PushValue) { }
+        public MrfStateOperatorPushValue(DataReader r) : base(r)
         {
+            Value = r.ReadSingle();
         }
 
         public override void Write(DataWriter w)
@@ -3200,12 +3337,12 @@ namespace CodeWalker.GameFiles
         }
     }
 
-    [TC(typeof(EXP))] public class MrfStateOperatorPushParameter : MrfStateOperator
+    [TC(typeof(EXP))] public class MrfStateOperatorFindAndPushValue : MrfStateOperator
     {
         public MetaHash ParameterName { get; set; }
 
-        public MrfStateOperatorPushParameter() : base(MrfOperatorType.PushParameter) { }
-        public MrfStateOperatorPushParameter(DataReader r) : base(r)
+        public MrfStateOperatorFindAndPushValue() : base(MrfOperatorType.FindAndPushValue) { }
+        public MrfStateOperatorFindAndPushValue(DataReader r) : base(r)
         {
             ParameterName = r.ReadUInt32();
         }
@@ -3234,60 +3371,62 @@ namespace CodeWalker.GameFiles
 
     [TC(typeof(EXP))] public class MrfStateOperatorAdd : MrfStateOperator
     {
-        public uint Unk1_Unused { get; set; }
-
         public MrfStateOperatorAdd() : base(MrfOperatorType.Add) { }
         public MrfStateOperatorAdd(DataReader r) : base(r)
         {
-            Unk1_Unused = r.ReadUInt32();
+            r.Position += sizeof(uint);
         }
 
         public override void Write(DataWriter w)
         {
             base.Write(w);
-            w.Write(Unk1_Unused);
+            w.Write(0u);
         }
     }
 
     [TC(typeof(EXP))] public class MrfStateOperatorMultiply : MrfStateOperator
     {
-        public uint Unk1_Unused { get; set; }
-
         public MrfStateOperatorMultiply() : base(MrfOperatorType.Multiply) { }
         public MrfStateOperatorMultiply(DataReader r) : base(r)
         {
-            Unk1_Unused = r.ReadUInt32();
+            r.Position += sizeof(uint);
         }
 
         public override void Write(DataWriter w)
         {
             base.Write(w);
-            w.Write(Unk1_Unused);
+            w.Write(0u);
         }
     }
 
-    [TC(typeof(EXP))] public class MrfStateOperatorRemap : MrfStateOperator
+    [TC(typeof(EXP))] public class MrfStateOperatorFCurve : MrfStateOperator
     {
-        public int DataOffset { get; set; } = 4; // offset from the start of this field to Min field (always 4)
-        public float Min { get; set; }     // minimum of input range
-        public float Max { get; set; }     // maximum of input range
-        public uint RangeCount { get; set; }
-        public int RangesOffset { get; set; } = 4; // offset from the start of this field to Ranges array (always 4)
+        public int DataOffset { get; set; } = 4;
+        public float ClampMinimum { get; set; }
+        public float ClampMaximum { get; set; }
+        public uint KeyframeCount { get; set; }
+        public int KeyframesOffset { get; set; } = 4;
 
-        public MrfStateOperatorRemapRange[] Ranges { get; set; } = []; // output ranges to choose from
+        public MrfStateOperatorFCurveKeyframe[] Keyframes { get; set; } = [];
 
-        public MrfStateOperatorRemap() : base(MrfOperatorType.Remap) { }
-        public MrfStateOperatorRemap(DataReader r) : base(r)
+        public MrfStateOperatorFCurve() : base(MrfOperatorType.FCurve) { }
+        public MrfStateOperatorFCurve(DataReader r) : base(r)
         {
             DataOffset = r.ReadInt32();
-            Min = r.ReadSingle();
-            Max = r.ReadSingle();
-            RangeCount = r.ReadUInt32();
-            RangesOffset = r.ReadInt32();
-            Ranges = new MrfStateOperatorRemapRange[RangeCount];
-            for (int i = 0; i < RangeCount; i++)
+            if (DataOffset != sizeof(int))
+                throw new InvalidDataException($"Movement FCurve data offset must be 4, but was {DataOffset}.");
+            ClampMinimum = r.ReadSingle();
+            ClampMaximum = r.ReadSingle();
+            KeyframeCount = r.ReadUInt32();
+            KeyframesOffset = r.ReadInt32();
+            if (KeyframesOffset != sizeof(int))
+                throw new InvalidDataException($"Movement FCurve keyframe offset must be 4, but was {KeyframesOffset}.");
+            if (KeyframeCount > int.MaxValue)
+                throw new InvalidDataException("Movement FCurve has too many keyframes.");
+            Keyframes = new MrfStateOperatorFCurveKeyframe[KeyframeCount];
+            for (int i = 0; i < KeyframeCount; i++)
             {
-                Ranges[i] = new MrfStateOperatorRemapRange(r);
+                Keyframes[i] = new MrfStateOperatorFCurveKeyframe(r);
             }
         }
 
@@ -3295,80 +3434,91 @@ namespace CodeWalker.GameFiles
         {
             base.Write(w);
 
-            RangeCount = (uint)(Ranges.Length);
+            Keyframes ??= [];
+            KeyframeCount = checked((uint)Keyframes.Length);
+            DataOffset = sizeof(int);
+            KeyframesOffset = sizeof(int);
 
             w.Write(DataOffset);
-            w.Write(Min);
-            w.Write(Max);
-            w.Write(RangeCount);
-            w.Write(RangesOffset);
+            w.Write(ClampMinimum);
+            w.Write(ClampMaximum);
+            w.Write(KeyframeCount);
+            w.Write(KeyframesOffset);
 
-            foreach (var item in Ranges)
+            foreach (var item in Keyframes)
                 item.Write(w);
         }
 
         public override void ReadXml(XmlNode node)
         {
-            Min = Xml.GetChildFloatAttribute(node, "Min");
-            Max = Xml.GetChildFloatAttribute(node, "Max");
-            Ranges = XmlMeta.ReadItemArray<MrfStateOperatorRemapRange>(node, "Ranges");
-            RangeCount = (uint)(Ranges.Length);
+            ClampMinimum = Xml.GetChildFloatAttribute(node, "ClampMinimum");
+            ClampMaximum = Xml.GetChildFloatAttribute(node, "ClampMaximum");
+            if (node.SelectSingleNode("ClampMinimum") == null) ClampMinimum = Xml.GetChildFloatAttribute(node, "Min");
+            if (node.SelectSingleNode("ClampMaximum") == null) ClampMaximum = Xml.GetChildFloatAttribute(node, "Max");
+            Keyframes = XmlMeta.ReadItemArray<MrfStateOperatorFCurveKeyframe>(node, "Keyframes");
+            if (Keyframes.Length == 0) Keyframes = XmlMeta.ReadItemArray<MrfStateOperatorFCurveKeyframe>(node, "Ranges");
+            KeyframeCount = checked((uint)Keyframes.Length);
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            MrfXml.ValueTag(sb, indent, "Min", FloatUtil.ToString(Min));
-            MrfXml.ValueTag(sb, indent, "Max", FloatUtil.ToString(Max));
-            MrfXml.WriteItemArray(sb, Ranges, indent, "Ranges");
+            MrfXml.ValueTag(sb, indent, "ClampMinimum", FloatUtil.ToString(ClampMinimum));
+            MrfXml.ValueTag(sb, indent, "ClampMaximum", FloatUtil.ToString(ClampMaximum));
+            MrfXml.WriteItemArray(sb, Keyframes, indent, "Keyframes");
         }
 
         public override string ToString()
         {
-            return Type + " (" + FloatUtil.ToString(Min) + ".." + FloatUtil.ToString(Max) + ") -> [" + string.Join(",", Ranges.AsEnumerable()) + "]";
+            return Type + " (" + FloatUtil.ToString(ClampMinimum) + ".." + FloatUtil.ToString(ClampMaximum) + ") -> [" + string.Join(",", Keyframes.AsEnumerable()) + "]";
         }
     }
 
-    [TC(typeof(EXP))] public class MrfStateOperatorRemapRange : IMetaXmlItem
+    [TC(typeof(EXP))] public class MrfStateOperatorFCurveKeyframe : IMetaXmlItem
     {
-        public uint Unk1_Unused { get; set; } // always 0, seems unused
-        public float Percent { get; set; } // if less than or equal to ((origValue - origMin) / (origMax - origMin)), this range is selected for the remap operation
-        public float Length { get; set; } // Length = Max - Min
-        public float Min { get; set; }
+        public uint Type { get; set; }
+        public float Key { get; set; }
+        public float ConstantM { get; set; }
+        public float ConstantB { get; set; }
 
-        public MrfStateOperatorRemapRange() { }
-        public MrfStateOperatorRemapRange(DataReader r)
+        public MrfStateOperatorFCurveKeyframe() { }
+        public MrfStateOperatorFCurveKeyframe(DataReader r)
         {
-            Unk1_Unused = r.ReadUInt32();
-            Percent = r.ReadSingle();
-            Length = r.ReadSingle();
-            Min = r.ReadSingle();
+            Type = r.ReadUInt32();
+            Key = r.ReadSingle();
+            ConstantM = r.ReadSingle();
+            ConstantB = r.ReadSingle();
         }
 
         public void Write(DataWriter w)
         {
-            w.Write(Unk1_Unused);
-            w.Write(Percent);
-            w.Write(Length);
-            w.Write(Min);
+            w.Write(Type);
+            w.Write(Key);
+            w.Write(ConstantM);
+            w.Write(ConstantB);
         }
 
         public void WriteXml(StringBuilder sb, int indent)
         {
-            MrfXml.ValueTag(sb, indent, "Percent", FloatUtil.ToString(Percent));
-            MrfXml.ValueTag(sb, indent, "Min", FloatUtil.ToString(Min));
-            MrfXml.ValueTag(sb, indent, "Length", FloatUtil.ToString(Length));
+            MrfXml.ValueTag(sb, indent, "Type", Type.ToString());
+            MrfXml.ValueTag(sb, indent, "Key", FloatUtil.ToString(Key));
+            MrfXml.ValueTag(sb, indent, "ConstantM", FloatUtil.ToString(ConstantM));
+            MrfXml.ValueTag(sb, indent, "ConstantB", FloatUtil.ToString(ConstantB));
         }
 
         public void ReadXml(XmlNode node)
         {
-            Percent = Xml.GetChildFloatAttribute(node, "Percent");
-            Min = Xml.GetChildFloatAttribute(node, "Min");
-            Length = Xml.GetChildFloatAttribute(node, "Length");
+            Type = Xml.GetChildUIntAttribute(node, "Type");
+            Key = Xml.GetChildFloatAttribute(node, "Key");
+            ConstantM = Xml.GetChildFloatAttribute(node, "ConstantM");
+            ConstantB = Xml.GetChildFloatAttribute(node, "ConstantB");
+            if (node.SelectSingleNode("Key") == null) Key = Xml.GetChildFloatAttribute(node, "Percent");
+            if (node.SelectSingleNode("ConstantM") == null) ConstantM = Xml.GetChildFloatAttribute(node, "Length");
+            if (node.SelectSingleNode("ConstantB") == null) ConstantB = Xml.GetChildFloatAttribute(node, "Min");
         }
 
         public override string ToString()
         {
-            return FloatUtil.ToString(Percent) + " - (" + FloatUtil.ToString(Min) + ".." + FloatUtil.ToString(Min+Length) + ")";
+            return $"{FloatUtil.ToString(Key)}: {FloatUtil.ToString(ConstantM)}x + {FloatUtil.ToString(ConstantB)}";
         }
     }
 
@@ -3381,8 +3531,8 @@ namespace CodeWalker.GameFiles
 
         public ushort NodeIndex { get; set; }
         public /*MrfNodeParameterId*/ushort NodeParameterId { get; set; }
-        public ushort StackSize { get; set; } // in bytes, Operators.Length * 8
-        public ushort NodeParameterExtraArg { get; set; }
+        public ushort Size { get; set; }
+        public ushort ParameterIndex { get; set; }
         public MrfStateOperator[] Operators { get; set; } = [];
 
         public MrfStateOperation() { }
@@ -3390,12 +3540,16 @@ namespace CodeWalker.GameFiles
         {
             NodeIndex = r.ReadUInt16();
             NodeParameterId = r.ReadUInt16();
-            StackSize = r.ReadUInt16();
-            NodeParameterExtraArg = r.ReadUInt16();
+            Size = r.ReadUInt16();
+            ParameterIndex = r.ReadUInt16();
+
+            if (Size == 0 || (Size & 7) != 0)
+                throw new InvalidDataException($"Movement state operation size must be a non-zero multiple of 8, but was {Size}.");
 
             var operators = new List<MrfStateOperator>();
 
-            while (true)
+            int packetCount = Size / 8;
+            for (int packetIndex = 0; packetIndex < packetCount; packetIndex++)
             {
                 var startPos = r.Position;
                 var opType = (MrfOperatorType)r.ReadUInt32();
@@ -3404,12 +3558,12 @@ namespace CodeWalker.GameFiles
                 MrfStateOperator op;
                 switch (opType)
                 {
-                    case MrfOperatorType.Finish:        op = new MrfStateOperatorFinish(r); break;
-                    case MrfOperatorType.PushLiteral:   op = new MrfStateOperatorPushLiteral(r); break;
-                    case MrfOperatorType.PushParameter: op = new MrfStateOperatorPushParameter(r); break;
+                    case MrfOperatorType.Finish:        op = new MrfStateOperatorEnd(r); break;
+                    case MrfOperatorType.PushLiteral:   op = new MrfStateOperatorPushValue(r); break;
+                    case MrfOperatorType.PushParameter: op = new MrfStateOperatorFindAndPushValue(r); break;
                     case MrfOperatorType.Add:           op = new MrfStateOperatorAdd(r); break;
                     case MrfOperatorType.Multiply:      op = new MrfStateOperatorMultiply(r); break;
-                    case MrfOperatorType.Remap:         op = new MrfStateOperatorRemap(r); break;
+                    case MrfOperatorType.Remap:         op = new MrfStateOperatorFCurve(r); break;
                     default: throw new Exception($"Unknown operator type ({opType})");
                 }
 
@@ -3422,16 +3576,22 @@ namespace CodeWalker.GameFiles
 
             Operators = operators.ToArray();
 
-            if (StackSize != Operators.Length * 8)
-            { } // no hit
+            if (Size != Operators.Length * 8)
+                throw new InvalidDataException($"Movement state operation size is {Size}, but contains {Operators.Length * 8} bytes of operators.");
+            if (Operators[^1].Type != MrfOperatorType.End)
+                throw new InvalidDataException("Movement state operation does not end with an End operator.");
         }
 
         public void Write(DataWriter w)
         {
+            Operators ??= [];
+            if (Operators.Length == 0 || Operators[^1].Type != MrfOperatorType.End)
+                throw new InvalidDataException("Movement state operations must end with an End operator.");
+            Size = checked((ushort)(Operators.Length * 8));
             w.Write(NodeIndex);
             w.Write(NodeParameterId);
-            w.Write(StackSize);
-            w.Write(NodeParameterExtraArg);
+            w.Write(Size);
+            w.Write(ParameterIndex);
 
             foreach (var op in Operators)
                 op.Write(w);
@@ -3441,7 +3601,9 @@ namespace CodeWalker.GameFiles
         {
             NodeIndex = (ushort)Xml.GetChildUIntAttribute(node, "NodeIndex");
             NodeParameterId = (ushort)Xml.GetChildUIntAttribute(node, "NodeParameterId");
-            NodeParameterExtraArg = (ushort)Xml.GetChildUIntAttribute(node, "NodeParameterExtraArg");
+            ParameterIndex = (ushort)Xml.GetChildUIntAttribute(node, "ParameterIndex");
+            if (node.SelectSingleNode("ParameterIndex") == null)
+                ParameterIndex = (ushort)Xml.GetChildUIntAttribute(node, "NodeParameterExtraArg");
             Operators = [];
             var operatorsNode = node.SelectSingleNode("Operators");
             if (operatorsNode != null)
@@ -3458,14 +3620,14 @@ namespace CodeWalker.GameFiles
                     }
                 }
             }
-            StackSize = (ushort)((Operators?.Length ?? 0) * 8);
+            Size = checked((ushort)((Operators?.Length ?? 0) * 8));
         }
 
         public void WriteXml(StringBuilder sb, int indent)
         {
             MrfXml.ValueTag(sb, indent, "NodeIndex", NodeIndex.ToString());
             MrfXml.ValueTag(sb, indent, "NodeParameterId", NodeParameterId.ToString());
-            MrfXml.ValueTag(sb, indent, "NodeParameterExtraArg", NodeParameterExtraArg.ToString());
+            MrfXml.ValueTag(sb, indent, "ParameterIndex", ParameterIndex.ToString());
             int cindent = indent + 1;
             MrfXml.OpenTag(sb, indent, "Operators");
             foreach (var op in Operators)
@@ -3477,7 +3639,7 @@ namespace CodeWalker.GameFiles
 
         public override string ToString()
         {
-            return NodeIndex.ToString() + " - " + NodeParameterId.ToString() + " - " + StackSize.ToString() + " - " + NodeParameterExtraArg.ToString() + " - " +
+            return NodeIndex.ToString() + " - " + NodeParameterId.ToString() + " - " + Size.ToString() + " - " + ParameterIndex.ToString() + " - " +
                 (Operators?.Length ?? 0).ToString() + " operators";
         }
     }
@@ -3499,10 +3661,10 @@ namespace CodeWalker.GameFiles
             base.Read(r);
 
 
-            if (StateChildCount > 0)
+            if (ChildCount > 0)
             {
-                States = new MrfStateRef[StateChildCount];
-                for (int i = 0; i < StateChildCount; i++)
+                States = new MrfStateRef[ChildCount];
+                for (int i = 0; i < ChildCount; i++)
                     States[i] = new MrfStateRef(r);
 
             }
@@ -3510,7 +3672,7 @@ namespace CodeWalker.GameFiles
             if (TransitionCount > 0)
             {
                 if (r.Position != TransitionsFileOffset)
-                { } // no hits
+                    throw new InvalidDataException($"Movement transition table begins at {TransitionsFileOffset}, but the reader is at {r.Position}.");
 
                 Transitions = new MrfStateTransition[TransitionCount];
                 for (int i = 0; i < TransitionCount; i++)
@@ -3520,8 +3682,8 @@ namespace CodeWalker.GameFiles
 
         public override void Write(DataWriter w)
         {
-            StateChildCount = (byte)(States?.Length ?? 0);
-            TransitionCount = (byte)(Transitions?.Length ?? 0);
+            ChildCount = checked((byte)(States?.Length ?? 0));
+            TransitionCount = checked((byte)(Transitions?.Length ?? 0));
 
             base.Write(w);
 
@@ -3551,17 +3713,17 @@ namespace CodeWalker.GameFiles
                     {
                         var s = new MrfStateRef();
                         s.State = XmlMrf.ReadNode(inode) as MrfNodeStateBase ?? throw new InvalidDataException("A movement state element is invalid.");
-                        s.StateName = s.State.Name;
+                        s.StateName = s.State.ID;
                         States[i] = s;
                         i++;
                     }
                 }
             }
-            StateChildCount = (byte)(States?.Length ?? 0);
+            ChildCount = checked((byte)(States?.Length ?? 0));
             var initialStateName = XmlMrf.ReadChildNodeRef(node, "InitialState");
             InitialNode = States?.FirstOrDefault(s => s.StateName == initialStateName)?.State;
             Transitions = XmlMeta.ReadItemArray<MrfStateTransition>(node, "Transitions");
-            TransitionCount = (byte)(Transitions?.Length ?? 0);
+            TransitionCount = checked((byte)(Transitions?.Length ?? 0));
 
             ResolveXmlTargetStatesInTransitions(States);
         }
@@ -3618,8 +3780,8 @@ namespace CodeWalker.GameFiles
         public MrfStateRef[] States { get; set; } = [];
 
         public MrfNode? FallbackNode { get; set; } // node used when a NodeTail is reached (maybe in some other cases too?). This node is considered a child
-                                                  // of the parent NodeState, so FallbackNode and its children (including their NodeIndex) should be
-                                                  // included in the parent NodeState.StateChildCount, not in this NodeInlinedStateMachine.StateChildCount
+                                                  // of the parent NodeState, so FallbackNode and its children (including their index) should be
+                                                  // included in the parent NodeState.ChildCount, not in this NodeInlinedStateMachine.ChildCount
 
         public MrfNodeInlinedStateMachine() : base(MrfNodeType.InlinedStateMachine) { }
 
@@ -3628,19 +3790,29 @@ namespace CodeWalker.GameFiles
             base.Read(r);
 
             FallbackNodeOffset = r.ReadInt32();
-            FallbackNodeFileOffset = (int)(r.Position + FallbackNodeOffset - 4);
+            FallbackNodeFileOffset = checked((int)(r.Position + FallbackNodeOffset - 4));
 
-            if (StateChildCount > 0)
+            if (ChildCount > 0)
             {
-                States = new MrfStateRef[StateChildCount];
-                for (int i = 0; i < StateChildCount; i++)
+                States = new MrfStateRef[ChildCount];
+                for (int i = 0; i < ChildCount; i++)
                     States[i] = new MrfStateRef(r);
+            }
+
+            if (TransitionCount > 0)
+            {
+                if (r.Position != TransitionsFileOffset)
+                    throw new InvalidDataException($"Movement transition table begins at {TransitionsFileOffset}, but the reader is at {r.Position}.");
+                Transitions = new MrfStateTransition[TransitionCount];
+                for (int i = 0; i < TransitionCount; i++)
+                    Transitions[i] = new MrfStateTransition(r);
             }
         }
 
         public override void Write(DataWriter w)
         {
-            StateChildCount = (byte)(States?.Length ?? 0);
+            ChildCount = checked((byte)(States?.Length ?? 0));
+            TransitionCount = checked((byte)(Transitions?.Length ?? 0));
 
             base.Write(w);
 
@@ -3649,6 +3821,10 @@ namespace CodeWalker.GameFiles
             if (States != null)
                 foreach (var item in States)
                     item.Write(w);
+
+            if (Transitions != null)
+                foreach (var transition in Transitions)
+                    transition.Write(w);
         }
 
         public override void ReadXml(XmlNode node)
@@ -3668,16 +3844,18 @@ namespace CodeWalker.GameFiles
                     {
                         var s = new MrfStateRef();
                         s.State = XmlMrf.ReadNode(inode) as MrfNodeStateBase ?? throw new InvalidDataException("A movement state element is invalid.");
-                        s.StateName = s.State.Name;
+                        s.StateName = s.State.ID;
                         States[i] = s;
                         i++;
                     }
                 }
             }
-            StateChildCount = (byte)(States?.Length ?? 0);
+            ChildCount = checked((byte)(States?.Length ?? 0));
             var initialStateName = XmlMrf.ReadChildNodeRef(node, "InitialState");
             InitialNode = States?.FirstOrDefault(s => s.StateName == initialStateName)?.State;
             FallbackNode = XmlMrf.ReadChildNode(node, "FallbackNode");
+            Transitions = XmlMeta.ReadItemArray<MrfStateTransition>(node, "Transitions");
+            TransitionCount = checked((byte)Transitions.Length);
 
             ResolveXmlTargetStatesInTransitions(States);
         }
@@ -3695,6 +3873,7 @@ namespace CodeWalker.GameFiles
             }
             MrfXml.CloseTag(sb, indent, "States");
             MrfXml.WriteNode(sb, indent, "FallbackNode", FallbackNode);
+            MrfXml.WriteItemArray(sb, Transitions, indent, "Transitions");
         }
 
         public override void ResolveRelativeOffsets(MrfFile mrf)
@@ -3703,11 +3882,12 @@ namespace CodeWalker.GameFiles
 
             var fallbackNode = mrf.FindNodeAtFileOffset(FallbackNodeFileOffset);
             if (fallbackNode == null)
-            { } // no hits
+                throw new InvalidDataException($"Movement fallback node at file offset {FallbackNodeFileOffset} could not be resolved.");
 
             FallbackNode = fallbackNode;
 
             ResolveNodeOffsetsInStates(States, mrf);
+            ResolveNodeOffsetsInTransitions(Transitions, mrf);
         }
 
         public override void UpdateRelativeOffsets()
@@ -3722,7 +3902,7 @@ namespace CodeWalker.GameFiles
             offset += 4;
             offset = UpdateNodeOffsetsInStates(States, offset);
 
-            offset = UpdateNodeOffsetsInTransitions(null, offset, offsetSetToZeroIfNoTransitions: true);
+            offset = UpdateNodeOffsetsInTransitions(Transitions, offset, offsetSetToZeroIfNoTransitions: true);
         }
 
         public override string ToString()
@@ -3737,15 +3917,24 @@ namespace CodeWalker.GameFiles
         // Probably not worth researching further. Seems like the introduction of NodeClip (and rage::crClip), made this node obsolete.
         // Even the function pointer used to lookup the rage::crAnimation when AnimationType==Literal is null, so the only way to get animations is through a parameter.
 
-        public uint AnimationUnkDataLength { get; set; }
-        public byte[] AnimationUnkData { get; set; } = [];
-        public MetaHash AnimationName => AnimationUnkData == null ? 0 : BitConverter.ToUInt32(AnimationUnkData, 0);
+        public uint AnimationFilenameLength { get; set; }
+        public byte[] AnimationFilenameData { get; set; } = [];
+        public string AnimationFilename
+        {
+            get => Encoding.UTF8.GetString(AnimationFilenameData).TrimEnd('\0');
+            set => AnimationFilenameData = EncodeFilename(value);
+        }
         public MetaHash AnimationParameterName { get; set; }
-        public uint Unk3 { get; set; }
-        public uint Unk4 { get; set; }
-        public uint Unk5 { get; set; }
-        public uint Unk6 { get; set; }
-        public uint Unk7 { get; set; }
+        public float Phase { get; set; }
+        public MetaHash PhaseParameterName { get; set; }
+        public float Rate { get; set; }
+        public MetaHash RateParameterName { get; set; }
+        public float Delta { get; set; }
+        public MetaHash DeltaParameterName { get; set; }
+        public bool Looped { get; set; }
+        public MetaHash LoopedParameterName { get; set; }
+        public bool Absolute { get; set; }
+        public MetaHash AbsoluteParameterName { get; set; }
 
         // flags getters and setters
         public MrfValueType AnimationType
@@ -3753,6 +3942,11 @@ namespace CodeWalker.GameFiles
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
         }
+        public MrfValueType PhaseType { get => (MrfValueType)GetFlagsSubset(2, 3); set => SetFlagsSubset(2, 3, (uint)value); }
+        public MrfValueType RateType { get => (MrfValueType)GetFlagsSubset(4, 3); set => SetFlagsSubset(4, 3, (uint)value); }
+        public MrfValueType DeltaType { get => (MrfValueType)GetFlagsSubset(6, 3); set => SetFlagsSubset(6, 3, (uint)value); }
+        public MrfValueType LoopedType { get => (MrfValueType)GetFlagsSubset(8, 3); set => SetFlagsSubset(8, 3, (uint)value); }
+        public MrfValueType AbsoluteType { get => (MrfValueType)GetFlagsSubset(10, 3); set => SetFlagsSubset(10, 3, (uint)value); }
 
         public MrfNodeAnimation() : base(MrfNodeType.Animation) { }
 
@@ -3764,8 +3958,8 @@ namespace CodeWalker.GameFiles
             {
                 case MrfValueType.Literal:
                     {
-                        AnimationUnkDataLength = r.ReadUInt32();
-                        AnimationUnkData = r.ReadBytes((int)AnimationUnkDataLength);
+                        AnimationFilenameLength = r.ReadUInt32();
+                        AnimationFilenameData = r.ReadBytes(checked((int)AnimationFilenameLength));
                         break;
                     }
                 case MrfValueType.Parameter:
@@ -3773,20 +3967,11 @@ namespace CodeWalker.GameFiles
                     break;
             }
 
-            if (((Flags >> 2) & 3) != 0)
-                Unk3 = r.ReadUInt32();
-
-            if (((Flags >> 4) & 3) != 0)
-                Unk4 = r.ReadUInt32();
-
-            if (((Flags >> 6) & 3) != 0)
-                Unk5 = r.ReadUInt32();
-
-            if (((Flags >> 8) & 3) != 0)
-                Unk6 = r.ReadUInt32();
-
-            if (((Flags >> 10) & 3) != 0)
-                Unk7 = r.ReadUInt32();
+            (Phase, PhaseParameterName) = ReadFloat(r, PhaseType);
+            (Rate, RateParameterName) = ReadFloat(r, RateType);
+            (Delta, DeltaParameterName) = ReadFloat(r, DeltaType);
+            (Looped, LoopedParameterName) = ReadBool(r, LoopedType);
+            (Absolute, AbsoluteParameterName) = ReadBool(r, AbsoluteType);
         }
 
         public override void Write(DataWriter w)
@@ -3797,8 +3982,10 @@ namespace CodeWalker.GameFiles
             {
                 case MrfValueType.Literal:
                     {
-                        w.Write(AnimationUnkDataLength);
-                        w.Write(AnimationUnkData);
+                        AnimationFilenameData ??= [];
+                        AnimationFilenameLength = checked((uint)AnimationFilenameData.Length);
+                        w.Write(AnimationFilenameLength);
+                        w.Write(AnimationFilenameData);
                         break;
                     }
                 case MrfValueType.Parameter:
@@ -3806,30 +3993,67 @@ namespace CodeWalker.GameFiles
                     break;
             }
 
-            if (((Flags >> 2) & 3) != 0)
-                w.Write(Unk3);
-
-            if (((Flags >> 4) & 3) != 0)
-                w.Write(Unk4);
-
-            if (((Flags >> 6) & 3) != 0)
-                w.Write(Unk5);
-
-            if (((Flags >> 8) & 3) != 0)
-                w.Write(Unk6);
-
-            if (((Flags >> 10) & 3) != 0)
-                w.Write(Unk7);
+            WriteFloat(w, PhaseType, Phase, PhaseParameterName);
+            WriteFloat(w, RateType, Rate, RateParameterName);
+            WriteFloat(w, DeltaType, Delta, DeltaParameterName);
+            WriteBool(w, LoopedType, Looped, LoopedParameterName);
+            WriteBool(w, AbsoluteType, Absolute, AbsoluteParameterName);
         }
 
         public override void ReadXml(XmlNode node)
         {
-            throw new NotImplementedException();
+            base.ReadXml(node);
+            var animationNode = node.SelectSingleNode("Animation");
+            if (animationNode?.Attributes?["filename"] != null)
+            {
+                AnimationType = MrfValueType.Literal;
+                AnimationFilename = Xml.GetStringAttribute(animationNode, "filename") ?? string.Empty;
+            }
+            else if (animationNode?.Attributes?["parameter"] != null)
+            {
+                AnimationType = MrfValueType.Parameter;
+                AnimationParameterName = XmlMeta.GetHash(Xml.GetStringAttribute(animationNode, "parameter"));
+            }
+            else AnimationType = MrfValueType.None;
+            (PhaseType, Phase, PhaseParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Phase");
+            (RateType, Rate, RateParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Rate");
+            (DeltaType, Delta, DeltaParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Delta");
+            (LoopedType, Looped, LoopedParameterName) = XmlMrf.GetChildParameterizedBool(node, "Looped");
+            (AbsoluteType, Absolute, AbsoluteParameterName) = XmlMrf.GetChildParameterizedBool(node, "Absolute");
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            throw new NotImplementedException();
+            base.WriteXml(sb, indent);
+            MrfXml.ParameterizedFilenameTag(sb, indent, "Animation", AnimationType, AnimationFilename, AnimationParameterName);
+            MrfXml.ParameterizedFloatTag(sb, indent, "Phase", PhaseType, Phase, PhaseParameterName);
+            MrfXml.ParameterizedFloatTag(sb, indent, "Rate", RateType, Rate, RateParameterName);
+            MrfXml.ParameterizedFloatTag(sb, indent, "Delta", DeltaType, Delta, DeltaParameterName);
+            MrfXml.ParameterizedBoolTag(sb, indent, "Looped", LoopedType, Looped, LoopedParameterName);
+            MrfXml.ParameterizedBoolTag(sb, indent, "Absolute", AbsoluteType, Absolute, AbsoluteParameterName);
+        }
+
+        private static (float Value, MetaHash ParameterName) ReadFloat(DataReader r, MrfValueType type) =>
+            type == MrfValueType.Literal ? (r.ReadSingle(), 0) : type == MrfValueType.Parameter ? (0, r.ReadUInt32()) : (0, 0);
+        private static (bool Value, MetaHash ParameterName) ReadBool(DataReader r, MrfValueType type) =>
+            type == MrfValueType.Literal ? (r.ReadUInt32() != 0, 0) : type == MrfValueType.Parameter ? (false, r.ReadUInt32()) : (false, 0);
+        private static void WriteFloat(DataWriter w, MrfValueType type, float value, MetaHash parameterName)
+        {
+            if (type == MrfValueType.Literal) w.Write(value);
+            else if (type == MrfValueType.Parameter) w.Write(parameterName);
+        }
+        private static void WriteBool(DataWriter w, MrfValueType type, bool value, MetaHash parameterName)
+        {
+            if (type == MrfValueType.Literal) w.Write(value ? 0x01000000u : 0u);
+            else if (type == MrfValueType.Parameter) w.Write(parameterName);
+        }
+        internal static byte[] EncodeFilename(string value)
+        {
+            byte[] text = Encoding.UTF8.GetBytes(value ?? string.Empty);
+            int length = checked((text.Length + 5) & ~3);
+            byte[] data = new byte[length];
+            text.CopyTo(data, 0);
+            return data;
         }
     }
 
@@ -3866,7 +4090,8 @@ namespace CodeWalker.GameFiles
         // rage__mvNodeFrame (9)
 
         public MetaHash FrameParameterName { get; set; }
-        public MetaHash Unk3 { get; set; } // unused
+        public bool Owner { get; set; }
+        public MetaHash OwnerParameterName { get; set; }
 
         // flags getters and setters
         public MrfValueType FrameType // only Parameter type is supported
@@ -3874,7 +4099,7 @@ namespace CodeWalker.GameFiles
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
         }
-        public MrfValueType Unk3Type
+        public MrfValueType OwnerType
         {
             get => (MrfValueType)GetFlagsSubset(4, 3);
             set => SetFlagsSubset(4, 3, (uint)value);
@@ -3889,8 +4114,11 @@ namespace CodeWalker.GameFiles
             if (FrameType != MrfValueType.None)
                 FrameParameterName = r.ReadUInt32();
 
-            if (Unk3Type != MrfValueType.None)
-                Unk3 = r.ReadUInt32();
+            switch (OwnerType)
+            {
+                case MrfValueType.Literal: Owner = r.ReadUInt32() != 0; break;
+                case MrfValueType.Parameter: OwnerParameterName = r.ReadUInt32(); break;
+            }
         }
 
         public override void Write(DataWriter w)
@@ -3900,18 +4128,19 @@ namespace CodeWalker.GameFiles
             if (FrameType != MrfValueType.None)
                 w.Write(FrameParameterName);
 
-            if (Unk3Type != MrfValueType.None)
-                w.Write(Unk3);
+            switch (OwnerType)
+            {
+                case MrfValueType.Literal: w.Write(Owner ? 0x01000000u : 0u); break;
+                case MrfValueType.Parameter: w.Write(OwnerParameterName); break;
+            }
         }
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
 
-            Unk3 = 0;
-            Unk3Type = MrfValueType.None;
-
             (FrameType, _, _, FrameParameterName) = XmlMrf.GetChildParameterizedAsset(node, "Frame");
+            (OwnerType, Owner, OwnerParameterName) = XmlMrf.GetChildParameterizedBool(node, "Owner");
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
@@ -3919,6 +4148,7 @@ namespace CodeWalker.GameFiles
             base.WriteXml(sb, indent);
 
             MrfXml.ParameterizedAssetTag(sb, indent, "Frame", FrameType, 0, 0, FrameParameterName);
+            MrfXml.ParameterizedBoolTag(sb, indent, "Owner", OwnerType, Owner, OwnerParameterName);
         }
     }
 
@@ -3938,10 +4168,13 @@ namespace CodeWalker.GameFiles
 
     public enum MrfClipContainerType : uint
     {
-        VariableClipSet = 0, // a fwClipSet stored in the move network by the game code (when this clipset is added to the network it enables its fwClipSet.moveNetworkFlags, when removed they are disabled)
-        ClipSet = 1,         // a fwClipSet
-        ClipDictionary = 2,  // a .ycd
-        Unk3 = 3,            // unknown, only ClipContainerName is set when used (only used in minigame_drilling_bag.mrf)
+        VariableClipSet = 0,
+        ClipDictionary = 1,
+        AbsoluteClipSet = 2,
+        LocalFile = 3,
+
+        ClipSet = AbsoluteClipSet,
+        Unk3 = LocalFile,
     }
 
     [TC(typeof(EXP))] public class MrfNodeClip : MrfNodeWithFlagsBase
@@ -3987,10 +4220,10 @@ namespace CodeWalker.GameFiles
             get => (MrfValueType)GetFlagsSubset(8, 3);
             set => SetFlagsSubset(8, 3, (uint)value);
         }
-        public uint UnkFlag10
+        public bool IsZeroWeight
         {
-            get => GetFlagsSubset(10, 3);
-            set => SetFlagsSubset(10, 3, value);
+            get => GetFlagsSubset(10, 1) != 0;
+            set => SetFlagsSubset(10, 1, value ? 1u : 0u);
         }
 
         public MrfNodeClip() : base(MrfNodeType.Clip) { }
@@ -4004,10 +4237,13 @@ namespace CodeWalker.GameFiles
                 case MrfValueType.Literal:
                     {
                         ClipContainerType = (MrfClipContainerType)r.ReadUInt32();
-                        ClipContainerName = r.ReadUInt32();
-
-                        if (ClipContainerType != MrfClipContainerType.Unk3)
+                        if (ClipContainerType == MrfClipContainerType.LocalFile)
                             ClipName = r.ReadUInt32();
+                        else
+                        {
+                            ClipContainerName = r.ReadUInt32();
+                            ClipName = r.ReadUInt32();
+                        }
                         break;
                     }
                 case MrfValueType.Parameter:
@@ -4065,10 +4301,13 @@ namespace CodeWalker.GameFiles
                 case MrfValueType.Literal:
                     {
                         w.Write((uint)ClipContainerType);
-                        w.Write(ClipContainerName);
-
-                        if (ClipContainerType != MrfClipContainerType.Unk3)
+                        if (ClipContainerType == MrfClipContainerType.LocalFile)
                             w.Write(ClipName);
+                        else
+                        {
+                            w.Write(ClipContainerName);
+                            w.Write(ClipName);
+                        }
 
                         break;
                     }
@@ -4127,7 +4366,7 @@ namespace CodeWalker.GameFiles
             (RateType, Rate, RateParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Rate");
             (DeltaType, Delta, DeltaParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Delta");
             (LoopedType, Looped, LoopedParameterName) = XmlMrf.GetChildParameterizedBool(node, "Looped");
-            UnkFlag10 = Xml.GetChildUIntAttribute(node, "UnkFlag10");
+            IsZeroWeight = Xml.GetChildBoolAttribute(node, "IsZeroWeight") || Xml.GetChildUIntAttribute(node, "UnkFlag10") != 0;
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
@@ -4139,7 +4378,7 @@ namespace CodeWalker.GameFiles
             MrfXml.ParameterizedFloatTag(sb, indent, "Rate", RateType, Rate, RateParameterName);
             MrfXml.ParameterizedFloatTag(sb, indent, "Delta", DeltaType, Delta, DeltaParameterName);
             MrfXml.ParameterizedBoolTag(sb, indent, "Looped", LoopedType, Looped, LoopedParameterName);
-            MrfXml.ValueTag(sb, indent, "UnkFlag10", UnkFlag10.ToString());
+            MrfXml.ValueTag(sb, indent, "IsZeroWeight", IsZeroWeight.ToString());
         }
     }
 
@@ -4153,14 +4392,21 @@ namespace CodeWalker.GameFiles
         // Seems similar to NodeClip but for rage::crpmMotion/.#pm files (added in RDR3, WIP in GTA5/MP3?)
         // In GTA5 the function pointer used to lookup the rage::crpmMotion is null
 
-        public uint MotionUnkDataLength { get; set; }
-        public byte[] MotionUnkData { get; set; } = [];
-        public MetaHash MotionName => MotionUnkData == null ? 0 : BitConverter.ToUInt32(MotionUnkData, 0);
+        public uint MotionFilenameLength { get; set; }
+        public byte[] MotionFilenameData { get; set; } = [];
+        public string MotionFilename
+        {
+            get => Encoding.UTF8.GetString(MotionFilenameData).TrimEnd('\0');
+            set => MotionFilenameData = MrfNodeAnimation.EncodeFilename(value);
+        }
         public MetaHash MotionParameterName { get; set; }
-        public uint Unk3 { get; set; }
-        public uint Unk4 { get; set; }
-        public uint Unk5 { get; set; }
-        public uint[] Unk6 { get; set; } = [];
+        public float Rate { get; set; }
+        public MetaHash RateParameterName { get; set; }
+        public float Phase { get; set; }
+        public MetaHash PhaseParameterName { get; set; }
+        public float Delta { get; set; }
+        public MetaHash DeltaParameterName { get; set; }
+        public MrfNodePmParameter[] Parameters { get; set; } = [];
 
         // flags getters and setters
         public MrfValueType MotionType
@@ -4168,6 +4414,20 @@ namespace CodeWalker.GameFiles
             // Literal not supported, the function pointer used to lookup the motion is null
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
+        }
+        public MrfValueType RateType { get => (MrfValueType)GetFlagsSubset(2, 3); set => SetFlagsSubset(2, 3, (uint)value); }
+        public MrfValueType PhaseType { get => (MrfValueType)GetFlagsSubset(4, 3); set => SetFlagsSubset(4, 3, (uint)value); }
+        public MrfValueType DeltaType { get => (MrfValueType)GetFlagsSubset(6, 3); set => SetFlagsSubset(6, 3, (uint)value); }
+        public uint ParameterCount { get => GetFlagsSubset(10, 0xF); set => SetFlagsSubset(10, 0xF, value); }
+        public MrfValueType GetParameterType(int index)
+        {
+            if ((uint)index >= 6) throw new ArgumentOutOfRangeException(nameof(index));
+            return (MrfValueType)GetFlagsSubset(19 + index * 2, 3);
+        }
+        public void SetParameterType(int index, MrfValueType type)
+        {
+            if ((uint)index >= 6) throw new ArgumentOutOfRangeException(nameof(index));
+            SetFlagsSubset(19 + index * 2, 3, (uint)type);
         }
 
         public MrfNodePm() : base(MrfNodeType.Pm) { }
@@ -4180,8 +4440,8 @@ namespace CodeWalker.GameFiles
             {
                 case MrfValueType.Literal:
                     {
-                        MotionUnkDataLength = r.ReadUInt32();
-                        MotionUnkData = r.ReadBytes((int)MotionUnkDataLength);
+                        MotionFilenameLength = r.ReadUInt32();
+                        MotionFilenameData = r.ReadBytes(checked((int)MotionFilenameLength));
                         break;
                     }
                 case MrfValueType.Parameter:
@@ -4189,39 +4449,35 @@ namespace CodeWalker.GameFiles
                     break;
             }
 
-            if (((Flags >> 2) & 3) != 0)
-                Unk3 = r.ReadUInt32();
-
-            if (((Flags >> 4) & 3) != 0)
-                Unk4 = r.ReadUInt32();
-
-            if ((Flags >> 6) != 0)
-                Unk5 = r.ReadUInt32();
-
-            var flags = Flags >> 19;
-            var unk6Count = (Flags >> 10) & 0xF;
-
-            Unk6 = new uint[unk6Count];
-
-            for (int i = 0; i < unk6Count; i++)
+            (Rate, RateParameterName) = ReadFloat(r, RateType);
+            (Phase, PhaseParameterName) = ReadFloat(r, PhaseType);
+            (Delta, DeltaParameterName) = ReadFloat(r, DeltaType);
+            if (ParameterCount > 6)
+                throw new InvalidDataException($"Parameterized-motion node has {ParameterCount} parameters; the native flag layout supports 6.");
+            Parameters = new MrfNodePmParameter[ParameterCount];
+            for (int i = 0; i < Parameters.Length; i++)
             {
-                if ((flags & 3) != 0)
-                    Unk6[i] = r.ReadUInt32();
-
-                flags >>= 2;
+                var value = ReadFloat(r, GetParameterType(i));
+                Parameters[i] = new MrfNodePmParameter(value.Value, value.ParameterName);
             }
         }
 
         public override void Write(DataWriter w)
         {
+            Parameters ??= [];
+            if (Parameters.Length > 6)
+                throw new InvalidDataException("Parameterized-motion nodes support at most 6 parameters.");
+            ParameterCount = checked((uint)Parameters.Length);
             base.Write(w);
 
             switch (MotionType)
             {
                 case MrfValueType.Literal:
                     {
-                        w.Write(MotionUnkDataLength);
-                        w.Write(MotionUnkData);
+                        MotionFilenameData ??= [];
+                        MotionFilenameLength = checked((uint)MotionFilenameData.Length);
+                        w.Write(MotionFilenameLength);
+                        w.Write(MotionFilenameData);
                         break;
                     }
                 case MrfValueType.Parameter:
@@ -4229,32 +4485,79 @@ namespace CodeWalker.GameFiles
                     break;
             }
 
-            if (((Flags >> 2) & 3) != 0)
-                w.Write(Unk3);
-
-            if (((Flags >> 4) & 3) != 0)
-                w.Write(Unk4);
-
-            if ((Flags >> 6) != 0)
-                w.Write(Unk5);
-
-            var unk6Count = (Flags >> 10) & 0xF;
-
-            if (unk6Count > 0)
-            {
-                foreach (var value in Unk6)
-                    w.Write(value);
-            }
+            WriteFloat(w, RateType, Rate, RateParameterName);
+            WriteFloat(w, PhaseType, Phase, PhaseParameterName);
+            WriteFloat(w, DeltaType, Delta, DeltaParameterName);
+            for (int i = 0; i < Parameters.Length; i++)
+                WriteFloat(w, GetParameterType(i), Parameters[i].Value, Parameters[i].ParameterName);
         }
 
         public override void ReadXml(XmlNode node)
         {
-            throw new NotImplementedException();
+            base.ReadXml(node);
+            var motionNode = node.SelectSingleNode("Motion");
+            if (motionNode?.Attributes?["filename"] != null)
+            {
+                MotionType = MrfValueType.Literal;
+                MotionFilename = Xml.GetStringAttribute(motionNode, "filename") ?? string.Empty;
+            }
+            else if (motionNode?.Attributes?["parameter"] != null)
+            {
+                MotionType = MrfValueType.Parameter;
+                MotionParameterName = XmlMeta.GetHash(Xml.GetStringAttribute(motionNode, "parameter"));
+            }
+            else MotionType = MrfValueType.None;
+            (RateType, Rate, RateParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Rate");
+            (PhaseType, Phase, PhaseParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Phase");
+            (DeltaType, Delta, DeltaParameterName) = XmlMrf.GetChildParameterizedFloat(node, "Delta");
+            var items = node.SelectSingleNode("Parameters")?.SelectNodes("Item");
+            if ((items?.Count ?? 0) > 6)
+                throw new InvalidDataException("Parameterized-motion nodes support at most 6 parameters.");
+            Parameters = new MrfNodePmParameter[items?.Count ?? 0];
+            for (int i = 0; i < Parameters.Length; i++)
+            {
+                var parameter = XmlMrf.GetChildParameterizedFloat(items![i]!, "Value");
+                SetParameterType(i, parameter.Type);
+                Parameters[i] = new MrfNodePmParameter(parameter.Value, parameter.ParameterName);
+            }
+            ParameterCount = checked((uint)Parameters.Length);
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
-            throw new NotImplementedException();
+            base.WriteXml(sb, indent);
+            MrfXml.ParameterizedFilenameTag(sb, indent, "Motion", MotionType, MotionFilename, MotionParameterName);
+            MrfXml.ParameterizedFloatTag(sb, indent, "Rate", RateType, Rate, RateParameterName);
+            MrfXml.ParameterizedFloatTag(sb, indent, "Phase", PhaseType, Phase, PhaseParameterName);
+            MrfXml.ParameterizedFloatTag(sb, indent, "Delta", DeltaType, Delta, DeltaParameterName);
+            MrfXml.OpenTag(sb, indent, "Parameters");
+            for (int i = 0; i < Parameters.Length; i++)
+            {
+                MrfXml.OpenTag(sb, indent + 1, "Item");
+                MrfXml.ParameterizedFloatTag(sb, indent + 2, "Value", GetParameterType(i), Parameters[i].Value, Parameters[i].ParameterName);
+                MrfXml.CloseTag(sb, indent + 1, "Item");
+            }
+            MrfXml.CloseTag(sb, indent, "Parameters");
+        }
+
+        private static (float Value, MetaHash ParameterName) ReadFloat(DataReader r, MrfValueType type) =>
+            type == MrfValueType.Literal ? (r.ReadSingle(), 0) : type == MrfValueType.Parameter ? (0, r.ReadUInt32()) : (0, 0);
+        private static void WriteFloat(DataWriter w, MrfValueType type, float value, MetaHash parameterName)
+        {
+            if (type == MrfValueType.Literal) w.Write(value);
+            else if (type == MrfValueType.Parameter) w.Write(parameterName);
+        }
+    }
+
+    [TC(typeof(EXP))] public struct MrfNodePmParameter
+    {
+        public float Value { get; set; }
+        public MetaHash ParameterName { get; set; }
+
+        public MrfNodePmParameter(float value, MetaHash parameterName)
+        {
+            Value = value;
+            ParameterName = parameterName;
         }
     }
 
@@ -4355,10 +4658,12 @@ namespace CodeWalker.GameFiles
         // VariableFlags accessors by index
         public MrfValueType GetVariableType(int index)
         {
+            if ((uint)index >= 12) throw new ArgumentOutOfRangeException(nameof(index));
             return (MrfValueType)GetFlagsSubset(4 + 2 * index, 3);
         }
         public void SetVariableType(int index, MrfValueType type)
         {
+            if ((uint)index >= 12) throw new ArgumentOutOfRangeException(nameof(index));
             SetFlagsSubset(4 + 2 * index, 3, (uint)type);
         }
 
@@ -4390,6 +4695,8 @@ namespace CodeWalker.GameFiles
             }
 
             var varCount = VariableCount;
+            if (varCount > 12)
+                throw new InvalidDataException("Movement expression nodes support at most 12 variables.");
 
             if (varCount == 0)
                 return;
@@ -4419,6 +4726,10 @@ namespace CodeWalker.GameFiles
 
         public override void Write(DataWriter w)
         {
+            Variables ??= [];
+            if (Variables.Length > 12)
+                throw new InvalidDataException("Movement expression nodes support at most 12 variables.");
+            VariableCount = checked((uint)Variables.Length);
             base.Write(w);
 
             switch (ExpressionType)
@@ -4450,6 +4761,8 @@ namespace CodeWalker.GameFiles
             for (int i = 0; i < varCount; i++)
             {
                 var type = GetVariableType(i);
+                if (type > MrfValueType.Parameter)
+                    throw new InvalidDataException($"Movement expression variable {i} contains an invalid value type.");
                 var variable = Variables[i];
                 w.Write(variable.Name);
 
@@ -4481,6 +4794,8 @@ namespace CodeWalker.GameFiles
                 var inodes = variablesNode.SelectNodes("Item");
                 if (inodes?.Count > 0)
                 {
+                    if (inodes.Count > 12)
+                        throw new InvalidDataException("Movement expression nodes support at most 12 variables.");
                     VariableCount = (uint)inodes.Count;
                     Variables = new MrfNodeExpressionVariable[VariableCount];
                     int i = 0;
@@ -4549,7 +4864,8 @@ namespace CodeWalker.GameFiles
         // rage::mvNodeCaptureDef (20)
 
         public MetaHash FrameParameterName { get; set; }
-        public MetaHash Unk3 { get; set; } // unused
+        public bool Owner { get; set; }
+        public MetaHash OwnerParameterName { get; set; }
 
         // flags getters and setters
         public MrfValueType FrameType // only Parameter type is supported
@@ -4557,7 +4873,7 @@ namespace CodeWalker.GameFiles
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
         }
-        public MrfValueType Unk3Type
+        public MrfValueType OwnerType
         {
             get => (MrfValueType)GetFlagsSubset(4, 3);
             set => SetFlagsSubset(4, 3, (uint)value);
@@ -4572,8 +4888,11 @@ namespace CodeWalker.GameFiles
             if (FrameType != MrfValueType.None)
                 FrameParameterName = r.ReadUInt32();
 
-            if (Unk3Type != MrfValueType.None)
-                Unk3 = r.ReadUInt32();
+            switch (OwnerType)
+            {
+                case MrfValueType.Literal: Owner = r.ReadUInt32() != 0; break;
+                case MrfValueType.Parameter: OwnerParameterName = r.ReadUInt32(); break;
+            }
         }
 
         public override void Write(DataWriter w)
@@ -4583,18 +4902,19 @@ namespace CodeWalker.GameFiles
             if (FrameType != MrfValueType.None)
                 w.Write(FrameParameterName);
 
-            if (Unk3Type != MrfValueType.None)
-                w.Write(Unk3);
+            switch (OwnerType)
+            {
+                case MrfValueType.Literal: w.Write(Owner ? 0x01000000u : 0u); break;
+                case MrfValueType.Parameter: w.Write(OwnerParameterName); break;
+            }
         }
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
 
-            Unk3 = 0;
-            Unk3Type = MrfValueType.None;
-
             (FrameType, _, _, FrameParameterName) = XmlMrf.GetChildParameterizedAsset(node, "Frame");
+            (OwnerType, Owner, OwnerParameterName) = XmlMrf.GetChildParameterizedBool(node, "Owner");
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
@@ -4602,6 +4922,7 @@ namespace CodeWalker.GameFiles
             base.WriteXml(sb, indent);
 
             MrfXml.ParameterizedAssetTag(sb, indent, "Frame", FrameType, 0, 0, FrameParameterName);
+            MrfXml.ParameterizedBoolTag(sb, indent, "Owner", OwnerType, Owner, OwnerParameterName);
         }
     }
 
@@ -4663,48 +4984,47 @@ namespace CodeWalker.GameFiles
     {
         // rage::mvNodeMergeDef (24)
 
-        public MrfSynchronizerTagFlags SynchronizerTagFlags { get; set; }
-        public MetaHash FrameFilterDictionaryName { get; set; }
-        public MetaHash FrameFilterName { get; set; }
-        public MetaHash FrameFilterParameterName { get; set; }
+        public MrfSynchronizerTagFlags SynchronizerTag { get; set; }
+        public MetaHash FilterDictionaryName { get; set; }
+        public MetaHash FilterName { get; set; }
+        public MetaHash FilterParameterName { get; set; }
 
         // flags getters and setters
-        public MrfValueType FrameFilterType
+        public MrfValueType FilterType
         {
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
         }
-        public MrfInfluenceOverride Child0InfluenceOverride
+        public MrfInfluenceOverride Source0InfluenceOverride
         {
             get => (MrfInfluenceOverride)GetFlagsSubset(2, 3);
             set => SetFlagsSubset(2, 3, (uint)value);
         }
-        public MrfInfluenceOverride Child1InfluenceOverride
+        public MrfInfluenceOverride Source1InfluenceOverride
         {
             get => (MrfInfluenceOverride)GetFlagsSubset(4, 3);
             set => SetFlagsSubset(4, 3, (uint)value);
         }
-        public bool UnkFlag6 // Transitional? RDR3's rage::mvNodeMergeDef::GetTransitionalFlagFrom(uint) reads these bits
-        {                    // always 0
+        public bool Transitional
+        {
             get => GetFlagsSubset(6, 1) != 0;
             set => SetFlagsSubset(6, 1, value ? 1 : 0u);
         }
-        public uint UnkFlag7 // Immutable? RDR3's rage::mvNodeMergeDef::GetImmutableFlagFrom(uint) reads these bits
-        {                    // 0 or 2
-            get => GetFlagsSubset(7, 3);
-            set => SetFlagsSubset(7, 3, value);
+        public bool Source0Immutable
+        {
+            get => GetFlagsSubset(7, 1) != 0;
+            set => SetFlagsSubset(7, 1, value ? 1u : 0u);
+        }
+        public bool Source1Immutable
+        {
+            get => GetFlagsSubset(8, 1) != 0;
+            set => SetFlagsSubset(8, 1, value ? 1u : 0u);
         }
         public MrfSynchronizerType SynchronizerType
         {
             get => (MrfSynchronizerType)GetFlagsSubset(19, 3);
             set => SetFlagsSubset(19, 3, (uint)value);
         }
-        public uint UnkFlag21 // OutputParameterRuleSet? RDR3's rage::mvNodeMergeDef::GetOutputParameterRuleSetFrom(uint) reads these bits
-        {                     // always 0
-            get => GetFlagsSubset(21, 3);
-            set => SetFlagsSubset(21, 3, value);
-        }
-
         public MrfNodeMerge() : base(MrfNodeType.Merge) { }
 
         public override void Read(DataReader r)
@@ -4712,16 +5032,16 @@ namespace CodeWalker.GameFiles
             base.Read(r);
 
             if (SynchronizerType == MrfSynchronizerType.Tag)
-                SynchronizerTagFlags = (MrfSynchronizerTagFlags)r.ReadUInt32();
+                SynchronizerTag = (MrfSynchronizerTagFlags)r.ReadUInt32();
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    FrameFilterDictionaryName = r.ReadUInt32();
-                    FrameFilterName = r.ReadUInt32();
+                    FilterDictionaryName = r.ReadUInt32();
+                    FilterName = r.ReadUInt32();
                     break;
                 case MrfValueType.Parameter:
-                    FrameFilterParameterName = r.ReadUInt32();
+                    FilterParameterName = r.ReadUInt32();
                     break;
             }
         }
@@ -4731,16 +5051,16 @@ namespace CodeWalker.GameFiles
             base.Write(w);
 
             if (SynchronizerType == MrfSynchronizerType.Tag)
-                w.Write((uint)SynchronizerTagFlags);
+                w.Write((uint)SynchronizerTag);
 
-            switch (FrameFilterType)
+            switch (FilterType)
             {
                 case MrfValueType.Literal:
-                    w.Write(FrameFilterDictionaryName);
-                    w.Write(FrameFilterName);
+                    w.Write(FilterDictionaryName);
+                    w.Write(FilterName);
                     break;
                 case MrfValueType.Parameter:
-                    w.Write(FrameFilterParameterName);
+                    w.Write(FilterParameterName);
                     break;
             }
         }
@@ -4749,34 +5069,35 @@ namespace CodeWalker.GameFiles
         {
             base.ReadXml(node);
 
-            Child0InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child0InfluenceOverride");
-            Child1InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child1InfluenceOverride");
-            (FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName) = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
+            Source0InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child0InfluenceOverride");
+            Source1InfluenceOverride = Xml.GetChildEnumInnerText<MrfInfluenceOverride>(node, "Child1InfluenceOverride");
+            (FilterType, FilterDictionaryName, FilterName, FilterParameterName) = XmlMrf.GetChildParameterizedAsset(node, "FrameFilter");
             SynchronizerType = Xml.GetChildEnumInnerText<MrfSynchronizerType>(node, "SynchronizerType");
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                SynchronizerTagFlags = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
+                SynchronizerTag = Xml.GetChildEnumInnerText<MrfSynchronizerTagFlags>(node, "SynchronizerTagFlags");
             }
-            UnkFlag6 = Xml.GetChildBoolAttribute(node, "UnkFlag6");
-            UnkFlag7 = Xml.GetChildUIntAttribute(node, "UnkFlag7");
-            UnkFlag21 = Xml.GetChildUIntAttribute(node, "UnkFlag21");
+            Transitional = Xml.GetChildBoolAttribute(node, "Transitional") || Xml.GetChildBoolAttribute(node, "UnkFlag6");
+            uint legacyImmutable = Xml.GetChildUIntAttribute(node, "UnkFlag7");
+            Source0Immutable = Xml.GetChildBoolAttribute(node, "Source0Immutable") || (legacyImmutable & 1) != 0;
+            Source1Immutable = Xml.GetChildBoolAttribute(node, "Source1Immutable") || (legacyImmutable & 2) != 0;
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
             base.WriteXml(sb, indent);
 
-            MrfXml.StringTag(sb, indent, "Child0InfluenceOverride", Child0InfluenceOverride.ToString());
-            MrfXml.StringTag(sb, indent, "Child1InfluenceOverride", Child1InfluenceOverride.ToString());
-            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FrameFilterType, FrameFilterDictionaryName, FrameFilterName, FrameFilterParameterName);
+            MrfXml.StringTag(sb, indent, "Child0InfluenceOverride", Source0InfluenceOverride.ToString());
+            MrfXml.StringTag(sb, indent, "Child1InfluenceOverride", Source1InfluenceOverride.ToString());
+            MrfXml.ParameterizedAssetTag(sb, indent, "FrameFilter", FilterType, FilterDictionaryName, FilterName, FilterParameterName);
             MrfXml.StringTag(sb, indent, "SynchronizerType", SynchronizerType.ToString());
             if (SynchronizerType == MrfSynchronizerType.Tag)
             {
-                MrfXml.StringTag(sb, indent, "SynchronizerTagFlags", SynchronizerTagFlags.ToString());
+                MrfXml.StringTag(sb, indent, "SynchronizerTagFlags", SynchronizerTag.ToString());
             }
-            MrfXml.ValueTag(sb, indent, "UnkFlag6", UnkFlag6.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag7", UnkFlag7.ToString());
-            MrfXml.ValueTag(sb, indent, "UnkFlag21", UnkFlag21.ToString());
+            MrfXml.ValueTag(sb, indent, "Transitional", Transitional.ToString());
+            MrfXml.ValueTag(sb, indent, "Source0Immutable", Source0Immutable.ToString());
+            MrfXml.ValueTag(sb, indent, "Source1Immutable", Source1Immutable.ToString());
         }
     }
 
@@ -4784,10 +5105,11 @@ namespace CodeWalker.GameFiles
     {
         // rage__mvNodePose (25)
 
-        public uint Unk1 { get; set; } // unused, with type==Literal always 0x01000000, probably a bool for the Pose_IsNormalized parameter hardcoded to true in the final game
+        public bool Normalize { get; set; } = true;
+        public MetaHash NormalizeParameterName { get; set; }
 
         // flags getters and setters
-        public MrfValueType Unk1Type
+        public MrfValueType NormalizeType
         {
             get => (MrfValueType)GetFlagsSubset(0, 3);
             set => SetFlagsSubset(0, 3, (uint)value);
@@ -4799,23 +5121,34 @@ namespace CodeWalker.GameFiles
         {
             base.Read(r);
 
-            if (Unk1Type != MrfValueType.None)
-                Unk1 = r.ReadUInt32();
+            switch (NormalizeType)
+            {
+                case MrfValueType.Literal: Normalize = r.ReadUInt32() != 0; break;
+                case MrfValueType.Parameter: NormalizeParameterName = r.ReadUInt32(); break;
+            }
         }
 
         public override void Write(DataWriter w)
         {
             base.Write(w);
 
-            if (Unk1Type != MrfValueType.None)
-                w.Write(Unk1);
+            switch (NormalizeType)
+            {
+                case MrfValueType.Literal: w.Write(Normalize ? 0x01000000u : 0u); break;
+                case MrfValueType.Parameter: w.Write(NormalizeParameterName); break;
+            }
         }
 
         public override void ReadXml(XmlNode node)
         {
             base.ReadXml(node);
-            Unk1Type = MrfValueType.Literal; // for roundtripness
-            Unk1 = 0x01000000;
+            (NormalizeType, Normalize, NormalizeParameterName) = XmlMrf.GetChildParameterizedBool(node, "Normalize");
+        }
+
+        public override void WriteXml(StringBuilder sb, int indent)
+        {
+            base.WriteXml(sb, indent);
+            MrfXml.ParameterizedBoolTag(sb, indent, "Normalize", NormalizeType, Normalize, NormalizeParameterName);
         }
     }
 
@@ -4855,23 +5188,23 @@ namespace CodeWalker.GameFiles
             base.Read(r);
 
             InputParametersOffset = r.ReadInt32();
-            InputParametersFileOffset = (int)(r.Position + InputParametersOffset - 4);
+            InputParametersFileOffset = checked((int)(r.Position + InputParametersOffset - 4));
             InputParameterCount = r.ReadUInt32();
             EventsOffset = r.ReadInt32();
-            EventsFileOffset = (int)(r.Position + EventsOffset - 4);
+            EventsFileOffset = checked((int)(r.Position + EventsOffset - 4));
             EventCount = r.ReadUInt32();
             OutputParametersOffset = r.ReadInt32();
-            OutputParametersFileOffset = (int)(r.Position + OutputParametersOffset - 4);
+            OutputParametersFileOffset = checked((int)(r.Position + OutputParametersOffset - 4));
             OutputParameterCount = r.ReadUInt32();
             OperationsOffset = r.ReadInt32();
-            OperationsFileOffset = (int)(r.Position + OperationsOffset - 4);
+            OperationsFileOffset = checked((int)(r.Position + OperationsOffset - 4));
             OperationCount = r.ReadUInt32();
 
 
             if (TransitionCount > 0)
             {
                 if (r.Position != TransitionsFileOffset)
-                { } // no hits
+                    throw new InvalidDataException($"Movement transition table begins at {TransitionsFileOffset}, but the reader is at {r.Position}.");
 
                 Transitions = new MrfStateTransition[TransitionCount];
                 for (int i = 0; i < TransitionCount; i++)
@@ -4881,7 +5214,7 @@ namespace CodeWalker.GameFiles
             if (InputParameterCount > 0)
             {
                 if (r.Position != InputParametersFileOffset)
-                { } // no hits
+                    throw new InvalidDataException($"Movement input table begins at {InputParametersFileOffset}, but the reader is at {r.Position}.");
 
                 InputParameters = new MrfStateInputParameter[InputParameterCount];
                 for (int i = 0; i < InputParameterCount; i++)
@@ -4891,7 +5224,7 @@ namespace CodeWalker.GameFiles
             if (EventCount > 0)
             {
                 if (r.Position != EventsFileOffset)
-                { } // no hits
+                    throw new InvalidDataException($"Movement event table begins at {EventsFileOffset}, but the reader is at {r.Position}.");
 
                 Events = new MrfStateEvent[EventCount];
                 for (int i = 0; i < EventCount; i++)
@@ -4901,7 +5234,7 @@ namespace CodeWalker.GameFiles
             if (OutputParameterCount > 0)
             {
                 if (r.Position != OutputParametersFileOffset)
-                { } // no hits
+                    throw new InvalidDataException($"Movement output table begins at {OutputParametersFileOffset}, but the reader is at {r.Position}.");
 
                 OutputParameters = new MrfStateOutputParameter[OutputParameterCount];
                 for (int i = 0; i < OutputParameterCount; i++)
@@ -4911,7 +5244,7 @@ namespace CodeWalker.GameFiles
             if (OperationCount > 0)
             {
                 if (r.Position != OperationsFileOffset)
-                { } // no hits
+                    throw new InvalidDataException($"Movement operation table begins at {OperationsFileOffset}, but the reader is at {r.Position}.");
 
                 Operations = new MrfStateOperation[OperationCount];
                 for (int i = 0; i < OperationCount; i++)
@@ -4921,11 +5254,11 @@ namespace CodeWalker.GameFiles
 
         public override void Write(DataWriter w)
         {
-            TransitionCount = (byte)(Transitions?.Length ?? 0);
-            InputParameterCount = (uint)(InputParameters?.Length ?? 0);
-            EventCount = (uint)(Events?.Length ?? 0);
-            OutputParameterCount = (uint)(OutputParameters?.Length ?? 0);
-            OperationCount = (uint)(Operations?.Length ?? 0);
+            TransitionCount = checked((byte)(Transitions?.Length ?? 0));
+            InputParameterCount = checked((uint)(InputParameters?.Length ?? 0));
+            EventCount = checked((uint)(Events?.Length ?? 0));
+            OutputParameterCount = checked((uint)(OutputParameters?.Length ?? 0));
+            OperationCount = checked((uint)(Operations?.Length ?? 0));
 
             base.Write(w);
 
@@ -4969,12 +5302,12 @@ namespace CodeWalker.GameFiles
             OutputParameters = XmlMeta.ReadItemArray<MrfStateOutputParameter>(node, "OutputParameters");
             Events = XmlMeta.ReadItemArray<MrfStateEvent>(node, "Events");
             Operations = XmlMeta.ReadItemArray<MrfStateOperation>(node, "Operations");
-            TransitionCount = (byte)(Transitions?.Length ?? 0);
-            InputParameterCount = (byte)(InputParameters?.Length ?? 0);
-            OutputParameterCount = (byte)(InputParameters?.Length ?? 0);
-            EventCount = (byte)(InputParameters?.Length ?? 0);
-            OperationCount = (byte)(Operations?.Length ?? 0);
-            StateChildCount = (byte)GetChildren(excludeTailNodes: true).Count;
+            TransitionCount = checked((byte)(Transitions?.Length ?? 0));
+            InputParameterCount = checked((uint)(InputParameters?.Length ?? 0));
+            OutputParameterCount = checked((uint)(OutputParameters?.Length ?? 0));
+            EventCount = checked((uint)(Events?.Length ?? 0));
+            OperationCount = checked((uint)(Operations?.Length ?? 0));
+            ChildCount = checked((byte)GetChildren(excludeTailNodes: true).Count);
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
@@ -5036,12 +5369,12 @@ namespace CodeWalker.GameFiles
 
                 if (n is MrfNodeWithChildBase nc)
                 {
-                    if (nc.Child != null) q.Enqueue(nc.Child);
+                    if (nc.Input != null) q.Enqueue(nc.Input);
                 }
                 else if (n is MrfNodePairBase np)
                 {
-                    if (np.Child0 != null) q.Enqueue(np.Child0);
-                    if (np.Child1 != null) q.Enqueue(np.Child1);
+                    if (np.Input0 != null) q.Enqueue(np.Input0);
+                    if (np.Input1 != null) q.Enqueue(np.Input1);
                 }
                 else if (n is MrfNodeNBase nn)
                 {
@@ -5114,17 +5447,17 @@ namespace CodeWalker.GameFiles
         // Unused in the final game but from testing, seems to work fine initially but when it finishes it crashes calling a pure virtual function rage::crmtNode::GetNodeTypeInfo
         // Maybe some kind of double-free/use-after-free bug, not sure if a R* bug or an issue with the generated MRF file.
 
-        public MetaHash MoveNetworkName { get; set; } // .mrf file to lookup. Its RootState must be MrfNodeState, not MrfNodeStateMachine or it will crash
-        public int InitialParametersOffset { get; set; }
-        public int InitialParametersFileOffset { get; set; }
-        public uint InitialParameterCount { get; set; }
-        public MrfNodeReferenceInitialParameter[] InitialParameters { get; set; } = []; // parameters added when the new network is created
-        public uint ImportedParameterCount { get; set; }
-        public MrfNodeReferenceNamePair[] ImportedParameters { get; set; } = []; // each update these parameters are copied from the parent network to the new network
-        public uint MoveNetworkFlagCount { get; set; }
-        public MrfNodeReferenceNamePair[] MoveNetworkFlags { get; set; } = []; // each update copies flag 'Name' state in the parent network to another bit in the *parent* network flags, the new bit position is defined by 'NewName' in the MrfFile.MoveNetworkFlags of the new network
-        public uint MoveNetworkTriggerCount { get; set; }
-        public MrfNodeReferenceNamePair[] MoveNetworkTriggers { get; set; } = []; // same as with the flags
+        public MetaHash NetworkId { get; set; }
+        public int SourceParameterDataOffset { get; set; }
+        public int SourceParameterDataFileOffset { get; set; }
+        public uint SourceParameterCount { get; set; }
+        public MrfNodeReferenceParameterSourceData[] SourceParameters { get; set; } = [];
+        public uint ParameterCount { get; set; }
+        public MrfNodeReferenceNamePair[] Parameters { get; set; } = [];
+        public uint FlagCount { get; set; }
+        public MrfNodeReferenceNamePair[] Flags { get; set; } = [];
+        public uint RequestCount { get; set; }
+        public MrfNodeReferenceNamePair[] Requests { get; set; } = [];
 
         public MrfNodeReference() : base(MrfNodeType.Reference) { }
 
@@ -5132,63 +5465,63 @@ namespace CodeWalker.GameFiles
         {
             base.Read(r);
 
-            MoveNetworkName = r.ReadUInt32();
-            InitialParametersOffset = r.ReadInt32();
-            InitialParametersFileOffset = (int)(r.Position + InitialParametersOffset - 4);
-            InitialParameterCount = r.ReadUInt32();
-            ImportedParameterCount = r.ReadUInt32();
-            MoveNetworkFlagCount = r.ReadUInt32();
-            MoveNetworkTriggerCount = r.ReadUInt32();
+            NetworkId = r.ReadUInt32();
+            SourceParameterDataOffset = r.ReadInt32();
+            SourceParameterDataFileOffset = checked((int)(r.Position + SourceParameterDataOffset - 4));
+            SourceParameterCount = r.ReadUInt32();
+            ParameterCount = r.ReadUInt32();
+            FlagCount = r.ReadUInt32();
+            RequestCount = r.ReadUInt32();
 
-            if (ImportedParameterCount > 0)
+            if (ParameterCount > 0)
             {
-                ImportedParameters = new MrfNodeReferenceNamePair[ImportedParameterCount];
+                Parameters = new MrfNodeReferenceNamePair[ParameterCount];
 
-                for (int i = 0; i < ImportedParameterCount; i++)
+                for (int i = 0; i < ParameterCount; i++)
                 {
                     var name = r.ReadUInt32();
                     var newName = r.ReadUInt32();
-                    ImportedParameters[i] = new MrfNodeReferenceNamePair(name, newName);
+                    Parameters[i] = new MrfNodeReferenceNamePair(name, newName);
                 }
             }
 
-            if (MoveNetworkFlagCount > 0)
+            if (FlagCount > 0)
             {
-                MoveNetworkFlags = new MrfNodeReferenceNamePair[MoveNetworkFlagCount];
+                Flags = new MrfNodeReferenceNamePair[FlagCount];
 
-                for (int i = 0; i < MoveNetworkFlagCount; i++)
+                for (int i = 0; i < FlagCount; i++)
                 {
                     var name = r.ReadUInt32();
                     var newName = r.ReadUInt32();
-                    MoveNetworkFlags[i] = new MrfNodeReferenceNamePair(name, newName);
+                    Flags[i] = new MrfNodeReferenceNamePair(name, newName);
                 }
             }
 
-            if (MoveNetworkTriggerCount > 0)
+            if (RequestCount > 0)
             {
-                MoveNetworkTriggers = new MrfNodeReferenceNamePair[MoveNetworkTriggerCount];
+                Requests = new MrfNodeReferenceNamePair[RequestCount];
 
-                for (int i = 0; i < MoveNetworkTriggerCount; i++)
+                for (int i = 0; i < RequestCount; i++)
                 {
                     var name = r.ReadUInt32();
                     var newName = r.ReadUInt32();
-                    MoveNetworkTriggers[i] = new MrfNodeReferenceNamePair(name, newName);
+                    Requests[i] = new MrfNodeReferenceNamePair(name, newName);
                 }
             }
 
-            if (InitialParameterCount > 0)
+            if (SourceParameterCount > 0)
             {
-                if (r.Position != InitialParametersFileOffset)
-                { }
+                if (r.Position != SourceParameterDataFileOffset)
+                    throw new InvalidDataException($"Movement reference parameter-source table begins at {SourceParameterDataFileOffset}, but the reader is at {r.Position}.");
 
-                InitialParameters = new MrfNodeReferenceInitialParameter[InitialParameterCount];
+                SourceParameters = new MrfNodeReferenceParameterSourceData[SourceParameterCount];
 
-                for (int i = 0; i < InitialParameterCount; i++)
+                for (int i = 0; i < SourceParameterCount; i++)
                 {
                     var type = r.ReadUInt32();
                     var name = r.ReadUInt32();
                     var data = r.ReadInt32();
-                    InitialParameters[i] = new MrfNodeReferenceInitialParameter(type, name, data);
+                    SourceParameters[i] = new MrfNodeReferenceParameterSourceData((MrfSignalType)type, name, data);
                 }
             }
         }
@@ -5197,53 +5530,56 @@ namespace CodeWalker.GameFiles
         {
             base.Write(w);
 
-            InitialParameterCount = (uint)(InitialParameters.Length);
-            ImportedParameterCount = (uint)(ImportedParameters.Length);
-            MoveNetworkFlagCount = (uint)(MoveNetworkFlags.Length);
-            MoveNetworkTriggerCount = (uint)(MoveNetworkTriggers.Length);
+            SourceParameters ??= [];
+            Parameters ??= [];
+            Flags ??= [];
+            Requests ??= [];
+            SourceParameterCount = checked((uint)SourceParameters.Length);
+            ParameterCount = checked((uint)Parameters.Length);
+            FlagCount = checked((uint)Flags.Length);
+            RequestCount = checked((uint)Requests.Length);
 
-            w.Write(MoveNetworkName);
-            w.Write(InitialParametersOffset);
-            w.Write(InitialParameterCount);
-            w.Write(ImportedParameterCount);
-            w.Write(MoveNetworkFlagCount);
-            w.Write(MoveNetworkTriggerCount);
+            w.Write(NetworkId);
+            w.Write(SourceParameterDataOffset);
+            w.Write(SourceParameterCount);
+            w.Write(ParameterCount);
+            w.Write(FlagCount);
+            w.Write(RequestCount);
 
-            if (ImportedParameterCount > 0)
+            if (ParameterCount > 0)
             {
-                foreach (var entry in ImportedParameters)
+                foreach (var entry in Parameters)
                 {
                     w.Write(entry.Name);
                     w.Write(entry.NewName);
                 }
             }
 
-            if (MoveNetworkFlagCount > 0)
+            if (FlagCount > 0)
             {
-                foreach (var entry in MoveNetworkFlags)
+                foreach (var entry in Flags)
                 {
                     w.Write(entry.Name);
                     w.Write(entry.NewName);
                 }
             }
 
-            if (MoveNetworkTriggerCount > 0)
+            if (RequestCount > 0)
             {
-                foreach (var entry in MoveNetworkTriggers)
+                foreach (var entry in Requests)
                 {
                     w.Write(entry.Name);
                     w.Write(entry.NewName);
                 }
             }
 
-            if (InitialParameterCount > 0)
+            if (SourceParameterCount > 0)
             {
-                // FIXME: Data when used as offset is not updated and not sure where what it would point to should be written
-                foreach (var entry in InitialParameters)
+                foreach (var entry in SourceParameters)
                 {
-                    w.Write(entry.Type);
-                    w.Write(entry.Name);
-                    w.Write(entry.Data);
+                    w.Write((uint)entry.Type);
+                    w.Write(entry.Key);
+                    w.Write(entry.Payload);
                 }
             }
         }
@@ -5252,26 +5588,31 @@ namespace CodeWalker.GameFiles
         {
             base.ReadXml(node);
 
-            MoveNetworkName = XmlMeta.GetHash(Xml.GetChildInnerText(node, "MoveNetworkName"));
-            ImportedParameters = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "ImportedParameters");
-            MoveNetworkFlags = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "MoveNetworkFlags");
-            MoveNetworkTriggers = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "MoveNetworkTriggers");
-            InitialParameters = XmlMeta.ReadItemArray<MrfNodeReferenceInitialParameter>(node, "InitialParameters");
-            ImportedParameterCount = (uint)(ImportedParameters.Length);
-            MoveNetworkFlagCount = (uint)(MoveNetworkFlags.Length);
-            MoveNetworkTriggerCount = (uint)(MoveNetworkTriggers.Length);
-            InitialParameterCount = (uint)(InitialParameters.Length);
+            NetworkId = XmlMeta.GetHash(Xml.GetChildInnerText(node, "NetworkId"));
+            if (NetworkId == 0) NetworkId = XmlMeta.GetHash(Xml.GetChildInnerText(node, "MoveNetworkName"));
+            Parameters = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "Parameters");
+            if (Parameters.Length == 0) Parameters = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "ImportedParameters");
+            Flags = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "Flags");
+            if (Flags.Length == 0) Flags = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "MoveNetworkFlags");
+            Requests = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "Requests");
+            if (Requests.Length == 0) Requests = XmlMeta.ReadItemArray<MrfNodeReferenceNamePair>(node, "MoveNetworkTriggers");
+            SourceParameters = XmlMeta.ReadItemArray<MrfNodeReferenceParameterSourceData>(node, "SourceParameters");
+            if (SourceParameters.Length == 0) SourceParameters = XmlMeta.ReadItemArray<MrfNodeReferenceParameterSourceData>(node, "InitialParameters");
+            ParameterCount = checked((uint)Parameters.Length);
+            FlagCount = checked((uint)Flags.Length);
+            RequestCount = checked((uint)Requests.Length);
+            SourceParameterCount = checked((uint)SourceParameters.Length);
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
         {
             base.WriteXml(sb, indent);
 
-            MrfXml.StringTag(sb, indent, "MoveNetworkName", MrfXml.HashString(MoveNetworkName));
-            MrfXml.WriteItemArray(sb, ImportedParameters, indent, "ImportedParameters");
-            MrfXml.WriteItemArray(sb, MoveNetworkFlags, indent, "MoveNetworkFlags");
-            MrfXml.WriteItemArray(sb, MoveNetworkTriggers, indent, "MoveNetworkTriggers");
-            MrfXml.WriteItemArray(sb, InitialParameters, indent, "InitialParameters");
+            MrfXml.StringTag(sb, indent, "NetworkId", MrfXml.HashString(NetworkId));
+            MrfXml.WriteItemArray(sb, Parameters, indent, "Parameters");
+            MrfXml.WriteItemArray(sb, Flags, indent, "Flags");
+            MrfXml.WriteItemArray(sb, Requests, indent, "Requests");
+            MrfXml.WriteItemArray(sb, SourceParameters, indent, "SourceParameters");
         }
 
         public override void UpdateRelativeOffsets()
@@ -5279,11 +5620,11 @@ namespace CodeWalker.GameFiles
             base.UpdateRelativeOffsets();
 
             var offset = FileOffset + 0x20;
-            offset += (int)ImportedParameterCount * 8;
-            offset += (int)MoveNetworkFlagCount * 8;
-            offset += (int)MoveNetworkTriggerCount * 8;
-            InitialParametersFileOffset = offset;
-            InitialParametersOffset = InitialParametersFileOffset - (FileOffset + 0xC);
+            offset += checked((int)ParameterCount) * 8;
+            offset += checked((int)FlagCount) * 8;
+            offset += checked((int)RequestCount) * 8;
+            SourceParameterDataFileOffset = offset;
+            SourceParameterDataOffset = SourceParameterDataFileOffset - (FileOffset + 0xC);
         }
     }
 
@@ -5316,36 +5657,71 @@ namespace CodeWalker.GameFiles
         }
     }
 
-    [TC(typeof(EXP))] public struct MrfNodeReferenceInitialParameter : IMetaXmlItem
+    public enum MrfSignalType : uint
     {
-        public uint Type { get; set; } // Animation = 0, Clip = 1, Expression = 2, Motion = 4, Float = 7
-        public MetaHash Name { get; set; }
-        public int Data { get; set; } //  For Type==Float, this the float value. For the other types, this is the offset to the actual data needed for the lookup (e.g. dictionary/name hash pair).
+        Animation = 0,
+        Clip = 1,
+        Expression = 2,
+        Filter = 3,
+        FilterN = 4,
+        Frame = 5,
+        ParameterizedMotion = 6,
+        Real = 7,
+        Boolean = 8,
+        Data = 9,
+        Request = 10,
+        Flag = 11,
+        Network = 12,
+    }
 
-        public MrfNodeReferenceInitialParameter(uint type, MetaHash name, int data)
+    [TC(typeof(EXP))] public struct MrfNodeReferenceParameterSourceData : IMetaXmlItem
+    {
+        public MrfSignalType Type { get; set; }
+        public MetaHash Key { get; set; }
+        public int Payload { get; set; }
+        public float RealValue
+        {
+            get => BitConverter.Int32BitsToSingle(Payload);
+            set => Payload = BitConverter.SingleToInt32Bits(value);
+        }
+
+        public MrfNodeReferenceParameterSourceData(MrfSignalType type, MetaHash key, int payload)
         {
             Type = type;
-            Name = name;
-            Data = data;
+            Key = key;
+            Payload = payload;
         }
 
         public void ReadXml(XmlNode node)
         {
-            Type = Xml.GetChildUIntAttribute(node, "Type");
-            Name = XmlMeta.GetHash(Xml.GetChildInnerText(node, "Name"));
-            Data = Xml.GetChildIntAttribute(node, "Data");
+            var typeNode = node.SelectSingleNode("Type");
+            Type = !string.IsNullOrWhiteSpace(typeNode?.InnerText)
+                ? Xml.GetEnumValue<MrfSignalType>(typeNode.InnerText)
+                : (MrfSignalType)Xml.GetChildUIntAttribute(node, "Type");
+            Key = XmlMeta.GetHash(Xml.GetChildInnerText(node, "Key"));
+            if (Key == 0) Key = XmlMeta.GetHash(Xml.GetChildInnerText(node, "Name"));
+            if (Type == MrfSignalType.Real && node.SelectSingleNode("RealValue") != null)
+                RealValue = Xml.GetChildFloatAttribute(node, "RealValue");
+            else
+            {
+                Payload = Xml.GetChildIntAttribute(node, "Payload");
+                if (node.SelectSingleNode("Payload") == null) Payload = Xml.GetChildIntAttribute(node, "Data");
+            }
         }
 
         public void WriteXml(StringBuilder sb, int indent)
         {
-            MrfXml.ValueTag(sb, indent, "Type", Type.ToString());
-            MrfXml.StringTag(sb, indent, "Name", MrfXml.HashString(Name));
-            MrfXml.ValueTag(sb, indent, "Data", Data.ToString());
+            MrfXml.StringTag(sb, indent, "Type", Type.ToString());
+            MrfXml.StringTag(sb, indent, "Key", MrfXml.HashString(Key));
+            if (Type == MrfSignalType.Real)
+                MrfXml.ValueTag(sb, indent, "RealValue", FloatUtil.ToString(RealValue));
+            else
+                MrfXml.ValueTag(sb, indent, "Payload", Payload.ToString());
         }
 
         public override string ToString()
         {
-            return $"{Type} - {Name} - {Data}";
+            return $"{Type} - {Key} - {(Type == MrfSignalType.Real ? FloatUtil.ToString(RealValue) : Payload)}";
         }
     }
 
@@ -5377,7 +5753,7 @@ namespace CodeWalker.GameFiles
         public static void WriteNode(StringBuilder sb, int indent, string name, MrfNode? node)
         {
             if (node == null) return;
-            OpenTag(sb, indent, name + " type=\"" + node.NodeType + "\"");
+            OpenTag(sb, indent, name + " type=\"" + node.Type + "\"");
             node.WriteXml(sb, indent + 1);
             CloseTag(sb, indent, name);
         }
@@ -5389,7 +5765,7 @@ namespace CodeWalker.GameFiles
             sb.Append("<");
             sb.Append(name);
             sb.Append(" ref=\"");
-            sb.Append(HashString(node.Name));
+            sb.Append(HashString(node.ID));
             sb.Append("\" />");
             sb.AppendLine();
         }
@@ -5426,6 +5802,16 @@ namespace CodeWalker.GameFiles
             }
         }
 
+        public static void ParameterizedFilenameTag(StringBuilder sb, int indent, string name, MrfValueType type, string filename, MetaHash parameter)
+        {
+            switch (type)
+            {
+                case MrfValueType.None: SelfClosingTag(sb, indent, name); break;
+                case MrfValueType.Literal: ValueTag(sb, indent, name, filename, "filename"); break;
+                case MrfValueType.Parameter: ValueTag(sb, indent, name, HashString(parameter), "parameter"); break;
+            }
+        }
+
         public static void ParameterizedAssetTag(StringBuilder sb, int indent, string name, MrfValueType type, MetaHash dictionaryName, MetaHash assetName, MetaHash parameter)
         {
             switch (type)
@@ -5449,7 +5835,8 @@ namespace CodeWalker.GameFiles
                 case MrfValueType.Literal:
                     OpenTag(sb, indent, name);
                     StringTag(sb, indent + 1, "ContainerType", containerType.ToString());
-                    StringTag(sb, indent + 1, "ContainerName", HashString(containerName));
+                    if (containerType != MrfClipContainerType.LocalFile)
+                        StringTag(sb, indent + 1, "ContainerName", HashString(containerName));
                     StringTag(sb, indent + 1, "Name", HashString(clipName));
                     CloseTag(sb, indent, name);
                     break;
@@ -5600,11 +5987,13 @@ namespace CodeWalker.GameFiles
             var containerTypeNode = childNode?.SelectSingleNode("ContainerType");
             var containerNode = childNode?.SelectSingleNode("ContainerName");
             var nameNode = childNode?.SelectSingleNode("Name");
-            if (containerTypeNode != null && containerNode != null && nameNode != null)
+            if (containerTypeNode != null && nameNode != null)
             {
                 type = MrfValueType.Literal;
                 containerType = Xml.GetEnumValue<MrfClipContainerType>(containerTypeNode.InnerText);
-                containerName = XmlMeta.GetHash(containerNode.InnerText);
+                if (containerType != MrfClipContainerType.LocalFile && containerNode == null)
+                    throw new InvalidDataException("A non-local movement clip requires a container name.");
+                containerName = XmlMeta.GetHash(containerNode?.InnerText);
                 assetName = XmlMeta.GetHash(nameNode.InnerText);
             }
             else if (childNode?.Attributes?["parameter"] != null)

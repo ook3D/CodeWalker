@@ -5023,8 +5023,8 @@ namespace CodeWalker.GameFiles
                 var mymrf = new MrfFile();
                 var clip1 = new MrfNodeClip
                 {
-                    NodeIndex = 0,
-                    Name = JenkHash.GenHash("clip1"),
+                    Index = 0,
+                    ID = JenkHash.GenHash("clip1"),
                     ClipType = MrfValueType.Literal,
                     ClipContainerType = MrfClipContainerType.ClipDictionary,
                     ClipContainerName = JenkHash.GenHash("move_m@alien"),
@@ -5034,8 +5034,8 @@ namespace CodeWalker.GameFiles
                 };
                 var clip2 = new MrfNodeClip
                 {
-                    NodeIndex = 0,
-                    Name = JenkHash.GenHash("clip2"),
+                    Index = 0,
+                    ID = JenkHash.GenHash("clip2"),
                     ClipType = MrfValueType.Literal,
                     ClipContainerType = MrfClipContainerType.ClipDictionary,
                     ClipContainerName = JenkHash.GenHash("move_m@alien"),
@@ -5047,15 +5047,15 @@ namespace CodeWalker.GameFiles
                 };
                 var clipstate1 = new MrfNodeState
                 {
-                    NodeIndex = 0,
-                    Name = JenkHash.GenHash("clipstate1"),
+                    Index = 0,
+                    ID = JenkHash.GenHash("clipstate1"),
                     InitialNode = clip1,
                     Transitions = new[]
                     {
                         new MrfStateTransition
                         {
                             Duration = 2.5f,
-                            HasDurationParameter = false,
+                            DurationFromParameter = false,
                             //TargetState = clipstate2,
                             Conditions = new[]
                             {
@@ -5066,15 +5066,15 @@ namespace CodeWalker.GameFiles
                 };
                 var clipstate2 = new MrfNodeState
                 {
-                    NodeIndex = 1,
-                    Name = JenkHash.GenHash("clipstate2"),
+                    Index = 1,
+                    ID = JenkHash.GenHash("clipstate2"),
                     InitialNode = clip2,
                     Transitions = new[]
                     {
                         new MrfStateTransition
                         {
                             Duration = 2.5f,
-                            HasDurationParameter = false,
+                            DurationFromParameter = false,
                             //TargetState = clipstate1,
                             Conditions = new[]
                             {
@@ -5087,12 +5087,12 @@ namespace CodeWalker.GameFiles
                 clipstate2.Transitions[0].TargetState = clipstate1;
                 var rootsm = new MrfNodeStateMachine
                 {
-                    NodeIndex = 0,
-                    Name = JenkHash.GenHash("statemachine"),
+                    Index = 0,
+                    ID = JenkHash.GenHash("statemachine"),
                     States = new[]
                     {
-                        new MrfStateRef { StateName = clipstate1.Name, State = clipstate1 },
-                        new MrfStateRef { StateName = clipstate2.Name, State = clipstate2 },
+                        new MrfStateRef { StateName = clipstate1.ID, State = clipstate1 },
+                        new MrfStateRef { StateName = clipstate2.ID, State = clipstate2 },
                     },
                     InitialNode = clipstate1,
                 };
