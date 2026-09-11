@@ -1797,6 +1797,8 @@ namespace CodeWalker.World
         private Dictionary<uint, AmbientModelSet> VehicleModelSets { get; set; } = new();
         private Dictionary<uint, ConditionalAnimsGroup> AnimGroups { get; set; } = new();
         private Dictionary<uint, string> ClipSets { get; set; } = new(); // Maps ClipSet name hash to clipDictionaryName
+        private Dictionary<uint, uint> ClipSetFallbacks { get; set; } = new();
+        private Dictionary<uint, string> ClipSetNames { get; set; } = new();
 
 
 
@@ -1810,7 +1812,11 @@ namespace CodeWalker.World
                 PedModelSets = LoadModelSets(gfc, "common:\\data\\ai\\ambientpedmodelsets.meta");
                 VehicleModelSets = LoadModelSets(gfc, "common:\\data\\ai\\vehiclemodelsets.meta");
                 AnimGroups = LoadAnimGroups(gfc, "common:\\data\\ai\\conditionalanims.meta");
-                ClipSets = LoadClipSets(gfc, "update:\\x64\\data\\anim\\clip_sets\\clip_sets.ymt");
+                ClipSets = LoadClipSets(gfc, "update:\\x64\\data\\anim\\clip_sets\\clip_sets.ymt", out var clipSetFallbacks, out var clipSetNames);
+                if (ClipSets.Count == 0)
+                    ClipSets = LoadClipSets(gfc, "x64a.rpf\\data\\anim\\clip_sets\\clip_sets.ymt", out clipSetFallbacks, out clipSetNames);
+                ClipSetFallbacks = clipSetFallbacks;
+                ClipSetNames = clipSetNames;
 
                 TypeRefs = new Dictionary<uint, ScenarioTypeRef>();
                 foreach (var kvp in Types)
@@ -1998,9 +2004,11 @@ namespace CodeWalker.World
             return groups;
         }
 
-        private Dictionary<uint, string> LoadClipSets(GameFileCache gfc, string filename)
+        private Dictionary<uint, string> LoadClipSets(GameFileCache gfc, string filename, out Dictionary<uint, uint> fallbacks, out Dictionary<uint, string> names)
         {
             Dictionary<uint, string> clipsets = new();
+            fallbacks = new Dictionary<uint, uint>();
+            names = new Dictionary<uint, string>();
 
             try
             {
@@ -2032,6 +2040,7 @@ namespace CodeWalker.World
                                 // The key is an attribute on the Item node
                                 var keyAttr = itemNode.Attributes?["key"];
                                 var dictNameNode = itemNode.SelectSingleNode("clipDictionaryName");
+                                var fallbackNode = itemNode.SelectSingleNode("fallbackId");
 
                                 if ((keyAttr != null) && (dictNameNode != null))
                                 {
@@ -2044,6 +2053,14 @@ namespace CodeWalker.World
                                         JenkIndex.Ensure(clipSetName.ToLowerInvariant());
                                         uint hash = JenkHash.GenHash(clipSetName.ToLowerInvariant());
                                         clipsets[hash] = clipDictName;
+                                        names[hash] = clipSetName;
+                                        var fallbackName = fallbackNode?.InnerText;
+                                        if (!string.IsNullOrEmpty(fallbackName))
+                                        {
+                                            JenkIndex.Ensure(fallbackName);
+                                            JenkIndex.Ensure(fallbackName.ToLowerInvariant());
+                                            fallbacks[hash] = JenkHash.GenHash(fallbackName.ToLowerInvariant());
+                                        }
                                     }
                                 }
                             }
@@ -2158,6 +2175,28 @@ namespace CodeWalker.World
                 string? clipDictName;
                 ClipSets.TryGetValue(hash, out clipDictName);
                 return clipDictName;
+            }
+        }
+        public string[] GetClipSetDictionaries(uint hash)
+        {
+            lock (SyncRoot)
+            {
+                var dictionaries = new List<string>();
+                var visited = new HashSet<uint>();
+                while (hash != 0 && visited.Add(hash))
+                {
+                    if (ClipSets.TryGetValue(hash, out var dictionaryName) && !string.IsNullOrEmpty(dictionaryName))
+                        dictionaries.Add(dictionaryName);
+                    if (!ClipSetFallbacks.TryGetValue(hash, out hash)) break;
+                }
+                return dictionaries.ToArray();
+            }
+        }
+        public string[] GetClipSetNames()
+        {
+            lock (SyncRoot)
+            {
+                return ClipSetNames.Values.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
             }
         }
 

@@ -452,6 +452,21 @@ public class BinaryWriterArrayTests
         Assert.Equal(0.25f, loaded.Transitions[0].Duration);
     }
 
+    [Fact]
+    public void MovementPreviewFindsFirstResolvableLiteralClip()
+    {
+        var literal = new MrfNodeClip { ClipType = MrfValueType.Literal, ClipName = 0x12345678 };
+        var parameter = new MrfNodeClip { ClipType = MrfValueType.Parameter };
+        var blend = new MrfNodeBlend { Input0 = parameter, Input1 = literal };
+        var state = new MrfNodeState { InitialNode = blend };
+
+        var movement = new MrfFile();
+        Assert.Same(literal, movement.FindPreviewClip(state));
+
+        blend.Input1 = blend;
+        Assert.Null(movement.FindPreviewClip(state));
+    }
+
     private sealed class PartialReadStream(byte[] bytes) : MemoryStream(bytes)
     {
         public override int Read(Span<byte> buffer) => base.Read(buffer[..Math.Min(3, buffer.Length)]);

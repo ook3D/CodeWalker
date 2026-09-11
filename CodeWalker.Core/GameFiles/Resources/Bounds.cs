@@ -1013,8 +1013,12 @@ namespace CodeWalker.GameFiles
         {
             base.WriteXml(sb, indent);
 
-            YbnXml.SelfClosingTag(sb, indent, "UnQuantizeFactor " + FloatUtil.GetVector4XmlString(UnQuantizeFactor));
-            YbnXml.SelfClosingTag(sb, indent, "BoundingBoxCenter " + FloatUtil.GetVector4XmlString(BoundingBoxCenter));
+            // Keep the established YBN XML schema used by Sollumz. The native fields
+            // are Vector4 values, but their W components have historically been
+            // represented by the two separate unknown-float elements.
+            YbnXml.SelfClosingTag(sb, indent, "GeometryCenter " + FloatUtil.GetVector3XmlString(CenterGeom));
+            YbnXml.ValueTag(sb, indent, "UnkFloat1", FloatUtil.ToString(UnQuantizeFactor.W));
+            YbnXml.ValueTag(sb, indent, "UnkFloat2", FloatUtil.ToString(BoundingBoxCenter.W));
             YbnXml.ValueTag(sb, indent, "UseActiveComponents", UseActiveComponents.ToString().ToLowerInvariant());
             YbnXml.ValueTag(sb, indent, "IsFlat", IsFlat.ToString().ToLowerInvariant());
             YbnXml.ValueTag(sb, indent, "ConvexHullVertexCount", ConvexHullVertexCount.ToString());

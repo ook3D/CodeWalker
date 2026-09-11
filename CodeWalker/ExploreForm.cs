@@ -2067,9 +2067,9 @@ namespace CodeWalker
         private void ViewMrf(string name, string path, byte[] data, RpfFileEntry e)
         {
             var mrf = RpfFile.GetFile<MrfFile>(e, data);
-            MetaForm f = new(this);
+            ModelForm f = new(this);
             f.Show();
-            f.LoadMeta(mrf);
+            f.LoadMrf(mrf);
         }
         private void ViewNametable(string name, string path, byte[] data, RpfFileEntry e)
         {

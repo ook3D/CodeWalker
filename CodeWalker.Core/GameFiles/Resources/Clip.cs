@@ -73,6 +73,7 @@ namespace CodeWalker.GameFiles
             this.OwnsAnimationDictionary = reader.ReadByte() != 0;
             this.UsesBaseNameKeys = reader.ReadByte() != 0;
             _ = reader.ReadUInt16();
+            _ = reader.ReadUInt32();
             this.ClipsPointer = reader.ReadUInt64();
             this.ClipsMapCapacity = reader.ReadUInt16();
             this.ClipsMapEntries = reader.ReadUInt16();
@@ -109,6 +110,7 @@ namespace CodeWalker.GameFiles
             writer.Write((byte)(this.OwnsAnimationDictionary ? 1 : 0));
             writer.Write((byte)(this.UsesBaseNameKeys ? 1 : 0));
             writer.Write((ushort)0);
+            writer.Write(0u);
             writer.Write(this.ClipsPointer);
             writer.Write(this.ClipsMapCapacity);
             writer.Write(this.ClipsMapEntries);

@@ -135,6 +135,46 @@ namespace CodeWalker.Forms
         YcdFile? Ycd;
         ClipMapEntry? AnimClip = null;
 
+        MrfFile? Mrf;
+        Ped? MrfPreviewPed;
+        MrfNodeClip? ActiveMrfClip;
+        MrfNodeClip? ActiveMrfBlendClip;
+        ClipMapEntry? MrfBlendAnimClip;
+        float MrfStateBlend;
+        int MrfPreviewModelLoadVersion;
+        float MrfPlaybackTime;
+        bool MrfPlaying = true;
+        float MrfPlaybackRate = 1.0f;
+        bool MrfPlaybackLooped = true;
+        bool MrfTimeScrolling;
+        bool SuppressClipSelection;
+        bool SuppressMrfNodeSelection;
+        long MrfNextTimeUiUpdate;
+        TabPage? MrfTabPage;
+        TreeView? MrfTreeView;
+        PropertyGrid? MrfPropertyGrid;
+        TextBox? MrfModelTextBox;
+        ComboBox? MrfStateComboBox;
+        ComboBox? MrfBlendStateComboBox;
+        ComboBox? MrfClipNodeComboBox;
+        ComboBox? MrfVariableClipSetComboBox;
+        readonly Dictionary<uint, string> MrfClipSetAssignments = new();
+        Button? MrfPlayButton;
+        NumericUpDown? MrfRateUpDown;
+        CheckBox? MrfLoopCheckBox;
+        TrackBar? MrfTimeTrackBar;
+        TrackBar? MrfBlendTrackBar;
+        Label? MrfTimeLabel;
+        Label? MrfBlendLabel;
+        Label? MrfBlendClipLabel;
+        Label? MrfStatusLabel;
+
+        private sealed class MrfPreviewItem(string label, MrfNode node)
+        {
+            public MrfNode Node { get; } = node;
+            public override string ToString() => label;
+        }
+
         MetaHash ModelHash;
         Archetype? ModelArchetype = null;
         bool EnableRootMotion = false;
@@ -263,6 +303,8 @@ namespace CodeWalker.Forms
         {
             formopen = false;
 
+            if (Mrf != null && AnimClip != null) AnimClip.OverridePlayTime = false;
+
             Renderer.DeviceDestroyed();
 
             //int count = 0;
@@ -297,6 +339,7 @@ namespace CodeWalker.Forms
                 UpdateWidgets();
 
                 UpdateParticles(elapsed);
+                UpdateMrfAnimation(elapsed);
 
                 Renderer.BeginRender(context);
 
@@ -707,6 +750,17 @@ namespace CodeWalker.Forms
                 AnimClip.EnableRootMotion = EnableRootMotion;
             }
 
+            if (MrfPreviewPed != null)
+            {
+                MrfPreviewPed.AnimClip = AnimClip;
+                MrfPreviewPed.BlendAnimClip = MrfBlendAnimClip;
+                MrfPreviewPed.AnimBlend = MrfStateBlend;
+                MrfPreviewPed.BlendAnimTime = GetMrfBlendPlaybackTime();
+                MrfPreviewPed.EnableRootMotion = EnableRootMotion;
+                Renderer.RenderPed(MrfPreviewPed);
+                return;
+            }
+
 
             if (Ydr != null)
             {
@@ -823,6 +877,786 @@ namespace CodeWalker.Forms
             }
 
             UpdateModelsUI(ydr.Drawable);
+        }
+
+        public void LoadMrf(MrfFile? mrf)
+        {
+            if (mrf == null) return;
+
+            Mrf = mrf;
+            ActiveMrfBlendClip = null;
+            MrfBlendAnimClip = null;
+            MrfStateBlend = 0.0f;
+            FileName = mrf.Name ?? mrf.RpfFileEntry?.Name ?? string.Empty;
+            rpfFileEntry = mrf.RpfFileEntry;
+            InitMrfUI();
+            PopulateMrfTree();
+
+            ToolsPanel.Visible = true;
+            ToolsPanel.Width = Math.Max(ToolsPanel.Width, 520);
+            if (MrfTabPage != null) ToolsTabControl.SelectedTab = MrfTabPage;
+
+            var initial = mrf.FindPreviewClip(mrf.RootState);
+            if (initial != null) ActivateMrfClip(initial);
+            else SetMrfStatus("No literal clip is reachable from the initial state.");
+
+            if (!string.IsNullOrWhiteSpace(MrfModelTextBox?.Text))
+                LoadMrfPreviewModel(MrfModelTextBox.Text);
+        }
+
+        private void InitMrfUI()
+        {
+            if (MrfTabPage != null) return;
+
+            MrfTabPage = new TabPage("Move Network");
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 5,
+                Padding = new Padding(3)
+            };
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var modelPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = false };
+            modelPanel.Controls.Add(new Label { Text = "Preview ped/model:", AutoSize = true, Margin = new Padding(0, 6, 3, 0) });
+            MrfModelTextBox = new TextBox { Width = 170, Text = GetDefaultMrfPreviewModel() };
+            var loadModelButton = new Button { Text = "Load", AutoSize = true };
+            loadModelButton.Click += (_, _) => LoadMrfPreviewModel(MrfModelTextBox.Text);
+            MrfModelTextBox.KeyDown += (_, e) =>
+            {
+                if (e.KeyCode != Keys.Enter) return;
+                LoadMrfPreviewModel(MrfModelTextBox.Text);
+                e.SuppressKeyPress = true;
+            };
+            modelPanel.Controls.Add(MrfModelTextBox);
+            modelPanel.Controls.Add(loadModelButton);
+
+            var selectionPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+            var statePanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            statePanel.Controls.Add(new Label { Text = "State A:", AutoSize = true, Margin = new Padding(0, 6, 3, 0) });
+            MrfStateComboBox = new ComboBox { Width = 210, DropDownStyle = ComboBoxStyle.DropDownList };
+            MrfStateComboBox.SelectedIndexChanged += (_, _) =>
+            {
+                if (SuppressMrfNodeSelection || MrfStateComboBox.SelectedItem is not MrfPreviewItem item) return;
+                SelectMrfTreeNode(item.Node);
+            };
+            statePanel.Controls.Add(MrfStateComboBox);
+            statePanel.Controls.Add(MakeMrfStateStepButton("◀", MrfStateComboBox, -1));
+            statePanel.Controls.Add(MakeMrfStateStepButton("▶", MrfStateComboBox, 1));
+            var blendStatePanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            blendStatePanel.Controls.Add(new Label { Text = "State B:", AutoSize = true, Margin = new Padding(0, 6, 3, 0) });
+            MrfBlendStateComboBox = new ComboBox { Width = 210, DropDownStyle = ComboBoxStyle.DropDownList };
+            MrfBlendStateComboBox.SelectedIndexChanged += (_, _) =>
+            {
+                if (SuppressMrfNodeSelection || MrfBlendStateComboBox.SelectedItem is not MrfPreviewItem item) return;
+                ActivateMrfBlendState(item.Node);
+            };
+            blendStatePanel.Controls.Add(MrfBlendStateComboBox);
+            blendStatePanel.Controls.Add(MakeMrfStateStepButton("◀", MrfBlendStateComboBox, -1));
+            blendStatePanel.Controls.Add(MakeMrfStateStepButton("▶", MrfBlendStateComboBox, 1));
+            var swapStatesButton = new Button { Text = "Swap A/B", AutoSize = true };
+            swapStatesButton.Click += (_, _) => SwapMrfStates();
+            blendStatePanel.Controls.Add(swapStatesButton);
+            var blendPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            blendPanel.Controls.Add(new Label { Text = "State blend:", AutoSize = true, Margin = new Padding(0, 6, 3, 0) });
+            MrfBlendTrackBar = new TrackBar { Minimum = 0, Maximum = 100, TickFrequency = 10, Width = 210, Value = 0 };
+            MrfBlendLabel = new Label { Text = "A 100% / B 0%", AutoSize = true, Margin = new Padding(3, 6, 0, 0) };
+            var stateAButton = new Button { Text = "A", Width = 30 };
+            var stateBButton = new Button { Text = "B", Width = 30 };
+            stateAButton.Click += (_, _) => SetMrfStateBlend(0);
+            stateBButton.Click += (_, _) => SetMrfStateBlend(100);
+            MrfBlendTrackBar.Scroll += (_, _) => SetMrfStateBlend(MrfBlendTrackBar.Value);
+            blendPanel.Controls.Add(stateAButton);
+            blendPanel.Controls.Add(MrfBlendTrackBar);
+            blendPanel.Controls.Add(stateBButton);
+            blendPanel.Controls.Add(MrfBlendLabel);
+            var clipPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            clipPanel.Controls.Add(new Label { Text = "Clip:", AutoSize = true, Margin = new Padding(0, 6, 7, 0) });
+            MrfClipNodeComboBox = new ComboBox { Width = 250, DropDownStyle = ComboBoxStyle.DropDownList };
+            MrfClipNodeComboBox.SelectedIndexChanged += (_, _) =>
+            {
+                if (SuppressMrfNodeSelection || MrfClipNodeComboBox.SelectedItem is not MrfPreviewItem item) return;
+                SelectMrfTreeNode(item.Node);
+            };
+            clipPanel.Controls.Add(MrfClipNodeComboBox);
+            selectionPanel.Controls.Add(statePanel);
+            selectionPanel.Controls.Add(blendStatePanel);
+            selectionPanel.Controls.Add(blendPanel);
+            MrfBlendClipLabel = new Label { Text = "State B clip: none", AutoSize = true, ForeColor = System.Drawing.SystemColors.GrayText };
+            selectionPanel.Controls.Add(MrfBlendClipLabel);
+            selectionPanel.Controls.Add(clipPanel);
+            var variableClipSetPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            variableClipSetPanel.Controls.Add(new Label { Text = "Variable clip set:", AutoSize = true, Margin = new Padding(0, 6, 3, 0) });
+            MrfVariableClipSetComboBox = new ComboBox { Width = 202, DropDownStyle = ComboBoxStyle.DropDown };
+            MrfVariableClipSetComboBox.SelectedIndexChanged += (_, _) => AssignMrfVariableClipSet();
+            MrfVariableClipSetComboBox.KeyDown += (_, e) =>
+            {
+                if (e.KeyCode != Keys.Enter) return;
+                AssignMrfVariableClipSet();
+                e.SuppressKeyPress = true;
+            };
+            variableClipSetPanel.Controls.Add(MrfVariableClipSetComboBox);
+            selectionPanel.Controls.Add(variableClipSetPanel);
+
+            var playbackPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = true };
+            MrfPlayButton = new Button { Text = "Pause", AutoSize = true };
+            MrfPlayButton.Click += (_, _) =>
+            {
+                MrfPlaying = !MrfPlaying;
+                MrfPlayButton.Text = MrfPlaying ? "Pause" : "Play";
+            };
+            var restartButton = new Button { Text = "Restart", AutoSize = true };
+            restartButton.Click += (_, _) => SetMrfPlaybackTime(GetMrfInitialTime());
+            MrfTimeTrackBar = new TrackBar { Minimum = 0, Maximum = 1000, TickStyle = TickStyle.None, Width = 120 };
+            MrfTimeTrackBar.MouseDown += (_, _) => MrfTimeScrolling = true;
+            MrfTimeTrackBar.MouseUp += (_, _) =>
+            {
+                MrfTimeScrolling = false;
+                SetMrfPlaybackTime(GetMrfDuration() * MrfTimeTrackBar.Value / MrfTimeTrackBar.Maximum);
+            };
+            MrfTimeTrackBar.Scroll += (_, _) =>
+                SetMrfPlaybackTime(GetMrfDuration() * MrfTimeTrackBar.Value / MrfTimeTrackBar.Maximum);
+            MrfTimeLabel = new Label { Text = "0.00 / 0.00", AutoSize = true, Margin = new Padding(3, 7, 0, 0) };
+            MrfRateUpDown = new NumericUpDown { DecimalPlaces = 2, Increment = 0.05M, Minimum = -4, Maximum = 4, Value = 1, Width = 55 };
+            MrfRateUpDown.ValueChanged += (_, _) => MrfPlaybackRate = (float)MrfRateUpDown.Value;
+            MrfLoopCheckBox = new CheckBox { Text = "Loop", Checked = true, AutoSize = true, Margin = new Padding(3, 7, 0, 0) };
+            MrfLoopCheckBox.CheckedChanged += (_, _) => MrfPlaybackLooped = MrfLoopCheckBox.Checked;
+            playbackPanel.Controls.Add(MrfPlayButton);
+            playbackPanel.Controls.Add(restartButton);
+            playbackPanel.Controls.Add(new Label { Text = "Rate:", AutoSize = true, Margin = new Padding(3, 7, 0, 0) });
+            playbackPanel.Controls.Add(MrfRateUpDown);
+            playbackPanel.Controls.Add(MrfLoopCheckBox);
+            playbackPanel.Controls.Add(MrfTimeTrackBar);
+            playbackPanel.Controls.Add(MrfTimeLabel);
+
+            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 220 };
+            MrfTreeView = new TreeView { Dock = DockStyle.Fill, HideSelection = false };
+            MrfPropertyGrid = new CodeWalker.WinForms.ReadOnlyPropertyGrid { Dock = DockStyle.Fill, HelpVisible = false, ToolbarVisible = false };
+            MrfTreeView.AfterSelect += (_, e) =>
+            {
+                MrfPropertyGrid.SelectedObject = e.Node?.Tag;
+                if (e.Node?.Tag is MrfNode node)
+                {
+                    SyncMrfSelectors(node);
+                    ActivateMrfNode(node);
+                }
+            };
+            split.Panel1.Controls.Add(MrfTreeView);
+            split.Panel2.Controls.Add(MrfPropertyGrid);
+
+            MrfStatusLabel = new Label { Dock = DockStyle.Fill, AutoSize = true, Text = "Select a node to preview it." };
+            layout.Controls.Add(modelPanel, 0, 0);
+            layout.Controls.Add(selectionPanel, 0, 1);
+            layout.Controls.Add(playbackPanel, 0, 2);
+            layout.Controls.Add(split, 0, 3);
+            layout.Controls.Add(MrfStatusLabel, 0, 4);
+            MrfTabPage.Controls.Add(layout);
+            ToolsTabControl.TabPages.Insert(1, MrfTabPage);
+        }
+
+        private string GetDefaultMrfPreviewModel()
+        {
+            var name = (Mrf?.Name ?? Mrf?.RpfFileEntry?.Name ?? string.Empty).ToLowerInvariant();
+            return name.Contains("human") || name.Contains("onfoot") || name.Contains("ped")
+                ? "mp_m_freemode_01" : string.Empty;
+        }
+
+        private void PopulateMrfTree()
+        {
+            if (MrfTreeView == null || Mrf == null) return;
+            MrfTreeView.BeginUpdate();
+            MrfTreeView.Nodes.Clear();
+
+            var root = MrfTreeView.Nodes.Add(Mrf.Name ?? Mrf.RpfFileEntry?.Name ?? "Move Network");
+            root.Tag = Mrf;
+            if (Mrf.RootState != null) AddMrfNode(root, "Root", Mrf.RootState, new HashSet<MrfNode>());
+
+            AddMrfItems(root, "Requests", Mrf.Requests.Where(x => !x.IsEndMarker));
+            AddMrfItems(root, "Flags", Mrf.Flags.Where(x => !x.IsEndMarker));
+            AddMrfItems(root, "External references", Mrf.ExternalReferences);
+            var clips = Mrf.AllNodes.OfType<MrfNodeClip>().ToArray();
+            if (clips.Length > 0)
+            {
+                var clipsNode = root.Nodes.Add($"Clips ({clips.Length})");
+                foreach (var clip in clips)
+                    clipsNode.Nodes.Add(GetMrfClipLabel(clip)).Tag = clip;
+            }
+
+            SuppressMrfNodeSelection = true;
+            MrfStateComboBox?.Items.Clear();
+            MrfBlendStateComboBox?.Items.Clear();
+            MrfClipNodeComboBox?.Items.Clear();
+            foreach (var state in Mrf.AllNodes.OfType<MrfNodeStateBase>())
+            {
+                MrfStateComboBox?.Items.Add(new MrfPreviewItem(GetMrfNodeLabel(state), state));
+                MrfBlendStateComboBox?.Items.Add(new MrfPreviewItem(GetMrfNodeLabel(state), state));
+            }
+            foreach (var clip in clips)
+                MrfClipNodeComboBox?.Items.Add(new MrfPreviewItem(GetMrfClipLabel(clip), clip));
+            SuppressMrfNodeSelection = false;
+            if (MrfBlendStateComboBox?.Items.Count > 0) MrfBlendStateComboBox.SelectedIndex = 0;
+            root.Expand();
+            if (root.Nodes.Count > 0) root.Nodes[0].Expand();
+            MrfTreeView.SelectedNode = root;
+            MrfTreeView.EndUpdate();
+        }
+
+        private static string GetMrfNodeLabel(MrfNode node) => $"[{node.FileIndex}] {node.ID.ToCleanString()} ({node.Type})";
+
+        private static string GetMrfClipLabel(MrfNodeClip clip)
+        {
+            if (clip.ClipType == MrfValueType.Parameter)
+                return $"[{clip.FileIndex}] parameter: {clip.ClipParameterName.ToCleanString()}";
+            var container = clip.ClipContainerType == MrfClipContainerType.LocalFile
+                ? "local" : clip.ClipContainerName.ToCleanString();
+            return $"[{clip.FileIndex}] {container} / {clip.ClipName.ToCleanString()}";
+        }
+
+        private void ActivateMrfNode(MrfNode node)
+        {
+            var clip = node as MrfNodeClip ?? Mrf?.FindPreviewClip(node);
+            if (clip != null) ActivateMrfClip(clip);
+            else SetMrfStatus("This state/node has no literal clip. Choose one from the Clip list or expand Clips in the tree.");
+        }
+
+        private void SyncMrfSelectors(MrfNode node)
+        {
+            SuppressMrfNodeSelection = true;
+            if (node is MrfNodeStateBase) SelectMrfComboItem(MrfStateComboBox, node);
+            if (node is MrfNodeClip) SelectMrfComboItem(MrfClipNodeComboBox, node);
+            SuppressMrfNodeSelection = false;
+        }
+
+        private static void SelectMrfComboItem(ComboBox? comboBox, MrfNode node)
+        {
+            if (comboBox == null) return;
+            for (int i = 0; i < comboBox.Items.Count; i++)
+            {
+                if (comboBox.Items[i] is MrfPreviewItem item && ReferenceEquals(item.Node, node))
+                {
+                    comboBox.SelectedIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private static Button MakeMrfStateStepButton(string text, ComboBox comboBox, int step)
+        {
+            var button = new Button { Text = text, Width = 30, Height = comboBox.Height };
+            button.Click += (_, _) =>
+            {
+                if (comboBox.Items.Count == 0) return;
+                comboBox.SelectedIndex = Math.Clamp(comboBox.SelectedIndex + step, 0, comboBox.Items.Count - 1);
+            };
+            return button;
+        }
+
+        private void SwapMrfStates()
+        {
+            if (MrfStateComboBox?.SelectedItem is not MrfPreviewItem stateA ||
+                MrfBlendStateComboBox?.SelectedItem is not MrfPreviewItem stateB) return;
+            SuppressMrfNodeSelection = true;
+            MrfStateComboBox.SelectedItem = MrfStateComboBox.Items.Cast<MrfPreviewItem>().FirstOrDefault(x => ReferenceEquals(x.Node, stateB.Node));
+            MrfBlendStateComboBox.SelectedItem = MrfBlendStateComboBox.Items.Cast<MrfPreviewItem>().FirstOrDefault(x => ReferenceEquals(x.Node, stateA.Node));
+            SuppressMrfNodeSelection = false;
+            SelectMrfTreeNode(stateB.Node);
+            ActivateMrfBlendState(stateA.Node);
+            SetMrfStateBlend(100 - (MrfBlendTrackBar?.Value ?? 0));
+        }
+
+        private void SetMrfStateBlend(int value)
+        {
+            value = Math.Clamp(value, 0, 100);
+            if (MrfBlendTrackBar != null) MrfBlendTrackBar.Value = value;
+            MrfStateBlend = value / 100.0f;
+            if (MrfBlendLabel != null) MrfBlendLabel.Text = $"A {100 - value}% / B {value}%";
+        }
+
+        private void SelectMrfTreeNode(MrfNode node)
+        {
+            if (MrfTreeView == null) return;
+            var treeNode = FindMrfTreeNode(MrfTreeView.Nodes, node);
+            if (treeNode == null) return;
+            MrfTreeView.SelectedNode = treeNode;
+            treeNode.EnsureVisible();
+        }
+
+        private static TreeNode? FindMrfTreeNode(TreeNodeCollection nodes, MrfNode node)
+        {
+            foreach (TreeNode treeNode in nodes)
+            {
+                if (ReferenceEquals(treeNode.Tag, node)) return treeNode;
+                var result = FindMrfTreeNode(treeNode.Nodes, node);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        private static void AddMrfItems<T>(TreeNode root, string label, IEnumerable<T> items)
+        {
+            var values = items.ToArray();
+            if (values.Length == 0) return;
+            var group = root.Nodes.Add($"{label} ({values.Length})");
+            foreach (var value in values)
+                group.Nodes.Add(value?.ToString() ?? string.Empty).Tag = value;
+        }
+
+        private static void AddMrfNode(TreeNode parent, string edge, MrfNode node, HashSet<MrfNode> visited)
+        {
+            var treeNode = parent.Nodes.Add($"{edge}: {node.Type} [{node.Index}] {node.ID.ToCleanString()}");
+            treeNode.Tag = node;
+            if (!visited.Add(node))
+            {
+                treeNode.Text += " (reference)";
+                return;
+            }
+
+            if (node is MrfNodeStateMachine stateMachine)
+            {
+                foreach (var state in stateMachine.States)
+                    if (state.State != null) AddMrfNode(treeNode, "State", state.State, visited);
+            }
+            else if (node is MrfNodeInlinedStateMachine inlinedStateMachine)
+            {
+                foreach (var state in inlinedStateMachine.States)
+                    if (state.State != null) AddMrfNode(treeNode, "State", state.State, visited);
+                if (inlinedStateMachine.FallbackNode != null)
+                    AddMrfNode(treeNode, "Fallback", inlinedStateMachine.FallbackNode, visited);
+            }
+            else if (node is MrfNodeState state && state.InitialNode != null)
+            {
+                AddMrfNode(treeNode, "Initial", state.InitialNode, visited);
+            }
+            else if (node is MrfNodeWithChildBase child && child.Input != null)
+            {
+                AddMrfNode(treeNode, "Input", child.Input, visited);
+            }
+            else if (node is MrfNodePairBase pair)
+            {
+                if (pair.Input0 != null) AddMrfNode(treeNode, "Input 0", pair.Input0, visited);
+                if (pair.Input1 != null) AddMrfNode(treeNode, "Input 1", pair.Input1, visited);
+            }
+            else if (node is MrfNodeNBase many)
+            {
+                for (int i = 0; i < many.Children.Length; i++)
+                    AddMrfNode(treeNode, $"Input {i}", many.Children[i], visited);
+            }
+
+            if (node is MrfNodeStateBase stateBase)
+            {
+                foreach (var transition in stateBase.Transitions)
+                {
+                    var target = transition.TargetState?.ID.ToCleanString() ?? "unresolved";
+                    treeNode.Nodes.Add($"Transition -> {target}").Tag = transition;
+                }
+            }
+        }
+
+        private async void LoadMrfPreviewModel(string name)
+        {
+            name = name.Trim();
+            if (name.Length == 0) return;
+            var loadVersion = ++MrfPreviewModelLoadVersion;
+            SetMrfStatus($"Loading preview model {name}...");
+
+            for (int i = 0; i < 3000 && !gameFileCache.IsInited; i++) await Task.Delay(10);
+            if (!gameFileCache.IsInited)
+            {
+                SetMrfStatus("The game file cache is not ready.");
+                return;
+            }
+
+            var extension = Path.GetExtension(name).ToLowerInvariant();
+            var shortName = Path.GetFileNameWithoutExtension(name);
+            uint hash;
+            if (shortName.StartsWith("hash_", StringComparison.OrdinalIgnoreCase) &&
+                uint.TryParse(shortName.AsSpan(5), System.Globalization.NumberStyles.HexNumber, null, out var parsedHash))
+                hash = parsedHash;
+            else if (!uint.TryParse(shortName, out hash))
+                hash = JenkHash.GenHashLowerInvariant(shortName);
+
+            var pedName = LooksLikePedName(shortName);
+            if (pedName && gameFileCache.PedsInitDict.Count == 0)
+            {
+                SetMrfStatus("Loading ped metadata...");
+                await Task.Run(gameFileCache.InitPeds);
+                if (IsDisposed || loadVersion != MrfPreviewModelLoadVersion) return;
+            }
+
+            if (gameFileCache.PedsInitDict.ContainsKey(hash))
+            {
+                var ped = new Ped();
+                await ped.InitAsync(hash, gameFileCache);
+                if (ped.InitData != null) await ped.LoadDefaultComponentsAsync(gameFileCache);
+                if (IsDisposed || loadVersion != MrfPreviewModelLoadVersion) return;
+                if (ped.InitData == null || !ped.Drawables.Any(x => x != null))
+                {
+                    SetMrfStatus($"Ped '{name}' could not load its drawable components.");
+                    return;
+                }
+
+                Ydr = null;
+                Ydd = null;
+                Yft = null;
+                Ybn = null;
+                Ypt = null;
+                Ynv = null;
+                ped.Name = shortName;
+                MrfPreviewPed = ped;
+                Skeleton = ped.Skeleton;
+                var drawable = ped.Yft?.Fragment?.Drawable;
+                if (drawable != null) MoveCameraToView(drawable.CullSphereCenter, drawable.CullSphereRadius);
+                UpdateMrfPedUI(ped);
+                FileName = $"{Mrf?.Name ?? "Move Network"} [{ped.Name}]";
+                if (MrfTabPage != null) ToolsTabControl.SelectedTab = MrfTabPage;
+                SetMrfStatus(ActiveMrfClip == null ? "Ped loaded; select a clip node." : GetMrfClipStatus());
+                return;
+            }
+            if (pedName)
+            {
+                SetMrfStatus($"Ped '{name}' was not found in peds.ymt; its skeleton YFT was not loaded as a substitute.");
+                return;
+            }
+
+            YftFile? yft = extension == ".ydr" ? null : gameFileCache.GetYft(hash);
+            YdrFile? ydr = extension == ".yft" || yft != null ? null : gameFileCache.GetYdr(hash);
+            GameFile? model = yft ?? (GameFile?)ydr;
+            if (model == null)
+            {
+                SetMrfStatus($"Preview model '{name}' was not found as a YFT or YDR.");
+                return;
+            }
+
+            for (int i = 0; i < 3000 && !model.Loaded; i++) await Task.Delay(10);
+            if (IsDisposed || loadVersion != MrfPreviewModelLoadVersion) return;
+            if (!model.Loaded)
+            {
+                SetMrfStatus($"Timed out loading preview model '{name}'.");
+                return;
+            }
+
+            Ydr = null;
+            Ydd = null;
+            Yft = null;
+            Ybn = null;
+            Ypt = null;
+            Ynv = null;
+            MrfPreviewPed = null;
+            if (yft != null) LoadModel(yft);
+            else LoadModel(ydr);
+            FileName = $"{Mrf?.Name ?? "Move Network"} [{model.Name}]";
+            if (MrfTabPage != null) ToolsTabControl.SelectedTab = MrfTabPage;
+            SetMrfStatus(ActiveMrfClip == null ? "Preview model loaded; select a clip node." : GetMrfClipStatus());
+        }
+
+        private static bool LooksLikePedName(string name)
+        {
+            name = name.ToLowerInvariant();
+            string[] prefixes = ["a_c_", "a_f_", "a_m_", "cs_", "csb_", "g_f_", "g_m_", "hc_", "ig_", "mp_f_", "mp_m_", "player_", "s_f_", "s_m_", "u_f_", "u_m_"];
+            return prefixes.Any(name.StartsWith);
+        }
+
+        private void UpdateMrfPedUI(Ped ped)
+        {
+            DetailsPropertyGrid.SelectedObject = ped;
+            DrawableDrawFlags.Clear();
+            Renderer.SelectionModelDrawFlags.Clear();
+            Renderer.SelectionGeometryDrawFlags.Clear();
+            ModelsTreeView.Nodes.Clear();
+            ModelsTreeView.ShowRootLines = true;
+            TexturesTreeView.Nodes.Clear();
+
+            for (int i = 0; i < ped.Drawables.Length; i++)
+            {
+                var drawable = ped.Drawables[i];
+                if (drawable == null) continue;
+                var name = ped.DrawableNames[i] ?? $"component_{i}";
+                AddDrawableTreeNode(drawable, JenkHash.GenHashLowerInvariant(name), true);
+            }
+        }
+
+        private async void ActivateMrfClip(MrfNodeClip clip)
+        {
+            ActiveMrfClip = clip;
+            MrfPlaybackTime = 0.0f;
+            AnimClip = null;
+            if (clip.ClipContainerType != MrfClipContainerType.VariableClipSet)
+                SyncMrfVariableClipSet(null);
+
+            if (clip.ClipContainerType == MrfClipContainerType.LocalFile)
+            {
+                SetMrfStatus($"Local-file clip {clip.ClipName.ToCleanString()} cannot be resolved from a YCD.");
+                return;
+            }
+            if (clip.ClipContainerName.Hash == 0)
+            {
+                SetMrfStatus("This clip obtains its container from a runtime parameter.");
+                return;
+            }
+
+            var selected = clip;
+            for (int i = 0; i < 3000 && !gameFileCache.IsInited; i++) await Task.Delay(10);
+            if (!gameFileCache.IsInited || ActiveMrfClip != selected)
+            {
+                if (ActiveMrfClip == selected) SetMrfStatus("The game file cache is not ready.");
+                return;
+            }
+            if (Scenarios.ScenarioTypes == null)
+                await Task.Run(() => Scenarios.EnsureScenarioTypes(gameFileCache));
+            if (ActiveMrfClip != selected) return;
+
+            if (clip.ClipContainerType == MrfClipContainerType.VariableClipSet)
+                PopulateMrfVariableClipSets();
+            var ycdNames = GetMrfClipDictionaries(clip, true, out var ycdName);
+
+            if (ycdNames.Length == 0)
+            {
+                SetMrfStatus(clip.ClipContainerType == MrfClipContainerType.VariableClipSet
+                    ? $"Assign a concrete clip set to runtime variable {clip.ClipContainerName.ToCleanString()}."
+                    : $"Clip set {ycdName} was not found in clip_sets.ymt.");
+                return;
+            }
+
+            YcdFile? ycd = null;
+            ClipMapEntry? animation = null;
+            foreach (var candidateName in ycdNames)
+            {
+                var candidate = gameFileCache.GetYcd(JenkHash.GenHashLowerInvariant(candidateName));
+                for (int i = 0; i < 3000 && candidate != null && !candidate.Loaded; i++) await Task.Delay(10);
+                if (ActiveMrfClip != selected) return;
+                if (candidate?.Loaded != true) continue;
+                animation = ResolveMrfClip(candidate, clip.ClipName);
+                if (animation == null) continue;
+                ycd = candidate;
+                ycdName = candidateName;
+                break;
+            }
+            if (ycd == null || animation == null)
+            {
+                SetMrfStatus($"Clip {clip.ClipName.ToCleanString()} was not found in clip set {clip.ClipContainerName.ToCleanString()} or its fallbacks.");
+                return;
+            }
+
+            Ycd = ycd;
+            SuppressClipSelection = true;
+            ClipDictComboBox.Text = ycdName;
+            ClipComboBox.Items.Clear();
+            ClipComboBox.Items.Add("");
+            foreach (var name in ycd.ClipMapEntries.Where(x => x.Clip != null).Select(x => x.Clip!.ShortName).OrderBy(x => x))
+                ClipComboBox.Items.Add(name);
+
+            AnimClip = animation;
+            if (animation?.Clip != null) ClipComboBox.Text = animation.Clip.ShortName;
+            SuppressClipSelection = false;
+
+            if (AnimClip == null)
+                SetMrfStatus($"Clip {clip.ClipName.ToCleanString()} was not found in {clip.ClipContainerName.ToCleanString()}.");
+            else
+            {
+                MrfPlaybackRate = clip.RateType == MrfValueType.Literal ? clip.Rate : 1.0f;
+                MrfPlaybackLooped = clip.LoopedType == MrfValueType.Literal
+                    ? clip.Looped : (AnimClip.Clip?.Flags & ClipFlags.Looped) != 0;
+                if (MrfRateUpDown != null)
+                    MrfRateUpDown.Value = Math.Clamp((decimal)MrfPlaybackRate, MrfRateUpDown.Minimum, MrfRateUpDown.Maximum);
+                if (MrfLoopCheckBox != null) MrfLoopCheckBox.Checked = MrfPlaybackLooped;
+                SetMrfPlaybackTime(GetMrfInitialTime());
+                SetMrfStatus(GetMrfClipStatus());
+            }
+        }
+
+        private async void ActivateMrfBlendState(MrfNode node)
+        {
+            var clip = node as MrfNodeClip ?? Mrf?.FindPreviewClip(node);
+            ActiveMrfBlendClip = clip;
+            MrfBlendAnimClip = null;
+            if (MrfBlendClipLabel != null) MrfBlendClipLabel.Text = clip == null ? "State B clip: none" : $"State B clip: loading {clip.ClipName.ToCleanString()}...";
+            if (clip == null) return;
+
+            for (int i = 0; i < 3000 && !gameFileCache.IsInited; i++) await Task.Delay(10);
+            if (!gameFileCache.IsInited || ActiveMrfBlendClip != clip) return;
+            if (Scenarios.ScenarioTypes == null)
+                await Task.Run(() => Scenarios.EnsureScenarioTypes(gameFileCache));
+            if (ActiveMrfBlendClip != clip) return;
+
+            var ycdNames = GetMrfClipDictionaries(clip, false, out _);
+            foreach (var candidateName in ycdNames)
+            {
+                var candidate = gameFileCache.GetYcd(JenkHash.GenHashLowerInvariant(candidateName));
+                for (int i = 0; i < 3000 && candidate != null && !candidate.Loaded; i++) await Task.Delay(10);
+                if (ActiveMrfBlendClip != clip) return;
+                if (candidate?.Loaded != true) continue;
+                var animation = ResolveMrfClip(candidate, clip.ClipName);
+                if (animation == null) continue;
+                MrfBlendAnimClip = animation;
+                if (MrfBlendClipLabel != null)
+                    MrfBlendClipLabel.Text = $"State B clip: {candidateName} / {animation.Clip?.ShortName}";
+                return;
+            }
+            if (MrfBlendClipLabel != null)
+                MrfBlendClipLabel.Text = $"State B clip: {clip.ClipName.ToCleanString()} was not found";
+        }
+
+        private string[] GetMrfClipDictionaries(MrfNodeClip clip, bool updateVariableUi, out string clipSetName)
+        {
+            clipSetName = clip.ClipContainerName.ToCleanString();
+            if (clip.ClipContainerType == MrfClipContainerType.ClipDictionary)
+                return [clipSetName];
+            if (clip.ClipContainerType is MrfClipContainerType.LocalFile || clip.ClipContainerName.Hash == 0)
+                return [];
+            if (clip.ClipContainerType == MrfClipContainerType.VariableClipSet)
+            {
+                if (!MrfClipSetAssignments.TryGetValue(clip.ClipContainerName.Hash, out var assignedClipSet))
+                {
+                    assignedClipSet = GetDefaultMrfVariableClipSet(clip);
+                    if (!string.IsNullOrEmpty(assignedClipSet))
+                        MrfClipSetAssignments[clip.ClipContainerName.Hash] = assignedClipSet;
+                }
+                if (updateVariableUi) SyncMrfVariableClipSet(assignedClipSet);
+                if (string.IsNullOrWhiteSpace(assignedClipSet)) return [];
+                clipSetName = assignedClipSet;
+            }
+            return Scenarios.ScenarioTypes?.GetClipSetDictionaries(JenkHash.GenHashLowerInvariant(clipSetName)) ?? [];
+        }
+
+        private void PopulateMrfVariableClipSets()
+        {
+            if (MrfVariableClipSetComboBox == null || MrfVariableClipSetComboBox.Items.Count != 0) return;
+            var text = MrfVariableClipSetComboBox.Text;
+            SuppressMrfNodeSelection = true;
+            MrfVariableClipSetComboBox.BeginUpdate();
+            MrfVariableClipSetComboBox.Items.AddRange(Scenarios.ScenarioTypes?.GetClipSetNames() ?? []);
+            MrfVariableClipSetComboBox.SelectedIndex = -1;
+            MrfVariableClipSetComboBox.Text = text;
+            MrfVariableClipSetComboBox.EndUpdate();
+            SuppressMrfNodeSelection = false;
+        }
+
+        private void AssignMrfVariableClipSet()
+        {
+            if (SuppressMrfNodeSelection || ActiveMrfClip?.ClipContainerType != MrfClipContainerType.VariableClipSet || MrfVariableClipSetComboBox == null) return;
+            var name = MrfVariableClipSetComboBox.Text.Trim();
+            if (name.Length == 0) return;
+            MrfClipSetAssignments[ActiveMrfClip.ClipContainerName.Hash] = name;
+            ActivateMrfClip(ActiveMrfClip);
+        }
+
+        private void SyncMrfVariableClipSet(string? name)
+        {
+            if (MrfVariableClipSetComboBox == null) return;
+            SuppressMrfNodeSelection = true;
+            MrfVariableClipSetComboBox.Enabled = ActiveMrfClip?.ClipContainerType == MrfClipContainerType.VariableClipSet;
+            MrfVariableClipSetComboBox.Text = name ?? string.Empty;
+            SuppressMrfNodeSelection = false;
+        }
+
+        private string? GetDefaultMrfVariableClipSet(MrfNodeClip clip)
+        {
+            var variableName = clip.ClipContainerName.ToCleanString();
+            if (variableName.Equals("defaultweaponholding", StringComparison.OrdinalIgnoreCase))
+                return "weapons@pistol@";
+            if (variableName.Equals("default", StringComparison.OrdinalIgnoreCase) ||
+                variableName.Contains("movement", StringComparison.OrdinalIgnoreCase))
+                return MrfPreviewPed?.InitData?.MovementClipSet is { Length: > 0 } movement ? movement : "move_m@generic";
+            return null;
+        }
+
+        private static ClipMapEntry? ResolveMrfClip(YcdFile ycd, MetaHash clipName)
+        {
+            if (ycd.ClipMap.TryGetValue(clipName.Hash, out var animation) && animation?.Clip != null)
+                return animation;
+
+            var name = clipName.ToCleanString();
+            var nameHash = JenkHash.GenHashLowerInvariant(name);
+            if (ycd.ClipMap.TryGetValue(nameHash, out animation) && animation?.Clip != null)
+                return animation;
+
+            return ycd.ClipMapEntries.FirstOrDefault(x => x.Clip != null &&
+                (x.Hash == clipName || x.Clip.Hash == clipName ||
+                 string.Equals(x.Clip.ShortName, name, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(x.Clip.Name, name, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        private void UpdateMrfAnimation(float elapsed)
+        {
+            if (Mrf == null || AnimClip == null || ActiveMrfClip == null) return;
+            var duration = GetMrfDuration();
+            if (MrfPlaying && duration > 0.0f)
+            {
+                MrfPlaybackTime += elapsed * MrfPlaybackRate;
+                if (MrfPlaybackLooped)
+                {
+                    MrfPlaybackTime %= duration;
+                    if (MrfPlaybackTime < 0.0f) MrfPlaybackTime += duration;
+                }
+                else MrfPlaybackTime = Math.Clamp(MrfPlaybackTime, 0.0f, duration);
+            }
+
+            AnimClip.OverridePlayTime = true;
+            AnimClip.PlayTime = MrfPlaybackTime;
+            UpdateMrfTimeUI(duration);
+        }
+
+        private float GetMrfDuration() => AnimClip?.Clip?.GetDuration() ?? 0.0f;
+
+        private double GetMrfBlendPlaybackTime()
+        {
+            var blendDuration = MrfBlendAnimClip?.Clip?.GetDuration() ?? 0.0f;
+            var duration = GetMrfDuration();
+            return duration > 0.0f && blendDuration > 0.0f
+                ? MrfPlaybackTime / duration * blendDuration : MrfPlaybackTime;
+        }
+
+        private float GetMrfInitialTime()
+        {
+            var duration = GetMrfDuration();
+            return ActiveMrfClip?.PhaseType == MrfValueType.Literal
+                ? Math.Clamp(ActiveMrfClip.Phase, 0.0f, 1.0f) * duration : 0.0f;
+        }
+
+        private void SetMrfPlaybackTime(float time)
+        {
+            MrfPlaybackTime = Math.Clamp(time, 0.0f, GetMrfDuration());
+            if (AnimClip != null)
+            {
+                AnimClip.OverridePlayTime = true;
+                AnimClip.PlayTime = MrfPlaybackTime;
+            }
+            UpdateMrfTimeUI(GetMrfDuration(), true);
+        }
+
+        private void UpdateMrfTimeUI(float duration, bool force = false)
+        {
+            if (InvokeRequired)
+            {
+                var now = Environment.TickCount64;
+                if (!force && now < MrfNextTimeUiUpdate) return;
+                MrfNextTimeUiUpdate = now + 100;
+                if (!IsDisposed) BeginInvoke(new Action(() => UpdateMrfTimeUI(duration, true)));
+                return;
+            }
+            if (MrfTimeLabel != null) MrfTimeLabel.Text = $"{MrfPlaybackTime:0.00} / {duration:0.00}";
+            if (MrfTimeTrackBar != null && !MrfTimeScrolling)
+                MrfTimeTrackBar.Value = duration > 0.0f
+                    ? Math.Clamp((int)(MrfPlaybackTime / duration * MrfTimeTrackBar.Maximum), 0, MrfTimeTrackBar.Maximum) : 0;
+        }
+
+        private string GetMrfClipStatus()
+        {
+            if (ActiveMrfClip == null || AnimClip == null) return "No MRF clip selected.";
+            var duration = GetMrfDuration();
+            var suffix = duration > 0.0f ? $" ({duration:0.00}s)" : " (static pose; no timed frames)";
+            return $"{ActiveMrfClip.ClipContainerName.ToCleanString()} / {AnimClip.Clip?.ShortName}{suffix}";
+        }
+
+        private void SetMrfStatus(string text)
+        {
+            if (MrfStatusLabel != null) MrfStatusLabel.Text = text;
+            UpdateStatus(text);
         }
         public void LoadModels(YddFile? ydd)
         {
@@ -2832,12 +3666,17 @@ namespace CodeWalker.Forms
 
         private void ClipDictComboBox_TextChanged(object sender, EventArgs e)
         {
+            if (SuppressClipSelection) return;
+            ActiveMrfClip = null;
             LoadClipDict(ClipDictComboBox.Text);
         }
 
         private void ClipComboBox_TextChanged(object sender, EventArgs e)
         {
+            if (SuppressClipSelection) return;
+            ActiveMrfClip = null;
             SelectClip(ClipComboBox.Text);
+            if (AnimClip != null) AnimClip.OverridePlayTime = false;
         }
 
         private void EnableRootMotionCheckBox_CheckedChanged(object sender, EventArgs e)

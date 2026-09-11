@@ -410,6 +410,43 @@ namespace CodeWalker.GameFiles
             return null;
         }
 
+        /// <summary>
+        /// Finds the first clip which can be previewed below a network node.
+        /// Parameter-driven branches cannot be evaluated without a live move-network context,
+        /// so the traversal follows the serialized input order.
+        /// </summary>
+        public MrfNodeClip? FindPreviewClip(MrfNode? node)
+        {
+            var visited = new HashSet<MrfNode>();
+            return FindPreviewClip(node, visited);
+        }
+
+        private static MrfNodeClip? FindPreviewClip(MrfNode? node, HashSet<MrfNode> visited)
+        {
+            if (node == null || !visited.Add(node)) return null;
+            if (node is MrfNodeClip clip && clip.ClipType == MrfValueType.Literal) return clip;
+
+            if (node is MrfNodeStateBase state)
+            {
+                var result = FindPreviewClip(state.InitialNode, visited);
+                if (result != null) return result;
+            }
+            if (node is MrfNodeWithChildBase child)
+                return FindPreviewClip(child.Input, visited);
+            if (node is MrfNodePairBase pair)
+                return FindPreviewClip(pair.Input0, visited) ?? FindPreviewClip(pair.Input1, visited);
+            if (node is MrfNodeNBase many)
+            {
+                foreach (var input in many.Children)
+                {
+                    var result = FindPreviewClip(input, visited);
+                    if (result != null) return result;
+                }
+            }
+
+            return null;
+        }
+
         public MrfMoveNetworkBit? FindMoveNetworkTriggerForBit(int bitPosition)
         {
             return FindMoveNetworkBitByBitPosition(Requests, bitPosition);

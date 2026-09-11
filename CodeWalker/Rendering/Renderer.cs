@@ -3358,7 +3358,7 @@ namespace CodeWalker.Rendering
             return res;
         }
 
-        public bool RenderDrawable(rmcDrawable? drawable, Archetype? arche, YmapEntityDef? entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null, ClipMapEntry? faceClip = null)
+        public bool RenderDrawable(rmcDrawable? drawable, Archetype? arche, YmapEntityDef? entity, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null, ClipMapEntry? animClip = null, ClothInstance? cloth = null, Expression? expr = null, ClipMapEntry? faceClip = null, ClipMapEntry? blendClip = null, float animationBlend = 0.0f, double blendAnimationTime = double.NaN)
         {
             //enqueue a single drawable for rendering.
 
@@ -3387,6 +3387,9 @@ namespace CodeWalker.Rendering
             // The conditional-opcode correction has been checked against choice_int's merged clips.
             rndbl.Expression = expr;
             rndbl.FaceClip = faceClip;
+            rndbl.BlendClipMapEntry = blendClip;
+            rndbl.AnimationBlend = animationBlend;
+            rndbl.BlendAnimationTime = blendAnimationTime;
 
             return RenderRenderable(rndbl, arche, entity);
         }
@@ -3943,7 +3946,8 @@ namespace CodeWalker.Rendering
 
             if (drawFlag)
             {
-                RenderDrawable(drawable, null, ped.RenderEntity, 0, td, texture, ac, cloth, expr, ped.FaceAnimClip);
+                RenderDrawable(drawable, null, ped.RenderEntity, 0, td, texture, ac, cloth, expr, ped.FaceAnimClip,
+                    ped.BlendAnimClip, ped.AnimBlend, ped.BlendAnimTime);
             }
 
 

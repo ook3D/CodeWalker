@@ -85,9 +85,14 @@ namespace CodeWalker.Rendering
         public bool HasAnims = false;
         public double CurrentAnimTime = double.NaN;
         private ClipMapEntry? LastAnimationClip;
+        private ClipMapEntry? LastBlendAnimationClip;
+        private float LastAnimationBlend = float.NaN;
         private Expression? LastAnimationExpression;
         public YcdFile? ClipDict;
         public ClipMapEntry? ClipMapEntry;
+        public ClipMapEntry? BlendClipMapEntry;
+        public float AnimationBlend;
+        public double BlendAnimationTime = double.NaN;
         public ClipMapEntry? FaceClip;
         private ClipMapEntry? LastFaceClip;
         private readonly ExpressionEvaluator FacialEvaluator = new();
@@ -468,10 +473,13 @@ namespace CodeWalker.Rendering
             }
 
             if (CurrentAnimTime == realTime && ReferenceEquals(LastAnimationClip, ClipMapEntry) &&
+                ReferenceEquals(LastBlendAnimationClip, BlendClipMapEntry) && LastAnimationBlend == AnimationBlend &&
                 ReferenceEquals(LastAnimationExpression, Expression) && ReferenceEquals(LastFaceClip, FaceClip)) return;
             bool hadAnimation = LastAnimationClip != null || LastFaceClip != null || LastAnimationExpression != null;
             LastFaceClip = FaceClip;
             LastAnimationClip = ClipMapEntry;
+            LastBlendAnimationClip = BlendClipMapEntry;
+            LastAnimationBlend = AnimationBlend;
             LastAnimationExpression = Expression;
             CurrentAnimTime = realTime;
 
@@ -521,6 +529,31 @@ namespace CodeWalker.Rendering
                 (animation, time) => UpdateAnim(animation, time, false, captureExpressionInputs));
             if (bodyExpressionClip?.Expressions != null && Skeleton != null)
                 FacialEvaluator.Evaluate(bodyExpressionClip.Expressions, Skeleton, bodyExpressionClip.GetClipTime(CurrentAnimTime));
+
+            var blend = Math.Clamp(AnimationBlend, 0.0f, 1.0f);
+            var blendBones = Skeleton?.BonesSorted;
+            if (BlendClipMapEntry?.Clip != null && blend > 0.0f && blendBones != null)
+            {
+                var translations = blendBones.Select(x => x.AnimTranslation).ToArray();
+                var rotations = blendBones.Select(x => x.AnimRotation).ToArray();
+                var scales = blendBones.Select(x => x.AnimScale).ToArray();
+                var rootPosition = RootMotionPosition;
+                var rootRotation = RootMotionRotation;
+                foreach (var bone in blendBones)
+                {
+                    bone.AnimTranslation = bone.DefaultTranslation;
+                    bone.AnimRotation = bone.DefaultRotation;
+                    bone.AnimScale = bone.DefaultScale;
+                }
+                RootMotionPosition = Vector3.Zero;
+                RootMotionRotation = Quaternion.Identity;
+                var blendTime = double.IsNaN(BlendAnimationTime) ? CurrentAnimTime : BlendAnimationTime;
+                BlendClipMapEntry.Clip.ForEachAnimation(blendTime,
+                    (animation, time) => UpdateAnim(animation, time, false, false));
+                Skeleton?.BlendAnimationPose(translations, rotations, scales, blend);
+                RootMotionPosition = Vector3.Lerp(rootPosition, RootMotionPosition, blend);
+                RootMotionRotation = Quaternion.Slerp(rootRotation, RootMotionRotation, blend);
+            }
 
             FaceClip?.Clip?.ForEachAnimation(CurrentAnimTime,
                 (animation, time) => UpdateAnim(animation, time, true, captureExpressionInputs));

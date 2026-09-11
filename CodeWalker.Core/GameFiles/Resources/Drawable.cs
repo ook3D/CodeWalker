@@ -1769,6 +1769,18 @@ namespace CodeWalker.GameFiles
             }
             UpdateBoneTransforms();
         }
+        public void BlendAnimationPose(Vector3[] translations, Quaternion[] rotations, Vector3[] scales, float amount)
+        {
+            amount = Math.Clamp(amount, 0.0f, 1.0f);
+            int count = Math.Min(BonesSorted.Length, Math.Min(translations.Length, Math.Min(rotations.Length, scales.Length)));
+            for (int i = 0; i < count; i++)
+            {
+                var bone = BonesSorted[i];
+                bone.AnimTranslation = Vector3.Lerp(translations[i], bone.AnimTranslation, amount);
+                bone.AnimRotation = Quaternion.Slerp(rotations[i], bone.AnimRotation, amount);
+                bone.AnimScale = Vector3.Lerp(scales[i], bone.AnimScale, amount);
+            }
+        }
         public void UpdateBoneTransforms()
         {
             if (Bones?.Items == null) return;

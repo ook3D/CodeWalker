@@ -6,6 +6,66 @@ namespace CodeWalker.Core.Tests;
 public class ClipFormatTests
 {
     [Fact]
+    public void ClipDictionaryUsesNativeAlignedMapHeader()
+    {
+        var dictionary = new ClipDictionary
+        {
+            ReferenceCount = 3,
+            OwnsAnimationDictionary = true,
+            UsesBaseNameKeys = true,
+            ClipsMapFlags = 0x01000000,
+        };
+        using var system = new MemoryStream();
+        using var graphics = new MemoryStream();
+        var writer = new ResourceDataWriter(system, graphics) { Position = 0x50000000 };
+
+        dictionary.Write(writer);
+
+        var bytes = system.ToArray();
+        Assert.Equal(64, bytes.Length);
+        Assert.Equal(dictionary.ReferenceCount, BitConverter.ToUInt32(bytes, 0x10));
+        Assert.All(bytes[0x22..0x28], value => Assert.Equal(0, value));
+        Assert.Equal(dictionary.ClipsPointer, BitConverter.ToUInt64(bytes, 0x28));
+        Assert.Equal(dictionary.ClipsMapCapacity, BitConverter.ToUInt16(bytes, 0x30));
+        Assert.Equal(dictionary.ClipsMapEntries, BitConverter.ToUInt16(bytes, 0x32));
+        Assert.Equal(dictionary.ClipsMapFlags, BitConverter.ToUInt32(bytes, 0x34));
+
+        using var input = new MemoryStream(bytes);
+        using var unusedGraphics = new MemoryStream();
+        var reader = new ResourceDataReader(input, unusedGraphics) { Position = 0x50000000 };
+        var loaded = new ClipDictionary();
+        loaded.Read(reader);
+
+        Assert.Equal(dictionary.ReferenceCount, loaded.ReferenceCount);
+        Assert.Equal(dictionary.OwnsAnimationDictionary, loaded.OwnsAnimationDictionary);
+        Assert.Equal(dictionary.UsesBaseNameKeys, loaded.UsesBaseNameKeys);
+        Assert.Equal(dictionary.ClipsMapFlags, loaded.ClipsMapFlags);
+    }
+
+    [Fact]
+    public void SkeletonPoseBlendInterpolatesAnimationTransforms()
+    {
+        var bone = new crBoneData
+        {
+            AnimTranslation = new SharpDX.Vector3(10, 20, 30),
+            AnimRotation = SharpDX.Quaternion.RotationAxis(SharpDX.Vector3.UnitZ, MathF.PI),
+            AnimScale = new SharpDX.Vector3(3, 3, 3),
+        };
+        var skeleton = new crSkeletonData { BonesSorted = [bone] };
+
+        skeleton.BlendAnimationPose(
+            [SharpDX.Vector3.Zero],
+            [SharpDX.Quaternion.Identity],
+            [SharpDX.Vector3.One],
+            0.25f);
+
+        Assert.Equal(new SharpDX.Vector3(2.5f, 5.0f, 7.5f), bone.AnimTranslation);
+        Assert.Equal(new SharpDX.Vector3(1.5f), bone.AnimScale);
+        Assert.InRange(Math.Abs(bone.AnimRotation.Z), 0.3826f, 0.3828f);
+        Assert.InRange(Math.Abs(bone.AnimRotation.W), 0.9238f, 0.9240f);
+    }
+
+    [Fact]
     public void AnimationInterpolatesAcrossSequenceBlockBoundaries()
     {
         static Sequence Block(float value) => new()

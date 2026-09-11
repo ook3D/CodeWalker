@@ -217,6 +217,29 @@ public class BoundsDictionaryTests
     }
 
     [Fact]
+    public void BoundGeometryXmlUsesCompatibleGeometryCenterFields()
+    {
+        var geometry = new BoundGeometry
+        {
+            Type = BoundsType.Geometry,
+            UnQuantizeFactor = new SharpDX.Vector4(1, 2, 3, 0.125f),
+            BoundingBoxCenter = new SharpDX.Vector4(123, 456, 789, 0.25f),
+        };
+
+        var xml = YbnXml.GetXml(new YbnFile { Bounds = geometry });
+
+        Assert.Contains("<GeometryCenter x=\"123\" y=\"456\" z=\"789\" />", xml);
+        Assert.Contains("<UnkFloat1 value=\"0.125\" />", xml);
+        Assert.Contains("<UnkFloat2 value=\"0.25\" />", xml);
+        Assert.DoesNotContain("<BoundingBoxCenter", xml);
+
+        var loaded = Assert.IsType<BoundGeometry>(XmlYbn.GetYbn(xml).Bounds);
+        Assert.Equal(geometry.CenterGeom, loaded.CenterGeom);
+        Assert.Equal(geometry.UnQuantizeFactor.W, loaded.UnQuantizeFactor.W);
+        Assert.Equal(geometry.BoundingBoxCenter.W, loaded.BoundingBoxCenter.W);
+    }
+
+    [Fact]
     public void BoundBvhUsesNativeDerivedLayout()
     {
         var bound = new BoundBVH

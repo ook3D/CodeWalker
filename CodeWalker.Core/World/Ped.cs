@@ -29,6 +29,9 @@ namespace CodeWalker.World
         public RpfFileEntry[] TextureFiles { get; set; } = [];
         public RpfFileEntry[] ClothFiles { get; set; } = [];
         public ClipMapEntry? AnimClip { get; set; }
+        public ClipMapEntry? BlendAnimClip { get; set; }
+        public float AnimBlend { get; set; }
+        public double BlendAnimTime { get; set; } = double.NaN;
         public ClipMapEntry? FaceAnimClip { get; set; }
         public Expression? Expression { get; set; }
         public string?[] DrawableNames { get; set; } = new string?[12];
@@ -82,6 +85,9 @@ namespace CodeWalker.World
             Yft = null;
             Ymt = null;
             AnimClip = null;
+            BlendAnimClip = null;
+            AnimBlend = 0.0f;
+            BlendAnimTime = double.NaN;
             FaceAnimClip = null;
             for (int i = 0; i < 12; i++)
             {
