@@ -25,6 +25,28 @@ public class CutsceneVisualEffectsTests
         }
     };
 
+    [Theory]
+    [InlineData(false, "exportcamera")]
+    [InlineData(true, "player_zero")]
+    public void AnimationOnlyCutsceneSectionsAreExposedAsClips(bool merged, string animationName)
+    {
+        JenkIndex.Ensure(animationName);
+        MetaHash name = JenkHash.GenHash(animationName);
+        uint animationHash = JenkHash.GenHash(animationName + (merged ? "_dual-2" : "-2"));
+        var animation = new Animation { Duration = 4.25f };
+        var ycd = new YcdFile
+        {
+            AnimMap = new() { [animationHash] = new AnimationMapEntry { Hash = animationHash, Animation = animation } },
+        };
+
+        var clip = CutsceneAnimationTracks.Resolve(ycd, name, 2, merged);
+
+        var animationClip = Assert.IsType<ClipAnimation>(clip?.Clip);
+        Assert.Same(animation, animationClip.Animation);
+        Assert.Equal(4.25f, animationClip.EndTime);
+        Assert.Same(clip, CutsceneAnimationTracks.Resolve(ycd, name, 2, merged));
+    }
+
     [Fact]
     public void StaticLightEventsReplayAfterRewind()
     {

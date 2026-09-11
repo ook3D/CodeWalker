@@ -469,7 +469,7 @@ namespace CodeWalker.Rendering
 
             if (CurrentAnimTime == realTime && ReferenceEquals(LastAnimationClip, ClipMapEntry) &&
                 ReferenceEquals(LastAnimationExpression, Expression) && ReferenceEquals(LastFaceClip, FaceClip)) return;
-            bool hadAnimation = LastAnimationClip != null;
+            bool hadAnimation = LastAnimationClip != null || LastFaceClip != null || LastAnimationExpression != null;
             LastFaceClip = FaceClip;
             LastAnimationClip = ClipMapEntry;
             LastAnimationExpression = Expression;
@@ -477,12 +477,12 @@ namespace CodeWalker.Rendering
 
             EnableRootMotion = ClipMapEntry?.EnableRootMotion ?? false;
 
-            if (ClipMapEntry != null)
+            if (ClipMapEntry != null || FaceClip != null || Expression != null)
             {
                 UpdateAnim(ClipMapEntry); //animate skeleton/models
             }
 
-            if (ClipMapEntry == null && hadAnimation) Skeleton?.ResetBoneTransforms();
+            if (ClipMapEntry == null && FaceClip == null && Expression == null && hadAnimation) Skeleton?.ResetBoneTransforms();
             UpdateBoneTransforms();
 
             foreach (var model in HDModels)
@@ -499,7 +499,7 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private void UpdateAnim(ClipMapEntry cme)
+        private void UpdateAnim(ClipMapEntry? cme)
         {
             // Channels absent from the new clip must not retain a previous facial pose.
             if (Skeleton?.BonesSorted is { } poseBones)
@@ -513,27 +513,20 @@ namespace CodeWalker.Rendering
             RootMotionPosition = Vector3.Zero;
             RootMotionRotation = Quaternion.Identity;
 
-            var clipanim = cme.Clip as ClipAnimation;
-            if (clipanim?.Animation != null)
-            {
-                UpdateAnim(clipanim.Animation, clipanim.GetPlaybackTime(CurrentAnimTime));
-            }
+            var bodyExpressionClip = cme?.Clip as ClipAnimationExpression;
+            var faceExpressionClip = FaceClip?.Clip as ClipAnimationExpression;
+            bool captureExpressionInputs = Expression != null || bodyExpressionClip?.Expressions != null || faceExpressionClip?.Expressions != null;
 
-            var clipanimlist = cme.Clip as ClipAnimationList;
-            if (clipanimlist?.Animations != null)
-            {
-                foreach (var canim in clipanimlist.Animations)
-                {
-                    if (canim?.Animation == null) continue;
-                    UpdateAnim(canim.Animation, canim.GetPlaybackTime(CurrentAnimTime));
-                }
-            }
+            cme?.Clip?.ForEachAnimation(CurrentAnimTime,
+                (animation, time) => UpdateAnim(animation, time, false, captureExpressionInputs));
+            if (bodyExpressionClip?.Expressions != null && Skeleton != null)
+                FacialEvaluator.Evaluate(bodyExpressionClip.Expressions, Skeleton, bodyExpressionClip.GetClipTime(CurrentAnimTime));
 
-            if (FaceClip?.Clip is ClipAnimation face && face.Animation != null)
-                UpdateAnim(face.Animation, face.GetPlaybackTime(CurrentAnimTime), true);
-            else if (FaceClip?.Clip is ClipAnimationList faces && faces.Animations != null)
-                foreach (var part in faces.Animations)
-                    if (part.Animation != null) UpdateAnim(part.Animation, part.GetPlaybackTime(CurrentAnimTime), true);
+            FaceClip?.Clip?.ForEachAnimation(CurrentAnimTime,
+                (animation, time) => UpdateAnim(animation, time, true, captureExpressionInputs));
+            if (faceExpressionClip?.Expressions != null && Skeleton != null)
+                FacialEvaluator.Evaluate(faceExpressionClip.Expressions, Skeleton, faceExpressionClip.GetClipTime(CurrentAnimTime));
+
             if (Expression != null && Skeleton != null)
                 FacialEvaluator.Evaluate(Expression, Skeleton, (float)CurrentAnimTime);
 
@@ -589,7 +582,7 @@ namespace CodeWalker.Rendering
             }
 
         }
-        private void UpdateAnim(Animation? anim, float t, bool faceOnly = false)
+        private void UpdateAnim(Animation? anim, float t, bool faceOnly = false, bool captureExpressionInputs = false)
         { 
             if (anim == null)
             { return; }
@@ -620,7 +613,7 @@ namespace CodeWalker.Rendering
                 // These are inputs to a YED expression program, not skeletal transforms.
                 // The track table lists inputs/outputs; adjacency does not define a direct binding.
                 // Applying guessed rotations/translations here distorts eyes and mouths.
-                if (Expression != null)
+                if (captureExpressionInputs)
                 {
                     var sample = track is 1 or 6 or 8 or 26 || boneiditem.Type == 1
                         ? anim.EvaluateQuaternion(frame, i, interpolate).ToVector4() : anim.EvaluateVector4(frame, i, interpolate);
@@ -687,21 +680,8 @@ namespace CodeWalker.Rendering
         private void UpdateAnimUV(ClipMapEntry cme, RenderableGeometry? rgeom = null)
         {
 
-            var clipanim = cme.Clip as ClipAnimation;
-            if (clipanim?.Animation != null)
-            {
-                UpdateAnimUV(clipanim.Animation, clipanim.GetPlaybackTime(CurrentAnimTime), rgeom);
-            }
-
-            var clipanimlist = cme.Clip as ClipAnimationList;
-            if (clipanimlist?.Animations != null)
-            {
-                foreach (var canim in clipanimlist.Animations)
-                {
-                    if (canim?.Animation == null) continue;
-                    UpdateAnimUV(canim.Animation, canim.GetPlaybackTime(CurrentAnimTime), rgeom);
-                }
-            }
+            cme.Clip?.ForEachAnimation(CurrentAnimTime,
+                (animation, time) => UpdateAnimUV(animation, time, rgeom));
 
         }
         private void UpdateAnimUV(Animation? anim, float t, RenderableGeometry? rgeom = null)

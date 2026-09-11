@@ -3381,8 +3381,7 @@ namespace CodeWalker.Rendering
             rndbl.Cloth = cloth;
             // The conditional-opcode correction has been checked against choice_int's merged clips.
             rndbl.Expression = expr;
-            // Separate face overlays still require their own asset-level validation.
-            rndbl.FaceClip = null;
+            rndbl.FaceClip = faceClip;
 
             return RenderRenderable(rndbl, arche, entity);
         }

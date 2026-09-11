@@ -14,6 +14,45 @@ public sealed record CutsceneDepthOfField(Vector4 Planes, float Strength, float 
 
 public static class CutsceneAnimationTracks
 {
+    public static ClipMapEntry? Resolve(YcdFile? ycd, MetaHash name, int section, bool merged = false)
+    {
+        if (ycd == null || name == 0) return null;
+        if (ycd.CutsceneMap.TryGetValue(name, out var clip)) return clip;
+
+        uint hash = SectionHash(name, section, merged);
+        if (ycd.ClipMap.TryGetValue(hash, out clip)) return clip;
+        if (ycd.AnimMap.TryGetValue(hash, out var animationEntry) && animationEntry.Animation != null)
+            return CreateAnimationClip(ycd, name, hash, animationEntry.Animation);
+
+        string baseName = name.ToString();
+        if (JenkHash.GenHash(baseName) != name.Hash) return null;
+        hash = JenkHash.GenHash(baseName + (merged ? "_dual-" : "-") + section);
+        if (ycd.ClipMap.TryGetValue(hash, out clip)) return clip;
+        return ycd.AnimMap.TryGetValue(hash, out animationEntry) && animationEntry.Animation != null
+            ? CreateAnimationClip(ycd, name, hash, animationEntry.Animation)
+            : null;
+    }
+
+    private static ClipMapEntry CreateAnimationClip(YcdFile ycd, MetaHash name, uint hash, Animation animation)
+    {
+        var clip = new ClipMapEntry
+        {
+            Hash = hash,
+            Clip = new ClipAnimation
+            {
+                Hash = hash,
+                Animation = animation,
+                StartTime = 0,
+                EndTime = animation.Duration,
+                Rate = 1,
+                Flags = (animation.Flags & AnimationFlags.Looped) != 0 ? ClipFlags.Looped : ClipFlags.None,
+                Ycd = ycd,
+            },
+        };
+        ycd.CutsceneMap[name] = clip;
+        return clip;
+    }
+
     public static float EvaluateBlurRadius(ClipMapEntry? clip, float time, bool useDay)
     {
         // Four-plane DOF uses CoC radius, not the legacy two-plane strength track (36).
@@ -53,10 +92,7 @@ public static class CutsceneAnimationTracks
             result = track == 1 ? animation.EvaluateQuaternion(frame, index, true).ToVector4() : animation.EvaluateVector4(frame, index, true);
             found = true;
         }
-        if (entry?.Clip is ClipAnimation single)
-            Evaluate(single.Animation, single.GetPlaybackTime(time));
-        else if (entry?.Clip is ClipAnimationList list && list.Animations?.Data != null)
-            foreach (var part in list.Animations.Data) Evaluate(part.Animation, part.GetPlaybackTime(time));
+        entry?.Clip?.ForEachAnimation(time, Evaluate);
         value = result;
         return found;
     }

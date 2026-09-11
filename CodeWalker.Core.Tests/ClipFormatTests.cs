@@ -167,6 +167,65 @@ public class ClipFormatTests
     }
 
     [Fact]
+    public void AnimationPlaybackClampsUnlessTheClipIsLooped()
+    {
+        var clip = new ClipAnimation { StartTime = 2, EndTime = 6, Rate = 2 };
+
+        Assert.Equal(6, clip.GetPlaybackTime(10));
+        clip.Flags = ClipFlags.Looped;
+        Assert.Equal(4, clip.GetPlaybackTime(5));
+    }
+
+    [Fact]
+    public void SequentialAnimationListSelectsOnlyTheActiveEntry()
+    {
+        var first = new Animation();
+        var second = new Animation();
+        var clip = new ClipAnimationList
+        {
+            Duration = 4,
+            Animations = new ResourceSimpleArray<ClipAnimationsEntry>
+            {
+                Data =
+                [
+                    new ClipAnimationsEntry { Animation = first, StartTime = 0, EndTime = 2, Rate = 1 },
+                    new ClipAnimationsEntry { Animation = second, StartTime = 10, EndTime = 12, Rate = 1 },
+                ],
+            },
+        };
+        var samples = new List<(Animation Animation, float Time)>();
+
+        clip.ForEachAnimation(3, (animation, time) => samples.Add((animation, time)));
+
+        var sample = Assert.Single(samples);
+        Assert.Same(second, sample.Animation);
+        Assert.Equal(11, sample.Time);
+    }
+
+    [Fact]
+    public void ParallelAnimationListEvaluatesEveryEntryAtTheSameClipTime()
+    {
+        var clip = new ClipAnimationList
+        {
+            Duration = 2,
+            Parallel = true,
+            Animations = new ResourceSimpleArray<ClipAnimationsEntry>
+            {
+                Data =
+                [
+                    new ClipAnimationsEntry { Animation = new Animation(), StartTime = 0, EndTime = 2, Rate = 1 },
+                    new ClipAnimationsEntry { Animation = new Animation(), StartTime = 5, EndTime = 9, Rate = 2 },
+                ],
+            },
+        };
+        var times = new List<float>();
+
+        clip.ForEachAnimation(1, (_, time) => times.Add(time));
+
+        Assert.Equal([1, 7], times);
+    }
+
+    [Fact]
     public void BitSetUsesNativeWordAndBitCounts()
     {
         var bits = new atBitSet(65);

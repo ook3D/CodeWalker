@@ -74,6 +74,44 @@ public class FacialAnimationTests
     }
 
     [Fact]
+    public void EmbeddedClipExpressionIsEvaluatedWithoutAnExternalExpression()
+    {
+        var (renderable, bone) = Create();
+        var entry = Clip(25, new Vector3(0.25f));
+        var animation = Assert.IsType<ClipAnimation>(entry.Clip);
+        entry.Clip = new ClipAnimationExpression
+        {
+            StartTime = animation.StartTime,
+            EndTime = animation.EndTime,
+            Rate = animation.Rate,
+            Animation = animation.Animation,
+            Expressions = Program(
+                new ExpressionInstrBone { Type = ExpressionInstrType.TrackGet, BoneId = 1, Track = 25 },
+                new ExpressionInstrBone { Type = ExpressionInstrType.TrackSetOffset, BoneId = 1, Track = 0 }),
+        };
+        renderable.ClipMapEntry = entry;
+
+        renderable.UpdateAnims(0);
+
+        Assert.Equal(bone.DefaultTranslation + new Vector3(0.25f), bone.AnimTranslation);
+        Assert.Null(renderable.FacialExpressionError);
+    }
+
+    [Fact]
+    public void FaceClipAndExpressionWorkWithoutABodyClip()
+    {
+        var (renderable, bone) = Create();
+        renderable.FaceClip = Clip(25, new Vector3(0.5f));
+        renderable.Expression = Program(
+            new ExpressionInstrBone { Type = ExpressionInstrType.TrackGet, BoneId = 1, Track = 25 },
+            new ExpressionInstrBone { Type = ExpressionInstrType.TrackSetOffset, BoneId = 1, Track = 0 });
+
+        renderable.UpdateAnims(0);
+
+        Assert.Equal(bone.DefaultTranslation + new Vector3(0.5f), bone.AnimTranslation);
+    }
+
+    [Fact]
     public void SeparateFaceClipSuppliesExpressionInputsAtBodyTime()
     {
         var (renderable,bone)=Create();

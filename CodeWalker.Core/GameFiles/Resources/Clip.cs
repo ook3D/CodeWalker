@@ -2962,6 +2962,23 @@ namespace CodeWalker.GameFiles
             }
         }
 
+        public virtual float GetDuration() => 0.0f;
+
+        public virtual void ForEachAnimation(double currentTime, Action<Animation, float> callback)
+        {
+        }
+
+        protected float GetClipTime(double currentTime, float duration)
+        {
+            if (duration <= 0.0f || !double.IsFinite(currentTime)) return 0.0f;
+            if ((Flags & ClipFlags.Looped) == 0)
+                return (float)Math.Clamp(currentTime, 0.0, duration);
+
+            double time = currentTime % duration;
+            if (time < 0.0) time += duration;
+            return (float)time;
+        }
+
 
         public override string ToString()
         {
@@ -3059,13 +3076,23 @@ namespace CodeWalker.GameFiles
             return list.ToArray();
         }
 
+        public override float GetDuration()
+        {
+            float duration = EndTime - StartTime;
+            return duration > 0.0f && Rate > 0.0f ? duration / Rate : 0.0f;
+        }
+
+        public float GetClipTime(double currentTime) => base.GetClipTime(currentTime, GetDuration());
+
         public float GetPlaybackTime(double currentTime)
         {
-            double scaledTime = currentTime * Rate;
-            double duration = EndTime - StartTime;
-            if (duration <= 0.0) return StartTime;
-            double curpos = scaledTime % duration;
-            return StartTime + (float)curpos;
+            if (EndTime <= StartTime || Rate <= 0.0f) return StartTime;
+            return Math.Clamp(StartTime + (GetClipTime(currentTime) * Rate), StartTime, EndTime);
+        }
+
+        public override void ForEachAnimation(double currentTime, Action<Animation, float> callback)
+        {
+            if (Animation != null) callback(Animation, GetPlaybackTime(currentTime));
         }
 
         public override void WriteXml(StringBuilder sb, int indent)
@@ -3206,13 +3233,41 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public float GetPlaybackTime(double currentTime)
+        public override float GetDuration()
         {
-            double scaledTime = currentTime;// * Rate;
-            double duration = Duration;// EndTime - StartTime;
-            if (duration <= 0.0) return 0.0f;
-            double curpos = scaledTime % duration;
-            return /*StartTime +*/ (float)curpos;
+            if (Duration > 0.0f) return Duration;
+            var animations = Animations?.Data;
+            if (animations == null || animations.Count == 0) return 0.0f;
+            return Parallel ? animations.Max(a => a?.GetDuration() ?? 0.0f) : animations.Sum(a => a?.GetDuration() ?? 0.0f);
+        }
+
+        public float GetPlaybackTime(double currentTime) => GetClipTime(currentTime, GetDuration());
+
+        public override void ForEachAnimation(double currentTime, Action<Animation, float> callback)
+        {
+            var animations = Animations?.Data;
+            if (animations == null || animations.Count == 0) return;
+
+            float time = GetPlaybackTime(currentTime);
+            if (Parallel)
+            {
+                foreach (var entry in animations)
+                    if (entry?.Animation != null) callback(entry.Animation, entry.GetPlaybackTime(time));
+                return;
+            }
+
+            for (int i = 0; i < animations.Count; i++)
+            {
+                var entry = animations[i];
+                float duration = entry?.GetDuration() ?? 0.0f;
+                bool last = i == animations.Count - 1;
+                if (entry?.Animation != null && (time < duration || last))
+                {
+                    callback(entry.Animation, entry.GetPlaybackTime(time));
+                    return;
+                }
+                time -= duration;
+            }
         }
 
 
@@ -3289,14 +3344,15 @@ namespace CodeWalker.GameFiles
         }
 
 
-        public float GetPlaybackTime(double currentTime)
+        public float GetDuration()
         {
-            double scaledTime = currentTime * Rate;
-            double duration = EndTime - StartTime;
-            if (duration <= 0.0) return StartTime;
-            double curpos = scaledTime % duration;
-            return StartTime + (float)curpos;
+            float duration = EndTime - StartTime;
+            return duration > 0.0f && Rate > 0.0f ? duration / Rate : 0.0f;
         }
+
+        public float GetPlaybackTime(double currentTime) => EndTime > StartTime && Rate > 0.0f
+            ? Math.Clamp(StartTime + ((float)currentTime * Rate), StartTime, EndTime)
+            : StartTime;
 
 
         public void WriteXml(StringBuilder sb, int indent)

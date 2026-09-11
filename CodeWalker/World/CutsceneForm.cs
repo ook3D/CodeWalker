@@ -259,7 +259,7 @@ namespace CodeWalker.World
                         effects.Nodes.Add("DOF requires HDR and Animate camera: four-plane focus and day/night blur radius supported; optical bokeh controls are pending");
                 }
                 if (cs.SceneObjects?.Values.Any(o => o.CutObject is CutPedModelObject) == true)
-                    csnode.Nodes.Add("Merged facial expressions enabled; separate face overlays and advanced expression operations remain limited");
+                    csnode.Nodes.Add("Merged and separate facial animation enabled; unsupported expression operations are reported without corrupting the pose");
                 csnode.Expand();
                 CutsceneTreeView.SelectedNode = csnode;
             }
@@ -757,39 +757,15 @@ namespace CodeWalker.World
 
             void updateObjectTransform(CutsceneObject obj, ClipMapEntry? cme, ushort boneTag, byte posTrack, byte rotTrack)
             {
-                if (cme != null)
+                cme?.Clip?.ForEachAnimation(cutOffset, (animation, time) =>
                 {
-                    if (cme.Clip is ClipAnimation canim)
-                    {
-                        if (canim.Animation != null)
-                        {
-                            var t = canim.GetPlaybackTime(cutOffset);
-                            var f = canim.Animation.GetFramePosition(t);
-                            var p = canim.Animation.FindBoneIndex(boneTag, posTrack);
-                            var r = canim.Animation.FindBoneIndex(boneTag, rotTrack);
-                            if (p >= 0) obj.Position = canim.Animation.EvaluateVector4(f, p, true).XYZ();
-                            if (r >= 0) obj.Rotation = canim.Animation.EvaluateQuaternion(f, r, true);
-                            if (ReferenceEquals(obj, CameraObject)) UpdateCameraFieldOfView(canim.Animation, f);
-                        }
-                    }
-                    else if (cme.Clip is ClipAnimationList alist)
-                    {
-                        if (alist.Animations?.Data != null)
-                        {
-                            foreach (var anim in alist.Animations.Data)
-                            {
-                                if (anim.Animation == null) continue;
-                                var t = anim.GetPlaybackTime(cutOffset);
-                                var f = anim.Animation.GetFramePosition(t);
-                                var p = anim.Animation.FindBoneIndex(boneTag, posTrack);
-                                var r = anim.Animation.FindBoneIndex(boneTag, rotTrack);
-                                if (p >= 0) obj.Position = anim.Animation.EvaluateVector4(f, p, true).XYZ();
-                                if (r >= 0) obj.Rotation = anim.Animation.EvaluateQuaternion(f, r, true);
-                                if (ReferenceEquals(obj, CameraObject)) UpdateCameraFieldOfView(anim.Animation, f);
-                            }
-                        }
-                    }
-                }
+                    var frame = animation.GetFramePosition(time);
+                    var position = animation.FindBoneIndex(boneTag, posTrack);
+                    var rotation = animation.FindBoneIndex(boneTag, rotTrack);
+                    if (position >= 0) obj.Position = animation.EvaluateVector4(frame, position, true).XYZ();
+                    if (rotation >= 0) obj.Rotation = animation.EvaluateQuaternion(frame, rotation, true);
+                    if (ReferenceEquals(obj, CameraObject)) UpdateCameraFieldOfView(animation, frame);
+                });
             }
 
 
@@ -870,7 +846,7 @@ namespace CodeWalker.World
                             obj.Ped.Rotation = rot;
                             obj.Ped.UpdateEntity();
                             obj.Ped.AnimClip = cme;
-                            obj.Ped.FaceAnimClip = ResolveFaceAnimation(obj, ycd);
+                            obj.Ped.FaceAnimClip = ResolveFaceAnimation(obj, ycd, cutIndex);
                             if (obj.Ped.FaceAnimClip is { } faceClip)
                             {
                                 faceClip.OverridePlayTime = true;
@@ -906,33 +882,30 @@ namespace CodeWalker.World
         }
 
 
-        private static ClipMapEntry? ResolveFaceAnimation(CutsceneObject obj, YcdFile ycd)
+        private static ClipMapEntry? ResolveFaceAnimation(CutsceneObject obj, YcdFile ycd, int section)
         {
             if (obj.CutObject is not CutPedModelObject { bFoundFaceAnimation: true, bFaceAndBodyAreMerged: false } ped) return null;
             // These are authored names, not a guessed suffix on the body clip.
             MetaHash name = ped.bOverrideFaceAnimation ? ped.overrideFaceAnimationFilename : ped.faceAnimationNodeName;
-            if (name == 0) return null;
-            if (ycd.CutsceneMap.TryGetValue(name, out var clip)) return clip;
-            return ycd.ClipMap.TryGetValue(name, out clip) ? clip : null;
+            return CutsceneAnimationTracks.Resolve(ycd, name, section);
         }
 
         private ClipMapEntry? ResolveAnimation(CutsceneObject obj, YcdFile? ycd, int section, MetaHash fallback)
         {
             if (obj.AnimationControlled && obj.AnimationReferences == 0) return null;
             uint partial = obj.AnimationControlled ? obj.AnimationPartialHash : obj.DefaultAnimationPartialHash;
-            if (partial != 0)
+            MetaHash name = partial != 0 ? partial : fallback;
+            bool merged = obj.CutObject is CutPedModelObject { bFoundFaceAnimation: true, bFaceAndBodyAreMerged: true };
+            var clip = CutsceneAnimationTracks.Resolve(ycd, name, section, merged);
+            if (clip != null) return clip;
+
+            foreach (var requested in RequestedAnimationDictionaries.Keys)
             {
-                bool merged = obj.CutObject is CutPedModelObject { bFoundFaceAnimation: true, bFaceAndBodyAreMerged: true };
-                uint hash = CutsceneAnimationTracks.SectionHash(partial, section, merged);
-                ClipMapEntry? clip;
-                if (ycd != null && ycd.ClipMap.TryGetValue(hash, out clip)) return clip;
-                foreach (var requested in RequestedAnimationDictionaries.Keys)
-                {
-                    var dictionary = GameFileCache?.GetYcd(requested);
-                    if (dictionary?.Loaded == true && dictionary.ClipMap.TryGetValue(hash, out clip)) return clip;
-                }
+                var dictionary = GameFileCache?.GetYcd(requested);
+                clip = dictionary?.Loaded == true ? CutsceneAnimationTracks.Resolve(dictionary, name, section, merged) : null;
+                if (clip != null) return clip;
             }
-            return ycd != null && ycd.CutsceneMap.TryGetValue(fallback, out var value) ? value : null;
+            return null;
         }
 
         private void UpdateCameraFieldOfView(Animation animation, Animation.FramePosition frame)
