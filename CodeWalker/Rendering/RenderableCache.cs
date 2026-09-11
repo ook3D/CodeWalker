@@ -21,7 +21,7 @@ namespace CodeWalker.Rendering
         public DateTime LastUnload = DateTime.UtcNow;
         public double CacheTime = Settings.Default.GPUCacheTime;// 10.0; //seconds to keep something that's not used
         public double UnloadTime = Settings.Default.GPUCacheFlushTime;// 0.1; //seconds between running unload cycles
-        public int MaxItemsPerLoop = 4; //GPU uploads per loop - kept small to keep things flowing rather than hitching
+        public int MaxItemsPerLoop = 1; //one upload per cache type keeps streaming bursts out of frame time
 
         public long TotalGraphicsMemoryUse
         {

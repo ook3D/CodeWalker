@@ -95,6 +95,8 @@
   <Weather>EXTRASUNNY</Weather>
   <NaturalAmbientLight>True</NaturalAmbientLight>
   <ArtificialAmbientLight>True</ArtificialAmbientLight>
+  <HideNorthYankton>False</HideNorthYankton>
+  <HideCayoPerico>False</HideCayoPerico>
   
   <!-- Key Bindings -->
   <KeyBindings>

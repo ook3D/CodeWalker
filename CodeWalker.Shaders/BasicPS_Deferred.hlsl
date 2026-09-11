@@ -6,12 +6,13 @@ PS_OUTPUT main(VS_OUTPUT input)
 {
     // Calculate parallax offset if height mapping is enabled
     float2 parallaxTexOffset = float2(0, 0);
+    float3 norm = normalize(input.Normal);
     if (EnableHeightMap && RenderMode == 0)
     {
         float3 viewDir = -normalize(input.CamRelPos); // Negate to get direction FROM surface TO camera
         parallaxTexOffset = ParallaxOffset(
             Heightmap, TextureSS, input.Texcoord0,
-            viewDir, normalize(input.Normal),
+            viewDir, norm,
             normalize(input.Tangent.xyz), normalize(input.Bitangent.xyz),
             heightScale, heightBias);
     }
@@ -76,8 +77,6 @@ PS_OUTPUT main(VS_OUTPUT input)
     {
         c.a *= input.Colour0.a;
     }
-
-    float3 norm = normalize(input.Normal);
 
     if (RenderMode == 1) //normals
     {

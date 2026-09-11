@@ -41,7 +41,6 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     float2 texc = input.o4;
 
     float4 d = DensitySampler.Sample(TextureSS, texc);
-    float4 n = NormalSampler.Sample(TextureSS, texc);
 
     float dv = saturate((1.0 - d.g) * input.o1.w);
 

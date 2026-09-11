@@ -2100,7 +2100,7 @@ namespace CodeWalker.Rendering
                 for (int i = 0; i < renderworldentities.Count; i++)
                 {
                     var ent = renderworldentities[i];
-                    var rndbl = GetArchetypeRenderable(ent.Archetype);
+                    var rndbl = ent.LodManagerRenderable ?? GetArchetypeRenderable(ent.Archetype);
                     ent.LodManagerRenderable = rndbl;
                     if (rndbl != null)
                     {
@@ -2166,6 +2166,11 @@ namespace CodeWalker.Rendering
             expiredPendingRenders.Clear();
 
             RenderWorldYmapExtras();
+
+            for (int i = 0; i < renderworldentities.Count; i++)
+            {
+                renderworldentities[i].LodManagerRenderable = null;
+            }
         }
 
         public void RenderWorld_Orig(Dictionary<MetaHash, YmapFile> renderworldVisibleYmapDict, IEnumerable<Entity>? spaceEnts)

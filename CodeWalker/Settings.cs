@@ -504,6 +504,18 @@ public sealed partial class Settings
         set => SettingsManager.SetBool(nameof(ArtificialAmbientLight), value);
     }
 
+    public bool HideNorthYankton
+    {
+        get => SettingsManager.GetBool(nameof(HideNorthYankton), false);
+        set => SettingsManager.SetBool(nameof(HideNorthYankton), value);
+    }
+
+    public bool HideCayoPerico
+    {
+        get => SettingsManager.GetBool(nameof(HideCayoPerico), false);
+        set => SettingsManager.SetBool(nameof(HideCayoPerico), value);
+    }
+
     // Key Bindings
     public StringCollection KeyBindings
     {

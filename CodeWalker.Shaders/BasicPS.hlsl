@@ -8,22 +8,22 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     // Calculate parallax offset if height mapping is enabled
     float2 parallaxTexOffset = float2(0, 0);
     float parallaxSelfShadow = 1.0;
+    float3 norm = normalize(input.Normal);
     if (EnableHeightMap && RenderMode == 0)
     {
         float3 viewDir = -normalize(input.CamRelPos); // Negate to get direction FROM surface TO camera
-        float3 norm0 = normalize(input.Normal);
         float3 tang0 = normalize(input.Tangent.xyz);
         float3 bitang0 = normalize(input.Bitangent.xyz);
         parallaxTexOffset = ParallaxOffset(
             Heightmap, TextureSS, input.Texcoord0,
-            viewDir, norm0, tang0, bitang0,
+            viewDir, norm, tang0, bitang0,
             heightScale, heightBias);
 
         // Parallax self-shadow, transform light dir to tangent space and trace
         float3 tanLightDir;
         tanLightDir.x = dot(tang0, materialLights.LightDir.xyz);
         tanLightDir.y = dot(bitang0, materialLights.LightDir.xyz);
-        tanLightDir.z = dot(norm0, materialLights.LightDir.xyz);
+        tanLightDir.z = dot(norm, materialLights.LightDir.xyz);
         float shadowAmount = TraceSelfShadow(Heightmap, TextureSS,
             input.Texcoord0 + parallaxTexOffset,
             tanLightDir, 1.0, heightScale);
@@ -88,8 +88,6 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         c.a *= input.Colour0.a;
     }
 
-    float3 norm = normalize(input.Normal);
-
     if (RenderMode == 1) //normals
     {
         c.rgb = norm*0.5+0.5;
@@ -127,10 +125,11 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         float specularLight = MaterialSpecularLight(material, norm, materialLights.LightDir, viewDir);
         spec = materialLights.LightDirColour.rgb * specularLight;
         float3 reflected = reflect(-viewDir, norm);
+        float reflectionAmount = MaterialReflectionAmount(material, norm, viewDir);
         environmentSpec = AmbientEnvironment(reflected, input.Colour0.rg, materialLights)
-            * MaterialReflectionAmount(material, norm, viewDir)
+            * reflectionAmount
             * MaterialReflectionNormalization(material);
-        diffuseScale = MaterialDiffuseScale(material, norm, viewDir);
+        diffuseScale = 1.0 - reflectionAmount;
         if (SpecOnly == 1)
         {
             c.a *= (EnableSpecMap == 0) ? normalAlpha : saturate(specularLight);

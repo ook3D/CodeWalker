@@ -130,8 +130,8 @@ namespace CodeWalker
 
         bool worldymaptimefilter = true;
         bool worldymapweatherfilter = true;
-        bool hidenorthyankton = false;
-        bool hidecayoperico = false;
+        bool hidenorthyankton = Settings.Default.HideNorthYankton;
+        bool hidecayoperico = Settings.Default.HideCayoPerico;
         static readonly HashSet<string> cayoPericoFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "h4_aa_guns",
@@ -7797,6 +7797,8 @@ namespace CodeWalker
             Renderer.individualcloudfrag = s.Clouds;
             NaturalAmbientLightCheckBox.Checked = s.NaturalAmbientLight;
             ArtificialAmbientLightCheckBox.Checked = s.ArtificialAmbientLight;
+            HideNorthYanktonCheckBox.Checked = s.HideNorthYankton;
+            HideCayoPericoCheckBox.Checked = s.HideCayoPerico;
             SavePositionCheckBox.Checked = s.SavePosition;
             SaveTimeOfDayCheckBox.Checked = s.SaveTimeOfDay;
             
@@ -7843,6 +7845,8 @@ namespace CodeWalker
             s.LODLights = LODLightsCheckBox.Checked;
             s.NaturalAmbientLight = NaturalAmbientLightCheckBox.Checked;
             s.ArtificialAmbientLight = ArtificialAmbientLightCheckBox.Checked;
+            s.HideNorthYankton = HideNorthYanktonCheckBox.Checked;
+            s.HideCayoPerico = HideCayoPericoCheckBox.Checked;
             s.SavePosition = SavePositionCheckBox.Checked;
             s.SaveTimeOfDay = SaveTimeOfDayCheckBox.Checked;
             if (s.SavePosition)
@@ -10385,12 +10389,16 @@ namespace CodeWalker
         {
             if (!initialised) return;
             hidenorthyankton = HideNorthYanktonCheckBox.Checked;
+            Settings.Default.HideNorthYankton = hidenorthyankton;
+            Settings.Default.Save();
         }
 
         private void HideCayoPericoCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             if (!initialised) return;
             hidecayoperico = HideCayoPericoCheckBox.Checked;
+            Settings.Default.HideCayoPerico = hidecayoperico;
+            Settings.Default.Save();
         }
 
         private void EnableDlcCheckBox_CheckedChanged(object sender, EventArgs e)

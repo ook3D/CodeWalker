@@ -34,6 +34,8 @@ namespace CodeWalker.World
 
         private Dictionary<MetaHash, uint> ymaptimes = new();
         private Dictionary<MetaHash, MetaHash[]> ymapweathertypes = new();
+        private readonly List<MapDataStoreNode> visibleMapItems = [];
+        private readonly HashSet<MetaHash> visibleMapProcessedHashes = [];
 
         public bool Inited = false;
 
@@ -1283,32 +1285,21 @@ namespace CodeWalker.World
             
             CurrentHour = hour;
             CurrentWeather = weather;
-            var items = MapDataStore.GetItems(ref cam.Position);
 
-            // Create a snapshot to avoid collection modified exception from concurrent access
-            var itemsSnapshot = items.ToArray();
+            visibleMapItems.Clear();
+            MapDataStore.GetItems(ref cam.Position, visibleMapItems);
 
-            // Pre-filter items and batch process for better performance
-            var validItems = new List<MapDataStoreNode>(itemsSnapshot.Length);
-            foreach (var item in itemsSnapshot)
+            foreach (var item in visibleMapItems)
             {
-                if (item != null && item.Name > 0 && !ymaps.ContainsKey(item.Name))
-                {
-                    validItems.Add(item);
-                }
-            }
+                if (item == null || item.Name <= 0 || ymaps.ContainsKey(item.Name)) continue;
 
-            // Process valid items
-            var processedHashes = new HashSet<MetaHash>(); // Reuse cycle detection storage within this frame.
-            foreach (var item in validItems)
-            {
                 var hash = item.Name;
-                processedHashes.Clear(); // Each map starts a separate parent-chain traversal.
+                visibleMapProcessedHashes.Clear();
                 
                 var ymap = GameFileCache.GetYmap(hash);
-                while (ymap != null && ymap.Loaded && !processedHashes.Contains(hash))
+                while (ymap != null && ymap.Loaded && !visibleMapProcessedHashes.Contains(hash))
                 {
-                    processedHashes.Add(hash);
+                    visibleMapProcessedHashes.Add(hash);
                     
                     if (!IsYmapAvailable(hash, hour, weather)) break;
                     if (ymaps.ContainsKey(hash)) break;
@@ -1948,11 +1939,12 @@ namespace CodeWalker.World
         public List<MapDataStoreNode> GetItems(ref Vector3 p) //get items at a point, using the streaming extents
         {
             var items = new List<MapDataStoreNode>();
-            if (RootNode != null)
-            {
-                RootNode.GetItems(ref p, items);
-            }
+            GetItems(ref p, items);
             return items;
+        }
+        public void GetItems(ref Vector3 p, List<MapDataStoreNode> items)
+        {
+            if (RootNode != null) RootNode.GetItems(ref p, items);
         }
         public List<MapDataStoreNode> GetItems(ref Vector3 min, ref Vector3 max) //get items intersecting a box, using the entities extents
         {

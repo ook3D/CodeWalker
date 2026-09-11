@@ -116,8 +116,18 @@ float3 ApplyHairMaterial(VS_OUTPUT input, float2 uv, inout MaterialSpecular mate
 void SampleBasicMaterial(VS_OUTPUT input, float2 texcoord, out float3 normal,
     out MaterialSpecular material, out float normalAlpha)
 {
-    float4 normalSample = Bumpmap.Sample(TextureSS, texcoord);
-    float4 specularSample = Specmap.Sample(TextureSS, texcoord);
+    float4 normalSample = float4(0, 0, 0, 1);
+    if (EnableNormalMap || (SpecOnly == 1 && EnableSpecMap == 0))
+    {
+        normalSample = Bumpmap.Sample(TextureSS, texcoord);
+    }
+
+    float4 specularSample = float4(0, 0, 0, 1);
+    if (EnableSpecMap || EnableDetailMap)
+    {
+        specularSample = Specmap.Sample(TextureSS, texcoord);
+    }
+
     normalAlpha = normalSample.a;
     normal = normalize(input.Normal);
     if (EnableNormalMap)
