@@ -461,7 +461,6 @@ namespace CodeWalker.GameFiles
                     else if (p.Data is TextureBase btex)
                     {
                         btex.VFT = 0;
-                        btex.Unknown_4h = 1;
                         if (btex.G9_Flags == 0) btex.G9_Flags = 0x00260000;
                         //if (btex.G9_SRV == null)//make sure the SRVs for these params exist
                         //{
@@ -1050,7 +1049,7 @@ namespace CodeWalker.GameFiles
                     {
                         var tex = new TextureBase();
                         tex.ReadXml(pnode, string.Empty);//embedded textures will get replaced in grcInstanceData ReadXML
-                        tex.Unknown_32h = 2;
+                        tex.ResourceTypeAndConversionFlags = 2;
                         p.Data = tex;
                     }
                 }

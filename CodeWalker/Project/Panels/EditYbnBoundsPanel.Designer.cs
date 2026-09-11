@@ -560,7 +560,7 @@
             this.label20.Name = "label20";
             this.label20.Size = new System.Drawing.Size(65, 13);
             this.label20.TabIndex = 9;
-            this.label20.Text = "Unk Float 2:";
+            this.label20.Text = "Center W:";
             // 
             // UnkFloat1TextBox
             // 
@@ -579,7 +579,7 @@
             this.label19.Name = "label19";
             this.label19.Size = new System.Drawing.Size(65, 13);
             this.label19.TabIndex = 7;
-            this.label19.Text = "Unk Float 1:";
+            this.label19.Text = "Factor W:";
             // 
             // QuantumTextBox
             // 
@@ -598,7 +598,7 @@
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(53, 13);
             this.label18.TabIndex = 5;
-            this.label18.Text = "Quantum:";
+            this.label18.Text = "Unquantize:";
             // 
             // CenterGeomTextBox
             // 
@@ -617,7 +617,7 @@
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(72, 13);
             this.label17.TabIndex = 3;
-            this.label17.Text = "Geom Center:";
+            this.label17.Text = "BBox Center:";
             // 
             // CompositeFlagsTabPage
             // 

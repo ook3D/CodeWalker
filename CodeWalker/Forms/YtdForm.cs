@@ -277,7 +277,8 @@ namespace CodeWalker.Forms
             tex.NameHash = CurrentTexture.NameHash;
             tex.Usage = CurrentTexture.Usage;
             tex.UsageFlags = CurrentTexture.UsageFlags;
-            tex.Unknown_32h = CurrentTexture.Unknown_32h;
+            tex.ResourceTypeAndConversionFlags = CurrentTexture.ResourceTypeAndConversionFlags;
+            tex.LayerCount = CurrentTexture.LayerCount;
 
             var textures = new List<Texture>();
             foreach (var t in TexDict.Textures.data_items)

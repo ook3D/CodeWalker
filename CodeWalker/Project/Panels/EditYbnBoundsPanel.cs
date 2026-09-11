@@ -119,7 +119,7 @@ namespace CodeWalker.Project.Panels
                 BSRadiusTextBox.Text = FloatUtil.ToString(b.SphereRadius);
                 MarginTextBox.Text = FloatUtil.ToString(b.Margin);
                 VolumeTextBox.Text = FloatUtil.ToString(b.Volume);
-                UnkVectorTextBox.Text = FloatUtil.GetVector3String(b.Unknown_60h);
+                UnkVectorTextBox.Text = FloatUtil.GetVector3String(b.Inertia);
                 MaterialColourUpDown.Value = b.MaterialColorIndex;
                 MaterialCombo.SelectedIndex = b.MaterialIndex;
                 ProceduralIDUpDown.Value = b.ProceduralId;
@@ -127,7 +127,7 @@ namespace CodeWalker.Project.Panels
                 PedDensityUpDown.Value = b.PedDensity;
                 PolyFlagsUpDown.Value = b.PolyFlags;
                 UnkFlagsUpDown.Value = b.UnkFlags;
-                UnkTypeUpDown.Value = b.Unknown_3Ch;
+                UnkTypeUpDown.Value = b.ReferenceCount;
 
                 if (b is BoundGeometry bg)
                 {
@@ -138,10 +138,10 @@ namespace CodeWalker.Project.Panels
 
                     CenterGeomTextBox.Text = FloatUtil.GetVector3String(bg.CenterGeom);
                     QuantumTextBox.Text = FloatUtil.GetVector3String(bg.Quantum);
-                    UnkFloat1TextBox.Text = FloatUtil.ToString(bg.Unknown_9Ch);
-                    UnkFloat2TextBox.Text = FloatUtil.ToString(bg.Unknown_ACh);
-                    VertexCountLabel.Text = bg.VerticesCount.ToString() + ((bg.VerticesCount == 1) ? " vertex" : " vertices");
-                    PolyCountLabel.Text = bg.PolygonsCount.ToString() + ((bg.PolygonsCount == 1) ? " polygon" : " polygons");
+                    UnkFloat1TextBox.Text = FloatUtil.ToString(bg.UnQuantizeFactor.W);
+                    UnkFloat2TextBox.Text = FloatUtil.ToString(bg.BoundingBoxCenter.W);
+                    VertexCountLabel.Text = bg.VertexCount.ToString() + ((bg.VertexCount == 1) ? " vertex" : " vertices");
+                    PolyCountLabel.Text = bg.PolygonCount.ToString() + ((bg.PolygonCount == 1) ? " polygon" : " polygons");
                 }
                 else
                 {
@@ -337,9 +337,9 @@ namespace CodeWalker.Project.Panels
             var v = FloatUtil.ParseVector3String(UnkVectorTextBox.Text);
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionBounds.Unknown_60h != v)
+                if (CollisionBounds.Inertia != v)
                 {
-                    CollisionBounds.Unknown_60h = v;
+                    CollisionBounds.Inertia = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -454,12 +454,12 @@ namespace CodeWalker.Project.Panels
         {
             if (CollisionBounds == null) return;
             if (populatingui) return;
-            var v = (uint)UnkTypeUpDown.Value;
+            var v = (int)UnkTypeUpDown.Value;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionBounds.Unknown_3Ch != v)
+                if (CollisionBounds.ReferenceCount != v)
                 {
-                    CollisionBounds.Unknown_3Ch = v;
+                    CollisionBounds.ReferenceCount = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -502,9 +502,11 @@ namespace CodeWalker.Project.Panels
             var v = FloatUtil.Parse(UnkFloat1TextBox.Text);
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionGeom.Unknown_9Ch != v)
+                if (CollisionGeom.UnQuantizeFactor.W != v)
                 {
-                    CollisionGeom.Unknown_9Ch = v;
+                    var factor = CollisionGeom.UnQuantizeFactor;
+                    factor.W = v;
+                    CollisionGeom.UnQuantizeFactor = factor;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -517,9 +519,11 @@ namespace CodeWalker.Project.Panels
             var v = FloatUtil.Parse(UnkFloat2TextBox.Text);
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionGeom.Unknown_ACh != v)
+                if (CollisionGeom.BoundingBoxCenter.W != v)
                 {
-                    CollisionGeom.Unknown_ACh = v;
+                    var center = CollisionGeom.BoundingBoxCenter;
+                    center.W = v;
+                    CollisionGeom.BoundingBoxCenter = center;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }

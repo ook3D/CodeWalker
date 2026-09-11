@@ -74,8 +74,8 @@ public class BoundsExpressionTests
         };
         var bvh = BVHBuilder.Build(items, 1);
         Assert.NotNull(bvh);
-        Assert.Equal(5, bvh.Nodes.data_items.Length);
-        Assert.Equal(1, bvh.Nodes.data_items[0].ItemId);
+        Assert.Equal(5, bvh.ContiguousNodes.data_items.Length);
+        Assert.Equal(1, bvh.ContiguousNodes.data_items[0].ItemId);
     }
 
     [Fact]

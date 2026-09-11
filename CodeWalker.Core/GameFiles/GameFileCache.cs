@@ -4330,7 +4330,7 @@ namespace CodeWalker.GameFiles
                                             if (a == null || b == null) continue;
                                             if (b == null)
                                             { continue; }
-                                            if (a.BVH?.Nodes?.data_items?.Length != b.BVH?.Nodes?.data_items?.Length)
+                                            if (a.BVH?.ContiguousNodes?.data_items?.Length != b.BVH?.ContiguousNodes?.data_items?.Length)
                                             { }
                                             if (a.Polygons == null || b.Polygons == null || a.Polygons.Length != b.Polygons.Length)
                                             { continue; }
@@ -4372,10 +4372,10 @@ namespace CodeWalker.GameFiles
                                             { continue; }
                                             break;
                                         }
-                                    case BoundsType.Cloth:
+                                    case BoundsType.Plane:
                                         {
-                                            var a = ybn.Bounds as BoundCloth;
-                                            var b = ybn2.Bounds as BoundCloth;
+                                            var a = ybn.Bounds as BoundPlane;
+                                            var b = ybn2.Bounds as BoundPlane;
                                             if (a == null || b == null) continue;
                                             if (b == null)
                                             { continue; }

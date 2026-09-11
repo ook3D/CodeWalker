@@ -4358,8 +4358,8 @@ namespace CodeWalker.Project
                 case BoundsType.Cylinder:
                     b = new BoundCylinder();
                     break;
-                case BoundsType.Cloth:
-                    b = new BoundCloth();
+                case BoundsType.Plane:
+                    b = new BoundPlane();
                     break;
             }
 
@@ -4376,23 +4376,21 @@ namespace CodeWalker.Project
                 b.Type = type;
                 b.Margin = 0.005f;
                 b.Volume = 1.0f;
-                b.Unknown_60h = Vector3.One;
-                b.Unknown_3Ch = 1;
-                b.SphereCenter = Vector3.Zero;
-                b.SphereRadius = 1.0f;
-                b.BoxCenter = Vector3.Zero;
-                b.BoxMin = -Vector3.One;
-                b.BoxMax = Vector3.One;
+                b.Inertia = Vector3.One;
+                b.ReferenceCount = 1;
+                b.CenterOfGravityOffset = Vector3.Zero;
+                b.RadiusAroundCentroid = 1.0f;
+                b.CentroidOffset = Vector3.Zero;
+                b.BoundingBoxMin = -Vector3.One;
+                b.BoundingBoxMax = Vector3.One;
                 b.Position = pos;
 
                 if (b is BoundBVH bbvh)
                 { }
                 if (b is BoundGeometry bgeo)
                 {
-                    bgeo.CenterGeom = Vector3.Zero;
-                    bgeo.Quantum = Vector3.Zero;
-                    bgeo.Unknown_9Ch = 7.629627e-8f;
-                    bgeo.Unknown_ACh = 0.0025f;
+                    bgeo.UnQuantizeFactor = new Vector4(Vector3.Zero, 7.629627e-8f);
+                    bgeo.BoundingBoxCenter = new Vector4(Vector3.Zero, 0.0025f);
                     bgeo.Position = Vector3.Zero;//start geometry transform at 0
                 }
                 if (b is BoundComposite bcmp)
@@ -4552,9 +4550,9 @@ namespace CodeWalker.Project
 
             if (ptri != null)
             {
-                ptri.edgeIndex1 = 0xFFFF;
-                ptri.edgeIndex2 = 0xFFFF;
-                ptri.edgeIndex3 = 0xFFFF;
+                ptri.NeighboringPolygonIndex1 = ushort.MaxValue;
+                ptri.NeighboringPolygonIndex2 = ushort.MaxValue;
+                ptri.NeighboringPolygonIndex3 = ushort.MaxValue;
             }
 
             if (copy != null)
@@ -4566,21 +4564,21 @@ namespace CodeWalker.Project
                     case BoundPolygonType.Triangle:
                         if ((ptri != null) && (ctri != null))
                         {
-                            ptri.vertFlag1 = ctri.vertFlag1;
-                            ptri.vertFlag2 = ctri.vertFlag2;
-                            ptri.vertFlag3 = ctri.vertFlag3;
+                            ptri.VertexNormalFlag1 = ctri.VertexNormalFlag1;
+                            ptri.VertexNormalFlag2 = ctri.VertexNormalFlag2;
+                            ptri.VertexNormalFlag3 = ctri.VertexNormalFlag3;
                         }
                         break;
                     case BoundPolygonType.Sphere:
                         if ((psph != null) && (csph != null))
                         {
-                            psph.sphereRadius = csph.sphereRadius;
+                            psph.Radius = csph.Radius;
                         }
                         break;
                     case BoundPolygonType.Capsule:
                         if ((pcap != null) && (ccap != null))
                         {
-                            pcap.capsuleRadius = ccap.capsuleRadius;
+                            pcap.Radius = ccap.Radius;
                         }
                         break;
                     case BoundPolygonType.Box:
@@ -4591,7 +4589,7 @@ namespace CodeWalker.Project
                     case BoundPolygonType.Cylinder:
                         if ((pcyl != null) && (ccyl != null))
                         {
-                            pcyl.cylinderRadius = ccyl.cylinderRadius;
+                            pcyl.Radius = ccyl.Radius;
                         }
                         break;
                     default:
@@ -4612,12 +4610,12 @@ namespace CodeWalker.Project
                 if (psph != null)
                 {
                     psph.VertexPositions = new[] { pos };
-                    psph.sphereRadius = 1.0f;
+                    psph.Radius = 1.0f;
                 }
                 if (pcap != null)
                 {
                     pcap.VertexPositions = new[] { pos - x, pos + x };
-                    pcap.capsuleRadius = 1.0f;
+                    pcap.Radius = 1.0f;
                 }
                 if (pbox != null)
                 {
@@ -4626,7 +4624,7 @@ namespace CodeWalker.Project
                 if (pcyl != null)
                 {
                     pcyl.VertexPositions = new[] { pos - x, pos + x };
-                    pcyl.cylinderRadius = 1.0f;
+                    pcyl.Radius = 1.0f;
                 }
             }
 
@@ -9843,9 +9841,9 @@ namespace CodeWalker.Project
         {
             NewCollisionBounds(BoundsType.Disc);
         }
-        private void YbnNewBoundClothMenu_Click(object sender, EventArgs e)
+        private void YbnNewBoundPlaneMenu_Click(object sender, EventArgs e)
         {
-            NewCollisionBounds(BoundsType.Cloth);
+            NewCollisionBounds(BoundsType.Plane);
         }
         private void YbnNewBoundGeometryMenu_Click(object sender, EventArgs e)
         {

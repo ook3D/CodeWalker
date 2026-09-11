@@ -1216,7 +1216,7 @@ namespace CodeWalker.Rendering
             else if (poly is BoundPolygonSphere psph)
             {
                 var p1 = pos + (ori.Multiply(psph.Position) * sca);
-                RenderSelectionCircle(p1, psph.sphereRadius * 1.03f, colourval);//enlarge the circle to make it more visible..
+                RenderSelectionCircle(p1, psph.Radius * 1.03f, colourval);//enlarge the circle to make it more visible..
             }
             else if (poly is BoundPolygonCapsule pcap)
             {
@@ -1225,9 +1225,9 @@ namespace CodeWalker.Rendering
                 var a1 = Vector3.Normalize(p2 - p1);
                 var a2 = Vector3.Normalize(a1.GetPerpVec());
                 var a3 = Vector3.Normalize(Vector3.Cross(a1, a2));
-                a1 *= pcap.capsuleRadius;
-                a2 *= pcap.capsuleRadius;
-                a3 *= pcap.capsuleRadius;
+                a1 *= pcap.Radius;
+                a2 *= pcap.Radius;
+                a3 *= pcap.Radius;
                 RenderSelectionBox(p1 - a1, p2 + a1, a2, a3, colourval);
             }
             else if (poly is BoundPolygonBox pbox)
@@ -1250,8 +1250,8 @@ namespace CodeWalker.Rendering
                 var a1 = Vector3.Normalize(p2 - p1);
                 var a2 = Vector3.Normalize(a1.GetPerpVec());
                 var a3 = Vector3.Normalize(Vector3.Cross(a1, a2));
-                a2 *= pcyl.cylinderRadius;
-                a3 *= pcyl.cylinderRadius;
+                a2 *= pcyl.Radius;
+                a3 *= pcyl.Radius;
                 RenderSelectionBox(p1, p2, a2, a3, colourval);
             }
 

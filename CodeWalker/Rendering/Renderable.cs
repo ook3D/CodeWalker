@@ -2251,9 +2251,9 @@ namespace CodeWalker.Rendering
                 {
                     case BoundPolygonType.Triangle:
                         var ptri = (BoundPolygonTriangle)poly;
-                        p1 = bgeom.GetVertex(ptri.vertIndex1);
-                        p2 = bgeom.GetVertex(ptri.vertIndex2);
-                        p3 = bgeom.GetVertex(ptri.vertIndex3);
+                        p1 = bgeom.GetVertex(ptri.VertexIndex1);
+                        p2 = bgeom.GetVertex(ptri.VertexIndex2);
+                        p3 = bgeom.GetVertex(ptri.VertexIndex3);
                         n1 = Vector3.Normalize(Vector3.Cross(p2 - p1, p3 - p1));
                         AddVertex(p1, n1, colour, rverts, ref curvert);
                         AddVertex(p2, n1, colour, rverts, ref curvert);
@@ -2261,15 +2261,15 @@ namespace CodeWalker.Rendering
                         break;
                     case BoundPolygonType.Sphere:
                         var psph = (BoundPolygonSphere)poly;
-                        rspheres[cursphere].Center = bgeom.GetVertex(psph.sphereIndex);
-                        rspheres[cursphere].Radius = psph.sphereRadius;// * 0.5f;//diameter?
+                        rspheres[cursphere].Center = bgeom.GetVertex(psph.CenterIndex);
+                        rspheres[cursphere].Radius = psph.Radius;// * 0.5f;//diameter?
                         rspheres[cursphere].Colour = colour;
                         cursphere++;
                         break;
                     case BoundPolygonType.Capsule:
                         var bcap = (BoundPolygonCapsule)poly;
-                        p1 = bgeom.GetVertex(bcap.capsuleIndex1);
-                        p2 = bgeom.GetVertex(bcap.capsuleIndex2);
+                        p1 = bgeom.GetVertex(bcap.EndIndex0);
+                        p2 = bgeom.GetVertex(bcap.EndIndex1);
                         a1 = p2 - p1;
                         n1 = Vector3.Normalize(a1);
                         p3 = Vector3.Normalize(n1.GetPerpVec());
@@ -2278,16 +2278,16 @@ namespace CodeWalker.Rendering
                         rcapsules[curcapsule].Point1 = p1;
                         rcapsules[curcapsule].Orientation = q1;
                         rcapsules[curcapsule].Length = a1.Length();
-                        rcapsules[curcapsule].Radius = bcap.capsuleRadius;// * 0.5f;//diameter?
+                        rcapsules[curcapsule].Radius = bcap.Radius;// * 0.5f;//diameter?
                         rcapsules[curcapsule].Colour = colour;
                         curcapsule++;
                         break;
                     case BoundPolygonType.Box:  //(...only 4 inds... = diagonal corners)
                         var pbox = (BoundPolygonBox)poly;
-                        p1 = bgeom.GetVertex(pbox.boxIndex1);
-                        p2 = bgeom.GetVertex(pbox.boxIndex2);
-                        p3 = bgeom.GetVertex(pbox.boxIndex3);
-                        p4 = bgeom.GetVertex(pbox.boxIndex4);
+                        p1 = bgeom.GetVertex(pbox.VertexIndex0);
+                        p2 = bgeom.GetVertex(pbox.VertexIndex1);
+                        p3 = bgeom.GetVertex(pbox.VertexIndex2);
+                        p4 = bgeom.GetVertex(pbox.VertexIndex3);
                         a1 = ((p3 + p4) - (p1 + p2)) * 0.5f;
                         p2 = p1 + a1;
                         p3 = p3 - a1;
@@ -2301,8 +2301,8 @@ namespace CodeWalker.Rendering
                         break;
                     case BoundPolygonType.Cylinder:
                         var pcyl = (BoundPolygonCylinder)poly;
-                        p1 = bgeom.GetVertex(pcyl.cylinderIndex1);
-                        p2 = bgeom.GetVertex(pcyl.cylinderIndex2);
+                        p1 = bgeom.GetVertex(pcyl.EndIndex0);
+                        p2 = bgeom.GetVertex(pcyl.EndIndex1);
                         a1 = p2 - p1;
                         n1 = Vector3.Normalize(a1);
                         p3 = Vector3.Normalize(n1.GetPerpVec());
@@ -2311,7 +2311,7 @@ namespace CodeWalker.Rendering
                         rcylinders[curcylinder].Point1 = p1;
                         rcylinders[curcylinder].Orientation = q2;
                         rcylinders[curcylinder].Length = a1.Length();
-                        rcylinders[curcylinder].Radius = pcyl.cylinderRadius;
+                        rcylinders[curcylinder].Radius = pcyl.Radius;
                         rcylinders[curcylinder].Colour = colour;
                         curcylinder++;
                         break;

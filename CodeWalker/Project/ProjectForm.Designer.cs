@@ -109,7 +109,7 @@
             this.YbnNewBoundCapsuleMenu = new System.Windows.Forms.ToolStripMenuItem();
             this.YbnNewBoundCylinderMenu = new System.Windows.Forms.ToolStripMenuItem();
             this.YbnNewBoundDiscMenu = new System.Windows.Forms.ToolStripMenuItem();
-            this.YbnNewBoundClothMenu = new System.Windows.Forms.ToolStripMenuItem();
+            this.YbnNewBoundPlaneMenu = new System.Windows.Forms.ToolStripMenuItem();
             this.YbnNewBoundGeometryMenu = new System.Windows.Forms.ToolStripMenuItem();
             this.YbnNewBoundGeometryBVHMenu = new System.Windows.Forms.ToolStripMenuItem();
             this.YbnNewBoundCompositeMenu = new System.Windows.Forms.ToolStripMenuItem();
@@ -832,7 +832,7 @@
             this.YbnNewBoundCapsuleMenu,
             this.YbnNewBoundCylinderMenu,
             this.YbnNewBoundDiscMenu,
-            this.YbnNewBoundClothMenu,
+            this.YbnNewBoundPlaneMenu,
             this.YbnNewBoundGeometryMenu,
             this.YbnNewBoundGeometryBVHMenu,
             this.YbnNewBoundCompositeMenu});
@@ -876,12 +876,12 @@
             this.YbnNewBoundDiscMenu.Text = "Disc";
             this.YbnNewBoundDiscMenu.Click += new System.EventHandler(this.YbnNewBoundDiscMenu_Click);
             // 
-            // YbnNewBoundClothMenu
+            // YbnNewBoundPlaneMenu
             // 
-            this.YbnNewBoundClothMenu.Name = "YbnNewBoundClothMenu";
-            this.YbnNewBoundClothMenu.Size = new System.Drawing.Size(152, 22);
-            this.YbnNewBoundClothMenu.Text = "Cloth";
-            this.YbnNewBoundClothMenu.Click += new System.EventHandler(this.YbnNewBoundClothMenu_Click);
+            this.YbnNewBoundPlaneMenu.Name = "YbnNewBoundPlaneMenu";
+            this.YbnNewBoundPlaneMenu.Size = new System.Drawing.Size(152, 22);
+            this.YbnNewBoundPlaneMenu.Text = "Plane";
+            this.YbnNewBoundPlaneMenu.Click += new System.EventHandler(this.YbnNewBoundPlaneMenu_Click);
             // 
             // YbnNewBoundGeometryMenu
             // 
@@ -1888,7 +1888,7 @@
         private System.Windows.Forms.ToolStripMenuItem YbnNewBoundCapsuleMenu;
         private System.Windows.Forms.ToolStripMenuItem YbnNewBoundCylinderMenu;
         private System.Windows.Forms.ToolStripMenuItem YbnNewBoundDiscMenu;
-        private System.Windows.Forms.ToolStripMenuItem YbnNewBoundClothMenu;
+        private System.Windows.Forms.ToolStripMenuItem YbnNewBoundPlaneMenu;
         private System.Windows.Forms.ToolStripMenuItem YbnNewBoundGeometryMenu;
         private System.Windows.Forms.ToolStripMenuItem YbnNewBoundGeometryBVHMenu;
         private System.Windows.Forms.ToolStripMenuItem YbnNewBoundCompositeMenu;

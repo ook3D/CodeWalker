@@ -119,9 +119,9 @@ namespace CodeWalker.Project.Panels
                     TriVertex1TextBox.Text = FloatUtil.GetVector3String(CollisionTriangle.Vertex1);
                     TriVertex2TextBox.Text = FloatUtil.GetVector3String(CollisionTriangle.Vertex2);
                     TriVertex3TextBox.Text = FloatUtil.GetVector3String(CollisionTriangle.Vertex3);
-                    TriFlag1CheckBox.Checked = CollisionTriangle.vertFlag1;
-                    TriFlag2CheckBox.Checked = CollisionTriangle.vertFlag2;
-                    TriFlag3CheckBox.Checked = CollisionTriangle.vertFlag3;
+                    TriFlag1CheckBox.Checked = CollisionTriangle.VertexNormalFlag1;
+                    TriFlag2CheckBox.Checked = CollisionTriangle.VertexNormalFlag2;
+                    TriFlag3CheckBox.Checked = CollisionTriangle.VertexNormalFlag3;
                     if (!PolyTabControl.TabPages.Contains(TriangleTabPage)) PolyTabControl.TabPages.Add(TriangleTabPage);
                 }
                 else
@@ -132,7 +132,7 @@ namespace CodeWalker.Project.Panels
                 if (CollisionSphere != null)
                 {
                     SphPositionTextBox.Text = FloatUtil.GetVector3String(CollisionSphere.Position);
-                    SphRadiusTextBox.Text = FloatUtil.ToString(CollisionSphere.sphereRadius);
+                    SphRadiusTextBox.Text = FloatUtil.ToString(CollisionSphere.Radius);
                     if (!PolyTabControl.TabPages.Contains(SphereTabPage)) PolyTabControl.TabPages.Add(SphereTabPage);
                 }
                 else
@@ -144,7 +144,7 @@ namespace CodeWalker.Project.Panels
                 {
                     CapVertex1TextBox.Text = FloatUtil.GetVector3String(CollisionCapsule.Vertex1);
                     CapVertex2TextBox.Text = FloatUtil.GetVector3String(CollisionCapsule.Vertex2);
-                    CapRadiusTextBox.Text = FloatUtil.ToString(CollisionCapsule.capsuleRadius);
+                    CapRadiusTextBox.Text = FloatUtil.ToString(CollisionCapsule.Radius);
                     if (!PolyTabControl.TabPages.Contains(CapsuleTabPage)) PolyTabControl.TabPages.Add(CapsuleTabPage);
                 }
                 else
@@ -169,7 +169,7 @@ namespace CodeWalker.Project.Panels
                 {
                     CylVertex1TextBox.Text = FloatUtil.GetVector3String(CollisionCylinder.Vertex1);
                     CylVertex2TextBox.Text = FloatUtil.GetVector3String(CollisionCylinder.Vertex2);
-                    CylRadiusTextBox.Text = FloatUtil.ToString(CollisionCylinder.cylinderRadius);
+                    CylRadiusTextBox.Text = FloatUtil.ToString(CollisionCylinder.Radius);
                     if (!PolyTabControl.TabPages.Contains(CylinderTabPage)) PolyTabControl.TabPages.Add(CylinderTabPage);
                 }
                 else
@@ -300,9 +300,9 @@ namespace CodeWalker.Project.Panels
             var v = TriFlag1CheckBox.Checked;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionTriangle.vertFlag1 != v)
+                if (CollisionTriangle.VertexNormalFlag1 != v)
                 {
-                    CollisionTriangle.vertFlag1 = v;
+                    CollisionTriangle.VertexNormalFlag1 = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -315,9 +315,9 @@ namespace CodeWalker.Project.Panels
             var v = TriFlag2CheckBox.Checked;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionTriangle.vertFlag2 != v)
+                if (CollisionTriangle.VertexNormalFlag2 != v)
                 {
-                    CollisionTriangle.vertFlag2 = v;
+                    CollisionTriangle.VertexNormalFlag2 = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -330,9 +330,9 @@ namespace CodeWalker.Project.Panels
             var v = TriFlag3CheckBox.Checked;
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionTriangle.vertFlag3 != v)
+                if (CollisionTriangle.VertexNormalFlag3 != v)
                 {
-                    CollisionTriangle.vertFlag3 = v;
+                    CollisionTriangle.VertexNormalFlag3 = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -360,9 +360,9 @@ namespace CodeWalker.Project.Panels
             var v = FloatUtil.Parse(SphRadiusTextBox.Text);
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionSphere.sphereRadius != v)
+                if (CollisionSphere.Radius != v)
                 {
-                    CollisionSphere.sphereRadius = v;
+                    CollisionSphere.Radius = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -405,9 +405,9 @@ namespace CodeWalker.Project.Panels
             var v = FloatUtil.Parse(CapRadiusTextBox.Text);
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionCapsule.capsuleRadius != v)
+                if (CollisionCapsule.Radius != v)
                 {
-                    CollisionCapsule.capsuleRadius = v;
+                    CollisionCapsule.Radius = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }
@@ -510,9 +510,9 @@ namespace CodeWalker.Project.Panels
             var v = FloatUtil.Parse(CylRadiusTextBox.Text);
             lock (ProjectForm.ProjectSyncRoot)
             {
-                if (CollisionCylinder.cylinderRadius != v)
+                if (CollisionCylinder.Radius != v)
                 {
-                    CollisionCylinder.cylinderRadius = v;
+                    CollisionCylinder.Radius = v;
                     ProjectForm.SetYbnHasChanged(true);
                 }
             }

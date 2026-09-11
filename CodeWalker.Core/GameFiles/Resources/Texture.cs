@@ -14,15 +14,22 @@ namespace CodeWalker.GameFiles
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class TextureDictionary : ResourceFileBase
     {
-        public override long BlockLength => 64;
+        // pgDictionary<grcTexture>
+        public override long BlockLength => 0x40;
+        public uint ReferenceCount { get; set; } = 1;
+        public ResourceSimpleList64_uint Codes { get; set; } = new();
+        public ResourcePointerList64<Texture> Entries { get; set; } = new();
 
-        // structure data
-        public uint Unknown_10h { get; set; } // 0x00000000
-        public uint Unknown_14h { get; set; } // 0x00000000
-        public uint RefCount { get; set; } = 1; // pgDictionary m_RefCount
-        public uint Unknown_1Ch { get; set; } // 0x00000000
-        public ResourceSimpleList64_uint TextureNameHashes { get; set; } = new();
-        public ResourcePointerList64<Texture> Textures { get; set; } = new();
+        [Browsable(false)] public ResourceSimpleList64_uint TextureNameHashes
+        {
+            get => Codes;
+            set => Codes = value ?? new();
+        }
+        [Browsable(false)] public ResourcePointerList64<Texture> Textures
+        {
+            get => Entries;
+            set => Entries = value ?? new();
+        }
 
         public Dictionary<uint, Texture> Dict { get; set; } = new();
 
@@ -31,9 +38,9 @@ namespace CodeWalker.GameFiles
             get
             {
                 long val = 0;
-                if ((Textures != null) && (Textures.data_items != null))
+                if (Entries?.data_items != null)
                 {
-                    foreach (var tex in Textures.data_items)
+                    foreach (var tex in Entries.data_items)
                     {
                         if (tex != null)
                         {
@@ -52,36 +59,30 @@ namespace CodeWalker.GameFiles
         public override void Read(ResourceDataReader reader, params object[] parameters)
         {
             base.Read(reader, parameters);
-
-            // read structure data
-            this.Unknown_10h = reader.ReadUInt32();
-            this.Unknown_14h = reader.ReadUInt32();
-            this.RefCount = reader.ReadUInt32();
-            this.Unknown_1Ch = reader.ReadUInt32();
-            this.TextureNameHashes = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
-            this.Textures = reader.ReadRequiredBlock<ResourcePointerList64<Texture>>();
-
-            BuildDict();
+            _ = reader.ReadUInt64(); // m_Parent is ignored in resources.
+            ReferenceCount = reader.ReadUInt32();
+            _ = reader.ReadUInt32();
+            Codes = reader.ReadRequiredBlock<ResourceSimpleList64_uint>();
+            Entries = reader.ReadRequiredBlock<ResourcePointerList64<Texture>>();
+            ValidateCounts();
+            BuildMap();
         }
         public override void Write(ResourceDataWriter writer, params object[] parameters)
         {
+            ValidateCounts();
             base.Write(writer, parameters);
-
-
-            // write structure data
-            writer.Write(this.Unknown_10h);
-            writer.Write(this.Unknown_14h);
-            writer.Write(this.RefCount);
-            writer.Write(this.Unknown_1Ch);
-            writer.WriteBlock(this.TextureNameHashes);
-            writer.WriteBlock(this.Textures);
+            writer.Write(0ul);
+            writer.Write(ReferenceCount);
+            writer.Write(0u);
+            writer.WriteBlock(Codes);
+            writer.WriteBlock(Entries);
         }
         public void WriteXml(StringBuilder sb, int indent, string ddsfolder)
         {
 
-            if (Textures?.data_items != null)
+            if (Entries?.data_items != null)
             {
-                foreach (var tex in Textures.data_items)
+                foreach (var tex in Entries.data_items)
                 {
                     YtdXml.OpenTag(sb, indent, "Item");
                     tex.WriteXml(sb, indent + 1, ddsfolder);
@@ -110,7 +111,7 @@ namespace CodeWalker.GameFiles
         public static void WriteXmlNode(TextureDictionary? d, StringBuilder sb, int indent, string ddsfolder, string name = "TextureDictionary")
         {
             if (d == null) return;
-            if ((d.Textures?.data_items == null) || (d.Textures.data_items.Length == 0))
+            if ((d.Entries?.data_items?.Length ?? 0) == 0)
             {
                 YtdXml.SelfClosingTag(sb, indent, name);
             }
@@ -132,10 +133,11 @@ namespace CodeWalker.GameFiles
 
         public override Tuple<long, IResourceBlock>[] GetParts()
         {
-            return new Tuple<long, IResourceBlock>[] {
-                new Tuple<long, IResourceBlock>(0x20, TextureNameHashes),
-                new Tuple<long, IResourceBlock>(0x30, Textures)
-            };
+            return
+            [
+                new Tuple<long, IResourceBlock>(0x20, Codes),
+                new Tuple<long, IResourceBlock>(0x30, Entries),
+            ];
         }
 
         public Texture? Lookup(uint hash)
@@ -148,15 +150,15 @@ namespace CodeWalker.GameFiles
             return tex;
         }
 
-        private void BuildDict()
+        private void BuildMap()
         {
             var dict = new Dictionary<uint, Texture>();
-            if ((Textures?.data_items != null) && (TextureNameHashes?.data_items != null))
+            if (Entries?.data_items != null && Codes?.data_items != null)
             {
-                for (int i = 0; (i < Textures.data_items.Length) && (i < TextureNameHashes.data_items.Length); i++)
+                for (int i = 0; i < Entries.data_items.Length; i++)
                 {
-                    var tex = Textures.data_items[i];
-                    var hash = TextureNameHashes.data_items[i];
+                    var tex = Entries.data_items[i];
+                    var hash = Codes.data_items[i];
                     dict[hash] = tex;
                 }
             }
@@ -173,11 +175,15 @@ namespace CodeWalker.GameFiles
                 texturehashes.Add(tex.NameHash);
             }
 
-            TextureNameHashes = new ResourceSimpleList64_uint();
-            TextureNameHashes.data_items = texturehashes.ToArray();
-            Textures = new ResourcePointerList64<Texture>();
-            Textures.data_items = textures.ToArray();
-            BuildDict();
+            Codes = new ResourceSimpleList64_uint { data_items = texturehashes.ToArray() };
+            Entries = new ResourcePointerList64<Texture> { data_items = textures.ToArray() };
+            BuildMap();
+        }
+
+        private void ValidateCounts()
+        {
+            if ((Codes?.data_items?.Length ?? 0) != (Entries?.data_items?.Length ?? 0))
+                throw new InvalidDataException("Texture dictionary code and entry counts do not match.");
         }
 
 
@@ -187,7 +193,7 @@ namespace CodeWalker.GameFiles
             FileUnknown = 1;
 
             //make sure textures all have SRVs and are appropriately formatted for gen9
-            var texs = Textures?.data_items;
+            var texs = Entries?.data_items;
             if (texs == null) return;
             foreach (var tex in texs)
             {
@@ -203,26 +209,29 @@ namespace CodeWalker.GameFiles
         public override long BlockLength => 80;
         public override long BlockLength_Gen9 => 80;
 
-        // structure data
-        public uint VFT { get; set; }
-        public uint Unknown_4h { get; set; } = 1; // 0x00000001
-        public uint Unknown_8h { get; set; } // 0x00000000
-        public uint Unknown_Ch { get; set; } // 0x00000000
-        public uint Unknown_10h { get; set; } // 0x00000000
-        public uint Unknown_14h { get; set; } // 0x00000000
-        public uint Unknown_18h { get; set; } // 0x00000000
-        public uint Unknown_1Ch { get; set; } // 0x00000000
-        public uint Unknown_20h { get; set; } // 0x00000000
-        public uint Unknown_24h { get; set; } // 0x00000000
+        // grcTexture / grcTexturePC structure data
+        public uint VFT { get; set; } = 1080113136;
+        public ulong FirstNodePointer { get; set; }
+        public byte GcmFormat { get; set; }
+        public byte GcmMipMapCount { get; set; }
+        public byte GcmDimension { get; set; }
+        public byte GcmImageType { get; set; }
+        public uint GcmRemap { get; set; }
+        public ushort GcmWidth { get; set; }
+        public ushort GcmHeight { get; set; }
+        public ushort GcmDepth { get; set; }
+        public byte GcmTileMode { get; set; }
+        public byte GcmBindFlags { get; set; }
+        public uint GcmPitch { get; set; }
+        public uint GcmOffset { get; set; }
         public ulong NamePointer { get; set; }
-        public ushort RefCount { get; set; } = 1; // grcTexture m_RefCount
-        public ushort Unknown_32h { get; set; }
-        public uint Unknown_34h { get; set; } // 0x00000000
-        public uint Unknown_38h { get; set; } // 0x00000000
-        public uint Unknown_3Ch { get; set; } // 0x00000000
-        public uint UsageData { get; set; }
-        public uint Unknown_44h { get; set; } // 0x00000000
-        public uint ExtraFlags { get; set; } // 0, 1
+        public ushort ReferenceCount { get; set; } = 1;
+        public byte ResourceTypeAndConversionFlags { get; set; }
+        public byte LayerCount { get; set; }
+        public ulong CachedTexturePointer { get; set; }
+        public uint PhysicalSizeAndTemplateType { get; set; }
+        public uint HandleIndex { get; set; }
+        public uint ExtraFlags { get; set; }
 
         //Texture subclass structure data - moved here for gen9 compatibility
         public ushort Width { get; set; }
@@ -251,15 +260,18 @@ namespace CodeWalker.GameFiles
         public uint G9_BlockCount { get; set; }
         public uint G9_BlockStride { get; set; }
         public uint G9_Flags { get; set; }
+        public uint G9_Unknown_14h { get; set; }
         public TextureDimensionG9 G9_Dimension { get; set; } = TextureDimensionG9.Texture2D;
         public TextureFormatG9 G9_Format { get; set; }
         public TextureTileModeG9 G9_TileMode { get; set; } = TextureTileModeG9.Auto;
         public byte G9_AntiAliasType { get; set; } //0
         public byte G9_Unknown_23h { get; set; }
+        public byte G9_Unknown_24h { get; set; }
         public byte G9_Unknown_25h { get; set; }
         public ushort G9_UsageCount { get; set; } = 1;
         public ulong G9_SRVPointer { get; set; }
         public uint G9_UsageData { get; set; }
+        public uint G9_ResourceType { get; set; }
         public ulong G9_Unknown_48h { get; set; }
 
 
@@ -279,22 +291,22 @@ namespace CodeWalker.GameFiles
         {
             get
             {
-                return (TextureUsage)(UsageData & 0x1F);
+                return (TextureUsage)(PhysicalSizeAndTemplateType & 0x1F);
             }
             set
             {
-                UsageData = (UsageData & 0xFFFFFFE0) + (((uint)value) & 0x1F);
+                PhysicalSizeAndTemplateType = (PhysicalSizeAndTemplateType & 0xFFFFFFE0) + (((uint)value) & 0x1F);
             }
         }
         public TextureUsageFlags UsageFlags
         {
             get
             {
-                return (TextureUsageFlags)(UsageData >> 5);
+                return (TextureUsageFlags)(PhysicalSizeAndTemplateType >> 5);
             }
             set
             {
-                UsageData = (UsageData & 0x1F) + (((uint)value) << 5);
+                PhysicalSizeAndTemplateType = (PhysicalSizeAndTemplateType & 0x1F) + (((uint)value) << 5);
             }
         }
 
@@ -306,11 +318,11 @@ namespace CodeWalker.GameFiles
             {
 
                 VFT = reader.ReadUInt32();
-                Unknown_4h = reader.ReadUInt32();
+                _ = reader.ReadUInt32();
                 G9_BlockCount = reader.ReadUInt32();
                 G9_BlockStride = reader.ReadUInt32();
                 G9_Flags = reader.ReadUInt32();
-                Unknown_14h = reader.ReadUInt32();
+                G9_Unknown_14h = reader.ReadUInt32();
                 Width = reader.ReadUInt16();                    // rage::sga::ImageParams 24
                 Height = reader.ReadUInt16();
                 Depth = reader.ReadUInt16();
@@ -320,14 +332,14 @@ namespace CodeWalker.GameFiles
                 G9_AntiAliasType = reader.ReadByte();
                 Levels = reader.ReadByte();
                 G9_Unknown_23h = reader.ReadByte();
-                Unknown_24h = reader.ReadByte();
+                G9_Unknown_24h = reader.ReadByte();
                 G9_Unknown_25h = reader.ReadByte();
                 G9_UsageCount = reader.ReadUInt16();
                 NamePointer = reader.ReadUInt64();
                 G9_SRVPointer = reader.ReadUInt64();
                 DataPointer = reader.ReadUInt64();
                 G9_UsageData = reader.ReadUInt32();
-                Unknown_44h = reader.ReadUInt32();//2 (or 0 for shader param)
+                G9_ResourceType = reader.ReadUInt32();
                 G9_Unknown_48h = reader.ReadUInt64();
 
                 Format = GetLegacyFormat(G9_Format);
@@ -352,7 +364,7 @@ namespace CodeWalker.GameFiles
                     default:
                         break;
                 }
-                if (Unknown_14h != 0)
+                if (G9_Unknown_14h != 0)
                 { }
                 switch (G9_Dimension)
                 {
@@ -375,7 +387,7 @@ namespace CodeWalker.GameFiles
                     default:
                         break;
                 }
-                if (Unknown_24h != 0)
+                if (G9_Unknown_24h != 0)
                 { }
                 if (G9_Unknown_25h != 0)
                 { }
@@ -435,7 +447,7 @@ namespace CodeWalker.GameFiles
                     default:
                         break;
                 }
-                switch (Unknown_44h)
+                switch (G9_ResourceType)
                 {
                     case 2:
                     case 0://(shader params)
@@ -452,23 +464,28 @@ namespace CodeWalker.GameFiles
 
                 // read structure data
                 this.VFT = reader.ReadUInt32();
-                this.Unknown_4h = reader.ReadUInt32();
-                this.Unknown_8h = reader.ReadUInt32();
-                this.Unknown_Ch = reader.ReadUInt32();
-                this.Unknown_10h = reader.ReadUInt32();
-                this.Unknown_14h = reader.ReadUInt32();
-                this.Unknown_18h = reader.ReadUInt32();
-                this.Unknown_1Ch = reader.ReadUInt32();
-                this.Unknown_20h = reader.ReadUInt32();
-                this.Unknown_24h = reader.ReadUInt32();
+                _ = reader.ReadUInt32();
+                this.FirstNodePointer = reader.ReadUInt64();
+                this.GcmFormat = reader.ReadByte();
+                this.GcmMipMapCount = reader.ReadByte();
+                this.GcmDimension = reader.ReadByte();
+                this.GcmImageType = reader.ReadByte();
+                this.GcmRemap = reader.ReadUInt32();
+                this.GcmWidth = reader.ReadUInt16();
+                this.GcmHeight = reader.ReadUInt16();
+                this.GcmDepth = reader.ReadUInt16();
+                this.GcmTileMode = reader.ReadByte();
+                this.GcmBindFlags = reader.ReadByte();
+                this.GcmPitch = reader.ReadUInt32();
+                this.GcmOffset = reader.ReadUInt32();
                 this.NamePointer = reader.ReadUInt64();
-                this.RefCount = reader.ReadUInt16();
-                this.Unknown_32h = reader.ReadUInt16();
-                this.Unknown_34h = reader.ReadUInt32();
-                this.Unknown_38h = reader.ReadUInt32();
-                this.Unknown_3Ch = reader.ReadUInt32();
-                this.UsageData = reader.ReadUInt32();
-                this.Unknown_44h = reader.ReadUInt32();
+                this.ReferenceCount = reader.ReadUInt16();
+                this.ResourceTypeAndConversionFlags = reader.ReadByte();
+                this.LayerCount = reader.ReadByte();
+                _ = reader.ReadUInt32();
+                this.CachedTexturePointer = reader.ReadUInt64();
+                this.PhysicalSizeAndTemplateType = reader.ReadUInt32();
+                this.HandleIndex = reader.ReadUInt32();
                 this.ExtraFlags = reader.ReadUInt32();
                 _ = reader.ReadUInt32();
 
@@ -483,88 +500,6 @@ namespace CodeWalker.GameFiles
                 {
                     NameHash = JenkHash.GenHashLowerInvariant(Name);
                 }
-
-
-                //switch (Unknown_32h)
-                //{
-                //    case 0x20:
-                //    case 0x28:
-                //    case 0x30:
-                //    case 0x38:
-                //    case 0x40:
-                //    case 0x48:
-                //    case 0x80:
-                //    case 0x90:
-                //    case 0x2://base/shaderparam
-                //        break;
-                //    default:
-                //        break;//no hit
-                //}
-
-                //switch (Usage)
-                //{
-                //    case TextureUsage.UNKNOWN:// = 0,
-                //    case TextureUsage.DEFAULT:// = 1,
-                //    case TextureUsage.TERRAIN:// = 2,
-                //    case TextureUsage.CLOUDDENSITY:// = 3,
-                //    case TextureUsage.CLOUDNORMAL:// = 4,
-                //    case TextureUsage.CABLE:// = 5,
-                //    case TextureUsage.FENCE:// = 6,
-                //    case TextureUsage.SCRIPT:// = 8,
-                //    case TextureUsage.WATERFLOW:// = 9,
-                //    case TextureUsage.WATERFOAM:// = 10,
-                //    case TextureUsage.WATERFOG:// = 11,
-                //    case TextureUsage.WATEROCEAN:// = 12,
-                //    case TextureUsage.FOAMOPACITY:// = 14,
-                //    case TextureUsage.DIFFUSEMIPSHARPEN:// = 16,
-                //    case TextureUsage.DIFFUSEDARK:// = 18,
-                //    case TextureUsage.DIFFUSEALPHAOPAQUE:// = 19,
-                //    case TextureUsage.DIFFUSE:// = 20,
-                //    case TextureUsage.DETAIL:// = 21,
-                //    case TextureUsage.NORMAL:// = 22,
-                //    case TextureUsage.SPECULAR:// = 23,
-                //    case TextureUsage.EMISSIVE:// = 24,
-                //    case TextureUsage.TINTPALETTE:// = 25,
-                //    case TextureUsage.SKIPPROCESSING:// = 26,
-                //        break;
-                //    case TextureUsage.ENVEFF:// = 7, //unused by V
-                //    case TextureUsage.WATER:// = 13, //unused by V
-                //    case TextureUsage.FOAM:// = 15,  //unused by V
-                //    case TextureUsage.DIFFUSEDETAIL:// = 17, //unused by V
-                //    case TextureUsage.DONOTOPTIMIZE:// = 27, //unused by V
-                //    case TextureUsage.TEST:// = 28,  //unused by V
-                //    case TextureUsage.COUNT:// = 29, //unused by V
-                //        break;//no hit
-                //    default:
-                //        break;//no hit
-                //}
-
-                //var uf = UsageFlags;
-                //if ((uf & TextureUsageFlags.EMBEDDEDSCRIPTRT) > 0) // .ydr embedded script_rt textures, only 3 uses
-                //{ }
-                //if ((uf & TextureUsageFlags.UNK19) > 0)
-                //{ }//no hit
-                //if ((uf & TextureUsageFlags.UNK20) > 0)
-                //{ }//no hit
-                //if ((uf & TextureUsageFlags.UNK21) > 0)
-                //{ }//no hit
-                //if ((uf & TextureUsageFlags.UNK24) == 0)//wtf isthis? only 0 on special resident(?) textures and some reused ones
-                //{ }
-
-                //if (!(this is Texture))
-                //{
-                //    if (Unknown_32h != 0x2)//base/shaderparam
-                //    { }//no hit
-                //    if (UsageData != 0)
-                //    { }//no hit
-                //    if (Unknown_44h != 0)
-                //    { }//no hit
-                //    if (ExtraFlags != 0)
-                //    { }//no hit
-                //    if (Unknown_4Ch != 0)
-                //    { }//no hit
-                //}
-
             }
         }
         public override void Write(ResourceDataWriter writer, params object[] parameters)
@@ -584,11 +519,11 @@ namespace CodeWalker.GameFiles
 
 
                 writer.Write(VFT);
-                writer.Write(Unknown_4h);
+                writer.Write(1u);
                 writer.Write(G9_BlockCount);
                 writer.Write(G9_BlockStride);
                 writer.Write(G9_Flags);
-                writer.Write(Unknown_14h);
+                writer.Write(G9_Unknown_14h);
                 writer.Write(Width);                    // rage::sga::ImageParams 24
                 writer.Write(Height);
                 writer.Write(Depth);
@@ -598,14 +533,14 @@ namespace CodeWalker.GameFiles
                 writer.Write(G9_AntiAliasType);
                 writer.Write(Levels);
                 writer.Write(G9_Unknown_23h);
-                writer.Write((byte)Unknown_24h);
+                writer.Write(G9_Unknown_24h);
                 writer.Write(G9_Unknown_25h);
                 writer.Write(G9_UsageCount);
                 writer.Write(NamePointer);
                 writer.Write(G9_SRVPointer);
                 writer.Write(DataPointer);
                 writer.Write(G9_UsageData);
-                writer.Write(Unknown_44h);
+                writer.Write(G9_ResourceType);
                 writer.Write(G9_Unknown_48h);
 
             }
@@ -617,23 +552,28 @@ namespace CodeWalker.GameFiles
 
                 // write structure data
                 writer.Write(this.VFT);
-                writer.Write(this.Unknown_4h);
-                writer.Write(this.Unknown_8h);
-                writer.Write(this.Unknown_Ch);
-                writer.Write(this.Unknown_10h);
-                writer.Write(this.Unknown_14h);
-                writer.Write(this.Unknown_18h);
-                writer.Write(this.Unknown_1Ch);
-                writer.Write(this.Unknown_20h);
-                writer.Write(this.Unknown_24h);
+                writer.Write(1u);
+                writer.Write(this.FirstNodePointer);
+                writer.Write(this.GcmFormat);
+                writer.Write(this.GcmMipMapCount);
+                writer.Write(this.GcmDimension);
+                writer.Write(this.GcmImageType);
+                writer.Write(this.GcmRemap);
+                writer.Write(this.GcmWidth);
+                writer.Write(this.GcmHeight);
+                writer.Write(this.GcmDepth);
+                writer.Write(this.GcmTileMode);
+                writer.Write(this.GcmBindFlags);
+                writer.Write(this.GcmPitch);
+                writer.Write(this.GcmOffset);
                 writer.Write(this.NamePointer);
-                writer.Write(this.RefCount);
-                writer.Write(this.Unknown_32h);
-                writer.Write(this.Unknown_34h);
-                writer.Write(this.Unknown_38h);
-                writer.Write(this.Unknown_3Ch);
-                writer.Write(this.UsageData);
-                writer.Write(this.Unknown_44h);
+                writer.Write(this.ReferenceCount);
+                writer.Write(this.ResourceTypeAndConversionFlags);
+                writer.Write(this.LayerCount);
+                writer.Write(0u);
+                writer.Write(this.CachedTexturePointer);
+                writer.Write(this.PhysicalSizeAndTemplateType);
+                writer.Write(this.HandleIndex);
                 writer.Write(this.ExtraFlags);
                 writer.Write(0u);
             }
@@ -653,7 +593,8 @@ namespace CodeWalker.GameFiles
                 }
             }
             YtdXml.StringTag(sb, indent, "Name", YtdXml.XmlEscape(xmlName));
-            YtdXml.ValueTag(sb, indent, "Unk32", Unknown_32h.ToString());
+            YtdXml.ValueTag(sb, indent, "ResourceTypeAndConversionFlags", ResourceTypeAndConversionFlags.ToString());
+            YtdXml.ValueTag(sb, indent, "LayerCount", LayerCount.ToString());
             YtdXml.StringTag(sb, indent, "Usage", Usage.ToString());
             YtdXml.StringTag(sb, indent, "UsageFlags", UsageFlags.ToString());
             YtdXml.ValueTag(sb, indent, "ExtraFlags", ExtraFlags.ToString());
@@ -662,7 +603,18 @@ namespace CodeWalker.GameFiles
         {
             Name = Xml.GetChildInnerText(node, "Name") ?? string.Empty;
             NameHash = JenkHash.GenHashLowerInvariant(Name);
-            Unknown_32h = (ushort)Xml.GetChildUIntAttribute(node, "Unk32", "value");
+            var resourceTypeNode = node.SelectSingleNode("ResourceTypeAndConversionFlags");
+            if (resourceTypeNode != null)
+            {
+                ResourceTypeAndConversionFlags = (byte)Xml.GetUIntAttribute(resourceTypeNode, "value");
+                LayerCount = (byte)Xml.GetChildUIntAttribute(node, "LayerCount", "value");
+            }
+            else
+            {
+                var legacyTypeAndLayer = (ushort)Xml.GetChildUIntAttribute(node, "Unk32", "value");
+                ResourceTypeAndConversionFlags = (byte)legacyTypeAndLayer;
+                LayerCount = (byte)(legacyTypeAndLayer >> 8);
+            }
             Usage = Xml.GetChildEnumInnerText<TextureUsage>(node, "Usage");
             UsageFlags = Xml.GetChildEnumInnerText<TextureUsageFlags>(node, "UsageFlags");
             ExtraFlags = Xml.GetChildUIntAttribute(node, "ExtraFlags", "value");
@@ -673,11 +625,9 @@ namespace CodeWalker.GameFiles
         public void EnsureGen9()
         {
             VFT = 0;
-            Unknown_4h = 1;
-
             var istex = this is Texture;
 
-            Unknown_44h = istex ? 2 : 0u;
+            G9_ResourceType = istex ? 2u : 0u;
 
             if (G9_Flags == 0)
             {
