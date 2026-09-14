@@ -3688,13 +3688,16 @@ namespace CodeWalker.Project
         }
         public YmapEntityDef? NewMloEntity(YmapEntityDef? copy = null, bool copyTransform = false, bool selectNew = true)
         {
-            MloArchetype? mloArch = CurrentArchetype as MloArchetype;
+            MloArchetype? mloArch = CurrentMloRoom?.OwnerMlo
+                ?? CurrentMloPortal?.OwnerMlo
+                ?? CurrentMloEntitySet?.OwnerMlo
+                ?? (CurrentEntity?.MloParent?.Archetype as MloArchetype)
+                ?? (CurrentArchetype as MloArchetype);
             if (mloArch == null)
             {
-                mloArch = (CurrentEntity?.MloParent?.Archetype as MloArchetype) ?? CurrentMloRoom?.OwnerMlo ?? CurrentMloPortal?.OwnerMlo ?? CurrentMloEntitySet?.OwnerMlo;
-                if (mloArch == null) return null;
-                CurrentArchetype = mloArch;
+                return null;
             }
+            CurrentArchetype = mloArch;
 
             var mloInstance = TryGetMloInstance(mloArch);
             if (mloInstance == null)
