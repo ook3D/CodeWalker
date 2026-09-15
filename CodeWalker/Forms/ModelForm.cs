@@ -340,6 +340,13 @@ namespace CodeWalker.Forms
 
                 UpdateParticles(elapsed);
                 UpdateMrfAnimation(elapsed);
+                if (weaponClip != null)
+                {
+                    if (weaponPlaying) weaponTime += elapsed * weaponRate;
+                    var duration = weaponClip.Clip?.GetDuration() ?? 0;
+                    if (duration > 0) weaponTime %= duration;
+                    weaponClip.PlayTime = weaponTime;
+                }
 
                 Renderer.BeginRender(context);
 
@@ -428,7 +435,7 @@ namespace CodeWalker.Forms
                         timecycle.SetTime(Renderer.timeofday);
                         //UpdateStatus("Timecycles loaded.");
                     }
-                    if (!animsInited)
+                    if (!animsInited && weaponTab == null)
                     {
                         InitAnimation();
                         animsInited = true;
@@ -745,6 +752,11 @@ namespace CodeWalker.Forms
 
         private void RenderSingleItem()
         {
+            if (weaponTab != null)
+            {
+                RenderWeaponPreview();
+                return;
+            }
             if (AnimClip != null)
             {
                 AnimClip.EnableRootMotion = EnableRootMotion;

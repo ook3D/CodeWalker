@@ -4039,7 +4039,7 @@ namespace CodeWalker.Rendering
 
 
 
-        private Renderable? TryGetRenderable(Archetype? arche, rmcDrawable? drawable, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null)
+        internal Renderable? TryGetRenderable(Archetype? arche, rmcDrawable? drawable, uint txdHash = 0, TextureDictionary? txdExtra = null, Texture? diffOverride = null)
         {
             if (drawable == null) return null;
             //BUG: only last texdict used!! needs to cache textures per archetype........

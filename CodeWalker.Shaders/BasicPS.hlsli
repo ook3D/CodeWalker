@@ -53,6 +53,8 @@ cbuffer PSGeomVars : register(b2)
     float4 HairSpecular;
     float4 HairColour;
     float4 HairNoiseUV;
+    float4 TintPaletteParams; // palette row, weapon material flag, secondary exponent, unused
+    float4 WeaponSpecularColour; // RGB colour and secondary intensity
 }
 
 
@@ -145,7 +147,7 @@ void SampleBasicMaterial(VS_OUTPUT input, float2 texcoord, out float3 normal,
 
     material = ReadSpecularMaterial(specularSample, EnableSpecMap != 0,
         specMapIntMask, specularIntensityMult, specularFalloffMult, specularFresnel);
-    if (UsePedSpecular != 0 && EnableSpecMap != 0)
+    if ((UsePedSpecular != 0 || TintPaletteParams.y != 0) && EnableSpecMap != 0)
     {
         // Ped R/G encode intensity/exponent; alpha is a detail mask, not shininess.
         material.Intensity = max(specularSample.r * specularSample.r * specularIntensityMult, 0);
@@ -153,6 +155,37 @@ void SampleBasicMaterial(VS_OUTPUT input, float2 texcoord, out float3 normal,
     }
 }
 
+float4 ApplyWeaponPalette(float4 colour)
+{
+    // Only alpha bytes 32..160 encode palette indices; other pixels retain colour and coverage.
+    float index = floor(colour.a * 255.01);
+    if (index < 32 || index > 160) return colour;
+    uint width, height;
+    TintPalette.GetDimensions(width, height);
+    int column = min((int)((index - 32) * width / 128.0), (int)width - 1);
+    int row = clamp((int)(TintPaletteParams.x * height), 0, (int)height - 1);
+    // The original palette sampler uses point filtering and clamp addressing.
+    colour.rgb *= TintPalette.Load(int3(column, row, 0)).rgb;
+    colour.a = 1;
+    return colour;
+}
+
+float3 WeaponSecondarySpecular(VS_OUTPUT input, float2 uv, float3 normal, float3 lightDirection)
+{
+    if (TintPaletteParams.y == 0 || WeaponSpecularColour.w == 0) return 0;
+    float intensity = WeaponSpecularColour.w;
+    float exponent = TintPaletteParams.z;
+    if (EnableSpecMap != 0)
+    {
+        float2 packed = Specmap.Sample(TextureSS, uv).rg;
+        packed *= packed;
+        intensity *= packed.r * specularFresnel;
+        exponent *= packed.g;
+    }
+    float3 halfVector = LightingDirection(lightDirection + LightingDirection(-input.CamRelPos));
+    return WeaponSpecularColour.rgb * intensity
+        * pow(saturate(dot(normal, halfVector) + 1e-8), max(exponent, 0) + 1e-8);
+}
 
 
 

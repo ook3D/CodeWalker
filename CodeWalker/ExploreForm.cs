@@ -59,6 +59,12 @@ namespace CodeWalker
         public ExploreForm()
         {
             InitializeComponent();
+            ToolsMenu.DropDownItems.Add("Weapon Viewer", null, (_, _) =>
+            {
+                var viewer = new ModelForm(this);
+                viewer.EnableWeaponViewer();
+                viewer.Show(this);
+            });
 
             SetTheme(Settings.Default.ExplorerWindowTheme, false);
 

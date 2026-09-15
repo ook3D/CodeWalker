@@ -35,8 +35,9 @@ public class PedMaterialTests
     [Fact]
     public void PedFlagPreservesPixelConstantBufferLayout()
     {
-        Assert.Equal(208, Marshal.SizeOf<BasicShaderPSGeomVars>());
+        Assert.Equal(240, Marshal.SizeOf<BasicShaderPSGeomVars>());
         Assert.Equal(124, Marshal.OffsetOf<BasicShaderPSGeomVars>(nameof(BasicShaderPSGeomVars.UsePedSpecular)).ToInt32());
+        Assert.Equal(208, Marshal.OffsetOf<BasicShaderPSGeomVars>(nameof(BasicShaderPSGeomVars.TintPaletteParams)).ToInt32());
     }
     [Theory]
     [InlineData(-1, false)]

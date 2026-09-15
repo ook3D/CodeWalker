@@ -88,6 +88,8 @@ namespace CodeWalker.Rendering
         public Vector4 HairSpecular;
         public Vector4 HairColour;
         public Vector4 HairNoiseUV;
+        public Vector4 TintPaletteParams;
+        public Vector4 WeaponSpecularColour;
     }
     public struct BasicShaderInstGlobalMatrix
     {
@@ -739,6 +741,8 @@ namespace CodeWalker.Rendering
             uint pstintflag = tintflag;
             var shaderName = geom.DrawableGeom?.Shader?.Name ?? 0;
             var shaderFile = geom.DrawableGeom?.Shader?.FileName ?? 0;
+            bool weaponMaterial = shaderFile.Hash is 3267631682 or 14185869 or 231364109 or 3294641629 or 731050667;
+            if (weaponMaterial) usediff2 = false; // DiffuseExtraSampler is the inventory icon in these shaders.
             switch (shaderFile.Hash)
             {
                 case 2245870123: //trees_normal_diffspec_tnt.sps
@@ -795,6 +799,8 @@ namespace CodeWalker.Rendering
 
             PSGeomVars.Vars.EnableTexture = (usediff ? 1u : 0u) + (usediff2 ? 2u : 0u);
             PSGeomVars.Vars.EnableTint = pstintflag;
+            PSGeomVars.Vars.TintPaletteParams = new Vector4(tntpalind, weaponMaterial ? 1 : 0, geom.specular2Factor, 0);
+            PSGeomVars.Vars.WeaponSpecularColour = SpecularEnable ? geom.WeaponSpecularColour : Vector4.Zero;
             PSGeomVars.Vars.EnableNormalMap = usebump ? 1u : 0u;
             PSGeomVars.Vars.EnableSpecMap = usespec ? 1u : 0u;
             PSGeomVars.Vars.EnableDetailMap = usedetl ? 1u : 0u;

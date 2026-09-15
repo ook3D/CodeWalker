@@ -53,12 +53,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         }
         if (EnableTint == 2)
         {
-            //weapon tint
-            float tx = (round(c.a * 255.009995) - 32.0) * 0.007813; //okay R* this is just silly
-            float ty = 0.03125 * 0.5;// //1;//what to use for Y value? cb12[2].w in R* shader
-            float4 c3 = TintPalette.Sample(TextureSS, float2(tx, ty));
-            c.rgb *= c3.rgb;
-            c.a = 1;
+            c = ApplyWeaponPalette(c);
         }
 
         if (IsDistMap) c = float4(c.rgb*2, (c.r+c.g+c.b) - 1);
@@ -139,6 +134,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 
     if (RenderMode == 0) c.rgb = MaterialDiffuseColour(c.rgb);
+    if (RenderMode == 0) c.rgb += WeaponSecondarySpecular(input, texc0, norm, materialLights.LightDir.xyz);
     float4 fc = c;
 
     c.rgb = FullLighting(c.rgb * diffuseScale, spec, norm, input.Colour0, materialLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);

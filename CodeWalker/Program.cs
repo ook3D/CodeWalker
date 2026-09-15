@@ -24,6 +24,7 @@ static class Program
             bool projectmode = false;
             bool vehiclesmode = false;
             bool pedsmode = false;
+            bool weaponsmode = false;
             if (args is { Length: > 0 })
             {
                 foreach (string arg in args)
@@ -44,6 +45,9 @@ static class Program
                             break;
                         case "peds":
                             pedsmode = true;
+                            break;
+                        case "weapons":
+                            weaponsmode = true;
                             break;
                     }
                 }
@@ -81,6 +85,12 @@ static class Program
                 else if (vehiclesmode)
                 {
                     Application.Run(new VehicleForm());
+                }
+                else if (weaponsmode)
+                {
+                    var viewer = new Forms.ModelForm();
+                    viewer.EnableWeaponViewer();
+                    Application.Run(viewer);
                 }
                 else if (pedsmode)
                 {

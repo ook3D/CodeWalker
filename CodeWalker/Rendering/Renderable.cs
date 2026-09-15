@@ -865,6 +865,8 @@ namespace CodeWalker.Rendering
         public float specularIntensityMult { get; set; } = 0.0f;
         public float specularFalloffMult { get; set; } = 100.0f;
         public float specularFresnel { get; set; } = 0.97f;
+        public float specular2Factor { get; set; } = 40.0f;
+        public Vector4 WeaponSpecularColour { get; set; } = new Vector4(1, 1, 1, 4.7f);
         public float RippleSpeed { get; set; } = 1.0f;
         public float RippleScale { get; set; } = 1.0f;
         public float RippleBumpiness { get; set; } = 1.0f;
@@ -1116,6 +1118,15 @@ namespace CodeWalker.Rendering
                                 break;
                             case ShaderParamNames.specularFresnel: //float
                                 specularFresnel= (vector).X;
+                                break;
+                            case ShaderParamNames.specular2Factor:
+                                specular2Factor = vector.X;
+                                break;
+                            case ShaderParamNames.specular2Color:
+                                WeaponSpecularColour = new Vector4(vector.XYZ(), WeaponSpecularColour.W);
+                                break;
+                            case ShaderParamNames.specular2ColorIntensity:
+                                WeaponSpecularColour = new Vector4(WeaponSpecularColour.XYZ(), vector.X);
                                 break;
                             case ShaderParamNames.WindGlobalParams:
                                 WindGlobalParams = (vector);
