@@ -26,6 +26,7 @@ public class Archetype
     public Vector3 BSCenter { get; set; }
     public float BSRadius { get; set; }
     public float LodDist { get; set; }
+    public bool UseAmbientScale => (_BaseArchetypeDef.flags & (1u << 29)) != 0;
     public MetaWrapper[] Extensions { get; set; } = [];
 
 

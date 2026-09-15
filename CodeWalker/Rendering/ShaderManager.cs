@@ -19,6 +19,7 @@ namespace CodeWalker.Rendering
         public int RenderedGeometries;
 
         private Device Device;
+        private readonly GpuVarsBuffer<Vector4> entityAmbient;
 
         public bool wireframe = Settings.Default.Wireframe;
         RasterizerState rsSolid;
@@ -142,6 +143,7 @@ namespace CodeWalker.Rendering
         {
             Device = device;
             DXMan = dxman;
+            entityAmbient = new GpuVarsBuffer<Vector4>(device);
 
             //HDR = new PostProcessor(dxman);
             Basic = new BasicShader(device);
@@ -289,6 +291,7 @@ namespace CodeWalker.Rendering
         {
             if (disposed) return;
             disposed = true;
+            entityAmbient.Dispose();
 
             dsEnabled.Dispose();
             dsDisableWriteRev.Dispose();
@@ -615,6 +618,7 @@ namespace CodeWalker.Rendering
                 Basic.AlphaScale = 1.0f;
                 Basic.SetShader(context);
                 Basic.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
+                SetEntityAmbient(context, Vector2.One);
                 for (int i = 0; i < RenderInstBatches.Count; i++)
                 {
                     RenderInstancedBatch(context, RenderInstBatches[i]);
@@ -994,6 +998,7 @@ namespace CodeWalker.Rendering
                 var gmodel = geom.Geom.Owner;
                 if (gmodel == null) continue;
                 shader.SetEntityVars(context, ref geom.Inst);
+                SetEntityAmbient(context, geom.Inst.AmbientScale ?? Vector2.One);
 
                 if (gmodel != model)
                 {
@@ -1024,6 +1029,13 @@ namespace CodeWalker.Rendering
 
         }
 
+        private void SetEntityAmbient(DeviceContext context, Vector2 scale)
+        {
+            entityAmbient.Vars = new Vector4(scale, 0, 0);
+            entityAmbient.Update(context);
+            entityAmbient.SetPSCBuffer(context, 10);
+        }
+
         private void RenderGrassFurBatches(DeviceContext context, List<ShaderBatch> batches)
         {
             GrassFur.SetShader(context);
@@ -1048,6 +1060,7 @@ namespace CodeWalker.Rendering
                 var gmodel = geom.Geom.Owner;
                 if (gmodel == null) continue;
                 GrassFur.SetEntityVars(context, ref geom.Inst);
+                SetEntityAmbient(context, geom.Inst.AmbientScale ?? Vector2.One);
 
                 if (gmodel != model)
                 {
@@ -1072,6 +1085,7 @@ namespace CodeWalker.Rendering
             Basic.RenderMode = WorldRenderMode.VertexColour;
             Basic.SetShader(context);
             Basic.SetSceneVars(context, Camera, /*Shadowmap*/ null, GlobalLights);//should this be using shadows??
+            SetEntityAmbient(context, Vector2.One);
             Basic.SetInputLayout(context, VertexType.Default);
 
             GeometryCount += batch.Count;

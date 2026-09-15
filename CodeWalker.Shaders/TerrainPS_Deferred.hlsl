@@ -1,3 +1,4 @@
+#include "EntityAmbient.hlsli"
 #include "TerrainPS.hlsli"
 
 
@@ -399,7 +400,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     output.Diffuse = tv;
     output.Normal = float4(saturate(norm * 0.5 + 0.5), tv.a);
     output.Specular = float4(spec, tv.a);
-    float2 terrIrr = EncodeAmbient(vc0.rg);
+    float2 terrIrr = EncodeAmbient(ApplyEntityAmbient(vc0).rg);
     output.Irradiance = float4(terrIrr, 0, tv.a);
 
     return output;

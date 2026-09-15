@@ -1804,6 +1804,8 @@ namespace CodeWalker.GameFiles
         public Vector3 BBMax;//oriented archetype AABBmax
         public Vector3 BBCenter; //oriented archetype AABB center
         public Vector3 BBExtent; //oriented archetype AABB extent
+        public Vector3 LightsBBCenter; //world AABB of all light volumes, valid once Lights is set
+        public Vector3 LightsBBExtent;
         public Vector3 BSCenter; //oriented archetype BS center
         public float BSRadius;//cached from archetype
         public float LodDist;
@@ -2509,6 +2511,8 @@ namespace CodeWalker.GameFiles
             //todo: create extension light instances
 
             var lightInsts = new LightInstance[lightAttrs.Length];
+            var lmin = new Vector3(float.MaxValue);
+            var lmax = new Vector3(float.MinValue);
             for (int i = 0; i < lightAttrs.Length; i++)
             {
                 ints[6] = (uint)(exts + i);
@@ -2526,7 +2530,13 @@ namespace CodeWalker.GameFiles
                 li.Position = Orientation.Multiply(xform.Multiply(la.Position)) + Position;
                 li.Direction = Orientation.Multiply(xform.MultiplyRot(la.Direction));
                 lightInsts[i] = li;
+
+                var reach = new Vector3(la.Falloff + Math.Abs(la.Extents.X));
+                lmin = Vector3.Min(lmin, li.Position - reach);
+                lmax = Vector3.Max(lmax, li.Position + reach);
             }
+            LightsBBCenter = (lmin + lmax) * 0.5f;
+            LightsBBExtent = Vector3.Max((lmax - lmin) * 0.5f, Vector3.Zero);
             Lights = lightInsts;
 
             //LightHashTest = new uint[25];

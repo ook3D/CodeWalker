@@ -1,3 +1,4 @@
+#include "EntityAmbient.hlsli"
 #include "CablePS.hlsli"
 
 
@@ -57,7 +58,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 
 
-    c.rgb = FullLighting(MaterialDiffuseColour(c.rgb), 0, norm, input.Colour0, GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow);
+    c.rgb = FullLighting(MaterialDiffuseColour(c.rgb), 0, norm, ApplyEntityAmbient(input.Colour0), GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow);
 
     c.a = saturate(c.a);
 

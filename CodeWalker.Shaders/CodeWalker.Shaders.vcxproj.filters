@@ -296,6 +296,9 @@
     <None Include="MaterialLighting.hlsli">
       <Filter>Common</Filter>
     </None>
+    <None Include="EntityAmbient.hlsli">
+      <Filter>Common</Filter>
+    </None>
     <None Include="WorldPostFx.hlsli">
       <Filter>Common</Filter>
     </None>

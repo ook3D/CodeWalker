@@ -2379,7 +2379,7 @@ namespace CodeWalker.Rendering
                     if (!RenderIsEntityFinalRender(ent)) return;
 
 
-                    if (!camera.ViewFrustum.ContainsAABBNoClip(ref ent.BBCenter, ref ent.BBExtent))
+                    if (!RenderLodManager.EntityInFrustum(camera,ent))
                     {
                         return;
                     }
@@ -2451,7 +2451,7 @@ namespace CodeWalker.Rendering
 
                     intent.IsVisible = true;
 
-                    if (cancull && !camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent))
+                    if (cancull && !RenderLodManager.EntityInFrustum(camera,intent))
                     {
                         continue; //frustum cull interior ents
                     }
@@ -2476,7 +2476,7 @@ namespace CodeWalker.Rendering
 
                         intent.IsVisible = true;
 
-                        if (cancull && !camera.ViewFrustum.ContainsAABBNoClip(ref intent.BBCenter, ref intent.BBExtent))
+                        if (cancull && !RenderLodManager.EntityInFrustum(camera,intent))
                         {
                             continue; //frustum cull interior ents
                         }
@@ -3548,6 +3548,7 @@ namespace CodeWalker.Rendering
                 // MLO walls and ceilings must occlude exterior sun/moon light too.
                 rginst.Inst.CastShadow = true;
                 rginst.Inst.IsInterior = entity?.MloParent != null;
+                rginst.Inst.AmbientScale = InteriorLighting.GetAmbientScale(arche, entity, weather.TimecycleMods?.Dict);
 
 
                 RenderableModel[] models = isselected ? rndbl.AllModels : rndbl.HDModels;
@@ -4736,8 +4737,17 @@ namespace CodeWalker.Rendering
             }
             else
             {
-                return Camera.ViewFrustum.ContainsAABBNoClip(ref ent.BBCenter, ref ent.BBExtent);
+                return EntityInFrustum(Camera, ent);
             }
+        }
+        internal static bool EntityInFrustum(Camera cam, YmapEntityDef ent)
+        {
+            //light volumes reach well outside the entity's own box, so keep the entity while any of its lights are in view
+            if (cam.ViewFrustum.ContainsAABBNoClip(ref ent.BBCenter, ref ent.BBExtent))
+            {
+                return true;
+            }
+            return (ent.Lights != null) && cam.ViewFrustum.ContainsAABBNoClip(ref ent.LightsBBCenter, ref ent.LightsBBExtent);
         }
         private bool EntityVisibleAtMaxLodLevel(YmapEntityDef ent)
         {

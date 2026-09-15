@@ -1,3 +1,4 @@
+#include "EntityAmbient.hlsli"
 #include "MaterialAlpha.hlsli"
 #include "BasicPS.hlsli"
 
@@ -121,7 +122,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         spec = materialLights.LightDirColour.rgb * specularLight;
         float3 reflected = reflect(-viewDir, norm);
         float reflectionAmount = MaterialReflectionAmount(material, norm, viewDir);
-        environmentSpec = AmbientEnvironment(reflected, input.Colour0.rg, materialLights)
+        environmentSpec = AmbientEnvironment(reflected, ApplyEntityAmbient(input.Colour0).rg, materialLights)
             * reflectionAmount
             * MaterialReflectionNormalization(material);
         diffuseScale = 1.0 - reflectionAmount;
@@ -137,7 +138,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     if (RenderMode == 0) c.rgb += WeaponSecondarySpecular(input, texc0, norm, materialLights.LightDir.xyz);
     float4 fc = c;
 
-    c.rgb = FullLighting(c.rgb * diffuseScale, spec, norm, input.Colour0, materialLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
+    c.rgb = FullLighting(c.rgb * diffuseScale, spec, norm, ApplyEntityAmbient(input.Colour0), materialLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
     c.rgb += environmentSpec;
 
 

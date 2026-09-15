@@ -839,6 +839,7 @@
     <None Include="Common.hlsli" />
     <None Include="MaterialAlpha.hlsli" />
     <None Include="MaterialLighting.hlsli" />
+    <None Include="EntityAmbient.hlsli" />
     <None Include="WorldPostFx.hlsli" />
     <None Include="LightPS.hlsli" />
     <None Include="Quaternion.hlsli" />

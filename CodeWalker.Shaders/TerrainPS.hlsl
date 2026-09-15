@@ -1,3 +1,4 @@
+#include "EntityAmbient.hlsli"
 #include "TerrainPS.hlsli"
 
 
@@ -424,7 +425,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     float3 spec = 0;
 
     if (RenderMode == 0) tv.rgb = MaterialDiffuseColour(tv.rgb);
-    tv.rgb = FullLighting(tv.rgb, spec, norm, vc0, GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
+    tv.rgb = FullLighting(tv.rgb, spec, norm, ApplyEntityAmbient(vc0), GlobalLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
 
 
     return float4(tv.rgb, saturate(tv.a));

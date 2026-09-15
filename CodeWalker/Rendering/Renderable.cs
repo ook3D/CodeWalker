@@ -28,6 +28,7 @@ namespace CodeWalker.Rendering
         public uint TintPaletteIndex;
         public bool CastShadow;
         public bool IsInterior;
+        public Vector2? AmbientScale;
     }
     public struct RenderableGeometryInst
     {

@@ -1,3 +1,4 @@
+#include "EntityAmbient.hlsli"
 #include "GrassFur.hlsli"
 
 PS_OUTPUT main(VS_OUTPUT input)
@@ -8,7 +9,7 @@ PS_OUTPUT main(VS_OUTPUT input)
     float3 bita = GetFurBitangent(input.Normal, input.Tangent0);
     float3 norm = GetFurNormal(input.Texcoord0, input.Normal, input.Tangent0.xyz, bita).xyz;
     float lf = saturate(dot(norm, GlobalLights.LightDir));
-    float3 c = GlobalLighting(MaterialDiffuseColour(albo.rgb), norm, input.Colour0, lf, GlobalLights);
+    float3 c = GlobalLighting(MaterialDiffuseColour(albo.rgb), norm, ApplyEntityAmbient(input.Colour0), lf, GlobalLights);
 
     PS_OUTPUT output;
     output.Colour = float4(c, albo.a);
