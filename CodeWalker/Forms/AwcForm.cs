@@ -107,7 +107,7 @@ namespace CodeWalker.Forms
                 foreach (var audio in strlist)
                 {
                     var stereo = (audio.ChannelStreams?.Length == 2);
-                    if ((audio.StreamBlocks != null) && (!stereo)) continue;//don't display multichannel source audios
+                    if ((audio.StreamBlocks?.Length > 0) && (!stereo)) continue;//don't display multichannel source audios
                     var name = audio.Name;
                     if (stereo) name = "(Stereo Playback)";
                     var item = PlayListView.Items.Add(name);
