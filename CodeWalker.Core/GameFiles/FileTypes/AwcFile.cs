@@ -24,9 +24,9 @@ namespace CodeWalker.GameFiles
         public int DataOffset { get; set; }
 
         public bool ChunkIndicesFlag { get { return ((Flags & 1) == 1); } set { Flags = (ushort)((Flags & 0xFFFE) + (value ? 1 : 0)); } }
-        public bool SingleChannelEncryptFlag { get { return ((Flags & 2) == 2); } set { Flags = (ushort)((Flags & 0xFFFD) + (value ? 2 : 0)); } }
+        public bool ContiguousPackingFlag { get { return ((Flags & 2) == 2); } set { Flags = (ushort)((Flags & 0xFFFD) + (value ? 2 : 0)); } }
         public bool MultiChannelFlag { get { return ((Flags & 4) == 4); } set { Flags = (ushort)((Flags & 0xFFFB) + (value ? 4 : 0)); } }
-        public bool MultiChannelEncryptFlag { get { return ((Flags & 8) == 8); } set { Flags = (ushort)((Flags & 0xFFF7) + (value ? 8 : 0)); } }
+        public bool DataEncryptedFlag { get { return ((Flags & 8) == 8); } set { Flags = (ushort)((Flags & 0xFFF7) + (value ? 8 : 0)); } }
 
         public ushort[] ChunkIndices { get; set; } = []; //index of first chunk for each stream
         public AwcChunkInfo[] ChunkInfos { get; set; } = []; // just for browsing convenience really
@@ -324,7 +324,7 @@ namespace CodeWalker.GameFiles
                 {
                     if (MultiChannelFlag)
                     {
-                        if (MultiChannelEncryptFlag && !WholeFileEncrypted)
+                        if (DataEncryptedFlag && !WholeFileEncrypted)
                         {
                             var bcount = (int)(MultiChannelSource?.StreamFormatChunk?.BlockCount ?? 0);
                             var bsize = (int)(MultiChannelSource?.StreamFormatChunk?.BlockSize ?? 0);
@@ -341,7 +341,7 @@ namespace CodeWalker.GameFiles
                     }
                     else
                     {
-                        if (SingleChannelEncryptFlag && !WholeFileEncrypted)
+                        if (DataEncryptedFlag && !WholeFileEncrypted)
                         {
                             if (datachunk.Data.Length % 4 != 0)
                             {
@@ -366,17 +366,17 @@ namespace CodeWalker.GameFiles
             {
                 AwcXml.ValueTag(sb, indent, "ChunkIndices", true.ToString());
             }
-            if (SingleChannelEncryptFlag)
+            if (ContiguousPackingFlag)
             {
-                AwcXml.ValueTag(sb, indent, "SingleChannelEncrypt", true.ToString());
+                AwcXml.ValueTag(sb, indent, "ContiguousPacking", true.ToString());
             }
             if (MultiChannelFlag)
             {
                 AwcXml.ValueTag(sb, indent, "MultiChannel", true.ToString());
             }
-            if (MultiChannelEncryptFlag)
+            if (DataEncryptedFlag)
             {
-                AwcXml.ValueTag(sb, indent, "MultiChannelEncrypt", true.ToString());
+                AwcXml.ValueTag(sb, indent, "DataEncrypted", true.ToString());
             }
             if (WholeFileEncrypted)
             {
@@ -401,9 +401,10 @@ namespace CodeWalker.GameFiles
         {
             Version = (ushort)Xml.GetChildUIntAttribute(node, "Version");
             ChunkIndicesFlag = Xml.GetChildBoolAttribute(node, "ChunkIndices");
-            SingleChannelEncryptFlag = Xml.GetChildBoolAttribute(node, "SingleChannelEncrypt");
+            // Accept legacy XML names, which represented these same header bits.
+            ContiguousPackingFlag = Xml.GetChildBoolAttribute(node, node.SelectSingleNode("ContiguousPacking") != null ? "ContiguousPacking" : "SingleChannelEncrypt");
             MultiChannelFlag = Xml.GetChildBoolAttribute(node, "MultiChannel");
-            MultiChannelEncryptFlag = Xml.GetChildBoolAttribute(node, "MultiChannelEncrypt");
+            DataEncryptedFlag = Xml.GetChildBoolAttribute(node, node.SelectSingleNode("DataEncrypted") != null ? "DataEncrypted" : "MultiChannelEncrypt");
             WholeFileEncrypted = Xml.GetChildBoolAttribute(node, "WholeFileEncrypt");
 
             var snode = node.SelectSingleNode("Streams");
@@ -469,7 +470,7 @@ namespace CodeWalker.GameFiles
                 }
             }
 
-            var issorted = MultiChannelFlag || !SingleChannelEncryptFlag;
+            var issorted = MultiChannelFlag || !ContiguousPackingFlag;
             if (issorted)
             {
                 chunks.Sort((a, b) => b.ChunkInfo?.SortOrder.CompareTo(a.ChunkInfo?.SortOrder ?? 0) ?? -1);
@@ -484,7 +485,7 @@ namespace CodeWalker.GameFiles
             if (Streams == null) return;
             if (StreamInfos == null) return;
 
-            var issorted = MultiChannelFlag || !SingleChannelEncryptFlag;
+            var issorted = MultiChannelFlag || !ContiguousPackingFlag;
 
             var chunklist = ChunkInfos.ToList();
             chunklist.Sort((a, b) => a.Offset.CompareTo(b.Offset));
@@ -1272,7 +1273,7 @@ namespace CodeWalker.GameFiles
                         int blen = Math.Max(Math.Min(bsize, DataChunk.Data.Length - srcoff), 0);
                         var bdat = new byte[blen];
                         Buffer.BlockCopy(DataChunk.Data, srcoff, bdat, 0, blen);
-                        if (Awc.MultiChannelEncryptFlag && !Awc.WholeFileEncrypted)
+                        if (Awc.DataEncryptedFlag && !Awc.WholeFileEncrypted)
                         {
                             AwcFile.Decrypt_RSXXTEA(bdat);
                         }
@@ -1283,7 +1284,7 @@ namespace CodeWalker.GameFiles
                 }
                 else
                 {
-                    if (Awc.SingleChannelEncryptFlag && !Awc.WholeFileEncrypted)
+                    if (Awc.DataEncryptedFlag && !Awc.WholeFileEncrypted)
                     {
                         AwcFile.Decrypt_RSXXTEA(DataChunk.Data);
                     }
