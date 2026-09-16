@@ -7226,17 +7226,19 @@ namespace CodeWalker
             });
         }
 
-        private void SetModsEnabled(bool enable)
+        private void SetAssetSourceEnabled(Func<bool> setEnabled)
         {
             if (!initialised) return;
             Cursor = Cursors.WaitCursor;
+            EnableModsCheckBox.Enabled = false;
+            EnableFiveMResourcesCheckBox.Enabled = false;
             Task.Run(() =>
             {
                 try
                 {
                     lock (Renderer.RenderSyncRoot)
                     {
-                        if (gameFileCache.SetModsEnabled(enable))
+                        if (setEnabled())
                         {
                             UpdateDlcListComboBox(gameFileCache.DlcNameList);
 
@@ -7245,11 +7247,16 @@ namespace CodeWalker
                     }
                     Invoke(new Action(() => {
                         Cursor = Cursors.Default;
+                        EnableModsCheckBox.Enabled = true;
+                        EnableFiveMResourcesCheckBox.Enabled = true;
+                        Settings.Default.EnableMods = gameFileCache.EnableMods;
+                        Settings.Default.EnableFiveMResources = gameFileCache.EnableFiveMResources;
+                        Settings.Default.Save();
                     }));
                 }
                 catch (Exception ex)
                 {
-                    try { Invoke(new Action(() => { Cursor = Cursors.Default; MessageBox.Show($"Error setting mods enabled: {ex.Message}"); })); }
+                    try { Invoke(new Action(() => { Cursor = Cursors.Default; EnableModsCheckBox.Enabled = true; EnableFiveMResourcesCheckBox.Enabled = true; MessageBox.Show($"Error changing enabled resources: {ex.Message}"); })); }
                     catch (ObjectDisposedException) { }
                     catch (Win32Exception) { }
                     catch (InvalidOperationException) { }
@@ -7807,6 +7814,7 @@ namespace CodeWalker
             
 
             EnableModsCheckBox.Checked = s.EnableMods;
+            EnableFiveMResourcesCheckBox.Checked = s.EnableFiveMResources;
             DlcLevelComboBox.Text = s.DLC;
             gameFileCache.SelectedDlc = s.DLC;
             EnableDlcCheckBox.Checked = !string.IsNullOrEmpty(s.DLC);
@@ -7869,6 +7877,7 @@ namespace CodeWalker
 
             //additional settings from gamefilecache...
             s.EnableMods = gameFileCache.EnableMods;
+            s.EnableFiveMResources = gameFileCache.EnableFiveMResources;
             s.DLC = gameFileCache.EnableDlc ? gameFileCache.SelectedDlc : "";
 
             s.Save();
@@ -8042,6 +8051,7 @@ namespace CodeWalker
                 {
                     EnableDlcCheckBox.Enabled = true;
                     EnableModsCheckBox.Enabled = true;
+                    EnableFiveMResourcesCheckBox.Enabled = true;
                     HideNorthYanktonCheckBox.Enabled = true;
                     HideCayoPericoCheckBox.Enabled = true;
                     DlcLevelComboBox.Enabled = true;
@@ -10375,14 +10385,30 @@ namespace CodeWalker
 
         private void EnableModsCheckBox_CheckedChanged(object sender, EventArgs e)
         {
-            if (!initialised) return;
+            if (!initialised || EnableModsCheckBox.Checked == gameFileCache.EnableMods) return;
             if (ProjectForm != null)
             {
+                EnableModsCheckBox.Checked = gameFileCache.EnableMods;
                 MessageBox.Show("Please close the Project Window before enabling or disabling mods.");
                 return;
             }
 
-            SetModsEnabled(EnableModsCheckBox.Checked);
+            bool enable = EnableModsCheckBox.Checked;
+            SetAssetSourceEnabled(() => gameFileCache.SetModsEnabled(enable));
+        }
+
+        private void EnableFiveMResourcesCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!initialised || EnableFiveMResourcesCheckBox.Checked == gameFileCache.EnableFiveMResources) return;
+            if (ProjectForm != null)
+            {
+                EnableFiveMResourcesCheckBox.Checked = gameFileCache.EnableFiveMResources;
+                MessageBox.Show("Please close the Project Window before enabling or disabling FiveM resources.");
+                return;
+            }
+
+            bool enable = EnableFiveMResourcesCheckBox.Checked;
+            SetAssetSourceEnabled(() => gameFileCache.SetFiveMResourcesEnabled(enable));
         }
 
         private void HideNorthYanktonCheckBox_CheckedChanged(object sender, EventArgs e)

@@ -60,6 +60,7 @@
   
   <!-- Mods -->
   <EnableMods>False</EnableMods>
+  <EnableFiveMResources>True</EnableFiveMResources>
   <DLC></DLC>
   
   <!-- Input Settings -->

@@ -807,7 +807,7 @@
             this.label25.Name = "label25";
             this.label25.Size = new System.Drawing.Size(330, 13);
             this.label25.TabIndex = 81;
-            this.label25.Text = "Folders of unpacked FiveM map resources, loaded like a mods DLC pack.";
+            this.label25.Text = "Controlled by Enable FiveM resources on the World tab.";
             //
             // DoneButton
             // 

@@ -145,7 +145,9 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public byte ReadByte()
         {
-            return ReadFromStream(1)[0];
+            Span<byte> buffer = stackalloc byte[1];
+            ReadFromStream(buffer);
+            return buffer[0];
         }
 
         /// <summary>
@@ -161,7 +163,7 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public short ReadInt16()
         {
-            return BitConverter.ToInt16(ReadFromStream(2), 0);
+            return ReadInt16(stackalloc byte[2]);
         }
 
         /// <summary>
@@ -169,7 +171,7 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public int ReadInt32()
         {
-            return BitConverter.ToInt32(ReadFromStream(4), 0);
+            return ReadInt32(stackalloc byte[4]);
         }
 
         /// <summary>
@@ -177,7 +179,7 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public long ReadInt64()
         {
-            return BitConverter.ToInt64(ReadFromStream(8), 0);
+            return ReadInt64(stackalloc byte[8]);
         }
 
         /// <summary>
@@ -185,7 +187,9 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public ushort ReadUInt16()
         {
-            return BitConverter.ToUInt16(ReadFromStream(2), 0);
+            Span<byte> buffer = stackalloc byte[2];
+            ReadFromStream(buffer);
+            return BitConverter.ToUInt16(buffer);
         }
 
         /// <summary>
@@ -193,7 +197,7 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public uint ReadUInt32()
         {
-            return BitConverter.ToUInt32(ReadFromStream(4), 0);
+            return ReadUInt32(stackalloc byte[4]);
         }
 
         /// <summary>
@@ -201,7 +205,7 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public ulong ReadUInt64()
         {
-            return BitConverter.ToUInt64(ReadFromStream(8), 0);
+            return ReadUInt64(stackalloc byte[8]);
         }
 
         /// <summary>
@@ -209,7 +213,7 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public float ReadSingle()
         {
-            return BitConverter.ToSingle(ReadFromStream(4), 0);
+            return ReadSingle(stackalloc byte[4]);
         }
 
         /// <summary>
@@ -217,7 +221,7 @@ namespace CodeWalker.GameFiles
         /// </summary>
         public double ReadDouble()
         {
-            return BitConverter.ToDouble(ReadFromStream(8), 0);
+            return ReadDouble(stackalloc byte[8]);
         }
 
         /// <summary>
@@ -226,11 +230,11 @@ namespace CodeWalker.GameFiles
         public string ReadString()
         {
             var bytes = new List<byte>();
-            var temp = ReadFromStream(1)[0];
+            var temp = ReadByte();
             while (temp != 0)
             {
                 bytes.Add(temp);
-                temp = ReadFromStream(1)[0];
+                temp = ReadByte();
             }
 
             return Encoding.UTF8.GetString(bytes.ToArray());

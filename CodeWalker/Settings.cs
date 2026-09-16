@@ -343,6 +343,12 @@ public sealed partial class Settings
         set => SettingsManager.SetBool(nameof(EnableMods), value);
     }
 
+    public bool EnableFiveMResources
+    {
+        get => SettingsManager.GetBool(nameof(EnableFiveMResources), true);
+        set => SettingsManager.SetBool(nameof(EnableFiveMResources), value);
+    }
+
     public string DLC
     {
         get => SettingsManager.GetString(nameof(DLC));

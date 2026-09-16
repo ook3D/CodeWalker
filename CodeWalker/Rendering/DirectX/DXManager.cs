@@ -28,8 +28,10 @@ namespace CodeWalker.Rendering
         public Texture2D? depthbuffer { get; private set; }
         public RenderTargetView? targetview { get; private set; }
         public DepthStencilView? depthview { get; private set; }
+        private RenderTargetView? linearOutputView;
 
-        // Offscreen render target swap (used by minimap tile export)
+        // Offscreen render target swap (used by minimap tile export). Use an RGBA8
+        // typeless colour texture when rendering both HDR and direct scene output.
         private Texture2D? savedBackbuffer;
         private Texture2D? savedDepthbuffer;
         private RenderTargetView? savedTargetview;
@@ -40,6 +42,8 @@ namespace CodeWalker.Rendering
         public void PushExportTargets(Texture2D tex, RenderTargetView rtv, Texture2D depth, DepthStencilView dsv, int width, int height)
         {
             if (exportActive) return;
+            linearOutputView?.Dispose();
+            linearOutputView = null;
             savedBackbuffer = backbuffer;
             savedDepthbuffer = depthbuffer;
             savedTargetview = targetview;
@@ -56,6 +60,8 @@ namespace CodeWalker.Rendering
         public void PopExportTargets()
         {
             if (!exportActive) return;
+            linearOutputView?.Dispose();
+            linearOutputView = null;
             backbuffer = savedBackbuffer;
             depthbuffer = savedDepthbuffer;
             targetview = savedTargetview;
@@ -197,6 +203,9 @@ namespace CodeWalker.Rendering
 
             if (context != null) context.ClearState();
 
+            linearOutputView?.Dispose();
+            linearOutputView = null;
+
             //dipose of all objects
             if (depthview != null) depthview.Dispose();
             if (depthbuffer != null) depthbuffer.Dispose();
@@ -221,6 +230,8 @@ namespace CodeWalker.Rendering
         private void CreateRenderBuffers()
         {
             EnsureInitialized();
+            linearOutputView?.Dispose();
+            linearOutputView = null;
             if (targetview != null) targetview.Dispose();
             if (backbuffer != null) backbuffer.Dispose();
             if (depthview != null) depthview.Dispose();
@@ -261,6 +272,8 @@ namespace CodeWalker.Rendering
             int height = dxform.Form.ClientSize.Height;
             lock (syncroot)
             {
+                linearOutputView?.Dispose();
+                linearOutputView = null;
                 targetview?.Dispose();
                 backbuffer?.Dispose();
                 swapchain.ResizeBuffers(1, width, height, Format.Unknown, SwapChainFlags.AllowModeSwitch);
@@ -401,9 +414,17 @@ namespace CodeWalker.Rendering
         {
             ctx.ClearDepthStencilView(depthview, DepthStencilClearFlags.Depth, 0.0f, 0);
         }
-        public void SetDefaultRenderTarget(DeviceContext ctx)
+        public void SetDefaultRenderTarget(DeviceContext ctx, bool encodeLinearColour = false)
         {
-            ctx.OutputMerger.SetRenderTargets(depthview, targetview);
+            // HDR's final shader already encodes display colour. Direct scene output
+            // needs an sRGB view so both colour conversion and blending happen correctly.
+            if (encodeLinearColour && linearOutputView == null)
+            {
+                var description = targetview!.Description;
+                description.Format = Format.R8G8B8A8_UNorm_SRgb;
+                linearOutputView = new RenderTargetView(device, backbuffer, description);
+            }
+            ctx.OutputMerger.SetRenderTargets(depthview, encodeLinearColour ? linearOutputView : targetview);
             ctx.Rasterizer.SetViewport(Viewport);
             //ctx.Rasterizer.State = RasterizerStateSolid;
         }

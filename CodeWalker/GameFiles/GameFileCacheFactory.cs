@@ -15,6 +15,7 @@ namespace CodeWalker.GameFiles
             return new GameFileCache(s.CacheSize, s.CacheTime, GTAFolder.CurrentGTAFolder, GTAFolder.IsGen9, s.DLC, s.EnableMods, s.ExcludeFolders)
             {
                 ExtraFolders = s.FiveMResourceFolders,
+                EnableFiveMResources = s.EnableFiveMResources,
                 LoadAudio = s.LoadAudioData,
                 LoadPeds = s.LoadPedData,
                 LoadVehicles = s.LoadVehicleData,

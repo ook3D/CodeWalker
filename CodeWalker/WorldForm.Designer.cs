@@ -48,6 +48,7 @@ namespace CodeWalker
             this.ViewTabControl = new System.Windows.Forms.TabControl();
             this.ViewWorldTabPage = new System.Windows.Forms.TabPage();
             this.EnableModsCheckBox = new System.Windows.Forms.CheckBox();
+            this.EnableFiveMResourcesCheckBox = new System.Windows.Forms.CheckBox();
             this.HideNorthYanktonCheckBox = new System.Windows.Forms.CheckBox();
             this.HideCayoPericoCheckBox = new System.Windows.Forms.CheckBox();
             this.label30 = new System.Windows.Forms.Label();
@@ -570,6 +571,7 @@ namespace CodeWalker
             this.ViewWorldTabPage.Controls.Add(this.HideCayoPericoCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.HideNorthYanktonCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.EnableModsCheckBox);
+            this.ViewWorldTabPage.Controls.Add(this.EnableFiveMResourcesCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.label30);
             this.ViewWorldTabPage.Controls.Add(this.DlcLevelComboBox);
             this.ViewWorldTabPage.Controls.Add(this.EnableDlcCheckBox);
@@ -604,14 +606,26 @@ namespace CodeWalker
             this.EnableModsCheckBox.UseVisualStyleBackColor = true;
             this.EnableModsCheckBox.CheckedChanged += new System.EventHandler(this.EnableModsCheckBox_CheckedChanged);
             //
+            // EnableFiveMResourcesCheckBox
+            //
+            this.EnableFiveMResourcesCheckBox.AutoSize = true;
+            this.EnableFiveMResourcesCheckBox.Enabled = false;
+            this.EnableFiveMResourcesCheckBox.Location = new System.Drawing.Point(6, 303);
+            this.EnableFiveMResourcesCheckBox.Name = "EnableFiveMResourcesCheckBox";
+            this.EnableFiveMResourcesCheckBox.Size = new System.Drawing.Size(143, 17);
+            this.EnableFiveMResourcesCheckBox.TabIndex = 69;
+            this.EnableFiveMResourcesCheckBox.Text = "Enable FiveM resources";
+            this.EnableFiveMResourcesCheckBox.UseVisualStyleBackColor = true;
+            this.EnableFiveMResourcesCheckBox.CheckedChanged += new System.EventHandler(this.EnableFiveMResourcesCheckBox_CheckedChanged);
+            //
             // HideNorthYanktonCheckBox
             //
             this.HideNorthYanktonCheckBox.AutoSize = true;
             this.HideNorthYanktonCheckBox.Enabled = false;
-            this.HideNorthYanktonCheckBox.Location = new System.Drawing.Point(6, 365);
+            this.HideNorthYanktonCheckBox.Location = new System.Drawing.Point(6, 388);
             this.HideNorthYanktonCheckBox.Name = "HideNorthYanktonCheckBox";
             this.HideNorthYanktonCheckBox.Size = new System.Drawing.Size(135, 17);
-            this.HideNorthYanktonCheckBox.TabIndex = 71;
+            this.HideNorthYanktonCheckBox.TabIndex = 72;
             this.HideNorthYanktonCheckBox.Text = "Hide North Yankton";
             this.HideNorthYanktonCheckBox.UseVisualStyleBackColor = true;
             this.HideNorthYanktonCheckBox.CheckedChanged += new System.EventHandler(this.HideNorthYanktonCheckBox_CheckedChanged);
@@ -620,10 +634,10 @@ namespace CodeWalker
             //
             this.HideCayoPericoCheckBox.AutoSize = true;
             this.HideCayoPericoCheckBox.Enabled = false;
-            this.HideCayoPericoCheckBox.Location = new System.Drawing.Point(6, 388);
+            this.HideCayoPericoCheckBox.Location = new System.Drawing.Point(6, 411);
             this.HideCayoPericoCheckBox.Name = "HideCayoPericoCheckBox";
             this.HideCayoPericoCheckBox.Size = new System.Drawing.Size(125, 17);
-            this.HideCayoPericoCheckBox.TabIndex = 72;
+            this.HideCayoPericoCheckBox.TabIndex = 73;
             this.HideCayoPericoCheckBox.Text = "Hide Cayo Perico";
             this.HideCayoPericoCheckBox.UseVisualStyleBackColor = true;
             this.HideCayoPericoCheckBox.CheckedChanged += new System.EventHandler(this.HideCayoPericoCheckBox_CheckedChanged);
@@ -631,10 +645,10 @@ namespace CodeWalker
             // label30
             //
             this.label30.AutoSize = true;
-            this.label30.Location = new System.Drawing.Point(1, 337);
+            this.label30.Location = new System.Drawing.Point(1, 360);
             this.label30.Name = "label30";
             this.label30.Size = new System.Drawing.Size(60, 13);
-            this.label30.TabIndex = 70;
+            this.label30.TabIndex = 71;
             this.label30.Text = "DLC Level:";
             // 
             // DlcLevelComboBox
@@ -644,10 +658,10 @@ namespace CodeWalker
             this.DlcLevelComboBox.FormattingEnabled = true;
             this.DlcLevelComboBox.Items.AddRange(new object[] {
             "<Loading...>"});
-            this.DlcLevelComboBox.Location = new System.Drawing.Point(62, 334);
+            this.DlcLevelComboBox.Location = new System.Drawing.Point(62, 357);
             this.DlcLevelComboBox.Name = "DlcLevelComboBox";
             this.DlcLevelComboBox.Size = new System.Drawing.Size(126, 21);
-            this.DlcLevelComboBox.TabIndex = 70;
+            this.DlcLevelComboBox.TabIndex = 71;
             this.DlcLevelComboBox.SelectedIndexChanged += new System.EventHandler(this.DlcLevelComboBox_SelectedIndexChanged);
             this.DlcLevelComboBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.DlcLevelComboBox_KeyPress);
             // 
@@ -655,10 +669,10 @@ namespace CodeWalker
             // 
             this.EnableDlcCheckBox.AutoSize = true;
             this.EnableDlcCheckBox.Enabled = false;
-            this.EnableDlcCheckBox.Location = new System.Drawing.Point(6, 311);
+            this.EnableDlcCheckBox.Location = new System.Drawing.Point(6, 334);
             this.EnableDlcCheckBox.Name = "EnableDlcCheckBox";
             this.EnableDlcCheckBox.Size = new System.Drawing.Size(83, 17);
-            this.EnableDlcCheckBox.TabIndex = 69;
+            this.EnableDlcCheckBox.TabIndex = 70;
             this.EnableDlcCheckBox.Text = "Enable DLC";
             this.EnableDlcCheckBox.UseVisualStyleBackColor = true;
             this.EnableDlcCheckBox.CheckedChanged += new System.EventHandler(this.EnableDlcCheckBox_CheckedChanged);
@@ -3929,6 +3943,7 @@ namespace CodeWalker
         private System.Windows.Forms.TabPage SelectionExtensionTabPage;
         private ReadOnlyPropertyGrid SelExtensionPropertyGrid;
         private System.Windows.Forms.CheckBox EnableModsCheckBox;
+        private System.Windows.Forms.CheckBox EnableFiveMResourcesCheckBox;
         private System.Windows.Forms.CheckBox HideNorthYanktonCheckBox;
         private System.Windows.Forms.CheckBox HideCayoPericoCheckBox;
         private System.Windows.Forms.Button AdvancedSettingsButton;

@@ -74,6 +74,7 @@ namespace CodeWalker.GameFiles
 
         public bool EnableDlc { get; set; } = false;//true;//
         public bool EnableMods { get; set; } = false;
+        public bool EnableFiveMResources { get; set; } = true;
 
         public List<string> DlcPaths { get; set; } = new();
         public List<RpfFile> DlcActiveRpfs { get; set; } = new();
@@ -297,11 +298,7 @@ namespace CodeWalker.GameFiles
             };
             ArchiveManager.Init(allRpfs, GTAGen9, UpdateStatus, ErrorLog);
 
-            AllRpfs = [.. ArchiveManager.AllRpfs];
-            BaseRpfs = AllRpfs;
-            DlcRpfs = [];
-
-            await PhaseAsync(status, ct, "Building global dictionaries...", InitGlobalDicts);
+            await InitGlobalAsync(status, ct);
             await PhaseAsync(status, ct, "Loading manifests...", InitManifestDicts);
             await PhaseAsync(status, ct, "Loading global texture list...", InitGtxds);
             await PhaseAsync(status, ct, "Loading archetypes...", InitArchetypeDicts);
@@ -320,9 +317,18 @@ namespace CodeWalker.GameFiles
 
         private async Task InitGlobalAsync(IProgress<string>? status, CancellationToken ct)
         {
-            BaseRpfs = GetModdedRpfList(ArchiveManager.BaseRpfs);
-            AllRpfs = GetModdedRpfList(ArchiveManager.AllRpfs);
-            DlcRpfs = GetModdedRpfList(ArchiveManager.DlcRpfs);
+            if (PreloadedMode)
+            {
+                AllRpfs = [.. GetEnabledResourceRpfs(ArchiveManager.AllRpfs)];
+                BaseRpfs = AllRpfs;
+                DlcRpfs = [];
+            }
+            else
+            {
+                BaseRpfs = GetModdedRpfList(ArchiveManager.BaseRpfs);
+                AllRpfs = GetModdedRpfList(ArchiveManager.AllRpfs);
+                DlcRpfs = GetModdedRpfList(ArchiveManager.DlcRpfs);
+            }
 
             await PhaseAsync(status, ct, "Building global dictionaries...", InitGlobalDicts);
         }
@@ -784,7 +790,7 @@ namespace CodeWalker.GameFiles
         //Added last so their ymaps/ybns win over the game's, and so Space picks them up as uncached map files.
         private void AddExtraActiveMapRpfFiles()
         {
-            if (RpfMan?.ExtraRpfs == null) return;
+            if (!EnableFiveMResources || RpfMan?.ExtraRpfs == null) return;
             foreach (var rpf in ArchiveManager.ExtraRpfs)
             {
                 ActiveMapRpfFiles[rpf.Path] = rpf;
@@ -1160,9 +1166,14 @@ namespace CodeWalker.GameFiles
             return path;
         }
 
+        private List<RpfFile> GetEnabledResourceRpfs(List<RpfFile> list) => EnableFiveMResources
+            ? list
+            : list.Where(rpf => rpf?.Path?.StartsWith(RpfManager.ExtraFolderPrefix, StringComparison.OrdinalIgnoreCase) != true).ToList();
+
         private List<RpfFile> GetModdedRpfList(List<RpfFile> list)
         {
             if (list is not { Count: > 0 }) return [];
+            list = GetEnabledResourceRpfs(list);
             List<RpfFile> result = new(list.Count);
             var modDict = ArchiveManager.ModRpfDict;
             var baseDict = ArchiveManager.RpfDict;
@@ -1345,7 +1356,7 @@ namespace CodeWalker.GameFiles
             {
                 //ActiveMapRpfFiles has entries removed during the DLC pass, so its enumeration order isn't
                 //insertion order - put the extras (FiveM resources) at the end explicitly so they win.
-                var extras = RpfMan?.ExtraRpfs;
+                var extras = EnableFiveMResources ? RpfMan?.ExtraRpfs : null;
                 var mapRpfs = ActiveMapRpfFiles.Values.ToList();
                 int extrastart = mapRpfs.Count;
                 if (extras is { Count: > 0 })
@@ -1663,7 +1674,7 @@ namespace CodeWalker.GameFiles
             else
             {
                 rpfs = new List<RpfFile>(BaseRpfs);
-                if (RpfMan?.ExtraRpfs != null) rpfs.AddRange(ArchiveManager.ExtraRpfs);
+                if (EnableFiveMResources && RpfMan?.ExtraRpfs != null) rpfs.AddRange(ArchiveManager.ExtraRpfs);
             }
 
             // Collect all .ytyp entries first to avoid repeated file system access
@@ -2294,28 +2305,28 @@ namespace CodeWalker.GameFiles
             return change;
         }
 
-        public bool SetModsEnabled(bool enable)
+        public bool SetModsEnabled(bool enable) => SetAssetSourcesEnabled(enable, null);
+
+        public bool SetFiveMResourcesEnabled(bool enable) => SetAssetSourcesEnabled(null, enable);
+
+        private bool SetAssetSourcesEnabled(bool? mods, bool? fiveMResources)
         {
-            bool change = (enable != EnableMods);
-
-            if (change)
+            lock (updateSyncRoot)
             {
-                lock (updateSyncRoot)
-                {
-                    //lock (textureSyncRoot)
-                    {
-                        EnableMods = enable;
-                        ArchiveManager.EnableMods = enable;
+                bool enableMods = mods ?? EnableMods;
+                bool enableFiveMResources = fiveMResources ?? EnableFiveMResources;
+                if (enableMods == EnableMods && enableFiveMResources == EnableFiveMResources) return false;
 
-                        mainCache.Clear();
+                EnableMods = enableMods;
+                EnableFiveMResources = enableFiveMResources;
+                ArchiveManager.EnableMods = enableMods;
+                mainCache.Clear();
+                textureLookup.Clear();
 
-                        InitGlobalAsync(UpdateStatus is null ? null : new Progress<string>(UpdateStatus), CancellationToken.None).GetAwaiter().GetResult();
-                        InitDlcAsync(UpdateStatus is null ? null : new Progress<string>(UpdateStatus), CancellationToken.None).GetAwaiter().GetResult();
-                    }
-                }
+                InitGlobalAsync(UpdateStatus is null ? null : new Progress<string>(UpdateStatus), CancellationToken.None).GetAwaiter().GetResult();
+                InitDlcAsync(UpdateStatus is null ? null : new Progress<string>(UpdateStatus), CancellationToken.None).GetAwaiter().GetResult();
+                return true;
             }
-
-            return change;
         }
 
 
