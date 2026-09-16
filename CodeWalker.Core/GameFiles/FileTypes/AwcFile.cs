@@ -1185,27 +1185,23 @@ namespace CodeWalker.GameFiles
             ExpandChunks();
 
             var filename = Xml.GetChildInnerText(node, "FileName")?.Replace("/", "")?.Replace("\\", "");
-            if (!string.IsNullOrEmpty(filename) && !string.IsNullOrEmpty(wavfolder))
+            if (!string.IsNullOrEmpty(filename))
             {
+                var filepath = Path.Combine(wavfolder, filename);
                 try
                 {
-                    var filepath = Path.Combine(wavfolder, filename);
-                    if (File.Exists(filepath))
-                    {
-                        var fdata = File.ReadAllBytes(filepath);
-                        if (MidiChunk != null)
-                        {
-                            MidiChunk.Data = fdata;
-                        }
-                        else
-                        {
-                            ParseWavFile(fdata);
-                        }
-                    }
+                    if (string.IsNullOrEmpty(wavfolder))
+                        throw new InvalidDataException("An audio folder is required to import referenced files.");
+                    var fdata = File.ReadAllBytes(filepath);
+                    if (MidiChunk != null)
+                        MidiChunk.Data = fdata;
+                    else
+                        ParseWavFile(fdata);
                 }
-                catch
-                { }
-
+                catch (Exception ex)
+                {
+                    throw new InvalidDataException($"Unable to import audio file '{filepath}': {ex.Message}", ex);
+                }
             }
 
         }
@@ -1594,50 +1590,65 @@ namespace CodeWalker.GameFiles
 
         public void ParseWavFile(byte[] wav)
         {
-            var ms = new MemoryStream(wav);
-            var r = new DataReader(ms);
+            using var ms = new MemoryStream(wav);
+            using var r = new BinaryReader(ms);
+            if (ms.Length < 12 || r.ReadUInt32() != 0x46464952)
+                throw new InvalidDataException("Invalid RIFF .wav header.");
+            long riffEnd = 8L + r.ReadUInt32();
+            if (r.ReadUInt32() != 0x45564157 || riffEnd < 12 || riffEnd > ms.Length)
+                throw new InvalidDataException("Invalid or truncated WAVE file.");
 
-            var RIFF = r.ReadUInt32(); // 0x46464952
-            var wavLength = r.ReadInt32();
-            var WAVE = r.ReadUInt32(); // 0x45564157
-            var fmt_ = r.ReadUInt32(); // 0x20746D66
-            var fmtLength = r.ReadInt32();
-            var formatcodec = r.ReadInt16();
-            var channels = r.ReadInt16();
-            var sampleRate = r.ReadInt32();
-            var byteRate = r.ReadInt32();
-            var blockAlign = r.ReadInt16();
-            var bitsPerSample = r.ReadInt16();
-            var ext2 = (ushort)0;
-            var samplesPerBlock = (ushort)0;
-            if (fmtLength == 20)
+            ushort formatcodec = 0, channels = 0, bitsPerSample = 0, blockAlign = 0;
+            int sampleRate = 0;
+            int dataOffset = -1, datalen = 0;
+            bool hasFormat = false;
+            while (ms.Position < riffEnd)
             {
-                ext2 = r.ReadUInt16();
-                samplesPerBlock = r.ReadUInt16();
+                if (riffEnd - ms.Position < 8)
+                    throw new InvalidDataException("Truncated WAV chunk header.");
+                var tag = r.ReadUInt32();
+                var length = r.ReadUInt32();
+                long chunkEnd = ms.Position + length;
+                long nextChunk = chunkEnd + (length & 1);
+                if (nextChunk > riffEnd)
+                    throw new InvalidDataException("Truncated WAV chunk data.");
+
+                if (tag == 0x20746D66) // fmt
+                {
+                    if (length < 16)
+                        throw new InvalidDataException("Invalid WAV format chunk.");
+                    formatcodec = r.ReadUInt16();
+                    channels = r.ReadUInt16();
+                    sampleRate = r.ReadInt32();
+                    r.ReadUInt32(); // byte rate
+                    blockAlign = r.ReadUInt16();
+                    bitsPerSample = r.ReadUInt16();
+                    hasFormat = true;
+                }
+                else if (tag == 0x61746164 && dataOffset < 0) // data
+                {
+                    dataOffset = (int)ms.Position;
+                    datalen = (int)length;
+                }
+                // Skip format extensions, metadata, and RIFF word padding.
+                ms.Position = nextChunk;
             }
-            var datatag = r.ReadUInt32(); // 0x61746164
-            var datalen = r.ReadInt32();
+
+            if (!hasFormat || dataOffset < 0)
+                throw new InvalidDataException("WAV file must contain fmt and data chunks.");
+            if (formatcodec != 1 || channels != 1 || bitsPerSample != 16)
+                throw new InvalidDataException("Only mono 16-bit PCM .wav files are supported.");
+            if (sampleRate <= 0 || sampleRate > ushort.MaxValue || blockAlign != 2 || datalen % blockAlign != 0)
+                throw new InvalidDataException("Invalid or unsupported WAV sample rate or sample alignment.");
+
+            ms.Position = dataOffset;
             var dataPCM = r.ReadBytes(datalen);
-
-            if (r.Position != r.Length)
-            { }
-
-            if (formatcodec != 1)
-            {
-                throw new Exception("Only PCM format .wav files supported!");
-            }
-            if (channels != 1)
-            {
-                throw new Exception("Only mono .wav files supported!");
-            }
-
-            var sampleCount = datalen * 2; //assume 16bits per sample PCM
+            var sampleCount = datalen / 2;
 
             var codec = StreamFormat?.Codec ?? FormatChunk?.Codec ?? AwcCodecType.PCM;
             if (codec == AwcCodecType.ADPCM)// convert PCM wav to ADPCM where required
             {
                 dataPCM = ADPCMCodec.EncodeADPCM(dataPCM, sampleCount);
-                bitsPerSample = 4;
             }
 
 
