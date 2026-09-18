@@ -2390,7 +2390,7 @@ namespace CodeWalker.GameFiles
         }
         public string GetShortNameLower()
         {
-            if (NameLower == null)
+            if (string.IsNullOrEmpty(NameLower))
             {
                 NameLower = Name.ToLowerInvariant();
             }

@@ -5962,6 +5962,9 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat151AmbientZone : Dat151RelData
     {
+        // This older DAT151 version packs both array counts before the rules.
+        private bool HasPackedAmbienceCount => Rel.DataUnkVal == 7126027;
+
         public FlagsUint Flags { get; set; }
         public Dat151ZoneShape Shape { get; set; }
         public short unused0 { get; set; }
@@ -6102,7 +6105,10 @@ namespace CodeWalker.GameFiles
             NumRulesToPlay = br.ReadByte();
             ZoneWaterCalculation = br.ReadByte();
             NumRules = br.ReadByte();
-            Unused11 = br.ReadByte();
+            if (HasPackedAmbienceCount)
+                NumDirAmbiences = br.ReadByte();
+            else
+                Unused11 = br.ReadByte();
 
             var rules = new MetaHash[NumRules];
             for (int i = 0; i < NumRules; i++)
@@ -6111,10 +6117,13 @@ namespace CodeWalker.GameFiles
             }
             Rules = rules;
 
-            NumDirAmbiences = br.ReadByte();
-            Unused12 = br.ReadByte();
-            Unused13 = br.ReadByte();
-            Unused14 = br.ReadByte();
+            if (!HasPackedAmbienceCount)
+            {
+                NumDirAmbiences = br.ReadByte();
+                Unused12 = br.ReadByte();
+                Unused13 = br.ReadByte();
+                Unused14 = br.ReadByte();
+            }
 
             DirAmbiences = new DirAmbience[NumDirAmbiences];
             for (int i = 0; i < NumDirAmbiences; i++)
@@ -6195,17 +6204,20 @@ namespace CodeWalker.GameFiles
             }
 
             bw.Write(NumRules);
-            bw.Write(Unused11);
+            bw.Write(HasPackedAmbienceCount ? NumDirAmbiences : Unused11);
 
             for (int i = 0; i < NumRules; i++)
             {
                 bw.Write(Rules[i]);
             }
 
-            bw.Write(NumDirAmbiences);
-            bw.Write(Unused12);
-            bw.Write(Unused13);
-            bw.Write(Unused14);
+            if (!HasPackedAmbienceCount)
+            {
+                bw.Write(NumDirAmbiences);
+                bw.Write(Unused12);
+                bw.Write(Unused13);
+                bw.Write(Unused14);
+            }
 
             for (int i = 0; i < NumDirAmbiences; i++)
             {

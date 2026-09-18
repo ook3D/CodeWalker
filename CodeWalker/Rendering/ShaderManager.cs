@@ -488,7 +488,7 @@ namespace CodeWalker.Rendering
             return null;
         }
 
-        public void RenderQueued(DeviceContext context, Camera camera, Vector4 wind)
+        public void RenderQueued(DeviceContext context, Camera camera, Vector4 wind, float timeOfDay)
         {
             GeometryCount = 0;
             Camera = camera;
@@ -701,14 +701,14 @@ namespace CodeWalker.Rendering
                 {
                     context.OutputMerger.BlendState = bsAdd; //additive blend for lights...
                     context.OutputMerger.DepthStencilState = dsDisableWriteRev;//only render parts behind or at surface
-                    DefScene.RenderLights(context, camera, RenderLODLights);
+                    DefScene.RenderLights(context, camera, RenderLODLights, timeOfDay);
                 }
 
                 if (RenderLights.Count > 0)
                 {
                     context.OutputMerger.BlendState = bsAdd; //additive blend for lights...
                     context.OutputMerger.DepthStencilState = dsDisableWriteRev;//only render parts behind or at surface
-                    DefScene.RenderLights(context, camera, RenderLights);
+                    DefScene.RenderLights(context, camera, RenderLights, timeOfDay);
                 }
             }
 

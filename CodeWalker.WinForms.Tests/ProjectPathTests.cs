@@ -1,3 +1,4 @@
+using CodeWalker.GameFiles;
 using CodeWalker.Project;
 using Xunit;
 
@@ -5,6 +6,50 @@ namespace CodeWalker.WinForms.Tests;
 
 public class ProjectPathTests
 {
+    [Fact]
+    public void FolderAssetsResolveWithoutFiveMResourceFolders()
+    {
+        var cache = new GameFileCache(1024 * 1024, 10, "", false, "", false, "") { IsInited = true };
+        var project = new ProjectFile();
+        var ydr = project.AddYdrFile(Asset);
+        var ydd = project.AddYddFile(Asset.Replace(".ydr", ".ydd"));
+        var yft = project.AddYftFile(Asset.Replace(".ydr", ".yft"));
+        var ytd = project.AddYtdFile(Asset.Replace(".ydr", ".ytd"));
+        foreach (var file in new GameFile?[] { ydr, ydd, yft, ytd })
+        {
+            Assert.NotNull(file);
+            cache.AddProjectFile(file);
+        }
+
+        var hash = JenkHash.GenHash("house");
+        Assert.Same(ydr, cache.GetYdr(hash));
+        Assert.Same(ydd, cache.GetYdd(hash));
+        Assert.Same(yft, cache.GetYft(hash));
+        Assert.Same(ytd, cache.GetYtd(hash));
+        Assert.Empty(cache.ExtraFolders);
+    }
+
+    [Fact]
+    public void ProjectYmapUsesSameWorldLookupHashAsFiveMResource()
+    {
+        var project = new ProjectFile();
+        var ymap = project.AddYmapFile(@"X:\resources\[maps]\stream\_Props03.ymap");
+        Assert.NotNull(ymap);
+        var entry = ymap.RpfFileEntry!;
+        var resourceHash = JenkHash.GenHash("_props03");
+        var visibleYmaps = new Dictionary<MetaHash, YmapFile>
+        {
+            [resourceHash] = new YmapFile()
+        };
+
+        // Match the project overlay's lazy hash initialization in GetVisibleYmaps.
+        entry.ShortNameHash = JenkHash.GenHash(entry.GetShortNameLower());
+        visibleYmaps[entry.ShortNameHash] = ymap;
+
+        Assert.Equal(resourceHash, entry.ShortNameHash);
+        Assert.Same(ymap, Assert.Single(visibleYmaps).Value);
+    }
+
     private const string Asset = @"X:\resources\[housing]\stream\house.ydr";
 
     [Theory]

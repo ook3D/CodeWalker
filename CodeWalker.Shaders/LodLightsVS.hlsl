@@ -28,7 +28,7 @@ cbuffer VSLightVars : register(b0)
     float4 CameraPos;
     uint LightType; //0=directional, 1=Point, 2=Spot, 4=Capsule
     uint IsLOD; //useful or not?
-    uint Pad0;
+    uint LightHourMask;
     uint Pad1;
 }
 
@@ -38,6 +38,12 @@ StructuredBuffer<LODLight> LODLights : register(t0);
 VS_Output main(float4 ipos : POSITION, uint iid : SV_InstanceID)
 {
     LODLight lodlight = LODLights[iid];
+    if ((lodlight.TimeAndStateFlags & LightHourMask) == 0)
+    {
+        VS_Output inactive = (VS_Output)0;
+        inactive.Pos = float4(0, 0, -1, 1);
+        return inactive;
+    }
     float extent = lodlight.Falloff;
     float3 opos = 0;
     if (LightType == 1)//point (sphere)

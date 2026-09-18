@@ -833,7 +833,9 @@ namespace CodeWalker
             var allRpfs = new List<RpfFile>();
             var fullPath = f.FullPath;
             var subPath = f.Path;
-            var allpaths = Directory.GetFileSystemEntries(fullPath, "*", SearchOption.AllDirectories);
+            var allpaths = GetFiveMFolders().Contains(fullPath, StringComparer.OrdinalIgnoreCase)
+                ? RpfManager.EnumerateExtraFolderEntries(fullPath, includeDirectories: true).ToArray()
+                : Directory.GetFileSystemEntries(fullPath, "*", SearchOption.AllDirectories);
             var nodes = new Dictionary<string, MainTreeFolder>();
 
             foreach (var path in allpaths)

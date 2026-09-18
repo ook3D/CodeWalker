@@ -102,6 +102,71 @@ namespace CodeWalker.World
             return null;
         }
 
+        public static void AddShorelineVertices(RelFile relfile, List<WaterQuad> waterQuads, List<Vector3> vertices)
+        {
+            foreach (var data in relfile.RelDatas)
+            {
+                if (data is Dat151ShoreLineRiverAudioSettings river)
+                {
+                    for (int i = 1; i < river.Points.Length; i++)
+                    {
+                        vertices.Add(river.Points[i - 1]);
+                        vertices.Add(river.Points[i]);
+                    }
+                    continue;
+                }
+
+                var points = data switch
+                {
+                    Dat151ShoreLinePoolAudioSettings pool => pool.Points,
+                    Dat151ShoreLineLakeAudioSettings lake => lake.Points,
+                    Dat151ShoreLineOceanAudioSettings ocean => ocean.Points,
+                    _ => null
+                };
+                if (points == null || points.Length < 2) continue;
+
+                // These records only store XY. Use the nearest water quad to
+                // place the outline at water level, including points just outside a quad.
+                bool oceanLevel = data is Dat151ShoreLineOceanAudioSettings;
+                var first = GetShorelinePosition(points[0], waterQuads, oceanLevel);
+                var previous = first;
+                for (int i = 1; i < points.Length; i++)
+                {
+                    var current = GetShorelinePosition(points[i], waterQuads, oceanLevel);
+                    vertices.Add(previous);
+                    vertices.Add(current);
+                    previous = current;
+                }
+                // Pools are closed outlines; the other records can be parts of longer shorelines.
+                if (data is Dat151ShoreLinePoolAudioSettings && points.Length > 2 && previous != first)
+                {
+                    vertices.Add(previous);
+                    vertices.Add(first);
+                }
+            }
+        }
+
+        private static Vector3 GetShorelinePosition(Vector2 point, List<WaterQuad> waterQuads, bool oceanLevel)
+        {
+            float height = 0;
+            float nearestDistance = float.MaxValue;
+            if (!oceanLevel)
+            {
+                foreach (var quad in waterQuads)
+                {
+                    if (!quad.z.HasValue) continue;
+                    float dx = Math.Max(Math.Max(quad.minX - point.X, point.X - quad.maxX), 0);
+                    float dy = Math.Max(Math.Max(quad.minY - point.Y, point.Y - quad.maxY), 0);
+                    float distance = dx * dx + dy * dy;
+                    if (distance >= nearestDistance) continue;
+                    nearestDistance = distance;
+                    height = quad.z.Value;
+                    if (distance == 0) break;
+                }
+            }
+            return new Vector3(point.X, point.Y, height);
+        }
+
 
     }
 

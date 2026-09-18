@@ -34,8 +34,8 @@ cbuffer PSGeomVars : register(b2)
     uint IsDistMap;
     float bumpiness;
     float AlphaScale;
-    float HardAlphaBlend;
-    uint AlphaMode; // 0 = legacy, 1 = cutout, 2 = alpha cloth, 3 = opaque, 4 = alpha fence
+    float HardAlphaBlend; // tree AlphaTest when AlphaMode == 6
+    uint AlphaMode; // 0 = legacy, 1 = cutout, 2 = alpha cloth, 3 = opaque, 4 = alpha fence, 5 = grass, 6 = tree
     float4 detailSettings;
     float3 specMapIntMask;
     float specularIntensityMult;

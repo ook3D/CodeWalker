@@ -69,6 +69,7 @@ namespace CodeWalker.Rendering
         // resolved and no external texture dictionaries were found.
         public YtdFile[]? SDtxds;
         public YtdFile[]? HDtxds;
+        public int ProjectTextureVersion = -1;
         public bool AllTexturesLoaded = false;
 
         public RenderableModel[] HDModels = [];
@@ -857,6 +858,8 @@ namespace CodeWalker.Rendering
         public bool IsEmissive { get; set; } = false;
         public bool EnableWind { get; set; } = false;
         public float HardAlphaBlend { get; set; } = 0.0f;
+        public float TreeAlphaScale { get; set; } = 1.0f;
+        public float TreeAlphaTest { get; set; } = 0.0f;
         public float useTessellation { get; set; } = 0.0f;
         public float wetnessMultiplier { get; set; } = 0.0f;
         public float bumpiness { get; set; } = 1.0f;
@@ -1094,6 +1097,12 @@ namespace CodeWalker.Rendering
                                 break;
                             case ShaderParamNames.HardAlphaBlend:
                                 HardAlphaBlend = (vector).X;
+                                break;
+                            case ShaderParamNames.AlphaScale:
+                                TreeAlphaScale = vector.X;
+                                break;
+                            case ShaderParamNames.AlphaTest:
+                                TreeAlphaTest = vector.X;
                                 break;
                             case ShaderParamNames.useTessellation:
                                 useTessellation = (vector).X;
@@ -1562,6 +1571,12 @@ namespace CodeWalker.Rendering
         public uint TimeFlags;
         public uint Flags;
         public MetaHash TextureHash;
+
+        public bool IsActive(float hour)
+        {
+            var flags = (OwnerLight?.TimeFlags ?? TimeFlags) & 0x00FFFFFFu;
+            return flags == 0 || (flags & (1u << ((int)hour % 24))) != 0;
+        }
 
         public void Init(CLightAttr l)
         {

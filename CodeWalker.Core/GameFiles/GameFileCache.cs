@@ -42,6 +42,8 @@ namespace CodeWalker.GameFiles
 
 
         private Dictionary<GameFileCacheKey, GameFile> projectFiles = new(); //for cache files loaded in project window: ydr,ydd,ytd,yft
+        private int projectTextureVersion;
+        public int ProjectTextureVersion => Volatile.Read(ref projectTextureVersion);
         private Dictionary<uint, Archetype> projectArchetypes = new(); //used to override archetypes in world view with project ones
 
 
@@ -2357,6 +2359,7 @@ namespace CodeWalker.GameFiles
             lock (requestSyncRoot)
             {
                 projectFiles[key] = f;
+                if (f is YtdFile) Interlocked.Increment(ref projectTextureVersion);
             }
         }
         public void RemoveProjectFile(GameFile? f)
@@ -2367,7 +2370,7 @@ namespace CodeWalker.GameFiles
             var key = new GameFileCacheKey(f.RpfFileEntry.ShortNameHash, f.Type);
             lock (requestSyncRoot)
             {
-                projectFiles.Remove(key);
+                if (projectFiles.Remove(key) && f is YtdFile) Interlocked.Increment(ref projectTextureVersion);
             }
         }
         public void ClearProjectFiles()
@@ -2375,6 +2378,7 @@ namespace CodeWalker.GameFiles
             lock (requestSyncRoot)
             {
                 projectFiles.Clear();
+                Interlocked.Increment(ref projectTextureVersion);
             }
         }
 
@@ -3040,17 +3044,19 @@ namespace CodeWalker.GameFiles
         public Texture? TryFindTextureInParent(uint texhash, uint txdhash)
         {
             Texture? tex = null;
-
-            var ytd = TryGetParentYtd(txdhash);
-            while ((ytd != null) && (tex == null))
+            var visited = new HashSet<uint> { txdhash };
+            var parentHash = TryGetParentYtdHash(txdhash);
+            while (parentHash != 0 && visited.Add(parentHash) && tex == null)
             {
+                var ytd = GetYtd(parentHash);
+                if (ytd == null) break;
                 if (ytd.Loaded && (ytd.TextureDict != null))
                 {
                     tex = ytd.TextureDict.Lookup(texhash);
                 }
                 if (tex == null)
                 {
-                    ytd = TryGetParentYtd(ytd.Key.Hash);
+                    parentHash = TryGetParentYtdHash(parentHash);
                 }
             }
 

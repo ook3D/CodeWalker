@@ -168,6 +168,7 @@ namespace CodeWalker.Rendering
 
 
         private List<YtdFile> tryGetRenderableSDtxds = new List<YtdFile>();
+        private HashSet<MetaHash> tryGetRenderableTxdHashes = new();
         private List<YtdFile> tryGetRenderableHDtxds = new List<YtdFile>();
 
 
@@ -332,7 +333,7 @@ namespace CodeWalker.Rendering
             if (!controllightdir && renderartificialambientlight)
                 interiorLighting.Apply(globalLights, weather.CurrentValues, weather.TimecycleMods?.Dict, shaders.hdr);
             shaders.SetGlobalLightParams(globalLights);
-            shaders.RenderQueued(context, camera, currentWindVec);
+            shaders.RenderQueued(context, camera, currentWindVec, timeofday);
 
             RenderSkeletons();
         }
@@ -1267,6 +1268,7 @@ namespace CodeWalker.Rendering
                 case MapSelectionMode.WaterQuad:
                 case MapSelectionMode.CalmingQuad:
                 case MapSelectionMode.WaveQuad:
+                case MapSelectionMode.Audio:
                 case MapSelectionMode.MloInstance:
                     clip = false;
                     break;
@@ -4095,8 +4097,15 @@ namespace CodeWalker.Rendering
             var extraTexDict = (drawable.Owner as YptFile)?.PtfxList?.TextureDictionary;
             if (extraTexDict == null) extraTexDict = txdExtra;
 
+            var projectTextureVersion = gameFileCache.ProjectTextureVersion;
+            if (rndbl.ProjectTextureVersion != projectTextureVersion)
+            {
+                rndbl.SDtxds = null;
+                rndbl.HDtxds = null;
+                rndbl.ProjectTextureVersion = projectTextureVersion;
+            }
             bool cacheSD = (rndbl.SDtxds == null);
-            bool cacheHD = (renderhdtextures && (rndbl.HDtxds == null));
+            bool cacheHD = renderhdtextures && (rndbl.HDtxds == null);
             if (cacheSD || cacheHD)
             {
                 //cache the txd hierarchies for this renderable
@@ -4137,7 +4146,9 @@ namespace CodeWalker.Rendering
                         }
                     }
                     MetaHash ptxdname = gameFileCache.TryGetParentYtdHash(texDict);
-                    while (ptxdname != 0) //look for parent HD txds
+                    tryGetRenderableTxdHashes.Clear();
+                    tryGetRenderableTxdHashes.Add(texDict);
+                    while (ptxdname != 0 && tryGetRenderableTxdHashes.Add(ptxdname)) //look for parent HD txds
                     {
                         if (cacheSD)
                         {

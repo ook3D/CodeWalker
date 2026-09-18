@@ -265,6 +265,12 @@ namespace CodeWalker.Rendering
             PSGeomVars.Vars.AlphaScale = 1.0f;
             PSGeomVars.Vars.HardAlphaBlend = 0.0f;
             PSGeomVars.Vars.AlphaMode = MaterialAlpha.Mode((geom.DrawableGeom?.Shader?.FileName.Hash ?? 0), (geom.DrawableGeom?.Shader?.RenderBucket ?? 0));
+            if (PSGeomVars.Vars.AlphaMode == 6)
+            {
+                // PC trees convert scaled alpha to coverage by multiplying it by two.
+                PSGeomVars.Vars.AlphaScale = geom.TreeAlphaScale * 2.0f;
+                PSGeomVars.Vars.HardAlphaBlend = geom.TreeAlphaTest;
+            }
             PSGeomVars.Vars.specMapIntMask = geom.specMapIntMask;
             PSGeomVars.Vars.specularIntensityMult = geom.specularIntensityMult;
             PSGeomVars.Vars.specularFalloffMult = geom.specularFalloffMult;

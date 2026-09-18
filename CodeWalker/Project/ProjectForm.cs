@@ -3819,6 +3819,12 @@ namespace CodeWalker.Project
 
             ment = mloInstance.TryGetArchetypeEntity(outEnt);
 
+            if (mloArch.Ytyp != null)
+            {
+                mloArch.Ytyp.HasChanged = true;
+                ProjectExplorer?.SetYtypHasChanged(mloArch.Ytyp, true);
+            }
+
             if (selectNew)
             {
                 if (ment != null) ProjectExplorer?.AddMloEntityTreeNode(ment);

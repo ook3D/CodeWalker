@@ -6,6 +6,45 @@ namespace CodeWalker.Core.Tests;
 public class PreloadedFiveMResourceTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FiveMResourceScanSkipsExcludedFolderTrees(bool preloaded)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "cw-fivem-exclusions-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            foreach (var parent in new[] { directory, Path.Combine(directory, "[maps]") })
+            {
+                foreach (var folder in new[] { ".git", ".github", ".githooks", ".claude", "[clothing]", "[peds]" })
+                {
+                    var stream = Path.Combine(parent, parent == directory ? folder : folder.ToUpperInvariant(), "resource", "stream");
+                    Directory.CreateDirectory(stream);
+                    File.WriteAllText(Path.Combine(stream, "excluded.ymap"), "excluded");
+                }
+            }
+            var allowed = Path.Combine(directory, "[maps]", "[peds]-map", "stream");
+            Directory.CreateDirectory(allowed);
+            File.WriteAllText(Path.Combine(allowed, "included.ymap"), "included");
+            File.WriteAllText(Path.Combine(directory, "root.ymap"), "included");
+
+            var manager = new RpfManager { ExtraFolders = [directory] };
+            var errors = new List<string>();
+            if (preloaded) manager.Init([], false, _ => { }, errors.Add);
+            else manager.Init(directory, false, _ => { }, errors.Add);
+
+            Assert.Empty(errors);
+            Assert.Equal(2, manager.ExtraRpfs.Count);
+            Assert.Contains("fivem\\root.ymap", manager.EntryDict.Keys);
+            Assert.Contains("fivem\\[maps]\\[peds]-map\\stream\\included.ymap", manager.EntryDict.Keys);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Theory]
     [InlineData(false, true, true)]
     [InlineData(true, true, true)]
     [InlineData(false, false, true)]

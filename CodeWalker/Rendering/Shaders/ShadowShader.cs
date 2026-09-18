@@ -363,7 +363,8 @@ namespace CodeWalker.Rendering
             GeomVars.Vars.IsDecal = 0u;// DecalMode ? 1u : 0u;
             GeomVars.Vars.EnableWind = windflag;
             GeomVars.Vars.AlphaParams = new Vector4(
-                MaterialAlpha.Mode(shaderFile.Hash, (geom.DrawableGeom?.Shader?.RenderBucket ?? 0)), geom.HardAlphaBlend, 0, 0);
+                MaterialAlpha.Mode(shaderFile.Hash, (geom.DrawableGeom?.Shader?.RenderBucket ?? 0)), geom.HardAlphaBlend,
+                geom.TreeAlphaScale, geom.TreeAlphaTest);
             GeomVars.Vars.WindOverrideParams = geom.WindOverrideParams;
             GeomVars.Update(context);
             GeomVars.SetPSCBuffer(context, 0);

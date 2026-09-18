@@ -2613,10 +2613,13 @@ namespace CodeWalker.Project.Panels
         {
             if (ent?.OwnerMlo == null) return null;
             var room = ent.OwnerMlo.GetEntityRoom(ent);
-            if (room == null) return null;
-            var roomnode = FindMloRoomTreeNode(room);
-            if (roomnode == null) return null;
-            var entnode = roomnode.Nodes.Add(ent.ToString());
+            var portal = ent.OwnerMlo.GetEntityPortal(ent);
+            var set = ent.OwnerMlo.GetEntitySet(ent);
+            var parentnode = FindMloRoomTreeNode(room)
+                ?? FindMloPortalTreeNode(portal)
+                ?? FindMloEntitySetTreeNode(set);
+            if (parentnode == null) return null;
+            var entnode = parentnode.Nodes.Add(ent.ToString());
             entnode.Tag = ent;
             return entnode;
         }

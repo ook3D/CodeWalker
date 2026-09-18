@@ -1547,7 +1547,7 @@ namespace CodeWalker.GameFiles
                 flags = SetBit(flags, 1); //2
                 contentFlags = SetBit(contentFlags, 8); //256
             }
-            if ((BoxOccluders != null) || (OccludeModels != null))
+            if ((BoxOccluders?.Length > 0) || (OccludeModels?.Length > 0))
             {
                 contentFlags = SetBit(contentFlags, 5); //32
             }

@@ -14,6 +14,12 @@ void ClipGrassCoverage(float alpha)
     clip(alpha - (32.0 / 255.0));
 }
 
+void ClipTreeCoverage(float alpha, float alphaTest)
+{
+    // trees_common.fxh: reject at the material reference, after coverage scaling.
+    if (alpha <= alphaTest) discard;
+}
+
 void ClipMaterialCoverage(float alpha, float hardAlphaBlend)
 {
     // Binary cutouts and shadow maps use a fixed threshold. Smooth fences

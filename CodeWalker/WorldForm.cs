@@ -2349,6 +2349,7 @@ namespace CodeWalker
         bool renderaudioouterbounds = true;
         List<RelFile> renderaudfilelist = new();
         List<AudioPlacement> renderaudplacementslist = new();
+        List<Vector3> renderaudshorelinevertices = new();
 
         bool MapViewEnabled = false;
         int MapViewDragX = 0;
@@ -3262,6 +3263,19 @@ namespace CodeWalker
             renderaudplacementslist.Clear();
             audiozones.GetPlacements(renderaudfilelist, renderaudplacementslist);
 
+            renderaudshorelinevertices.Clear();
+            lock (water)
+            {
+                foreach (var relfile in renderaudfilelist)
+                {
+                    AudioZones.AddShorelineVertices(relfile, water.WaterQuads, renderaudshorelinevertices);
+                }
+            }
+            uint shorelineColour = (uint)Color.Cyan.ToRgba();
+            for (int i = 0; i < renderaudshorelinevertices.Count; i += 2)
+            {
+                Renderer.RenderSelectionLine(renderaudshorelinevertices[i], renderaudshorelinevertices[i + 1], shorelineColour);
+            }
 
 
             BoundingBox bbox = new();
@@ -7524,7 +7538,8 @@ namespace CodeWalker
                 if (IsDisposed || IsHandleCreated == false) return;
                 if (InvokeRequired)
                 {
-                    Invoke(new Action(() => { LogError(text); }));
+                    // Rendering can log while holding locks needed by the UI thread.
+                    BeginInvoke(new Action(() => { LogError(text); }));
                 }
                 else
                 {

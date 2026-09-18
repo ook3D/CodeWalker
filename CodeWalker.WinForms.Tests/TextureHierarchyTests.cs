@@ -8,6 +8,86 @@ namespace CodeWalker.WinForms.Tests;
 public class TextureHierarchyTests
 {
     [Fact]
+    public void MissingDictionariesStayCachedUntilProjectTexturesChange()
+    {
+        var cache = new GameFileCache(1024 * 1024, 10, "", false, "", false, "") { IsInited = true };
+        var renderer = new Renderer(null!, cache);
+        var drawable = new gtaDrawable();
+        var archetype = new Archetype { TextureDict = 101 };
+        cache.AddProjectFile(new YtdFile(new RpfResourceFileEntry { ShortNameHash = 101 }) { Loaded = true });
+        GetLookup<MetaHash>(cache, "textureParents")[101] = 103;
+        GetLookup<MetaHash>(cache, "hdtexturelookup")[101] = 102;
+        var renderable = Resolve(renderer, archetype, drawable);
+        var sd = renderable.SDtxds;
+        var hd = renderable.HDtxds;
+
+        for (int i = 0; i < 100; i++) Resolve(renderer, archetype, drawable);
+
+        Assert.Same(sd, renderable.SDtxds);
+        Assert.Same(hd, renderable.HDtxds);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CircularTextureParentsStopAtFirstRepeatedDictionary(bool selfParent)
+    {
+        var cache = new GameFileCache(1024 * 1024, 10, "", false, "", false, "") { IsInited = true };
+        foreach (uint hash in new uint[] { 101, 102 })
+            cache.AddProjectFile(new YtdFile(new RpfResourceFileEntry { ShortNameHash = hash }) { Loaded = true });
+        GetLookup<MetaHash>(cache, "textureParents")[101] = selfParent ? 101u : 102u;
+        GetLookup<MetaHash>(cache, "textureParents")[102] = 101;
+        var renderer = new Renderer(null!, cache);
+
+        var renderable = Resolve(renderer, new Archetype { TextureDict = 101 }, new gtaDrawable());
+
+        Assert.Equal(selfParent ? 1 : 2, renderable.SDtxds!.Length);
+        Assert.Null(cache.TryFindTextureInParent(999, 101));
+    }
+
+    [Fact]
+    public void MissingParentAndHdDictionariesRetryWithoutHidingAvailableTextures()
+    {
+        var cache = new GameFileCache(1024 * 1024, 10, "", false, "", false, "") { IsInited = true };
+        const uint sd = 101, parent = 102, hd = 103;
+        var sdFile = new YtdFile(new RpfResourceFileEntry { ShortNameHash = sd }) { Loaded = true };
+        cache.AddProjectFile(sdFile);
+        GetLookup<MetaHash>(cache, "textureParents")[sd] = parent;
+        GetLookup<MetaHash>(cache, "hdtexturelookup")[sd] = hd;
+        var renderer = new Renderer(null!, cache) { renderhdtextures = true };
+        var drawable = new gtaDrawable();
+        var archetype = new Archetype { TextureDict = sd };
+        var renderable = Resolve(renderer, archetype, drawable);
+        Assert.Same(sdFile, Assert.Single(renderable.SDtxds!));
+
+        var parentFile = new YtdFile(new RpfResourceFileEntry { ShortNameHash = parent }) { Loaded = true };
+        var hdFile = new YtdFile(new RpfResourceFileEntry { ShortNameHash = hd }) { Loaded = true };
+        cache.AddProjectFile(parentFile);
+        cache.AddProjectFile(hdFile);
+        Resolve(renderer, archetype, drawable);
+
+        Assert.Equal(new[] { sdFile, parentFile }, renderable.SDtxds);
+        Assert.Same(hdFile, Assert.Single(renderable.HDtxds!));
+    }
+
+    [Fact]
+    public void TextureHierarchyRetriesDictionaryImportedAfterDrawable()
+    {
+        var cache = new GameFileCache(1024 * 1024, 10, "", false, "", false, "") { IsInited = true };
+        var hash = JenkHash.GenHash("southside_textures");
+        var renderer = new Renderer(null!, cache) { renderhdtextures = false };
+        var drawable = new gtaDrawable();
+        var archetype = new Archetype { TextureDict = hash };
+        var renderable = Resolve(renderer, archetype, drawable);
+        var ytd = new YtdFile(new RpfResourceFileEntry { Name = "southside_textures.ytd" }) { Loaded = true };
+
+        cache.AddProjectFile(ytd);
+        Resolve(renderer, archetype, drawable);
+
+        Assert.Same(ytd, Assert.Single(renderable.SDtxds!));
+    }
+
+    [Fact]
     public void TextureHierarchyRecoversAfterCpuCacheRejectsInitialRequest()
     {
         var cache = new GameFileCache(0, 10, "", false, "", false, "") { IsInited = true };

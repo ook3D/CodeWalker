@@ -30,7 +30,8 @@ float4 main(VS_OUTPUT input) : SV_TARGET
         float4 c = Colourmap.Sample(TextureSS, input.Texcoord);
         if (EnableTint == 2) { c.a = 1; }
         if (AlphaParams.x == 3) c.a = 1;
-        if ((AlphaParams.x == 1) || (AlphaParams.x == 4)) ClipMaterialCoverage(c.a, AlphaParams.y);
+        if (AlphaParams.x == 6) ClipTreeCoverage(c.a * AlphaParams.z * 2.0, AlphaParams.w);
+        else if ((AlphaParams.x == 1) || (AlphaParams.x == 4)) ClipMaterialCoverage(c.a, AlphaParams.y);
         else if ((IsDecal == 0) && (c.a <= 0.33)) discard;
         if ((IsDecal == 1) && (c.a <= 0.0)) discard;
     }

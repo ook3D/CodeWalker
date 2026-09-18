@@ -23,7 +23,7 @@ namespace CodeWalker.Rendering
         public Vector4 CameraPos;
         public uint LightType; //0=directional, 1=Point, 2=Spot, 4=Capsule
         public uint IsLOD; //useful or not?
-        public uint Pad0;
+        public uint LightHourMask;
         public uint Pad1;
     }
     public struct DeferredLightPSVars
@@ -379,7 +379,7 @@ namespace CodeWalker.Rendering
             LightVSVars.Vars.CameraPos = Vector4.Zero;
             LightVSVars.Vars.LightType = 0;
             LightVSVars.Vars.IsLOD = 0;
-            LightVSVars.Vars.Pad0 = 0;
+            LightVSVars.Vars.LightHourMask = 0;
             LightVSVars.Vars.Pad1 = 0;
             LightVSVars.Update(context);
             LightVSVars.SetVSCBuffer(context, 0);
@@ -418,7 +418,7 @@ namespace CodeWalker.Rendering
             context.PixelShader.SetSamplers(0, null, null);
         }
 
-        public void RenderLights(DeviceContext context, Camera camera, List<RenderableLODLights> lodlights)
+        public void RenderLights(DeviceContext context, Camera camera, List<RenderableLODLights> lodlights, float timeOfDay)
         {
             if (GBuffers == null) return;
             
@@ -434,7 +434,7 @@ namespace CodeWalker.Rendering
             LightVSVars.Vars.CameraPos = new Vector4(camera.Position, 0.0f);
             LightVSVars.Vars.LightType = 0;
             LightVSVars.Vars.IsLOD = 0;
-            LightVSVars.Vars.Pad0 = 0;
+            LightVSVars.Vars.LightHourMask = 1u << ((int)timeOfDay % 24);
             LightVSVars.Vars.Pad1 = 0;
 
             LightPSVars.Vars.ViewProjInv = Matrix.Transpose(camera.ViewProjInvMatrix);
@@ -500,7 +500,7 @@ namespace CodeWalker.Rendering
             context.PixelShader.SetSamplers(0, null, null);
         }
 
-        public void RenderLights(DeviceContext context, Camera camera, List<RenderableLightInst> lights)
+        public void RenderLights(DeviceContext context, Camera camera, List<RenderableLightInst> lights, float timeOfDay)
         {
             if (GBuffers == null) return;
             
@@ -517,7 +517,7 @@ namespace CodeWalker.Rendering
             LightVSVars.Vars.CameraPos = new Vector4(camera.Position, 0.0f);
             LightVSVars.Vars.LightType = 0;
             LightVSVars.Vars.IsLOD = 0;
-            LightVSVars.Vars.Pad0 = 0;
+            LightVSVars.Vars.LightHourMask = 0;
             LightVSVars.Vars.Pad1 = 0;
             LightVSVars.Update(context);
             LightVSVars.SetVSCBuffer(context, 0);
@@ -543,6 +543,7 @@ namespace CodeWalker.Rendering
             {
                 var li = lights[i];
                 var rl = li.Light;
+                if (!rl.IsActive(timeOfDay)) continue;
 
                 var pos = rl.Position;
                 var dir = rl.Direction;
