@@ -1,10 +1,39 @@
 using CodeWalker.GameFiles;
+using System.Text;
+using System.Xml;
 using Xunit;
 
 namespace CodeWalker.Core.Tests;
 
 public class ClipFormatTests
 {
+    [Theory]
+    [InlineData("Unk0", 0, 0)]
+    [InlineData("Unk0", 1, 1)]
+    [InlineData("Unk0", 27, 2)]
+    [InlineData("Type", 0, 0)]
+    [InlineData("Type", 1, 1)]
+    [InlineData("Type", 27, 2)]
+    public void BoneTrackXmlExportsSollumzFormatTag(string inputTag, byte track, byte format)
+    {
+        var document = new XmlDocument();
+        document.LoadXml($"<Item><BoneId value=\"34014\"/><Track value=\"{track}\"/><{inputTag} value=\"{format}\"/></Item>");
+        var bone = new AnimationBoneId();
+        bone.ReadXml(document.DocumentElement!);
+
+        var output = new StringBuilder();
+        bone.WriteXml(output, 0);
+        document.LoadXml($"<Item>{output}</Item>");
+
+        Assert.Equal(format.ToString(), document.SelectSingleNode("/Item/Unk0/@value")?.Value);
+        Assert.Null(document.SelectSingleNode("/Item/Type"));
+        var loaded = new AnimationBoneId();
+        loaded.ReadXml(document.DocumentElement!);
+        Assert.Equal((ushort)34014, loaded.BoneId);
+        Assert.Equal(track, loaded.Track);
+        Assert.Equal(format, loaded.Type);
+    }
+
     [Fact]
     public void ClipDictionaryUsesNativeAlignedMapHeader()
     {

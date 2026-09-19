@@ -877,7 +877,8 @@ namespace CodeWalker.GameFiles
         {
             YcdXml.ValueTag(sb, indent, "BoneId", BoneId.ToString());
             YcdXml.ValueTag(sb, indent, "Track", Track.ToString());
-            YcdXml.ValueTag(sb, indent, "Type", Type.ToString());
+            // Sollumz reads the track format using the original XML tag.
+            YcdXml.ValueTag(sb, indent, "Unk0", Type.ToString());
         }
         public void ReadXml(XmlNode node)
         {
