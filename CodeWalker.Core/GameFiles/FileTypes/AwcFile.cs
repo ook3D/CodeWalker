@@ -158,6 +158,8 @@ namespace CodeWalker.GameFiles
 
         public byte[] Save()
         {
+            if (DataEncryptedFlag && !WholeFileEncrypted && !MultiChannelFlag)
+                BuildStreamInfos(); // Encryption padding must be included in chunk sizes and subsequent offsets.
             MemoryStream s = new();
             DataWriter w = new(s);
 
@@ -340,11 +342,8 @@ namespace CodeWalker.GameFiles
                     }
                     else
                     {
-                        if (data.Length % 4 != 0)
-                        {
-                            throw new Exception($"Unable to encrypt data chunk of length {data.Length}: Data to encrypt must be a multiple of 4 bytes long.\nEnsure that PCM streams have an even number of samples, and ADPCM streams have a multiple of 8 samples.");
-                        }
-                        Encrypt_RSXXTEA(data);
+                        Array.Resize(ref data, EncryptedDataSize(data.Length));
+                        if (data.Length > 0) Encrypt_RSXXTEA(data);
                     }
                     w.Write(data);
                     continue;
@@ -725,6 +724,8 @@ namespace CodeWalker.GameFiles
 
         }
 
+        private static int EncryptedDataSize(int size) => size == 0 ? 0 : Math.Max(8, checked(size + 3) & ~3);
+
         public void BuildStreamInfos()
         {
 
@@ -745,6 +746,8 @@ namespace CodeWalker.GameFiles
                 {
                     var chunkinfo = chunk.ChunkInfo;
                     var size = chunk.ChunkSize;
+                    if (chunk is AwcDataChunk && DataEncryptedFlag && !WholeFileEncrypted && !MultiChannelFlag)
+                        size = EncryptedDataSize(size);
                     var align = chunkinfo.Align;
                     if (align > 0)
                     {
@@ -1371,7 +1374,7 @@ namespace CodeWalker.GameFiles
                 }
 
                 chansmpoffs.Clear();
-                var samplesrem = (int)chaninfo.Samples+1;
+                var samplesrem = (int)chaninfo.Samples;
                 for (int i = 0; i < totsmblockcount; i++)
                 {
 
@@ -1402,6 +1405,19 @@ namespace CodeWalker.GameFiles
 
                 }
 
+            }
+
+            // Shorter channels still need a header in every block. Data is packed
+            // consecutively, so offsets follow the actual preceding channel sizes.
+            foreach (var block in streamblocks)
+            {
+                var startBlock = 0;
+                for (int c = 0; c < chancount; c++)
+                {
+                    var channel = block.Channels[c] ??= new AwcStreamDataChannel();
+                    channel.StartBlock = startBlock;
+                    startBlock += channel.BlockCount;
+                }
             }
 
             StreamBlocks = streamblocks.ToArray();
@@ -1513,6 +1529,11 @@ namespace CodeWalker.GameFiles
             if (codec == AwcCodecType.ADPCM)//just convert ADPCM to PCM for compatibility reasons
             {
                 data = ADPCMCodec.DecodeADPCM(data, SampleCount);
+            }
+            if ((codec == AwcCodecType.PCM || codec == AwcCodecType.ADPCM) && SampleCount >= 0 && (long)SampleCount * 2 < data.Length)
+            {
+                // Serialized encryption alignment is not part of the authored PCM audio.
+                data = data[..(SampleCount * 2)];
             }
 
             return data;
@@ -3045,7 +3066,8 @@ namespace CodeWalker.GameFiles
 
         public static byte[] EncodeADPCM(byte[] data, int sampleCount)
         {
-            byte[] dataPCM = new byte[data.Length / 4];
+            // Each 4088-sample block also needs a four-byte predictor header.
+            byte[] dataPCM = new byte[checked((sampleCount + 1) / 2 + ((sampleCount + 4087) / 4088) * 4)];
 
             int predictor = 0, stepIndex = 0;
             int readingOffset = 0, writingOffset = 0, bytesInBlock = 0;
@@ -3116,7 +3138,7 @@ namespace CodeWalker.GameFiles
                 else
                 {
                     var s0 = readSample();
-                    var s1 = readSample();
+                    var s1 = sampleCount > 1 ? readSample() : s0;
                     var b0 = encodeNibble(s0);
                     var b1 = encodeNibble(s1);
                     var b = (b0 & 0x0F) + ((b1 & 0x0F) << 4);

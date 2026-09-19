@@ -8,6 +8,89 @@ namespace CodeWalker.Core.Tests;
 public class AwcEncryptionFlagTests
 {
     [Theory]
+    [InlineData("PCM", 1)]
+    [InlineData("PCM", 3)]
+    [InlineData("PCM", 16385)]
+    [InlineData("ADPCM", 16385)]
+    [InlineData("ADPCM", 1)]
+    [InlineData("ADPCM", 4088)]
+    [InlineData("ADPCM", 4089)]
+    public void XmlImportAlignsEncryptedChunksAndPreservesFollowingStreams(string codec, int samples)
+    {
+        var previousKey = GTA5Keys.PC_AWC_KEY;
+        var folder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(folder);
+        try
+        {
+            GTA5Keys.PC_AWC_KEY = [1, 2, 3, 4];
+            var pcm = new byte[samples * 2];
+            new Random(123).NextBytes(pcm);
+            var wave = new AwcStream(new AwcFile())
+            {
+                FormatChunk = new AwcFormatChunk(new AwcChunkInfo { Type = AwcChunkType.format })
+                { Codec = AwcCodecType.PCM, SamplesPerSecond = 24000, Samples = (uint)samples },
+                DataChunk = new AwcDataChunk(new AwcChunkInfo { Type = AwcChunkType.data }) { Data = pcm }
+            };
+            File.WriteAllBytes(Path.Combine(folder, "test.wav"), wave.GetWavFile());
+            var streams = string.Concat(new[] { "first", "second" }.Select(name =>
+                $"<Item><Name>{name}</Name><FileName>test.wav</FileName><Chunks><Item><Type>format</Type><Codec>{codec}</Codec><Samples value=\"{samples}\"/><SampleRate value=\"24000\"/></Item><Item><Type>data</Type></Item></Chunks></Item>"));
+            var doc = new XmlDocument();
+            doc.LoadXml("<AudioWaveContainer><Version value=\"1\"/><DataEncrypted value=\"true\"/><ContiguousPacking value=\"true\"/><Streams>"
+                + streams + "</Streams></AudioWaveContainer>");
+            var bank = XmlAwc.GetAwc(doc, folder);
+            var expectedAudio = bank.Streams.Select(s => s.GetPcmData()).ToArray();
+            var saved = bank.Save();
+            Assert.Equal(saved, bank.Save());
+            var loaded = Load(saved);
+            Assert.Equal(2, loaded.Streams.Length);
+            for (int i = 0; i < loaded.Streams.Length; i++)
+            {
+                var stream = loaded.Streams[i];
+                Assert.Equal(samples, stream.SampleCount);
+                Assert.Equal(0, stream.DataChunk!.ChunkInfo.Size % 4);
+                Assert.Equal(expectedAudio[i], stream.GetPcmData());
+                Assert.Equal(samples * 2, stream.GetWavFile().Length - 44);
+                if (codec == "PCM") Assert.Equal(pcm, stream.GetPcmData());
+            }
+        }
+        finally
+        {
+            GTA5Keys.PC_AWC_KEY = previousKey;
+            Directory.Delete(folder, true);
+        }
+    }
+
+    [Theory]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(415659)]
+    public void EncryptingPartialAdpcmChunksPadsStorageWithoutChangingAudio(int length)
+    {
+        var previousKey = GTA5Keys.PC_AWC_KEY;
+        try
+        {
+            GTA5Keys.PC_AWC_KEY = [1, 2, 3, 4];
+            var audio = new byte[length];
+            var bank = Load(CreateBank(0xFF03, audio));
+            var stream = Assert.Single(bank.Streams);
+            var expectedPcm = stream.GetPcmData();
+            int samples = stream.SampleCount;
+            bank.DataEncryptedFlag = true;
+            var saved = bank.Save();
+            Assert.Equal((length + 3) & ~3, stream.DataChunk!.ChunkInfo.Size);
+            Assert.Equal(audio, stream.GetRawData());
+            Assert.Equal(saved, bank.Save());
+            var reloaded = Assert.Single(Load(saved).Streams);
+            Assert.Equal(samples, reloaded.SampleCount);
+            Assert.Equal(expectedPcm, reloaded.GetPcmData());
+            Assert.Equal(audio, reloaded.GetRawData()[..length]);
+            Assert.All(reloaded.GetRawData()[length..], b => Assert.Equal((byte)0, b));
+        }
+        finally { GTA5Keys.PC_AWC_KEY = previousKey; }
+    }
+
+    [Theory]
     [InlineData(0xFF01)]
     [InlineData(0xFF03)]
     public void PackingDoesNotDecryptOrEncryptUnencryptedAudio(ushort flags)
@@ -17,7 +100,7 @@ public class AwcEncryptionFlagTests
         var bank = Load(CreateBank(flags, audio));
         var stream = Assert.Single(bank.Streams);
         Assert.Equal(audio, stream.GetRawData());
-        Assert.Equal(ADPCMCodec.DecodeADPCM(audio, 10), stream.GetWavFile()[44..]);
+        Assert.Equal(ADPCMCodec.DecodeADPCM(audio, 10)[..20], stream.GetWavFile()[44..]);
         Assert.Equal(audio, Assert.Single(Load(bank.Save()).Streams).GetRawData());
     }
 
@@ -79,9 +162,11 @@ public class AwcEncryptionFlagTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void XmlImportEncryptsAudioAndRepeatedSavesPreservePlaintext(bool multichannel)
+    [InlineData(false, -1)]
+    [InlineData(true, -1)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    public void XmlImportEncryptsAudioAndRepeatedSavesPreservePlaintext(bool multichannel, int shorterChannel)
     {
         var previousKey = GTA5Keys.PC_AWC_KEY;
         var folder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -98,11 +183,15 @@ public class AwcEncryptionFlagTests
                 DataChunk = new AwcDataChunk(new AwcChunkInfo { Type = AwcChunkType.data }) { Data = pcm }
             };
             File.WriteAllBytes(Path.Combine(folder, "test.wav"), wave.GetWavFile());
+            var shortPcm = pcm[..8176]; // One ADPCM block versus five in the long channel.
+            wave.FormatChunk.Samples = 4088;
+            wave.DataChunk.Data = shortPcm;
+            File.WriteAllBytes(Path.Combine(folder, "short.wav"), wave.GetWavFile());
             const string format = "<Codec>ADPCM</Codec><Samples value=\"16384\"/><SampleRate value=\"24000\"/>";
             var streams = multichannel
                 ? "<Item><Name/><Chunks><Item><Type>streamformat</Type><BlockSize value=\"8192\"/></Item><Item><Type>data</Type></Item><Item><Type>seektable</Type></Item></Chunks></Item>"
-                    + "<Item><Name>left</Name><FileName>test.wav</FileName><StreamFormat>" + format + "</StreamFormat></Item>"
-                    + "<Item><Name>right</Name><FileName>test.wav</FileName><StreamFormat>" + format + "</StreamFormat></Item>"
+                    + "<Item><Name>left</Name><FileName>" + (shorterChannel == 0 ? "short.wav" : "test.wav") + "</FileName><StreamFormat>" + (shorterChannel == 0 ? format.Replace("16384", "4088") : format) + "</StreamFormat></Item>"
+                    + "<Item><Name>right</Name><FileName>" + (shorterChannel == 1 ? "short.wav" : "test.wav") + "</FileName><StreamFormat>" + (shorterChannel == 1 ? format.Replace("16384", "4088") : format) + "</StreamFormat></Item>"
                 : "<Item><Name>test</Name><FileName>test.wav</FileName><Chunks><Item><Type>format</Type>" + format + "</Item><Item><Type>data</Type></Item></Chunks></Item>";
             var doc = new XmlDocument();
             doc.LoadXml("<AudioWaveContainer><Version value=\"1\"/><DataEncrypted value=\"true\"/>"
@@ -128,8 +217,27 @@ public class AwcEncryptionFlagTests
             var loaded = Load(saved);
             if (multichannel)
             {
-                foreach (var stream in loaded.Streams.Where(s => s.StreamFormat != null))
-                    Assert.Equal(ADPCMCodec.EncodeADPCM(pcm, pcm.Length / 2), stream.GetRawData());
+                var channels = loaded.Streams.Where(s => s.StreamFormat != null).ToArray();
+                for (int i = 0; i < channels.Length; i++)
+                {
+                    var stream = channels[i];
+                    var channelPcm = i == shorterChannel ? shortPcm : pcm;
+                    var encoded = ADPCMCodec.EncodeADPCM(channelPcm, channelPcm.Length / 2);
+                    Assert.Equal(encoded, stream.GetRawData()[..encoded.Length]);
+                    Assert.All(stream.GetRawData()[encoded.Length..], b => Assert.Equal((byte)0, b));
+                    Assert.Equal(channelPcm.Length / 2, stream.SampleCount);
+                    Assert.Equal(ADPCMCodec.DecodeADPCM(encoded, channelPcm.Length / 2)[..channelPcm.Length], stream.GetPcmData());
+                    Assert.Equal(stream.SampleCount, loaded.MultiChannelSource!.StreamBlocks.Sum(b => b.Channels[i].SampleCount));
+                }
+                foreach (var block in loaded.MultiChannelSource!.StreamBlocks)
+                {
+                    int startBlock = 0;
+                    foreach (var channel in block.Channels)
+                    {
+                        Assert.Equal(startBlock, channel.StartBlock);
+                        startBlock += channel.BlockCount;
+                    }
+                }
             }
             else Assert.Equal(plaintext, Assert.Single(loaded.Streams).GetRawData());
             Assert.Equal(saved, bank.Save());
@@ -164,7 +272,7 @@ public class AwcEncryptionFlagTests
         writer.Write(0x40000001u); // two chunks, stream ID 1
         writer.Write(((ulong)AwcChunkType.format << 56) | (20ul << 28) | 38ul);
         writer.Write(((ulong)AwcChunkType.data << 56) | ((ulong)audio.Length << 28) | 64ul);
-        writer.Write((uint)((audio.Length - 4) * 2));
+        writer.Write((uint)((audio.Length - 4 * ((audio.Length + 2047) / 2048)) * 2));
         writer.Write(-1); // loop point
         writer.Write((ushort)24000);
         writer.Write(new byte[9]);

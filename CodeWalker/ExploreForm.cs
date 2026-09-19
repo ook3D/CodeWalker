@@ -1,4 +1,4 @@
-﻿using CodeWalker.Forms;
+using CodeWalker.Forms;
 using CodeWalker.GameFiles;
 using CodeWalker.Properties;
 using CodeWalker.Tools;
@@ -3065,99 +3065,142 @@ namespace CodeWalker
                 if (!EnsureRpfValidEncryption() && (CurrentFolder.RpfFolder != null)) return;
             }
 
-            foreach (var fpath in fpaths)
+            using var progress = new Form
             {
-#if !DEBUG
-                try
-#endif
+                Text = "Import XML",
+                ClientSize = new Size(520, 95),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                ControlBox = false
+            };
+            var status = new Label { Left = 15, Top = 15, Width = 490, Height = 30, AutoEllipsis = true };
+            progress.Controls.Add(status);
+            progress.Controls.Add(new ProgressBar
+            {
+                Left = 15, Top = 55, Width = 490, Height = 20,
+                Style = ProgressBarStyle.Marquee
+            });
+            IProgress<string> importStatus = new Progress<string>(text => status.Text = text);
+            var importing = true;
+            progress.FormClosing += (s, e) => e.Cancel = importing;
+            progress.Shown += async (s, e) =>
+            {
+                try { await ImportFiles(); }
+                finally
                 {
-                    if (!File.Exists(fpath))
-                    {
-                        continue;//this shouldn't happen...
-                    }
-
-                    var fi = new FileInfo(fpath);
-                    var fname = fi.Name;
-                    var fnamel = fname.ToLowerInvariant();
-                    var fpathin = fpath;
-
-                    if (!fnamel.EndsWith(".xml"))
-                    {
-                        MessageBox.Show(fname + ": Not an XML file!", "Cannot import XML");
-                        continue;
-                    }
-
-                    byte[]? data = null;
-                    var mformat = MetaFormat.XML;
-                    if (fnamel.IndexOf('.') == fnamel.LastIndexOf('.'))
-                    {
-                        //the user has selected import XML option, but this file is just an ordinary XML file.
-                        //import this file directly instead of attempting XML conversion.
-
-                        data = File.ReadAllBytes(fpath);
-
-                    }
-                    else
-                    {
-                        var trimlength = 4;
-                        mformat = XmlMeta.GetXMLFormat(fnamel, out trimlength);
-
-                        fname = fname.Substring(0, fname.Length - trimlength);
-                        fnamel = fnamel.Substring(0, fnamel.Length - trimlength);
-                        fpathin = fpathin.Substring(0, fpathin.Length - trimlength);
-                        fpathin = Path.Combine(Path.GetDirectoryName(fpathin) ?? string.Empty, Path.GetFileNameWithoutExtension(fpathin));
-
-                        var doc = new XmlDocument();
-                        string text = File.ReadAllText(fpath);
-                        if (!string.IsNullOrEmpty(text))
-                        {
-                            doc.LoadXml(text);
-                        }
-
-                        data = XmlMeta.GetData(doc, mformat, fpathin);
-
-                    }
-
-
-                    if (data != null)
-                    {
-                        if (CurrentFolder.RpfFolder != null)
-                        {
-                            var rpffldr = CurrentFolder.RpfFolder;
-                            if ((dirdict != null) && dirdict.ContainsKey(fpath))
-                            {
-                                rpffldr = dirdict[fpath];
-                            }
-
-                            RpfFile.CreateFile(rpffldr, fname, data);
-                        }
-                        else if (!string.IsNullOrEmpty(CurrentFolder.FullPath))
-                        {
-                            var outfpath = Path.Combine(CurrentFolder.FullPath, fname);
-                            File.WriteAllBytes(outfpath, data);
-                            CurrentFolder.EnsureFile(outfpath);
-
-                            //TODO: handle folders...
-
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show(fname + ": Schema not supported.", "Cannot import " + XmlMeta.GetXMLFormatName(mformat));
-                    }
-
+                    importing = false;
+                    progress.Close();
                 }
-#if !DEBUG
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message, "Unable to import file");
-                }
-#endif
-
-            }
-
+            };
+            progress.ShowDialog(this);
             RefreshMainListView();
 
+            async Task ImportFiles()
+            {
+                foreach (var fpath in fpaths)
+                {
+                    try
+                    {
+                        if (!File.Exists(fpath))
+                        {
+                            continue;//this shouldn't happen...
+                        }
+
+                        var fi = new FileInfo(fpath);
+                        var fname = fi.Name;
+                        var fnamel = fname.ToLowerInvariant();
+                        var fpathin = fpath;
+
+                        if (!fnamel.EndsWith(".xml"))
+                        {
+                            MessageBox.Show(progress, fname + ": Not an XML file!", "Cannot import XML");
+                            continue;
+                        }
+
+                        byte[]? data = null;
+                        var mformat = MetaFormat.XML;
+                        if (fnamel.IndexOf('.') == fnamel.LastIndexOf('.'))
+                        {
+                            //the user has selected import XML option, but this file is just an ordinary XML file.
+                            //import this file directly instead of attempting XML conversion.
+
+                            status.Text = "Reading " + fname + "...";
+                            data = await File.ReadAllBytesAsync(fpath);
+
+                        }
+                        else
+                        {
+                            var trimlength = 4;
+                            mformat = XmlMeta.GetXMLFormat(fnamel, out trimlength);
+
+                            fname = fname.Substring(0, fname.Length - trimlength);
+                            fnamel = fnamel.Substring(0, fnamel.Length - trimlength);
+                            fpathin = fpathin.Substring(0, fpathin.Length - trimlength);
+                            fpathin = Path.Combine(Path.GetDirectoryName(fpathin) ?? string.Empty, Path.GetFileNameWithoutExtension(fpathin));
+
+                            var doc = new XmlDocument();
+                            status.Text = "Converting " + fname + "...";
+                            string text = await File.ReadAllTextAsync(fpath);
+                            if (!string.IsNullOrEmpty(text))
+                            {
+                                doc.LoadXml(text);
+                            }
+
+                            data = await Task.Run(() => XmlMeta.GetData(doc, mformat, fpathin));
+
+                        }
+
+
+                        if (data != null)
+                        {
+                            if (CurrentFolder.RpfFolder != null)
+                            {
+                                var rpffldr = CurrentFolder.RpfFolder;
+                                if ((dirdict != null) && dirdict.ContainsKey(fpath))
+                                {
+                                    rpffldr = dirdict[fpath];
+                                }
+
+                                status.Text = "Writing " + fname + " to archive...";
+                                await Task.Run(() =>
+                                {
+                                    for (var archive = rpffldr.File; archive != null; archive = archive.Parent)
+                                    {
+                                        if (archive.Encryption != RpfEncryption.NG) continue;
+                                        importStatus.Report("Preparing archive encryption...");
+                                        GTA5Keys.EnsureNGEncryptTables(importStatus.Report);
+                                        break;
+                                    }
+                                    importStatus.Report("Writing " + fname + " to archive...");
+                                    RpfFile.CreateFile(rpffldr, fname, data);
+                                });
+                            }
+                            else if (!string.IsNullOrEmpty(CurrentFolder.FullPath))
+                            {
+                                var outfpath = Path.Combine(CurrentFolder.FullPath, fname);
+                                status.Text = "Writing " + fname + "...";
+                                await File.WriteAllBytesAsync(outfpath, data);
+                                CurrentFolder.EnsureFile(outfpath);
+
+                                //TODO: handle folders...
+
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show(progress, fname + ": Schema not supported.", "Cannot import " + XmlMeta.GetXMLFormatName(mformat));
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(progress, ex.Message, "Unable to import file");
+                    }
+
+                }
+            }
         }
         private void ImportRaw()
         {
