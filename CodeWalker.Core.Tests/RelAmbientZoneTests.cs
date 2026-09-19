@@ -6,15 +6,19 @@ namespace CodeWalker.Core.Tests;
 public class RelAmbientZoneTests
 {
     [Theory]
-    [InlineData(7126027u, 0, 0)]
-    [InlineData(7126027u, 0, 1)]
-    [InlineData(7126027u, 2, 2)]
-    [InlineData(50141324u, 0, 0)]
-    [InlineData(50141324u, 0, 1)]
-    [InlineData(50141324u, 2, 2)]
-    public void AmbientZoneCountsSurviveBinaryAndXmlRoundTrips(uint version, byte rules, byte ambiences)
+    [InlineData(150u, 5750395u, 0, 0)]
+    [InlineData(150u, 5750395u, 0, 1)]
+    [InlineData(150u, 5750395u, 2, 2)]
+    [InlineData(151u, 7126027u, 0, 0)]
+    [InlineData(151u, 7126027u, 0, 1)]
+    [InlineData(151u, 7126027u, 2, 2)]
+    [InlineData(151u, 50141324u, 0, 0)]
+    [InlineData(151u, 50141324u, 0, 1)]
+    [InlineData(151u, 50141324u, 2, 2)]
+    public void AmbientZoneCountsSurviveBinaryAndXmlRoundTrips(uint type, uint version, byte rules, byte ambiences)
     {
         // Build the on-disk layout independently of the REL writer.
+        bool packedCount = version is 5750395 or 7126027;
         using var record = new MemoryStream();
         using var writer = new BinaryWriter(record);
         writer.Write((uint)Dat151RelType.AmbientZone);
@@ -22,9 +26,9 @@ public class RelAmbientZoneTests
         writer.Write((byte)10);
         writer.Write((byte)1);
         writer.Write(rules);
-        writer.Write(version == 7126027 ? ambiences : (byte)0);
+        writer.Write(packedCount ? ambiences : (byte)0);
         for (int i = 0; i < rules; i++) writer.Write(0x12345678u + (uint)i);
-        if (version != 7126027)
+        if (!packedCount)
         {
             writer.Write(ambiences);
             writer.Write(new byte[3]);
@@ -39,7 +43,7 @@ public class RelAmbientZoneTests
 
         using var file = new MemoryStream();
         using var fileWriter = new BinaryWriter(file);
-        fileWriter.Write(151u);
+        fileWriter.Write(type);
         fileWriter.Write((uint)(16 + recordBytes.Length));
         fileWriter.Write(version);
         fileWriter.Write(new byte[12]);
@@ -68,6 +72,7 @@ public class RelAmbientZoneTests
 
         void AssertZone(RelFile parsed)
         {
+            Assert.Equal((RelDatFileType)type, parsed.RelType);
             Assert.Equal(version, parsed.DataUnkVal);
             var zone = Assert.IsType<Dat151AmbientZone>(Assert.Single(parsed.RelDatas));
             Assert.Equal(rules, zone.NumRules);

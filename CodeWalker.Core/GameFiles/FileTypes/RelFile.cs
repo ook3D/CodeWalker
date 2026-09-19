@@ -5962,8 +5962,8 @@ namespace CodeWalker.GameFiles
     [TC(typeof(EXP))] 
     public class Dat151AmbientZone : Dat151RelData
     {
-        // This older DAT151 version packs both array counts before the rules.
-        private bool HasPackedAmbienceCount => Rel.DataUnkVal == 7126027;
+        // These older DAT150/151 versions pack both array counts before the rules.
+        private bool HasPackedAmbienceCount => Rel.DataUnkVal is 5750395 or 7126027;
 
         public FlagsUint Flags { get; set; }
         public Dat151ZoneShape Shape { get; set; }

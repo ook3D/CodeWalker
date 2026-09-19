@@ -78,6 +78,71 @@ public class AwcEncryptionFlagTests
         Assert.Equal(flags, AwcFile.ReadXmlNode(doc.DocumentElement, "")!.Flags);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void XmlImportEncryptsAudioAndRepeatedSavesPreservePlaintext(bool multichannel)
+    {
+        var previousKey = GTA5Keys.PC_AWC_KEY;
+        var folder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(folder);
+        try
+        {
+            GTA5Keys.PC_AWC_KEY = [1, 2, 3, 4];
+            var pcm = new byte[32768];
+            new Random(123).NextBytes(pcm);
+            var wave = new AwcStream(new AwcFile())
+            {
+                FormatChunk = new AwcFormatChunk(new AwcChunkInfo { Type = AwcChunkType.format })
+                { Codec = AwcCodecType.PCM, SamplesPerSecond = 24000, Samples = 16384 },
+                DataChunk = new AwcDataChunk(new AwcChunkInfo { Type = AwcChunkType.data }) { Data = pcm }
+            };
+            File.WriteAllBytes(Path.Combine(folder, "test.wav"), wave.GetWavFile());
+            const string format = "<Codec>ADPCM</Codec><Samples value=\"16384\"/><SampleRate value=\"24000\"/>";
+            var streams = multichannel
+                ? "<Item><Name/><Chunks><Item><Type>streamformat</Type><BlockSize value=\"8192\"/></Item><Item><Type>data</Type></Item><Item><Type>seektable</Type></Item></Chunks></Item>"
+                    + "<Item><Name>left</Name><FileName>test.wav</FileName><StreamFormat>" + format + "</StreamFormat></Item>"
+                    + "<Item><Name>right</Name><FileName>test.wav</FileName><StreamFormat>" + format + "</StreamFormat></Item>"
+                : "<Item><Name>test</Name><FileName>test.wav</FileName><Chunks><Item><Type>format</Type>" + format + "</Item><Item><Type>data</Type></Item></Chunks></Item>";
+            var doc = new XmlDocument();
+            doc.LoadXml("<AudioWaveContainer><Version value=\"1\"/><DataEncrypted value=\"true\"/>"
+                + (multichannel ? "<MultiChannel value=\"true\"/>" : "<ContiguousPacking value=\"true\"/>")
+                + "<Streams>" + streams + "</Streams></AudioWaveContainer>");
+            var bank = XmlAwc.GetAwc(doc, folder);
+            var source = multichannel ? bank.MultiChannelSource! : Assert.Single(bank.Streams);
+            var plaintext = (byte[])source.DataChunk!.Data.Clone();
+            var chunk = source.DataChunk.ChunkInfo;
+            var saved = XmlMeta.GetAwcData(doc, folder)!;
+            Assert.Equal(8, BitConverter.ToUInt16(saved, 6) & 8);
+            var encrypted = saved[chunk.Offset..(chunk.Offset + chunk.Size)];
+            int blockSize = multichannel ? 8192 : plaintext.Length;
+            if (multichannel) Assert.True(plaintext.Length > blockSize);
+            for (int offset = 0; offset < plaintext.Length; offset += blockSize)
+            {
+                int count = Math.Min(blockSize, plaintext.Length - offset);
+                var block = encrypted[offset..(offset + count)];
+                Assert.False(block.SequenceEqual(plaintext[offset..(offset + count)]));
+                AwcFile.Decrypt_RSXXTEA(block);
+                Assert.Equal(plaintext[offset..(offset + count)], block);
+            }
+            var loaded = Load(saved);
+            if (multichannel)
+            {
+                foreach (var stream in loaded.Streams.Where(s => s.StreamFormat != null))
+                    Assert.Equal(ADPCMCodec.EncodeADPCM(pcm, pcm.Length / 2), stream.GetRawData());
+            }
+            else Assert.Equal(plaintext, Assert.Single(loaded.Streams).GetRawData());
+            Assert.Equal(saved, bank.Save());
+            Assert.Equal(plaintext, source.DataChunk.Data);
+            Assert.Equal(saved, bank.Save());
+        }
+        finally
+        {
+            GTA5Keys.PC_AWC_KEY = previousKey;
+            Directory.Delete(folder, true);
+        }
+    }
+
     private static AwcFile Load(byte[] data)
     {
         var bank = new AwcFile();

@@ -320,36 +320,34 @@ namespace CodeWalker.GameFiles
                     var padc = (align - (w.Position % align)) % align;
                     if (padc > 0) w.Write(new byte[padc]);
                 }
-                if (chunk is AwcDataChunk datachunk && (datachunk.Data != null))
+                if (chunk is AwcDataChunk datachunk && (datachunk.Data != null) && DataEncryptedFlag && !WholeFileEncrypted)
                 {
+                    // Encrypt a copy so saving does not alter the loaded audio or encrypt it twice.
+                    var data = (byte[])datachunk.Data.Clone();
                     if (MultiChannelFlag)
                     {
-                        if (DataEncryptedFlag && !WholeFileEncrypted)
+                        var bcount = (int)(MultiChannelSource?.StreamFormatChunk?.BlockCount ?? 0);
+                        var bsize = (int)(MultiChannelSource?.StreamFormatChunk?.BlockSize ?? 0);
+                        for (int b = 0; b < bcount; b++)
                         {
-                            var bcount = (int)(MultiChannelSource?.StreamFormatChunk?.BlockCount ?? 0);
-                            var bsize = (int)(MultiChannelSource?.StreamFormatChunk?.BlockSize ?? 0);
-                            for (int b = 0; b < bcount; b++)
-                            {
-                                int srcoff = b * bsize;
-                                int blen = Math.Max(Math.Min(bsize, datachunk.Data.Length - srcoff), 0);
-                                var bdat = new byte[blen];
-                                Buffer.BlockCopy(datachunk.Data, srcoff, bdat, 0, blen);
-                                Encrypt_RSXXTEA(bdat);
-                                Buffer.BlockCopy(bdat, 0, datachunk.Data, srcoff, blen);
-                            }
+                            int srcoff = b * bsize;
+                            int blen = Math.Max(Math.Min(bsize, data.Length - srcoff), 0);
+                            var bdat = new byte[blen];
+                            Buffer.BlockCopy(data, srcoff, bdat, 0, blen);
+                            Encrypt_RSXXTEA(bdat);
+                            Buffer.BlockCopy(bdat, 0, data, srcoff, blen);
                         }
                     }
                     else
                     {
-                        if (DataEncryptedFlag && !WholeFileEncrypted)
+                        if (data.Length % 4 != 0)
                         {
-                            if (datachunk.Data.Length % 4 != 0)
-                            {
-                                throw new Exception($"Unable to encrypt data chunk of length {datachunk.Data.Length}: Data to encrypt must be a multiple of 4 bytes long.\nEnsure that PCM streams have an even number of samples, and ADPCM streams have a multiple of 8 samples.");
-                            }
-                            Encrypt_RSXXTEA(datachunk.Data);
+                            throw new Exception($"Unable to encrypt data chunk of length {data.Length}: Data to encrypt must be a multiple of 4 bytes long.\nEnsure that PCM streams have an even number of samples, and ADPCM streams have a multiple of 8 samples.");
                         }
+                        Encrypt_RSXXTEA(data);
                     }
+                    w.Write(data);
+                    continue;
                 }
                 chunk.Write(w);
             }
