@@ -85,6 +85,7 @@ namespace CodeWalker.Rendering
         public bool HasTransforms;
 
         public bool HasAnims = false;
+        public bool LoopWorldAnimation;
         public double CurrentAnimTime = double.NaN;
         private ClipMapEntry? LastAnimationClip;
         private ClipMapEntry? LastBlendAnimationClip;
@@ -527,10 +528,11 @@ namespace CodeWalker.Rendering
             var faceExpressionClip = FaceClip?.Clip as ClipAnimationExpression;
             bool captureExpressionInputs = Expression != null || bodyExpressionClip?.Expressions != null || faceExpressionClip?.Expressions != null;
 
-            cme?.Clip?.ForEachAnimation(CurrentAnimTime,
+            var bodyTime = GetAnimationTime(cme, LoopWorldAnimation);
+            cme?.Clip?.ForEachAnimation(bodyTime,
                 (animation, time) => UpdateAnim(animation, time, false, captureExpressionInputs));
             if (bodyExpressionClip?.Expressions != null && Skeleton != null)
-                FacialEvaluator.Evaluate(bodyExpressionClip.Expressions, Skeleton, bodyExpressionClip.GetClipTime(CurrentAnimTime));
+                FacialEvaluator.Evaluate(bodyExpressionClip.Expressions, Skeleton, bodyExpressionClip.GetClipTime(bodyTime));
 
             var blend = Math.Clamp(AnimationBlend, 0.0f, 1.0f);
             var blendBones = Skeleton?.BonesSorted;
@@ -712,10 +714,18 @@ namespace CodeWalker.Rendering
 
 
         }
+        private double GetAnimationTime(ClipMapEntry? entry, bool loop)
+        {
+            if (entry?.OverridePlayTime == true) return entry.PlayTime;
+            var duration = entry?.Clip?.GetDuration() ?? 0;
+            // World assets use a shared clock and repeat even without a clip loop flag.
+            return loop && duration > 0 ? CurrentAnimTime % duration : CurrentAnimTime;
+        }
+
         private void UpdateAnimUV(ClipMapEntry cme, RenderableGeometry? rgeom = null)
         {
 
-            cme.Clip?.ForEachAnimation(CurrentAnimTime,
+            cme.Clip?.ForEachAnimation(GetAnimationTime(cme, true),
                 (animation, time) => UpdateAnimUV(animation, time, rgeom));
 
         }
@@ -1960,6 +1970,7 @@ namespace CodeWalker.Rendering
         public Buffer? IndexBuffer { get; set; }
         public VertexBufferBinding VBBinding;
         public Vector3 CamRel { get; set; } //verts are in world space, so camrel should just be -campos
+        public Vector3 Scale { get; set; } = Vector3.One;
 
         public override void Init(WaterQuad key)
         {

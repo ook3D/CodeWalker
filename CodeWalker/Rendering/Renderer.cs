@@ -219,6 +219,8 @@ namespace CodeWalker.Rendering
 
         public void DeviceDestroyed()
         {
+            foreach (var quad in oceanQuads) quad.Unload();
+            oceanQuads.Clear();
             renderableCache.OnDeviceDestroyed();
 
             markerquad?.Dispose();
@@ -1892,6 +1894,32 @@ namespace CodeWalker.Rendering
 
 
 
+        private readonly List<RenderableWaterQuad> oceanQuads = new();
+        private readonly List<BoundingBox> oceanPatches = new();
+
+        public void RenderOcean(BoundingBox[] waterBounds)
+        {
+            if (currentdevice == null) return;
+            Ocean.GetPatches(camera, waterBounds, oceanPatches);
+            while (oceanQuads.Count < oceanPatches.Count)
+            {
+                var quad = new RenderableWaterQuad();
+                quad.Init(new WaterQuad { maxX = 1, maxY = 1, z = 0, a1 = 26, a2 = 26, a3 = 26, a4 = 26 });
+                quad.Load(currentdevice);
+                oceanQuads.Add(quad);
+            }
+            for (int i = 0; i < oceanPatches.Count; i++)
+            {
+                var patch = oceanPatches[i];
+                var size = patch.Maximum - patch.Minimum;
+                if (size.X <= 0 || size.Y <= 0) continue;
+                var quad = oceanQuads[i];
+                quad.CamRel = patch.Minimum - camera.Position;
+                quad.Scale = new Vector3(size.X, size.Y, 1);
+                shaders.Enqueue(quad);
+            }
+        }
+
         public void RenderWaterQuads(List<WaterQuad> waterquads)
         {
             foreach (var quad in waterquads)
@@ -3332,6 +3360,7 @@ namespace CodeWalker.Rendering
                 {
                     rndbl.ClipMapEntry = animClip;
                     rndbl.ClipDict = animClip.Clip?.Ycd;
+                    rndbl.LoopWorldAnimation = false;
                     rndbl.HasAnims = true;
                 }
 
@@ -3375,6 +3404,7 @@ namespace CodeWalker.Rendering
             {
                 rndbl.ClipMapEntry = animClip;
                 rndbl.ClipDict = animClip.Clip?.Ycd;
+                rndbl.LoopWorldAnimation = false;
                 rndbl.HasAnims = true;
             }
             else if ((arche == null) && (rndbl.ClipMapEntry != null))
@@ -4073,6 +4103,7 @@ namespace CodeWalker.Rendering
                 if ((ycd != null) && (ycd.Loaded))
                 {
                     rndbl.ClipDict = ycd;
+                    rndbl.LoopWorldAnimation = true;
                     MetaHash ahash = arche?.Hash ?? 0;
                     if (ycd.ClipMap.TryGetValue(ahash, out rndbl.ClipMapEntry)) rndbl.HasAnims = true;
 

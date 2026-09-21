@@ -522,6 +522,12 @@ public sealed partial class Settings
         set => SettingsManager.SetBool(nameof(HideCayoPerico), value);
     }
 
+    public bool InfiniteOcean
+    {
+        get => SettingsManager.GetBool(nameof(InfiniteOcean), true);
+        set => SettingsManager.SetBool(nameof(InfiniteOcean), value);
+    }
+
     // Key Bindings
     public StringCollection KeyBindings
     {

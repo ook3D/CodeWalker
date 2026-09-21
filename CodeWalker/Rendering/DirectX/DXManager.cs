@@ -243,7 +243,7 @@ namespace CodeWalker.Rendering
 
             depthbuffer = new Texture2D(device, new Texture2DDescription()
             {
-                Format = Format.D32_Float,
+                Format = Format.D32_Float_S8X24_UInt,
                 ArraySize = 1,
                 MipLevels = 1,
                 Width = backbuffer.Description.Width,

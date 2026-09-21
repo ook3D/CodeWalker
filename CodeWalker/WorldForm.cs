@@ -132,6 +132,7 @@ namespace CodeWalker
         bool worldymapweatherfilter = true;
         bool hidenorthyankton = Settings.Default.HideNorthYankton;
         bool hidecayoperico = Settings.Default.HideCayoPerico;
+        bool infiniteocean = Settings.Default.InfiniteOcean;
         static readonly HashSet<string> cayoPericoFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "h4_aa_guns",
@@ -3121,6 +3122,8 @@ namespace CodeWalker
         {
             var quads = RenderWorldBaseWaterQuads(water.WaterQuads, MapSelectionMode.WaterQuad);
             Renderer.RenderWaterQuads(quads);
+            if (infiniteocean && renderwaterquads && water.Inited && water.OceanBounds is { Length: > 0 } bounds && ProjectForm?.RenderGtavMap != false)
+                Renderer.RenderOcean(bounds);
         }
 
         private void RenderWorldWaterCalmingQuads() => RenderWorldBaseWaterQuads(water.CalmingQuads, MapSelectionMode.CalmingQuad);
@@ -7928,6 +7931,7 @@ namespace CodeWalker
             ArtificialAmbientLightCheckBox.Checked = s.ArtificialAmbientLight;
             HideNorthYanktonCheckBox.Checked = s.HideNorthYankton;
             HideCayoPericoCheckBox.Checked = s.HideCayoPerico;
+            InfiniteOceanCheckBox.Checked = infiniteocean = s.InfiniteOcean;
             SavePositionCheckBox.Checked = s.SavePosition;
             SaveTimeOfDayCheckBox.Checked = s.SaveTimeOfDay;
             
@@ -7977,6 +7981,7 @@ namespace CodeWalker
             s.ArtificialAmbientLight = ArtificialAmbientLightCheckBox.Checked;
             s.HideNorthYankton = HideNorthYanktonCheckBox.Checked;
             s.HideCayoPerico = HideCayoPericoCheckBox.Checked;
+            s.InfiniteOcean = InfiniteOceanCheckBox.Checked;
             s.SavePosition = SavePositionCheckBox.Checked;
             s.SaveTimeOfDay = SaveTimeOfDayCheckBox.Checked;
             if (s.SavePosition)
@@ -10576,6 +10581,14 @@ namespace CodeWalker
             if (!initialised) return;
             hidecayoperico = HideCayoPericoCheckBox.Checked;
             Settings.Default.HideCayoPerico = hidecayoperico;
+            Settings.Default.Save();
+        }
+
+        private void InfiniteOceanCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!initialised) return;
+            infiniteocean = InfiniteOceanCheckBox.Checked;
+            Settings.Default.InfiniteOcean = infiniteocean;
             Settings.Default.Save();
         }
 

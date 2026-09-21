@@ -475,7 +475,7 @@ namespace CodeWalker.Rendering
 
             VSEntityVars.Vars.CamRel = new Vector4(quad.CamRel, 0.0f);
             VSEntityVars.Vars.Orientation = Quaternion.Identity;
-            VSEntityVars.Vars.Scale = Vector3.One;
+            VSEntityVars.Vars.Scale = quad.Scale;
             VSEntityVars.Update(context);
             VSEntityVars.SetVSCBuffer(context, 2);
 

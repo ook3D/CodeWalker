@@ -370,7 +370,7 @@ namespace CodeWalker.Rendering
 
 
             Format f = Format.R32G32B32A32_Float;
-            Format df = Format.D32_Float;
+            Format df = Format.D32_Float_S8X24_UInt;
 
 
             Primary = new GpuTexture(device, uw, uh, f, sc, sq, true, df);

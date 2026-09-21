@@ -97,6 +97,7 @@ namespace CodeWalker.Project
 
         private bool renderitems = true;
         private bool hidegtavmap = false;
+        internal bool RenderGtavMap => !hidegtavmap;
         private bool autoymapflags = true;
         private bool autoymapextents = true;
         public bool displayentityindexes = false;

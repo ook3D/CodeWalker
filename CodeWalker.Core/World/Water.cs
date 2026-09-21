@@ -16,6 +16,7 @@ namespace CodeWalker.World
         public List<WaterQuad> WaterQuads = new();
         public List<WaterCalmingQuad> CalmingQuads = new();
         public List<WaterWaveQuad> WaveQuads = new();
+        public BoundingBox[] OceanBounds { get; private set; } = [];
 
         public void Init(GameFileCache gameFileCache, Action<string> updateStatus)
         {
@@ -26,6 +27,7 @@ namespace CodeWalker.World
                 WaterQuads.Clear();
                 CalmingQuads.Clear();
                 WaveQuads.Clear();
+                OceanBounds = [];
 
                 LoadWaterXml("common.rpf\\data\\levels\\gta5\\water.xml");
                 
@@ -44,7 +46,13 @@ namespace CodeWalker.World
             var waterdata = rpfman.GetFileXml(filename).DocumentElement;
             if (waterdata == null) return;
 
+            int firstQuad = WaterQuads.Count;
             LoadQuads(waterdata, "WaterQuads/Item", WaterQuads);
+            var ocean = WaterQuads.Skip(firstQuad).Where(q => q.z == 0 && !q.IsInvisible).ToArray();
+            if (ocean.Length > 0)
+                OceanBounds = [.. OceanBounds, new BoundingBox(
+                    new Vector3(ocean.Min(q => q.minX), ocean.Min(q => q.minY), 0),
+                    new Vector3(ocean.Max(q => q.maxX), ocean.Max(q => q.maxY), 0))];
             LoadQuads(waterdata, "CalmingQuads/Item", CalmingQuads);
             LoadQuads(waterdata, "WaveQuads/Item", WaveQuads);
         }

@@ -51,6 +51,7 @@ namespace CodeWalker
             this.EnableFiveMResourcesCheckBox = new System.Windows.Forms.CheckBox();
             this.HideNorthYanktonCheckBox = new System.Windows.Forms.CheckBox();
             this.HideCayoPericoCheckBox = new System.Windows.Forms.CheckBox();
+            this.InfiniteOceanCheckBox = new System.Windows.Forms.CheckBox();
             this.label30 = new System.Windows.Forms.Label();
             this.DlcLevelComboBox = new System.Windows.Forms.ComboBox();
             this.EnableDlcCheckBox = new System.Windows.Forms.CheckBox();
@@ -569,6 +570,7 @@ namespace CodeWalker
             // ViewWorldTabPage
             //
             this.ViewWorldTabPage.Controls.Add(this.HideCayoPericoCheckBox);
+            this.ViewWorldTabPage.Controls.Add(this.InfiniteOceanCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.HideNorthYanktonCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.EnableModsCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.EnableFiveMResourcesCheckBox);
@@ -641,6 +643,17 @@ namespace CodeWalker
             this.HideCayoPericoCheckBox.Text = "Hide Cayo Perico";
             this.HideCayoPericoCheckBox.UseVisualStyleBackColor = true;
             this.HideCayoPericoCheckBox.CheckedChanged += new System.EventHandler(this.HideCayoPericoCheckBox_CheckedChanged);
+            //
+            // InfiniteOceanCheckBox
+            //
+            this.InfiniteOceanCheckBox.AutoSize = true;
+            this.InfiniteOceanCheckBox.Location = new System.Drawing.Point(6, 434);
+            this.InfiniteOceanCheckBox.Name = "InfiniteOceanCheckBox";
+            this.InfiniteOceanCheckBox.Size = new System.Drawing.Size(95, 17);
+            this.InfiniteOceanCheckBox.TabIndex = 74;
+            this.InfiniteOceanCheckBox.Text = "Infinite Ocean";
+            this.InfiniteOceanCheckBox.UseVisualStyleBackColor = true;
+            this.InfiniteOceanCheckBox.CheckedChanged += new System.EventHandler(this.InfiniteOceanCheckBox_CheckedChanged);
             //
             // label30
             //
@@ -3946,6 +3959,7 @@ namespace CodeWalker
         private System.Windows.Forms.CheckBox EnableFiveMResourcesCheckBox;
         private System.Windows.Forms.CheckBox HideNorthYanktonCheckBox;
         private System.Windows.Forms.CheckBox HideCayoPericoCheckBox;
+        private System.Windows.Forms.CheckBox InfiniteOceanCheckBox;
         private System.Windows.Forms.Button AdvancedSettingsButton;
         private System.Windows.Forms.Button ControlSettingsButton;
         private System.Windows.Forms.ToolStripMenuItem ToolsMenuOptions;

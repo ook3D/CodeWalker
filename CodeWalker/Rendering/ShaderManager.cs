@@ -30,6 +30,8 @@ namespace CodeWalker.Rendering
         BlendState bsAlpha;
         BlendState bsGrassCoverage;
         BlendState bsHairNormals;
+        BlendState bsWaterDepth;
+        DepthStencilState dsWaterColour;
         DepthStencilState dsHairMark;
         DepthStencilState dsHairNormals;
         BlendState bsAdd;
@@ -254,6 +256,21 @@ namespace CodeWalker.Rendering
                 StencilWriteMask = 0
             };
             dsEnabled = new DepthStencilState(device, dsd);
+            var waterBlend = new BlendStateDescription();
+            waterBlend.RenderTarget[0].RenderTargetWriteMask = 0;
+            bsWaterDepth = new BlendState(device, waterBlend);
+            var waterDepth = dsd;
+            waterDepth.DepthComparison = Comparison.Equal;
+            waterDepth.DepthWriteMask = DepthWriteMask.Zero;
+            waterDepth.IsStencilEnabled = true;
+            waterDepth.StencilReadMask = 1;
+            waterDepth.StencilWriteMask = 1;
+            waterDepth.FrontFace = waterDepth.BackFace = new DepthStencilOperationDescription
+            {
+                Comparison = Comparison.NotEqual, PassOperation = StencilOperation.Replace,
+                FailOperation = StencilOperation.Keep, DepthFailOperation = StencilOperation.Keep
+            };
+            dsWaterColour = new DepthStencilState(device, waterDepth);
             var hairDepth = dsd;
             hairDepth.IsStencilEnabled = true;
             hairDepth.StencilReadMask = 1;
@@ -294,6 +311,8 @@ namespace CodeWalker.Rendering
             entityAmbient.Dispose();
 
             dsEnabled.Dispose();
+            bsWaterDepth.Dispose();
+            dsWaterColour.Dispose();
             dsDisableWriteRev.Dispose();
             dsDisableWrite.Dispose();
             dsDisableComp.Dispose();
@@ -639,11 +658,24 @@ namespace CodeWalker.Rendering
             {
                 Water.SetShader(context);
                 Water.SetSceneVars(context, Camera, Shadowmap, GlobalLights);
+                // Resolve the nearest surface before blending. Overlapping XML quads
+                // must contribute colour only once, including at identical heights.
+                context.OutputMerger.GetRenderTargets(out DepthStencilView waterDepth);
+                using (waterDepth)
+                    context.ClearDepthStencilView(waterDepth, DepthStencilClearFlags.Stencil, 0, 0);
+                context.OutputMerger.BlendState = bsWaterDepth;
+                for (int i = 0; i < RenderWaterQuads.Count; i++)
+                {
+                    Water.RenderWaterQuad(context, RenderWaterQuads[i]);
+                }
+                context.OutputMerger.BlendState = bsDefault;
+                context.OutputMerger.SetDepthStencilState(dsWaterColour, 1);
                 for (int i = 0; i < RenderWaterQuads.Count; i++)
                 {
                     Water.RenderWaterQuad(context, RenderWaterQuads[i]);
                 }
                 Water.UnbindResources(context);
+                context.OutputMerger.DepthStencilState = dsEnabled;
             }
             for (int i = 0; i < RenderBuckets.Count; i++) //main water geoms pass
             {
