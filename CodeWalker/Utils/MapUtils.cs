@@ -14,7 +14,7 @@ namespace CodeWalker
     public class MapIcon
     {
         public string Name { get; set; } = string.Empty;
-        public string Filepath { get; set; }
+        public string ResourceName { get; }
         public Texture2D? Tex { get; set; }
         public ShaderResourceView? TexView { get; set; }
         public Vector3 Center { get; set; } //in image pixels
@@ -22,19 +22,15 @@ namespace CodeWalker
         public int TexWidth { get; set; }
         public int TexHeight { get; set; }
 
-        public MapIcon(string name, string filepath, int texw, int texh, float centerx, float centery, float scale)
+        public MapIcon(string name, string filename, int texw, int texh, float centerx, float centery, float scale)
         {
             Name = name;
-            Filepath = filepath;
+            ResourceName = "CodeWalker.Icons." + filename;
             TexWidth = texw;
             TexHeight = texh;
             Center = new Vector3(centerx, centery, 0.0f);
             Scale = scale;
 
-            if (!File.Exists(filepath))
-            {
-                throw new Exception("File not found.");
-            }
         }
 
         public void LoadTexture(Device device, Action<string> errorAction)
@@ -43,13 +39,17 @@ namespace CodeWalker
             {
                 if (device != null)
                 {
-                    Tex = TextureLoader.CreateTexture2DFromBitmap(device, TextureLoader.LoadBitmap(new SharpDX.WIC.ImagingFactory2(), Filepath));
+                    using var stream = typeof(MapIcon).Assembly.GetManifestResourceStream(ResourceName)
+                        ?? throw new FileNotFoundException("Embedded map icon not found.", ResourceName);
+                    using var factory = new SharpDX.WIC.ImagingFactory2();
+                    using var bitmap = TextureLoader.LoadBitmap(factory, stream);
+                    Tex = TextureLoader.CreateTexture2DFromBitmap(device, bitmap);
                     TexView = new ShaderResourceView(device, Tex);
                 }
             }
             catch (Exception ex)
             {
-                errorAction("Could not load map icon " + Filepath + " for " + Name + "!\n\n" + ex.ToString());
+                errorAction("Could not load map icon " + ResourceName + " for " + Name + "!\n\n" + ex.ToString());
             }
         }
 

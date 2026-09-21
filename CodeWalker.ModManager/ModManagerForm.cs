@@ -371,9 +371,7 @@ namespace CodeWalker.ModManager
         private string ModCacheDirName = "ModCache";
         private string GetModCacheDir()
         {
-            var path = Assembly.GetExecutingAssembly().Location;
-            var dir = Path.GetDirectoryName(path) ?? AppContext.BaseDirectory;
-            return Path.Combine(dir, ModCacheDirName, Settings.GameModCache);
+            return Path.Combine(AppContext.BaseDirectory, ModCacheDirName, Settings.GameModCache);
         }
         private string GetModCacheDir(string modname)
         {

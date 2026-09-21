@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\Shaders\*.cso" LogicalName="CodeWalker.Shaders.%(Filename)%(Extension)" />
     <Resource Include="Resources\magic.dat" />
   </ItemGroup>
 

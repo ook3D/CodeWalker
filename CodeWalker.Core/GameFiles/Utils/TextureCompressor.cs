@@ -50,7 +50,7 @@ namespace CodeWalker.Utils
                 {
                     try
                     {
-                        var nvttAssembly = System.Reflection.Assembly.Load("CodeWalker.NVTT");
+                        var nvttAssembly = System.Reflection.Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory, "CodeWalker.NVTT.dll"));
                         _nvttAvailable = nvttAssembly != null;
                     }
                     catch (Exception ex)
@@ -181,7 +181,7 @@ namespace CodeWalker.Utils
         {
             try
             {
-                var nvttAssembly = System.Reflection.Assembly.Load("CodeWalker.NVTT");
+                var nvttAssembly = System.Reflection.Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory, "CodeWalker.NVTT.dll"));
 
                 // Get types
                 var surfaceType = nvttAssembly.GetType("CodeWalker.NVTT.Surface")!;

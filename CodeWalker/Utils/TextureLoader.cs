@@ -16,28 +16,29 @@ namespace CodeWalker.Utils
         /// <summary>
         /// Loads a bitmap using WIC.
         /// </summary>
-        /// <param name="deviceManager"></param>
-        /// <param name="filename"></param>
+        /// <param name="factory"></param>
+        /// <param name="stream"></param>
         /// <returns></returns>
-        public static BitmapSource LoadBitmap(ImagingFactory2 factory, string filename)
+        public static BitmapSource LoadBitmap(ImagingFactory2 factory, Stream stream)
         {
-            var bitmapDecoder = new BitmapDecoder(
+            using var bitmapDecoder = new BitmapDecoder(
                 factory,
-                filename,
+                stream,
                 DecodeOptions.CacheOnDemand
                 );
 
-            var formatConverter = new FormatConverter(factory);
+            using var formatConverter = new FormatConverter(factory);
+            using var frame = bitmapDecoder.GetFrame(0);
 
             formatConverter.Initialize(
-                bitmapDecoder.GetFrame(0),
+                frame,
                 PixelFormat.Format32bppPRGBA,
                 BitmapDitherType.None,
                 null,
                 0.0,
                 BitmapPaletteType.Custom);
 
-            return formatConverter;
+            return new Bitmap(factory, formatConverter, BitmapCreateCacheOption.CacheOnLoad);
         }
 
         /// <summary>

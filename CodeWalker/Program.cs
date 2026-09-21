@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Shell;
@@ -117,7 +116,7 @@ static class Program
 
             try
             {
-                var cwpath = (Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly()).Location;
+                var cwpath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "CodeWalker.exe");
                 var cwdir = Path.GetDirectoryName(cwpath) ?? AppContext.BaseDirectory;
 
                 JumpTask jtWorld = new()

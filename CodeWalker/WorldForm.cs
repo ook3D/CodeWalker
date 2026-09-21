@@ -2539,16 +2539,15 @@ namespace CodeWalker
 
         private MapIcon? AddIcon(string name, string filename, int texw, int texh, float centerx, float centery, float scale)
         {
-            string filepath = PathUtil.GetFilePath("icons\\" + filename);
             try
             {
-                MapIcon mi = new(name, filepath, texw, texh, centerx, centery, scale);
+                MapIcon mi = new(name, filename, texw, texh, centerx, centery, scale);
                 Icons.Add(mi);
                 return mi;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not load map icon " + filepath + " for " + name + "!\n\n" + ex.ToString());
+                MessageBox.Show("Could not load map icon " + filename + " for " + name + "!\n\n" + ex.ToString());
             }
             return null;
         }

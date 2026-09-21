@@ -25,7 +25,7 @@
     <ProjectReference Include="..\CodeWalker\CodeWalker.csproj" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CodeWalkerPublish)' != 'true'">
     <ItemGroup>
       <BuildOutputFiles Include="$(OutDir)**\*.*" />
     </ItemGroup>

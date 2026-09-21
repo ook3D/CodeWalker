@@ -762,8 +762,7 @@ namespace CodeWalker.GameFiles
             }
 
 
-            var path = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var dir = Path.GetDirectoryName(path) ?? AppContext.BaseDirectory;
+            var dir = AppContext.BaseDirectory;
             
             // Try strings.dat (gzip compressed) first, fallback to strings.txt
             var datPath = Path.Combine(dir, "strings.dat");

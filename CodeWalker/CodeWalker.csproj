@@ -39,6 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\icons\*.png" LogicalName="CodeWalker.Icons.%(Filename)%(Extension)" />
     <ProjectReference Include="..\CodeWalker.Core\CodeWalker.Core.csproj" />
     <ProjectReference Include="..\CodeWalker.WinForms\CodeWalker.WinForms.csproj" />
   </ItemGroup>
@@ -58,18 +59,14 @@
     </None>
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CodeWalkerPublish)' != 'true'">
     <ItemGroup>
       <BuildOutputFiles Include="$(OutDir)**\*.*" Exclude="$(OutDir)Settings.xml" />
-      <IconFiles Include="$(ProjectDir)..\icons\**\*.*" />
-      <ShaderFiles Include="$(ProjectDir)..\Shaders\**\*.*" />
       <NvttFiles Include="$(ProjectDir)..\CodeWalker.NVTT\bin\Release\*.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(BuildOutputFiles)" DestinationFolder="$(ProjectDir)..\x64\$(Configuration)\%(RecursiveDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(IconFiles)" DestinationFolder="$(ProjectDir)..\x64\$(Configuration)\icons\%(RecursiveDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(ShaderFiles)" DestinationFolder="$(ProjectDir)..\x64\$(Configuration)\Shaders\%(RecursiveDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(NvttFiles)" DestinationFolder="$(ProjectDir)..\x64\$(Configuration)\" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)..\CodeWalker.NVTT\bin\Release\CodeWalker.NVTT.dll')" />
-    <Message Text="Copied build output, icons, shaders, to x64\$(Configuration)" Importance="high" />
+    <Message Text="Copied build output to x64\$(Configuration)" Importance="high" />
   </Target>
 
 </Project>

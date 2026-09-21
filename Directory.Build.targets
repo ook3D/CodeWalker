@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup Condition="'$(CodeWalkerPublish)' == 'true' and '$(OutputType)' == 'WinExe'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <GenerateDependencyFile>true</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <!-- These projects use CodeWalker.dll, but must not overwrite its bundled launcher. -->
+  <Target Name="ExcludeReferencedCodeWalkerHost" BeforeTargets="_ComputeFilesToBundle"
+          Condition="'$(CodeWalkerPublish)' == 'true' and '$(MSBuildProjectName)' != 'CodeWalker'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+          Condition="'%(ResolvedFileToPublish.RelativePath)' == 'CodeWalker.exe' or '%(ResolvedFileToPublish.RelativePath)' == 'CodeWalker.runtimeconfig.json' or '%(ResolvedFileToPublish.RelativePath)' == 'CodeWalker.deps.json'" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup Condition="'$(CodeWalkerPublish)' == 'true' and '$(MSBuildProjectName)' == 'CodeWalker'">
+    <Content Include="$(MSBuildThisFileDirectory)CodeWalker.NVTT\bin\Release\*.dll" Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+</Project>

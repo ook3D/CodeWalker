@@ -32,16 +32,26 @@ namespace CodeWalker
 
         public static byte[] ReadAllBytes(string appRelativePath)
         {
-            var path = GetFilePath(appRelativePath);
-            return File.ReadAllBytes(path);
+            using var stream = OpenRead(appRelativePath);
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            return buffer.ToArray();
         }
 
         public static async Task<byte[]> ReadAllBytesAsync(string appRelativePath, CancellationToken cancellationToken = default)
         {
-            var path = GetFilePath(appRelativePath);
-            return await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+            using var stream = OpenRead(appRelativePath);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+            return buffer.ToArray();
         }
 
+        private static Stream OpenRead(string appRelativePath)
+        {
+            var resourceName = "CodeWalker." + appRelativePath.Replace('\\', '.').Replace('/', '.');
+            return typeof(PathUtil).Assembly.GetManifestResourceStream(resourceName)
+                ?? File.OpenRead(GetFilePath(appRelativePath));
+        }
     }
 
 
