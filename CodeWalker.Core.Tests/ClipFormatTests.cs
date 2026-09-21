@@ -7,6 +7,38 @@ namespace CodeWalker.Core.Tests;
 
 public class ClipFormatTests
 {
+    [Fact]
+    public void EmptyClipTagsNeverSerializeAnAllocationAddress()
+    {
+        var tags = new ClipTagList
+        {
+            Tags = new ResourcePointerArray64<ClipTag> { data_items = [], FilePosition = 0x50033E00 }
+        };
+        Assert.Empty(tags.GetReferences());
+        using var system = new MemoryStream();
+        using var graphics = new MemoryStream();
+        var writer = new ResourceDataWriter(system, graphics) { Position = 0x50000000 };
+        tags.Write(writer);
+        Assert.Equal(0UL, BitConverter.ToUInt64(system.ToArray(), 0));
+        Assert.Equal(0, tags.TagCount1);
+        Assert.Equal(0, tags.TagCount2);
+    }
+
+    [Fact]
+    public void NonEmptyClipTagsKeepTheirResourceReference()
+    {
+        var array = new ResourcePointerArray64<ClipTag> { data_items = [new ClipTag()], FilePosition = 0x50001000 };
+        var tags = new ClipTagList { Tags = array };
+        Assert.Same(array, Assert.Single(tags.GetReferences()));
+        using var system = new MemoryStream();
+        using var graphics = new MemoryStream();
+        var writer = new ResourceDataWriter(system, graphics) { Position = 0x50000000 };
+        tags.Write(writer);
+        Assert.Equal(0x50001000UL, BitConverter.ToUInt64(system.ToArray(), 0));
+        Assert.Equal(1, tags.TagCount1);
+        Assert.Equal(1, tags.TagCount2);
+    }
+
     [Theory]
     [InlineData("Unk0", 0, 0)]
     [InlineData("Unk0", 1, 1)]

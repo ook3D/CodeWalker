@@ -4441,8 +4441,10 @@ namespace CodeWalker.GameFiles
         public override void Write(ResourceDataWriter writer, params object[] parameters)
         {
             // update structure data
-            this.TagsPointer = (ulong)(this.Tags != null ? this.Tags.FilePosition : 0);
             this.TagCount1 = (ushort)(this.Tags != null ? this.Tags.Count : 0);
+            // The game fixes up the pointer even for an empty array. A zero-length
+            // allocation can sit past the resource's last page, so it must be null.
+            this.TagsPointer = TagCount1 > 0 ? (ulong)Tags!.FilePosition : 0;
             this.TagCount2 = this.TagCount1;
 
             BuildAllTags(); //just in case? updates HasBlockTag
@@ -4459,7 +4461,7 @@ namespace CodeWalker.GameFiles
         public override IResourceBlock[] GetReferences()
         {
             var list = new List<IResourceBlock>();
-            if (Tags != null) list.Add(Tags);
+            if (Tags?.Count > 0) list.Add(Tags);
             return list.ToArray();
         }
 
