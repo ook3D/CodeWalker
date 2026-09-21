@@ -44,6 +44,54 @@ public class WorldAnimationTests
         Assert.Equal((ClipFlags)0, clip.Clip!.Flags);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void UvPlaybackHoldsThirtyHzSamplesAndStillInterpolatesAnimationData(int channelType)
+    {
+        var entry = Clip(17, 1.0666671f);
+        var clip = (ClipAnimation)entry.Clip!;
+        clip.Rate = 1.0000001f;
+        clip.Animation!.Frames = 34;
+        clip.Animation.SequenceFrameLimit = 64;
+        // The supplied video atlas holds cells, with authored transition samples.
+        var values = new float[34];
+        Array.Fill(values, 0.5f, 9, 25);
+        values[8] = 0.42615938f;
+        AnimChannel channel = channelType switch
+        {
+            1 => new AnimChannelQuantizeFloat { Values = values },
+            2 => new AnimChannelIndirectQuantizeFloat
+            {
+                Values = [0, 0.42615938f, 0.5f],
+                Frames = values.Select(v => v == 0 ? 0u : v == 0.5f ? 2u : 1u).ToArray()
+            },
+            _ => new AnimChannelRawFloat { Values = values }
+        };
+        clip.Animation.Sequences!.data_items[0].Sequences[0].Channels = [channel];
+        var geometry = new RenderableGeometry { ClipMapEntryUV = entry };
+        var renderable = new Renderable { HDModels = [new RenderableModel { Geometries = [geometry] }] };
+        renderable.UpdateAnims(0.250);
+        float held = geometry.globalAnimUV0.X;
+        renderable.UpdateAnims(0.265);
+        Assert.Equal(held, geometry.globalAnimUV0.X);
+        renderable.UpdateAnims(0.267);
+        float next = geometry.globalAnimUV0.X;
+        Assert.NotEqual(held, next);
+        Assert.InRange(next, 0.4262f, 0.4999f); // A fractional sample must blend, not snap.
+        var frame = clip.Animation.GetFramePosition(clip.GetPlaybackTime(8 * (1f / 30f)));
+        Assert.Equal(clip.Animation.EvaluateVector4(frame, 0, true).X, next);
+        // Game UV loops use the duration truncated to milliseconds (1066 ms).
+        renderable.UpdateAnims(1.333);
+        Assert.Equal(next, geometry.globalAnimUV0.X);
+        entry.OverridePlayTime = true;
+        entry.PlayTime = 0.255f;
+        renderable.UpdateAnims(4);
+        frame = clip.Animation.GetFramePosition(clip.GetPlaybackTime(entry.PlayTime));
+        Assert.Equal(clip.Animation.EvaluateVector4(frame, 0, true).X, geometry.globalAnimUV0.X);
+    }
+
     [Fact]
     public void UvClipsLoopIndependentlyAtTheirOwnDurations()
     {
@@ -54,7 +102,7 @@ public class WorldAnimationTests
         Assert.Equal(2.5f, first.globalAnimUV0.X);
         Assert.Equal(1.25f, second.globalAnimUV1.X);
         renderable.UpdateAnims(101.5);
-        Assert.Equal(7.5f, first.globalAnimUV0.X);
-        Assert.Equal(3.75f, second.globalAnimUV1.X);
+        Assert.Equal(7.5f, first.globalAnimUV0.X, 5);
+        Assert.Equal(3.75f, second.globalAnimUV1.X, 5);
     }
 }

@@ -724,8 +724,23 @@ namespace CodeWalker.Rendering
 
         private void UpdateAnimUV(ClipMapEntry cme, RenderableGeometry? rgeom = null)
         {
-
-            cme.Clip?.ForEachAnimation(GetAnimationTime(cme, true),
+            var clip = cme.Clip;
+            if (clip == null) return;
+            double clipTime = cme.PlayTime;
+            if (!cme.OverridePlayTime)
+            {
+                float duration = clip.GetDuration();
+                double durationMs = Math.Truncate(duration * 1000.0f);
+                double timeMs = double.IsFinite(CurrentAnimTime) ? Math.Floor(Math.Max(0, CurrentAnimTime) * 1000.0) : 0;
+                if (durationMs > 0)
+                {
+                    if (timeMs > durationMs) timeMs %= durationMs;
+                    float phase = (float)timeMs / (float)durationMs;
+                    clipTime = MathF.Floor(phase * duration * 30.0f) * (1.0f / 30.0f);
+                }
+                else clipTime = 0;
+            }
+            clip.ForEachAnimation(clipTime,
                 (animation, time) => UpdateAnimUV(animation, time, rgeom));
 
         }
@@ -737,8 +752,6 @@ namespace CodeWalker.Rendering
             { return; }
             if (anim.Sequences?.data_items == null)
             { return; }
-
-            bool interpolate = true; //how to know? eg. cs4_14_hickbar_anim shouldn't
 
             var frame = anim.GetFramePosition(t);
 
@@ -753,7 +766,9 @@ namespace CodeWalker.Rendering
                 if ((track != 17) && (track != 18))
                 { continue; }//17 and 18 would be UV0 and UV1
 
-                var v = anim.EvaluateVector4(frame, i, interpolate);
+                // The game interpolates UV channels after quantizing clip time to 30 Hz,
+                // including indirect channels. Atlas transitions are authored in the samples.
+                var v = anim.EvaluateVector4(frame, i, true);
 
                 switch (track)
                 {
