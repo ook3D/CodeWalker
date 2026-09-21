@@ -752,9 +752,13 @@ namespace CodeWalker.Project.Panels
             var emitterlists = new List<Dat151StaticEmitterList>();
             var interiors = new List<Dat151InteriorSettings>();
             var interiorrooms = new List<Dat151InteriorRoom>();
+            var shorelines = new List<Dat151RelData>();
+            var shorelinelists = new List<Dat151ShoreLineList>();
 
             foreach (var reldata in rel.RelDatasSorted)
             {
+                if (reldata is Dat151RelData shoreline && AudioPlacement.IsShoreline(shoreline)) shorelines.Add(shoreline);
+                if (reldata is Dat151ShoreLineList shorelineList) shorelinelists.Add(shorelineList);
                 if (reldata is Dat151AmbientZone)
                 {
                     zones.Add((Dat151AmbientZone)reldata);
@@ -786,6 +790,40 @@ namespace CodeWalker.Project.Panels
             }
 
 
+
+            if (shorelines.Count > 0)
+            {
+                var group = node.Nodes.Add("Shorelines (" + shorelines.Count + ")");
+                group.Name = "Shorelines";
+                group.Tag = rel;
+                foreach (var shoreline in shorelines)
+                {
+                    var placement = ProjectForm.WorldForm?.GetAudioPlacement(rel, shoreline) ?? new AudioPlacement(rel, shoreline);
+                    var shorelineNode = group.Nodes.Add(shoreline.NameHash.ToString());
+                    shorelineNode.Tag = placement;
+                    foreach (var point in placement.ShorelinePoints)
+                    {
+                        shorelineNode.Nodes.Add("Point " + point.ShorelinePointIndex).Tag = point;
+                    }
+                }
+            }
+            if (shorelinelists.Count > 0)
+            {
+                var group = node.Nodes.Add("Shoreline Lists (" + shorelinelists.Count + ")");
+                group.Name = "ShorelineLists";
+                group.Tag = rel;
+                foreach (var list in shorelinelists)
+                {
+                    var listNode = group.Nodes.Add(list.NameHash.ToString());
+                    listNode.Tag = list;
+                    foreach (var hash in list.ShoreLines)
+                    {
+                        var member = shorelines.Find(s => s.NameHash == hash);
+                        var memberNode = listNode.Nodes.Add(hash.ToString());
+                        memberNode.Tag = member == null ? (object)list : member;
+                    }
+                }
+            }
 
             if (zones.Count > 0)
             {
@@ -1954,6 +1992,53 @@ namespace CodeWalker.Project.Panels
                 {
                     ProjectTreeView.SelectedNode = tnode;
                 }
+            }
+        }
+        public void TrySelectAudioShorelineTreeNode(AudioPlacement shoreline)
+        {
+            UpdateAudioShorelineTreeNode(shoreline);
+            var group = GetChildTreeNode(FindAudioRelTreeNode(shoreline.RelFile), "Shorelines");
+            if (group == null) return;
+            foreach (TreeNode node in group.Nodes)
+            {
+                if (node.Tag is not AudioPlacement placement || placement.Shoreline != shoreline.Shoreline) continue;
+                var target = shoreline.ShorelinePointIndex < 0 ? node : node.Nodes[shoreline.ShorelinePointIndex];
+                if (ProjectTreeView.SelectedNode == target) OnItemSelected?.Invoke(shoreline);
+                else ProjectTreeView.SelectedNode = target;
+                return;
+            }
+        }
+        public void RemoveAudioShorelineTreeNode(AudioPlacement shoreline)
+        {
+            var group = GetChildTreeNode(FindAudioRelTreeNode(shoreline.RelFile), "Shorelines");
+            if (group == null) return;
+            foreach (TreeNode node in group.Nodes)
+            {
+                if (node.Tag is not AudioPlacement placement || placement.Shoreline != shoreline.Shoreline) continue;
+                node.Remove();
+                group.Text = "Shorelines (" + group.Nodes.Count + ")";
+                break;
+            }
+        }
+
+        public void UpdateAudioShorelineTreeNode(AudioPlacement shoreline)
+        {
+            var parent = shoreline.ShorelineParent ?? shoreline;
+            var group = GetChildTreeNode(FindAudioRelTreeNode(shoreline.RelFile), "Shorelines");
+            if (group == null) return;
+            foreach (TreeNode node in group.Nodes)
+            {
+                if (node.Tag is not AudioPlacement placement || placement.Shoreline != shoreline.Shoreline) continue;
+                string text = parent.NameHash.ToString();
+                if (node.Text != text) node.Text = text;
+                node.Tag = parent;
+                while (node.Nodes.Count > parent.ShorelinePoints.Length) node.Nodes.RemoveAt(node.Nodes.Count - 1);
+                for (int i = 0; i < parent.ShorelinePoints.Length; i++)
+                {
+                    var pointNode = i < node.Nodes.Count ? node.Nodes[i] : node.Nodes.Add("Point " + i);
+                    pointNode.Tag = parent.ShorelinePoints[i];
+                }
+                return;
             }
         }
         public void TrySelectAudioAmbientRuleTreeNode(AudioPlacement? rule)

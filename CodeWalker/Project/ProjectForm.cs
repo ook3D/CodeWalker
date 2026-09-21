@@ -76,6 +76,8 @@ namespace CodeWalker.Project
         private AudioPlacement? CurrentAudioAmbientZone;
         private AudioPlacement? CurrentAudioAmbientRule;
         private AudioPlacement? CurrentAudioStaticEmitter;
+        private AudioPlacement? CurrentAudioShoreline;
+        private Dat151ShoreLineList? CurrentAudioShorelineList;
         private Dat151AmbientZoneList? CurrentAudioAmbientZoneList;
         private Dat151StaticEmitterList? CurrentAudioStaticEmitterList;
         private Dat151InteriorSettings? CurrentAudioInterior;
@@ -115,7 +117,7 @@ namespace CodeWalker.Project
         private List<YmapEntityDef> interiorslist = new List<YmapEntityDef>(); //used for handling interiors ybns
 
         private bool ShowProjectItemInProcess = false;
-        private bool WorldSelectionChangeInProcess = false;
+        internal bool WorldSelectionChangeInProcess { get; private set; }
 
 
         public ProjectForm(WorldForm? worldForm = null)
@@ -686,6 +688,15 @@ namespace CodeWalker.Project
                 (panel) => { panel.SetEmitter(selection); }, //updateFunc
                 (panel) => { return panel.CurrentEmitter?.StaticEmitter == selection?.StaticEmitter; }); //findFunc
         }
+        public void ShowEditAudioShorelinePanel(bool promote)
+        {
+            object? selection = (object?)CurrentAudioShoreline ?? CurrentAudioShorelineList;
+            if (selection == null) return;
+            ShowPanel(promote,
+                () => new EditAudioShorelinePanel(this),
+                panel => panel.SetItem(selection),
+                panel => panel.Tag == selection);
+        }
         public void ShowEditAudioAmbientZoneListPanel(bool promote)
         {
             var selection = CurrentAudioAmbientZoneList;
@@ -856,6 +867,10 @@ namespace CodeWalker.Project
             {
                 ShowEditAudioStaticEmitterPanel(promote);
             }
+            else if (CurrentAudioShoreline != null || CurrentAudioShorelineList != null)
+            {
+                ShowEditAudioShorelinePanel(promote);
+            }
             else if (CurrentAudioAmbientZoneList != null)
             {
                 ShowEditAudioAmbientZoneListPanel(promote);
@@ -961,6 +976,8 @@ namespace CodeWalker.Project
             CurrentAudioAmbientZone = item as AudioPlacement;
             CurrentAudioAmbientRule = item as AudioPlacement;
             CurrentAudioStaticEmitter = item as AudioPlacement;
+            CurrentAudioShoreline = item is AudioPlacement { Shoreline: not null } shorelinePlacement ? shorelinePlacement : null;
+            CurrentAudioShorelineList = item as Dat151ShoreLineList;
             CurrentAudioAmbientZoneList = item as Dat151AmbientZoneList;
             CurrentAudioStaticEmitterList = item as Dat151StaticEmitterList;
             CurrentAudioInterior = item as Dat151InteriorSettings;
@@ -984,6 +1001,10 @@ namespace CodeWalker.Project
             if (daz != null) CurrentAudioAmbientZone = WorldForm?.GetAudioPlacement(daz.Rel, daz);
             if (dae != null) CurrentAudioAmbientRule = WorldForm?.GetAudioPlacement(dae.Rel, dae);
             if (dse != null) CurrentAudioStaticEmitter = WorldForm?.GetAudioPlacement(dse.Rel, dse);
+            if (item is Dat151RelData shoreline && AudioPlacement.IsShoreline(shoreline))
+                CurrentAudioShoreline = WorldForm?.GetAudioPlacement(shoreline.Rel, shoreline) ?? new AudioPlacement(shoreline.Rel, shoreline);
+            if (CurrentAudioShoreline != null) CurrentAudioFile = CurrentAudioShoreline.RelFile;
+            if (CurrentAudioShorelineList != null) CurrentAudioFile = CurrentAudioShorelineList.Rel;
 
 
 
@@ -1961,6 +1982,25 @@ namespace CodeWalker.Project
             else if (sel.Audio?.AmbientZone != null) return NewAudioAmbientZone(sel.Audio, copyPosition, selectNew);
             else if (sel.Audio?.AmbientRule != null) return NewAudioAmbientRule(sel.Audio, copyPosition, selectNew);
             else if (sel.Audio?.StaticEmitter != null) return NewAudioStaticEmitter(sel.Audio, copyPosition, selectNew);
+            else if (sel.Audio?.ShorelineParent != null)
+            {
+                AudioPlacement point;
+                try
+                {
+                    if (WorldForm != null)
+                    {
+                        lock (WorldForm.RenderSyncRoot) point = sel.Audio.DuplicateShorelinePoint();
+                    }
+                    else point = sel.Audio.DuplicateShorelinePoint();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    MessageBox.Show(ex.Message, "Duplicate shoreline point", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return null;
+                }
+                OnWorldAudioPlacementModified(point);
+                return point;
+            }
             return null;
         }
         public void DeleteObject(MapSelection sel)
@@ -1990,6 +2030,7 @@ namespace CodeWalker.Project
             else if (sel.Audio?.AmbientZone != null) DeleteAudioAmbientZone();
             else if (sel.Audio?.AmbientRule != null) DeleteAudioAmbientRule();
             else if (sel.Audio?.StaticEmitter != null) DeleteAudioStaticEmitter();
+            else if (sel.Audio?.Shoreline != null) DeleteAudioShoreline(sel.Audio);
         }
         private void SetObject(ref MapSelection sel)
         {
@@ -6729,6 +6770,57 @@ namespace CodeWalker.Project
 
             return ap;
         }
+        public bool DeleteAudioShoreline(AudioPlacement audio, bool wholeShoreline = false)
+        {
+            var parent = audio.ShorelineParent ?? audio;
+            var rel = audio.RelFile;
+            if (audio.Shoreline == null || !rel.RelDatas.Contains(audio.Shoreline)) return false;
+            bool pointOnly = !wholeShoreline && audio.ShorelineParent != null;
+            if (pointOnly && parent.ShorelinePoints.Length <= 1)
+            {
+                MessageBox.Show("The last point cannot be removed. Use Delete shoreline to remove the whole shoreline.");
+                return false;
+            }
+            OnWorldAudioPlacementModified(audio);
+            bool removed = true;
+            void Remove()
+            {
+                if (pointOnly) parent.RemoveShorelinePoint(audio);
+                else
+                {
+                    removed = parent.RemoveShoreline();
+                    if (removed) WorldForm?.RemoveAudioShorelineGraphics(parent);
+                }
+            }
+            if (WorldForm != null) { lock (WorldForm.RenderSyncRoot) Remove(); }
+            else Remove();
+            if (!removed) return false;
+            CurrentAudioFile = rel;
+            SetAudioFileHasChanged(true);
+            foreach (var panel in MainDockPanel.Contents.OfType<EditAudioShorelinePanel>().Where(panel => pointOnly
+                ? panel.Tag == audio
+                : panel.Tag is AudioPlacement placement && placement.Shoreline == audio.Shoreline ||
+                  panel.Tag is Dat151ShoreLineList list && list.Rel == rel).ToArray())
+            {
+                if (PreviewPanel == panel) PreviewPanel = null;
+                panel.HideOnClose = false;
+                panel.Close();
+            }
+            if (pointOnly)
+            {
+                ProjectExplorer?.UpdateAudioShorelineTreeNode(parent);
+                ShowProjectItem(parent, false);
+            }
+            else
+            {
+                CurrentAudioShoreline = null;
+                CurrentAudioShorelineList = null;
+                WorldForm?.SelectItem(null);
+                ProjectExplorer?.RemoveAudioShorelineTreeNode(parent);
+            }
+            return true;
+        }
+
         public bool DeleteAudioAmbientZone()
         {
             if (CurrentAudioAmbientZone?.RelFile != CurrentAudioFile) return false;
@@ -8002,6 +8094,8 @@ namespace CodeWalker.Project
                     {
                         ProjectExplorer?.TrySelectAudioStaticEmitterTreeNode(audiopl);
                     }
+                    if ((audiopl?.Shoreline != null) && (wasmult || audiopl != CurrentAudioShoreline))
+                        ProjectExplorer?.TrySelectAudioShorelineTreeNode(audiopl);
                 }
                 else
                 {
@@ -8043,6 +8137,8 @@ namespace CodeWalker.Project
                 CurrentAudioAmbientZone = (audiopl?.AmbientZone != null) ? audiopl : null;
                 CurrentAudioAmbientRule = (audiopl?.AmbientRule != null) ? audiopl : null;
                 CurrentAudioStaticEmitter = (audiopl?.StaticEmitter != null) ? audiopl : null;
+                CurrentAudioShoreline = (audiopl?.Shoreline != null) ? audiopl : null;
+                CurrentAudioShorelineList = null;
                 CurrentAudioAmbientZoneList = null;
                 CurrentAudioStaticEmitterList = null;
                 CurrentYdrFile = null;
@@ -8695,6 +8791,26 @@ namespace CodeWalker.Project
                 }
             }
         }
+        public void OnWorldAudioZoneWidgetModified(AudioPlacement audio, MapSelection selection)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => OnWorldAudioZoneWidgetModified(audio, selection)));
+                return;
+            }
+            var updatingSelection = WorldSelectionChangeInProcess;
+            WorldSelectionChangeInProcess = true;
+            try
+            {
+                OnWorldAudioPlacementModified(audio);
+            }
+            finally
+            {
+                WorldSelectionChangeInProcess = updatingSelection;
+            }
+            OnWorldSelectionChanged(selection);
+        }
+
         private void OnWorldAudioPlacementModified(AudioPlacement audio)
         {
             if (audio?.RelFile == null) return;
@@ -8722,6 +8838,22 @@ namespace CodeWalker.Project
                 }
             }
 
+            if (audio.Shoreline != null)
+            {
+                CurrentAudioFile = audio.RelFile;
+                if (CurrentAudioShoreline != audio)
+                {
+                    CurrentAudioShoreline = audio;
+                    ProjectExplorer?.TrySelectAudioShorelineTreeNode(audio);
+                    ShowEditAudioShorelinePanel(false);
+                }
+                else
+                {
+                    FindPanel<EditAudioShorelinePanel>(panel => panel.Tag == audio)?.RefreshFromWorld();
+                }
+                SetAudioFileHasChanged(true);
+                return;
+            }
             if ((audio.AmbientZone != null) && (audio != CurrentAudioAmbientZone))
             {
                 CurrentAudioAmbientZone = audio;

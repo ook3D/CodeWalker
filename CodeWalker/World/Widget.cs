@@ -258,6 +258,7 @@ namespace CodeWalker.World
 
     public class PositionWidget : Widget
     {
+        public float MouseHitDistance { get; private set; } = float.MaxValue;
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; } = Quaternion.Identity;
         public event WidgetPositionChangeHandler? OnPositionChange;
@@ -389,6 +390,7 @@ namespace CodeWalker.World
             }
 
             MousedAxis = hitax;
+            MouseHitDistance = hitd;
 
 
             if (IsDragging && !WasDragging)

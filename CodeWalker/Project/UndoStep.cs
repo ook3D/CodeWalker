@@ -1715,25 +1715,63 @@ namespace CodeWalker.Project
 
 
 
+    public class ShorelinePointInsertUndoStep : UndoStep
+    {
+        private readonly AudioPlacement source;
+        private readonly AudioPlacement point;
+        private readonly int index;
+        private Vector3 endPosition;
+
+        public ShorelinePointInsertUndoStep(AudioPlacement source, AudioPlacement point)
+        {
+            this.source = source;
+            this.point = point;
+            index = point.ShorelinePointIndex;
+            CaptureEndPosition();
+        }
+
+        public void CaptureEndPosition() => endPosition = point.Position;
+
+        public override void Undo(WorldForm wf, ref MapSelection sel)
+        {
+            lock (wf.RenderSyncRoot) point.ShorelineParent!.RemoveShorelinePoint(point);
+            wf.SelectObject(source);
+            wf.SetWidgetPosition(source.Position);
+        }
+
+        public override void Redo(WorldForm wf, ref MapSelection sel)
+        {
+            lock (wf.RenderSyncRoot) point.ShorelineParent!.InsertShorelinePoint(index, endPosition, point);
+            wf.SelectObject(point);
+            wf.SetWidgetPosition(point.Position);
+        }
+
+        public override string ToString() => "Shoreline point: Duplicate and move";
+    }
+
     public class AudioPositionUndoStep : UndoStep
     {
+        private readonly AudioZoneMoveMode moveMode;
         public AudioPlacement Audio { get; set; }
         public Vector3 StartPosition { get; set; }
         public Vector3 EndPosition { get; set; }
 
-        public AudioPositionUndoStep(AudioPlacement audio, Vector3 startpos)
+        public AudioPositionUndoStep(AudioPlacement audio, Vector3 startpos, AudioZoneMoveMode? mode = null)
         {
             Audio = audio;
+            moveMode = mode ?? audio.ZoneMoveMode;
             StartPosition = startpos;
-            EndPosition = audio?.Position ?? Vector3.Zero;
+            EndPosition = moveMode == AudioZoneMoveMode.Activation ? audio.OuterPos : audio.InnerPos;
         }
 
         private void Update(WorldForm wf, ref MapSelection sel, Vector3 p)
         {
-            Audio?.SetPosition(p);
+            Audio.SetPosition(p, moveMode);
+            Audio.RelFile.HasChanged = true;
 
-            if (Audio != sel.Audio) wf.SelectObject(Audio);
-            wf.SetWidgetPosition(p);
+            if (sel.MultipleSelectionItems != null) sel.SetMultipleSelectionItems(sel.MultipleSelectionItems);
+            if (Audio != sel.Audio && sel.MultipleSelectionItems?.Any(item => item.Audio == Audio) != true) wf.SelectObject(Audio);
+            wf.SetWidgetPosition(wf.CurrentMapSelection.WidgetPosition);
         }
 
         public override void Undo(WorldForm wf, ref MapSelection sel)

@@ -2371,12 +2371,16 @@ namespace CodeWalker
         MapSelectionMode SelectionMode = MapSelectionMode.Entity;
         MapSelection SelectedItem;
         MapSelection CopiedItem;
+        private ShorelinePointInsertUndoStep? pendingShorelinePointUndo;
         WorldInfoForm? InfoForm;
         public MapSelection CurrentMapSelection { get { return SelectedItem; } }
 
 
         TransformWidget Widget = new();
         TransformWidget? GrabbedWidget;
+        readonly List<AudioZonePositionWidget> audioZoneWidgets = new();
+        TransformWidget? mousedAudioZoneWidget;
+        bool UseAudioZoneWidgets => Widget.Mode == WidgetMode.Position && audioZoneWidgets.Count > 0;
         bool ShowWidget = true;
 
 
@@ -3266,12 +3270,33 @@ namespace CodeWalker
             renderaudshorelinevertices.Clear();
             lock (water)
             {
+                int placementCount = renderaudplacementslist.Count;
+                for (int i = 0; i < placementCount; i++)
+                {
+                    var placement = renderaudplacementslist[i];
+                    if (placement.Shoreline == null) continue;
+                    placement.UpdateFromShoreline(water.WaterQuads);
+                    if (SelectedItem.Audio?.Shoreline == placement.Shoreline)
+                        renderaudplacementslist.AddRange(placement.ShorelinePoints);
+                }
                 foreach (var relfile in renderaudfilelist)
                 {
                     AudioZones.AddShorelineVertices(relfile, water.WaterQuads, renderaudshorelinevertices);
                 }
             }
             uint shorelineColour = (uint)Color.Cyan.ToRgba();
+            if (SelectedItem.Audio is { Shoreline: Dat151ShoreLineOceanAudioSettings ocean } selectedShoreline)
+            {
+                var origin = (selectedShoreline.ShorelineParent ?? selectedShoreline).Position + Vector3.UnitZ;
+                var direction = AudioPlacement.GetOceanDirectionVector(ocean.OceanDirection);
+                var forward = new Vector3(direction.X, direction.Y, 0);
+                var side = new Vector3(-direction.Y, direction.X, 0);
+                var tip = origin + forward * 30;
+                uint colour = (uint)Color.Orange.ToRgba();
+                Renderer.RenderSelectionLine(origin, tip, colour);
+                Renderer.RenderSelectionLine(tip, tip - forward * 5 + side * 3, colour);
+                Renderer.RenderSelectionLine(tip, tip - forward * 5 - side * 3, colour);
+            }
             for (int i = 0; i < renderaudshorelinevertices.Count; i += 2)
             {
                 Renderer.RenderSelectionLine(renderaudshorelinevertices[i], renderaudshorelinevertices[i + 1], shorelineColour);
@@ -3290,9 +3315,17 @@ namespace CodeWalker
             MapBox mb = new();
             MapSphere ms = new();
 
+            var selectedAmbientZone = SelectedItem.Audio?.AmbientZone;
+            var selectedItems = SelectedItem.MultipleSelectionItems;
+            bool isolateAmbientZones = !Input.CtrlPressed && (selectedAmbientZone != null ||
+                selectedItems?.Any(item => item.Audio?.AmbientZone != null) == true);
             for (int i = 0; i < renderaudplacementslist.Count; i++)
             {
                 var placement = renderaudplacementslist[i];
+                if (isolateAmbientZones &&
+                    !(placement.AmbientZone != null && placement.AmbientZone == selectedAmbientZone) &&
+                    selectedItems?.Any(item => item.Audio == placement ||
+                        (placement.AmbientZone != null && item.Audio?.AmbientZone == placement.AmbientZone)) != true) continue;
                 switch (placement.Shape)
                 {
                     case Dat151ZoneShape.Box:
@@ -3332,7 +3365,7 @@ namespace CodeWalker
                         break;
                     case Dat151ZoneShape.Sphere:
 
-                        if ((placement.InnerPos != Vector3.Zero) && (placement.OuterPos != Vector3.Zero))
+                        if (placement.Shoreline != null || ((placement.InnerPos != Vector3.Zero) && (placement.OuterPos != Vector3.Zero)))
                         {
                             ms.CamRelPos = placement.InnerPos - camera.Position;
                             ms.Radius = placement.InnerRadius;
@@ -4094,13 +4127,67 @@ namespace CodeWalker
         {
             if (!ShowWidget) return;
 
-            Renderer.RenderTransformWidget(Widget);
+            if (UseAudioZoneWidgets)
+            {
+                foreach (var widget in audioZoneWidgets) Renderer.RenderTransformWidget(widget);
+            }
+            else Renderer.RenderTransformWidget(Widget);
         }
         private void UpdateWidgets()
         {
             if (!ShowWidget) return;
 
-            Widget.Update(camera);
+            mousedAudioZoneWidget = null;
+            if (!UseAudioZoneWidgets)
+            {
+                Widget.Update(camera);
+                return;
+            }
+            foreach (var widget in audioZoneWidgets)
+            {
+                widget.ObjectSpace = Widget.ObjectSpace;
+                widget.Update(camera);
+                if (widget.IsUnderMouse && (mousedAudioZoneWidget == null ||
+                    (Vector3.DistanceSquared(widget.Position, mousedAudioZoneWidget.Position) < 0.0001f
+                        ? widget.PositionWidget.Size < mousedAudioZoneWidget.PositionWidget.Size
+                        : widget.PositionWidget.MouseHitDistance < mousedAudioZoneWidget.PositionWidget.MouseHitDistance)))
+                    mousedAudioZoneWidget = widget;
+            }
+            foreach (var widget in audioZoneWidgets)
+            {
+                if (widget != mousedAudioZoneWidget) widget.PositionWidget.MousedAxis = WidgetAxis.None;
+            }
+        }
+
+        private void RebuildAudioZoneWidgets()
+        {
+            audioZoneWidgets.Clear();
+            mousedAudioZoneWidget = null;
+            var items = SelectedItem.MultipleSelectionItems ?? new[] { SelectedItem };
+            foreach (var item in items)
+            {
+                if (item.Audio?.AmbientZone == null) continue;
+                foreach (var mode in new[] { AudioZoneMoveMode.Positioning, AudioZoneMoveMode.Activation })
+                {
+                    var widget = new AudioZonePositionWidget(item.Audio, mode);
+                    widget.OnPositionChange += (position, _) =>
+                    {
+                        position = SnapPosition(position);
+                        if (position == widget.TargetPosition)
+                        {
+                            widget.Position = position;
+                            return;
+                        }
+                        widget.MoveTo(position);
+                        if (SelectedItem.MultipleSelectionItems != null)
+                            SelectedItem.SetMultipleSelectionItems(SelectedItem.MultipleSelectionItems);
+                        Widget.Position = SelectedItem.WidgetPosition;
+                        widget.Audio.RelFile.HasChanged = true;
+                        ProjectForm?.OnWorldAudioZoneWidgetModified(widget.Audio, SelectedItem);
+                    };
+                    audioZoneWidgets.Add(widget);
+                }
+            }
         }
 
 
@@ -4152,6 +4239,7 @@ namespace CodeWalker
             if (newpos == oldpos) return;
 
             SelectedItem.SetPosition(newpos, EditEntityPivot);
+            if (SelectedItem.Audio?.Shoreline != null) Widget.Position = SelectedItem.WidgetPosition;
 
             SelectedItem.UpdateGraphics(this);
 
@@ -4432,6 +4520,11 @@ namespace CodeWalker
         {
             audiozones.PlacementsDict.Remove(rel); //should cause a rebuild to add/remove items
         }
+        public void RemoveAudioShorelineGraphics(AudioPlacement audio)
+        {
+            if (audiozones.PlacementsDict.TryGetValue(audio.RelFile, out var placements))
+                audiozones.PlacementsDict[audio.RelFile] = placements.Where(p => p.Shoreline != audio.Shoreline).ToArray();
+        }
         public AudioPlacement? GetAudioPlacement(RelFile rel, Dat151RelData reldata)
         {
             var placement = audiozones.FindPlacement(rel, reldata);
@@ -4440,6 +4533,11 @@ namespace CodeWalker
                 if (reldata is Dat151AmbientZone az) placement = new AudioPlacement(rel, az);
                 if (reldata is Dat151AmbientRule ar) placement = new AudioPlacement(rel, ar);
                 if (reldata is Dat151StaticEmitter se) placement = new AudioPlacement(rel, se);
+                if (AudioPlacement.IsShoreline(reldata)) placement = new AudioPlacement(rel, reldata);
+            }
+            if (placement?.Shoreline != null)
+            {
+                lock (water) placement.UpdateFromShoreline(water.WaterQuads);
             }
             return placement;
         }
@@ -6209,6 +6307,9 @@ namespace CodeWalker
         }
         public void SelectItem(MapSelection? mhit = null, bool addSelection = false, bool manualSelection = false, bool notifyProject = true)
         {
+            // Project panel refreshes must not replace the selection they are displaying.
+            if (ProjectForm?.WorldSelectionChangeInProcess == true) return;
+
             var mhitv = mhit.HasValue ? mhit.Value : new MapSelection();
             if (mhit != null)
             {
@@ -6343,6 +6444,12 @@ namespace CodeWalker
 
             lock (Renderer.RenderSyncRoot) //drawflags is used when rendering.. need that lock
             {
+                if (GrabbedWidget is AudioZonePositionWidget)
+                {
+                    MarkUndoEnd(GrabbedWidget);
+                    GrabbedWidget.IsDragging = false;
+                    GrabbedWidget = null;
+                }
                 if (mhit.HasValue)
                 {
                     SelectedItem = mhitv;
@@ -6354,6 +6461,7 @@ namespace CodeWalker
 
                 if (change)
                 {
+                    RebuildAudioZoneWidgets();
                     if (!addSelection)
                     {
                         UpdateSelectionUI(true);
@@ -7947,19 +8055,24 @@ namespace CodeWalker
         private void MarkUndoStart(Widget w)
         {
             if (!SelectedItem.CanMarkUndo()) return;
-            if (Widget is TransformWidget)
+            if (w is TransformWidget widget)
             {
-                UndoStartPosition = Widget.Position;
-                UndoStartRotation = Widget.Rotation;
-                UndoStartScale = Widget.Scale;
+                UndoStartPosition = widget.Position;
+                UndoStartRotation = widget.Rotation;
+                UndoStartScale = widget.Scale;
             }
         }
         private void MarkUndoEnd(Widget w)
         {
             if (!SelectedItem.CanMarkUndo()) return;
-            TransformWidget tw = Widget as TransformWidget;
-            UndoStep? s = null;
-            if (tw != null)
+            TransformWidget? tw = w as TransformWidget;
+            UndoStep? s = w is AudioZonePositionWidget audioWidget
+                ? (audioWidget.TargetPosition != UndoStartPosition
+                    ? new AudioPositionUndoStep(audioWidget.Audio, UndoStartPosition, audioWidget.MoveMode) : null)
+                : pendingShorelinePointUndo;
+            pendingShorelinePointUndo?.CaptureEndPosition();
+            pendingShorelinePointUndo = null;
+            if (s == null && tw != null && w is not AudioZonePositionWidget)
             {
                 s = SelectedItem.CreateUndoStep(tw.Mode, UndoStartPosition, UndoStartRotation, UndoStartScale, this, EditEntityPivot);
             }
@@ -8285,7 +8398,12 @@ namespace CodeWalker
         {
             if ((ProjectForm != null) && SelectedItem.CanCopyPaste)
             {
-                SelectObject(ProjectForm.NewObject(SelectedItem, true));
+                var sourcePoint = SelectedItem.Audio;
+                if (sourcePoint?.ShorelineParent != null && Widget.Mode != WidgetMode.Position) return;
+                var clone = ProjectForm.NewObject(SelectedItem, true);
+                if (sourcePoint?.ShorelineParent != null && clone is AudioPlacement point)
+                    pendingShorelinePointUndo = new ShorelinePointInsertUndoStep(sourcePoint, point);
+                if (clone != null) SelectObject(clone);
             }
         }
         private void DeleteItem()
@@ -8327,6 +8445,24 @@ namespace CodeWalker
             else if (item.Audio?.AmbientZone != null) DeleteAudioAmbientZone(item.Audio);
             else if (item.Audio?.AmbientRule != null) DeleteAudioAmbientRule(item.Audio);
             else if (item.Audio?.StaticEmitter != null) DeleteAudioStaticEmitter(item.Audio);
+            else if (item.Audio?.Shoreline != null)
+            {
+                var audio = item.Audio;
+                lock (RenderSyncRoot)
+                {
+                    if (audio.ShorelineParent is { } parent)
+                    {
+                        if (parent.ShorelinePoints.Length <= 1) return;
+                        parent.RemoveShorelinePoint(audio);
+                    }
+                    else
+                    {
+                        if (!audio.RemoveShoreline()) return;
+                        RemoveAudioShorelineGraphics(audio);
+                    }
+                    audio.RelFile.HasChanged = true;
+                }
+            }
         }
         private void DeleteEntity(YmapEntityDef? ent)
         {
@@ -9201,11 +9337,12 @@ namespace CodeWalker
                     }
                     else
                     {
-                        if (ShowWidget && Widget.IsUnderMouse && !Input.kbmoving)
+                        var mousedWidget = UseAudioZoneWidgets ? mousedAudioZoneWidget : (Widget.IsUnderMouse ? Widget : null);
+                        if (ShowWidget && mousedWidget != null && !Input.kbmoving)
                         {
-                            GrabbedWidget = Widget;
+                            GrabbedWidget = mousedWidget;
                             GrabbedWidget.IsDragging = true;
-                            if (Input.ShiftPressed)
+                            if (Input.ShiftPressed && GrabbedWidget is not AudioZonePositionWidget)
                             {
                                 var ms = CurrentMapSelection.MultipleSelectionItems;
                                 if (ms?.Length > 0 && ms[0].PathNode != null)
@@ -9290,7 +9427,8 @@ namespace CodeWalker
                 {
                     MarkUndoEnd(GrabbedWidget);
                     GrabbedWidget.IsDragging = false;
-                    GrabbedWidget.Position = SelectedItem.WidgetPosition;//in case of any snapping, make sure widget is in correct position at the end
+                    GrabbedWidget.Position = GrabbedWidget is AudioZonePositionWidget audioWidget
+                        ? audioWidget.TargetPosition : SelectedItem.WidgetPosition;
                     GrabbedWidget = null;
                 }
                 if ((e.Location == MouseDownPoint) && (MousedMarker == null))
@@ -9546,7 +9684,7 @@ namespace CodeWalker
             }
 
 
-            if (!Input.kbmoving && !Widget.IsDragging) //don't trigger further actions if camera moving or widget dragging 
+            if (!Input.kbmoving && GrabbedWidget == null && !Widget.IsDragging) //don't trigger further actions if camera moving or widget dragging
             {
                 if (!ctrl)
                 {

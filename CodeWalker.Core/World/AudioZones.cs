@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace CodeWalker.World
 {
+    public enum AudioZoneMoveMode { Both, Positioning, Activation }
+
     public class AudioZones
     {
         public volatile bool Inited = false;
@@ -57,6 +59,10 @@ namespace CodeWalker.World
                 {
                     placement = new AudioPlacement(relfile, emitter);
                 }
+                else if (reldata is Dat151RelData shoreline && AudioPlacement.IsShoreline(shoreline))
+                {
+                    placement = new AudioPlacement(relfile, shoreline);
+                }
                 if (placement != null)
                 {
                     placements.Add(placement);
@@ -90,6 +96,12 @@ namespace CodeWalker.World
         {
             if (relfile == null) return null;
             if (reldata == null) return null;
+            if (!PlacementsDict.ContainsKey(relfile))
+            {
+                List<AudioPlacement> newplacements = new();
+                CreatePlacements(relfile, newplacements);
+                PlacementsDict[relfile] = newplacements.ToArray();
+            }
             if (PlacementsDict.TryGetValue(relfile, out var placements))
             {
                 foreach (var placement in placements)
@@ -97,6 +109,7 @@ namespace CodeWalker.World
                     if (placement.AmbientZone == reldata) return placement;
                     if (placement.AmbientRule == reldata) return placement;
                     if (placement.StaticEmitter == reldata) return placement;
+                    if (placement.Shoreline == reldata) return placement;
                 }
             }
             return null;
@@ -146,7 +159,7 @@ namespace CodeWalker.World
             }
         }
 
-        private static Vector3 GetShorelinePosition(Vector2 point, List<WaterQuad> waterQuads, bool oceanLevel)
+        internal static Vector3 GetShorelinePosition(Vector2 point, List<WaterQuad> waterQuads, bool oceanLevel)
         {
             float height = 0;
             float nearestDistance = float.MaxValue;
@@ -172,8 +185,10 @@ namespace CodeWalker.World
 
 
 
-    public class AudioPlacement
+    public partial class AudioPlacement
     {
+        public AudioZoneMoveMode ZoneMoveMode { get; set; }
+        public Vector3 MoveWidgetPosition => AmbientZone != null && ZoneMoveMode == AudioZoneMoveMode.Activation ? OuterPos : InnerPos;
         public string Name { get; set; } = string.Empty;
         public MetaHash NameHash { get; set; }
         public RelFile RelFile { get; set; }
@@ -338,8 +353,26 @@ namespace CodeWalker.World
         }
 
 
-        public void SetPosition(Vector3 pos)
+        public void SetPosition(Vector3 pos, AudioZoneMoveMode? moveMode = null)
         {
+            if (Shoreline != null)
+            {
+                SetShorelinePosition(pos);
+                return;
+            }
+            if (AmbientZone != null)
+            {
+                var mode = moveMode ?? ZoneMoveMode;
+                var offset = pos - (mode == AudioZoneMoveMode.Activation ? OuterPos : InnerPos);
+                if (mode != AudioZoneMoveMode.Activation)
+                {
+                    AmbientZone.PositioningZoneCentre += offset;
+                    if (AmbientZone.Shape == Dat151ZoneShape.Line) AmbientZone.PositioningZoneSize += offset;
+                }
+                if (mode != AudioZoneMoveMode.Positioning) AmbientZone.ActivationZoneCentre += offset;
+                UpdateFromAmbientZone();
+                return;
+            }
             bool useouter = ((InnerMax.X == 0) || (InnerMax.Y == 0) || (InnerMax.Z == 0));
             Vector3 delta = pos - InnerPos;
             InnerPos = pos;
@@ -362,6 +395,7 @@ namespace CodeWalker.World
         }
         public void SetOrientation(Quaternion ori)
         {
+            if (Shoreline != null) return;
             Orientation = ori;
             OrientationInv = Quaternion.Invert(ori);
 

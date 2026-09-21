@@ -511,7 +511,7 @@ namespace CodeWalker
                 switch (mode)
                 {
                     case WidgetMode.Position: return new AudioPositionUndoStep(Audio, startPos);
-                    case WidgetMode.Rotation: return new AudioRotationUndoStep(Audio, startRot);
+                    case WidgetMode.Rotation: return Audio.Shoreline == null ? new AudioRotationUndoStep(Audio, startRot) : null;
                 }
             }
             return null;
@@ -585,7 +585,7 @@ namespace CodeWalker
                 }
                 else if (Audio != null)
                 {
-                    res = true;
+                    res = Audio.Shoreline == null || Audio.ShorelinePointIndex >= 0 || Audio.ShorelinePoints.Length > 0;
                 }
                 return res;
             }
@@ -659,7 +659,7 @@ namespace CodeWalker
                 }
                 else if (Audio != null)
                 {
-                    return Audio.InnerPos;
+                    return Audio.MoveWidgetPosition;
                 }
                 return Vector3.Zero;
             }
@@ -804,7 +804,7 @@ namespace CodeWalker
                 }
                 else if (Audio != null)
                 {
-                    return WidgetAxis.Z;
+                    return Audio.Shoreline == null ? WidgetAxis.Z : WidgetAxis.None;
                 }
                 return WidgetAxis.None;
             }
@@ -941,6 +941,7 @@ namespace CodeWalker
                 else if (Audio?.AmbientZone != null) return true;
                 else if (Audio?.AmbientRule != null) return true;
                 else if (Audio?.StaticEmitter != null) return true;
+                else if (Audio?.ShorelineParent != null) return true;
                 return false;
             }
         }
@@ -1496,6 +1497,7 @@ namespace CodeWalker
             else if (Audio?.AmbientZone != null) return Audio;
             else if (Audio?.AmbientRule != null) return Audio;
             else if (Audio?.StaticEmitter != null) return Audio;
+            else if (Audio?.Shoreline != null) return Audio;
             return null;
         }
 
