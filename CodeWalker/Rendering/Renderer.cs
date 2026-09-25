@@ -530,12 +530,18 @@ namespace CodeWalker.Rendering
                 lightdir.Z = (float)Math.Sin(lightdiry);
                 lightdircolour = Color4.White;
                 lightdirambcolour = new Color4(0.5f, 0.5f, 0.5f, 1.0f);
+                // Hemisphere fill so faces pointing away from the manual light aren't pitch black.
+                // Up applies to every normal, down adds extra for upward-facing normals.
+                lightnaturalupcolour = new Color4(0.3f, 0.3f, 0.32f, 0.0f);
+                lightnaturaldowncolour = new Color4(0.15f, 0.15f, 0.15f, 0.0f);
                 if (hdr && (weather != null) && (weather.Inited))
                 {
                     lightdircolour *= weather.CurrentValues.skyHdr;
                     lightdircolour.Alpha = 1.0f;
                     lightdirambcolour *= weather.CurrentValues.skyHdr * 0.35f;
                     lightdirambcolour.Alpha = 1.0f;
+                    lightnaturalupcolour *= weather.CurrentValues.skyHdr * 0.35f;
+                    lightnaturaldowncolour *= weather.CurrentValues.skyHdr * 0.35f;
                     hdrint = weather.CurrentValues.skyHdr;
                 }
                 sundir = lightdir;
