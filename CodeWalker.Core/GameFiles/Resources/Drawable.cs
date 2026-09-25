@@ -1990,6 +1990,28 @@ namespace CodeWalker.GameFiles
         SCALE = SCALE_X | SCALE_Y | SCALE_Z,
     }
 
+    //pre-rename names still written by older CW exports and Sollumz; same bit values as crBoneDataDofs
+    [Flags] enum crBoneDataDofsLegacy : ushort
+    {
+        None = 0,
+        RotX = 0x1,
+        RotY = 0x2,
+        RotZ = 0x4,
+        LimitRotation = 0x8,
+        TransX = 0x10,
+        TransY = 0x20,
+        TransZ = 0x40,
+        LimitTranslation = 0x80,
+        ScaleX = 0x100,
+        ScaleY = 0x200,
+        ScaleZ = 0x400,
+        LimitScale = 0x800,
+        Unk0 = 0x1000,
+        Unk1 = 0x2000,
+        Unk2 = 0x4000,
+        Unk3 = 0x8000,
+    }
+
 
     [TypeConverter(typeof(ExpandableObjectConverter))] public class crBoneData : ResourceSystemBlock, IMetaXmlItem
     {
@@ -2099,7 +2121,15 @@ namespace CodeWalker.GameFiles
                 : Index;
             ParentIndex = (short)Xml.GetChildIntAttribute(node, "ParentIndex", "value");
             NextIndex = (short)Xml.GetChildIntAttribute(node, "SiblingIndex", "value");
-            Dofs = Xml.GetChildEnumInnerText<crBoneDataDofs>(node, "Flags");
+            var flags = Xml.GetChildInnerText(node, "Flags");
+            if (Enum.TryParse(flags, out crBoneDataDofs dofs))
+            {
+                Dofs = dofs;
+            }
+            else
+            {
+                Dofs = (crBoneDataDofs)Xml.GetEnumValue<crBoneDataDofsLegacy>(flags);
+            }
             DefaultTranslation = Xml.GetChildVector3Attributes(node, "Translation");
             DefaultRotation = Xml.GetChildVector4Attributes(node, "Rotation").ToQuaternion();
             DefaultScale = Xml.GetChildVector3Attributes(node, "Scale");

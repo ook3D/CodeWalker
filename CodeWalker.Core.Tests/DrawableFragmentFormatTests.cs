@@ -41,6 +41,19 @@ public class DrawableFragmentFormatTests
         Assert.Equal(0x2000, (ushort)crBoneDataDofs.IS_SKINNED);
     }
 
+    [Theory]
+    [InlineData("RotX, RotY, RotZ, TransX, TransY, TransZ, Unk0", crBoneDataDofs.ROTATION | crBoneDataDofs.TRANSLATION | crBoneDataDofs.HAS_CHILD)]
+    [InlineData("RotX, RotY, RotZ, LimitRotation, Unk0", crBoneDataDofs.ROTATION | crBoneDataDofs.HAS_ROTATE_LIMITS | crBoneDataDofs.HAS_CHILD)]
+    [InlineData("ROTATION, HAS_ROTATE_LIMITS", crBoneDataDofs.ROTATION | crBoneDataDofs.HAS_ROTATE_LIMITS)]
+    public void BoneXmlFlagsAcceptLegacyAndCurrentNames(string flags, crBoneDataDofs expected)
+    {
+        var doc = new System.Xml.XmlDocument();
+        doc.LoadXml($"<Item><Name>b</Name><Flags>{flags}</Flags></Item>");
+        var bone = new crBoneData();
+        bone.ReadXml(doc.DocumentElement!);
+        Assert.Equal(expected, bone.Dofs);
+    }
+
     [Fact]
     public void BoneIdMapEntryMatchesNativeFieldLayout()
     {
