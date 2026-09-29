@@ -16,9 +16,11 @@ struct VS_OUTPUT
 struct ParticleInstance
 {
     float3 Position;
-    float Rotation;
-    float2 Size;
-    float2 Pad0;
+    float Pad0;
+    float3 Right; // world-space half-extent axes, built on the CPU (ptxDrawInterface::BatchSprite)
+    float Pad1;
+    float3 Up;
+    float Pad2;
     float4 UVRect;
     float4 Colour;
 };
@@ -39,16 +41,9 @@ VS_OUTPUT main(VS_INPUT input, uint iid : SV_InstanceID)
 
     ParticleInstance p = ParticleInstances[iid];
 
-    // rotate the unit quad corner around the view axis
+    // expand the unit quad corner along the sprite's world axes (camera/velocity/axis alignment is done on the CPU)
     float2 q = input.Position.xy;
-    float c = cos(p.Rotation);
-    float s = sin(p.Rotation);
-    float2 r = float2(q.x * c - q.y * s, q.x * s + q.y * c);
-
-    // camera-facing billboard: build a view-space offset then transform to world
-    float3 voffs = float3(r * p.Size, 0.0);
-    float3 woffs = mul(voffs, (float3x3)ViewInv);
-    float3 wpos = (p.Position - CamPos) + woffs;
+    float3 wpos = (p.Position - CamPos) + q.x * p.Right + q.y * p.Up;
 
     output.Position = mul(float4(wpos, 1.0), ViewProj);
     output.Texcoord = lerp(p.UVRect.xy, p.UVRect.zw, input.Texcoord);

@@ -2705,6 +2705,11 @@ namespace CodeWalker
 
                 Renderer.RenderQueued();
 
+                if (renderworld)
+                {
+                    Renderer.RenderWorldParticleFxSprites();
+                }
+
                 Renderer.RenderBounds(SelectionMode);
 
                 Renderer.RenderSelectionGeometry(SelectionMode);
@@ -7948,6 +7953,7 @@ namespace CodeWalker
             DynamicLODCheckBox.Checked = s.DynamicLOD;
             DetailTrackBar.Value = s.DetailDist;
             WaitForChildrenCheckBox.Checked = s.WaitForChildren;
+            RenderParticlesCheckBox.Checked = s.RenderParticles;
             RenderModeComboBox.SelectedIndex = Math.Max(RenderModeComboBox.FindString(s.RenderMode), 0);
             TextureSamplerComboBox.SelectedIndex = Math.Max(TextureSamplerComboBox.FindString(s.RenderTextureSampler), 0);
             TextureCoordsComboBox.SelectedIndex = Math.Max(TextureCoordsComboBox.FindString(s.RenderTextureSamplerCoord), 0);
@@ -8002,6 +8008,7 @@ namespace CodeWalker
             s.DynamicLOD = DynamicLODCheckBox.Checked;
             s.DetailDist = DetailTrackBar.Value;
             s.WaitForChildren = WaitForChildrenCheckBox.Checked;
+            s.RenderParticles = RenderParticlesCheckBox.Checked;
             s.RenderMode = RenderModeComboBox.Text;
             s.RenderTextureSampler = TextureSamplerComboBox.Text;
             s.RenderTextureSamplerCoord = TextureCoordsComboBox.Text;
@@ -9964,6 +9971,11 @@ namespace CodeWalker
         private void HDTexturesCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             Renderer.renderhdtextures = HDTexturesCheckBox.Checked;
+        }
+
+        private void RenderParticlesCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            Renderer.renderparticlefx = RenderParticlesCheckBox.Checked;
         }
 
         private void NearClipUpDown_ValueChanged(object sender, EventArgs e)

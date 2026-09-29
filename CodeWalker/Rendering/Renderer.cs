@@ -1578,9 +1578,22 @@ namespace CodeWalker.Rendering
                         var drw = pd?.Drawable;
                         if (drw == null) continue;
 
+                        // ptxd_Model: scale = particle dims / drawable LOD-group bbox size, shrunk near the camera
+                        var bbSize = drw.BoundingBoxMax - drw.BoundingBoxMin;
+                        var scale = new Vector3(
+                            (bbSize.X > 1e-4f) ? (p.ModelScale.X / bbSize.X) : p.ModelScale.X,
+                            (bbSize.Y > 1e-4f) ? (p.ModelScale.Y / bbSize.Y) : p.ModelScale.Y,
+                            (bbSize.Z > 1e-4f) ? (p.ModelScale.Z / bbSize.Z) : p.ModelScale.Z);
+                        float camShrink = em.ModelCameraShrink;
+                        if (camShrink > 0f)
+                        {
+                            float dist = (p.Position - camera.Position).Length();
+                            if (dist <= camShrink) scale *= dist / camShrink;
+                        }
+
                         particleModelEntity.SetPosition(p.Position);
                         particleModelEntity.SetOrientation(Quaternion.RotationYawPitchRoll(p.ModelYaw, p.ModelPitch, p.Rotation));
-                        particleModelEntity.SetScale(p.ModelScale);
+                        particleModelEntity.SetScale(scale);
 
                         RenderDrawable(drw, null, particleModelEntity);
                     }
@@ -1641,6 +1654,7 @@ namespace CodeWalker.Rendering
                 }
 
                 ps.Instances.Clear();
+                var campos = camera.Position;
 
                 if (em.BlendMode == ParticleBlendMode.Additive)
                 {
@@ -1649,7 +1663,7 @@ namespace CodeWalker.Rendering
                     float glow = em.IsGlow ? ParticleGlowScale : 1.0f;
                     foreach (var p in em.Particles)
                     {
-                        var pi = ToInstance(p);
+                        var pi = ToInstance(p, em, campos);
                         if (glow != 1.0f) pi.Colour = new Vector4(pi.Colour.X * glow, pi.Colour.Y * glow, pi.Colour.Z * glow, pi.Colour.W * glow);
                         if (!ps.Instances.Add(pi)) break;
                     }
@@ -1658,11 +1672,10 @@ namespace CodeWalker.Rendering
                 {
                     // alpha/composite: sort back-to-front for correct blending
                     particleSortList.Clear();
-                    var campos = camera.Position;
                     foreach (var p in em.Particles)
                     {
                         float d = (p.Position - campos).LengthSquared();
-                        particleSortList.Add(new KeyValuePair<float, ParticleInstance>(d, ToInstance(p)));
+                        particleSortList.Add(new KeyValuePair<float, ParticleInstance>(d, ToInstance(p, em, campos)));
                     }
                     particleSortList.Sort((a, b) => b.Key.CompareTo(a.Key));
                     foreach (var kvp in particleSortList)
@@ -1688,14 +1701,92 @@ namespace CodeWalker.Rendering
             foreach (var ch in inst.ChildEffects) RenderParticleEffect(ch);
         }
 
-        private static ParticleInstance ToInstance(Particle p)
+        // Sprite orientation, ported from rmptfx ptxDrawInterface::BatchSprite (non screen-space path).
+        private static ParticleInstance ToInstance(in Particle p, ParticleEmitterInst em, Vector3 campos)
         {
+            const float dotShrinkStart = 0.999990f;
+            const float dotShrinkStop = 0.999995f;
+            var upWld = Vector3.UnitY; //drawInstParams.vUpWld
+            int mode = em.SpriteAlignmentMode;
+
+            Vector3 right = Vector3.UnitX;
+            Vector3 up = Vector3.UnitZ;
+            float shrink = 1f;
+            var viewAxis = Vector3.Normalize(campos - p.Position);
+
+            if (mode != 0) //directional: velocity / world / effect / emitter
+            {
+                bool upIsVel = p.Velocity.LengthSquared() > 1e-12f;
+                up = upIsVel ? Vector3.Normalize(p.Velocity) : upWld;
+
+                if (mode >= 2) //align to axis: the sprite normal points along the axis
+                {
+                    var axis = em.SpriteAlignAxis;
+                    if (Vector3.Dot(axis, up) < dotShrinkStop)
+                    {
+                        right = Vector3.Normalize(Vector3.Cross(up, axis));
+                        up = Vector3.Normalize(Vector3.Cross(axis, right));
+                    }
+                    else
+                    {
+                        up = upWld; //try world up if velocity didn't work
+                        if (upIsVel && (Vector3.Dot(axis, up) < dotShrinkStop))
+                        {
+                            right = Vector3.Normalize(Vector3.Cross(up, axis));
+                            up = Vector3.Normalize(Vector3.Cross(axis, right));
+                        }
+                        else
+                        {
+                            right = Vector3.UnitX;
+                            up = Vector3.UnitY;
+                        }
+                    }
+                }
+                else //velocity: stretch along velocity, face the camera as best it can
+                {
+                    float dot = Vector3.Dot(viewAxis, up);
+                    if (dot < dotShrinkStop)
+                    {
+                        right = Vector3.Normalize(Vector3.Cross(up, viewAxis));
+                        var camRightRel = Vector3.Normalize(Vector3.Cross(viewAxis, Vector3.UnitZ));
+                        if (Vector3.Dot(up, camRightRel) < 0f) right = -right; //keep the sprite upright
+                        if (dot > dotShrinkStart) shrink = 1f - ((dot - dotShrinkStart) / (dotShrinkStop - dotShrinkStart));
+                    }
+                    else
+                    {
+                        shrink = 0f; //velocity points at the camera - zero size
+                    }
+                }
+            }
+            else //camera: face the camera position (not the view plane), world Z up
+            {
+                if (Vector3.Dot(viewAxis, up) < dotShrinkStop)
+                {
+                    right = Vector3.Normalize(Vector3.Cross(up, viewAxis));
+                    up = Vector3.Normalize(Vector3.Cross(viewAxis, right));
+                }
+                else
+                {
+                    right = Vector3.UnitX;
+                    up = Vector3.UnitY;
+                }
+            }
+
+            // apply the sprite rotation
+            float c = (float)Math.Cos(p.Rotation), s = (float)Math.Sin(p.Rotation);
+            var rightRot = right * c - up * s;
+            var upRot = up * c + right * s;
+
+            var uv = p.UVRect;
+            if (p.FlipU) uv = new Vector4(uv.Z, uv.Y, uv.X, uv.W);
+            if (p.FlipV) uv = new Vector4(uv.X, uv.W, uv.Z, uv.Y);
+
             return new ParticleInstance()
             {
                 Position = p.Position,
-                Rotation = p.Rotation,
-                Size = p.Size,
-                UVRect = p.UVRect,
+                Right = rightRot * (p.Size.X * shrink),
+                Up = upRot * (p.Size.Y * shrink),
+                UVRect = uv,
                 Colour = p.Colour,
             };
         }
@@ -2203,9 +2294,217 @@ namespace CodeWalker.Rendering
 
             RenderWorldYmapExtras();
 
+            RenderWorldParticleFx();
+
             for (int i = 0; i < renderworldentities.Count; i++)
             {
                 renderworldentities[i].LodManagerRenderable = null;
+            }
+        }
+
+
+        // Archetype/entity CExtensionDefParticleEffect previews: one sim per (entity, extension) within range.
+        // Mirrors CVfxEntity::UpdatePtFxEntityAmbient: only ambient (fxType 0) extensions play continuously - the
+        // other types fire on collision/shot/break/etc. The extension's fxName is an ENTITYFX_AMBIENT_PTFX tag
+        // (e.g. AMB_BARREL_FIRE) naming the ptfx asset + effect. Names not in entityfx.dat are tried as raw effect
+        // names in core/lc_core.
+        public bool renderparticlefx = Settings.Default.RenderParticles;
+        public float ParticleFxDistance = 150.0f;
+        public int ParticleFxMaxPerEmitter = 250;
+        private sealed class WorldParticleFx { public ParticleEffectInst? Inst; public bool IgnoreRotation; public int Frame; public bool Culled; }
+        private sealed class WorldPtfxIndex
+        {
+            public Dictionary<string, RpfEntry> Ypts = new();                                            //asset name -> best .ypt entry
+            public Dictionary<string, (string Asset, string Fx, bool IgnoreRotation)> EntityFx = new();  //ambient tag -> asset + effect
+        }
+        private readonly Dictionary<(YmapEntityDef, MetaWrapper), WorldParticleFx> worldParticleFx = new();
+        private readonly List<(YmapEntityDef, MetaWrapper)> worldParticleFxExpired = new();
+        private int worldParticleFxFrame;
+        private Task<WorldPtfxIndex>? worldPtfxIndex;
+        private readonly Dictionary<string, Task<YptFile?>> worldPtfxAssets = new();
+        private static readonly string[] WorldPtfxFallbackAssets = ["core", "lc_core"];
+
+        private void RenderWorldParticleFx()
+        {
+            worldParticleFxFrame++;
+            var index = GetWorldPtfxIndex();
+            if (renderparticlefx && renderentities && (index != null))
+            {
+                for (int i = 0; i < RenderEntities.Count; i++)
+                {
+                    var ent = RenderEntities[i];
+                    if (HideEntities.ContainsKey(ent.EntityHash)) continue;
+                    if ((ent.Position - camera.Position).Length() > ParticleFxDistance) continue;
+                    AddWorldParticleFx(ent, ent.Archetype?.Extensions, index);
+                    AddWorldParticleFx(ent, ent.Extensions, index);
+                }
+            }
+
+            foreach (var kvp in worldParticleFx)
+            {
+                if (kvp.Value.Frame != worldParticleFxFrame) worldParticleFxExpired.Add(kvp.Key);
+            }
+            foreach (var key in worldParticleFxExpired) worldParticleFx.Remove(key);
+            worldParticleFxExpired.Clear();
+
+            foreach (var fx in worldParticleFx.Values)
+            {
+                fx.Culled = (fx.Inst == null) || IsWorldParticleFxCulled(fx.Inst);
+                if (fx.Culled) continue; //culled effects pause (the game's default Update/RenderWhenCulled = off)
+                fx.Inst!.Update(currentElapsedTime);
+                RenderParticleModels(fx.Inst);
+            }
+        }
+
+        // The effect rule's own distance + viewport culling (rmptfx ptxEffectInst culling), with fallbacks when unset.
+        private bool IsWorldParticleFxCulled(ParticleEffectInst inst)
+        {
+            var rule = inst.Rule;
+            float dist = (inst.Origin - camera.Position).Length();
+            float culldist = ((rule.DistanceCullingMode != 0) && (rule.DistanceCullingCullDist > 0f)) ? rule.DistanceCullingCullDist : ParticleFxDistance;
+            if (dist > culldist) return true;
+
+            //sphere offset + radius scale by the final zoom, as ptxEffectInst's viewport culling does
+            float zoom = Math.Max(1f, inst.CurrentZoom);
+            float radius = ((rule.ViewportCullingMode != 0) && (rule.ViewportCullingSphereRadius > 0f)) ? rule.ViewportCullingSphereRadius : 10f;
+            var centre = inst.Origin + inst.Orientation.Multiply(rule.ViewportCullingSphereOffset * zoom) - camera.Position; //frustum is camera-relative
+            return !camera.ViewFrustum.ContainsSphereNoClipNoOpt(ref centre, radius * zoom);
+        }
+
+        private void AddWorldParticleFx(YmapEntityDef ent, MetaWrapper[]? exts, WorldPtfxIndex index)
+        {
+            if (exts == null) return;
+            foreach (var ext in exts)
+            {
+                if (ext is not MCExtensionDefParticleEffect pe) continue;
+                if (pe.Data.fxType != 0) continue; //PT_AMBIENT_FX only; the rest are event-triggered
+                var key = (ent, ext);
+                if (!worldParticleFx.TryGetValue(key, out var fx))
+                {
+                    if (!TryCreateWorldParticleFx(pe, index, out var inst, out bool ignoreRot)) continue; //asset still loading, retry next frame
+                    fx = new WorldParticleFx { Inst = inst, IgnoreRotation = ignoreRot };
+                    worldParticleFx[key] = fx; //cache misses too, so unknown effects aren't looked up every frame
+                }
+                fx.Frame = worldParticleFxFrame;
+                if (fx.Inst == null) continue;
+
+                var d = pe.Data;
+                var r = d.offsetRotation;
+                fx.Inst.Origin = ent.Position + ent.Orientation.Multiply(d.offsetPosition * ent.Scale);
+                //the entityfx.dat ROT column (ignoreRotation) skips SetOffsetRot; the entity's own rotation still applies
+                fx.Inst.Orientation = fx.IgnoreRotation ? ent.Orientation : Quaternion.Multiply(ent.Orientation, new Quaternion(r.X, r.Y, r.Z, r.W));
+            }
+        }
+
+        // False while a needed asset is still loading; true once resolved (inst is null if the effect wasn't found).
+        private bool TryCreateWorldParticleFx(MCExtensionDefParticleEffect pe, WorldPtfxIndex index, out ParticleEffectInst? inst, out bool ignoreRotation)
+        {
+            inst = null;
+            ignoreRotation = false;
+            var name = pe.fxName?.Trim().ToLowerInvariant();
+            if (string.IsNullOrEmpty(name)) return true;
+
+            string[] assets = WorldPtfxFallbackAssets;
+            string fxname = name;
+            if (index.EntityFx.TryGetValue(name, out var efx))
+            {
+                assets = [efx.Asset];
+                fxname = efx.Fx;
+                ignoreRotation = efx.IgnoreRotation;
+            }
+            var hash = new MetaHash(JenkHash.GenHash(fxname));
+
+            foreach (var asset in assets)
+            {
+                var task = GetWorldPtfxAsset(asset, index);
+                if (!task.IsCompleted) return false;
+                var ypt = task.IsCompletedSuccessfully ? task.Result : null;
+                if ((ypt == null) || !ypt.EffectDict.TryGetValue(hash, out var rule)) continue;
+                inst = new ParticleEffectInst(rule, ypt, gameFileCache);
+                inst.spawnZoomScale = (pe.Data.scale > 0f) ? pe.Data.scale : 1f; //SetUserZoom(m_scale)
+                inst.ParticleCap = ParticleFxMaxPerEmitter;
+                if ((pe.Data.flags & 1) != 0) //m_hasTint: colour is a rage Color32 (ARGB)
+                {
+                    uint c = pe.Data.color;
+                    inst.UserTint = new Vector4(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f, ((c >> 24) & 0xFF) / 255f);
+                }
+                return true;
+            }
+            return true;
+        }
+
+        private Task<YptFile?> GetWorldPtfxAsset(string asset, WorldPtfxIndex index)
+        {
+            if (!worldPtfxAssets.TryGetValue(asset, out var task))
+            {
+                var rpfman = gameFileCache.RpfMan;
+                task = Task.Run(() => (index.Ypts.TryGetValue(asset, out var e) && (rpfman != null)) ? rpfman.GetFile<YptFile>(e) : null);
+                worldPtfxAssets[asset] = task;
+            }
+            return task;
+        }
+
+        private WorldPtfxIndex? GetWorldPtfxIndex()
+        {
+            if ((worldPtfxIndex == null) || worldPtfxIndex.IsFaulted)
+            {
+                var gfc = gameFileCache;
+                var rpfman = gfc.RpfMan;
+                //RpfMan is assigned before its scan finishes - indexing then misses the late (update/mods/dlc) archives
+                if (!gfc.IsInited || (rpfman == null)) return null;
+                worldPtfxIndex = Task.Run(() =>
+                {
+                    var index = new WorldPtfxIndex();
+                    //GameFileCache.AllRpfs honours the mods setting and is in load order, so the last copy wins
+                    foreach (var rpf in gfc.AllRpfs)
+                    {
+                        if (rpf.AllEntries == null) continue;
+                        foreach (var e in rpf.AllEntries)
+                        {
+                            if (!e.NameLower.EndsWith(".ypt")) continue;
+                            if (e.Path.Contains("ptfx_lo.rpf") || e.Path.Contains("ptfx_hi.rpf")) continue; //quality variants of ptfx.rpf
+                            index.Ypts[e.NameLower[..^4]] = e;
+                        }
+                    }
+
+                    var text = rpfman.GetFileUTF8Text("update\\update.rpf\\common\\data\\effects\\entityfx.dat");
+                    if (string.IsNullOrEmpty(text)) text = rpfman.GetFileUTF8Text("common:/data/effects/entityfx.dat");
+                    ParseEntityFx(text, index.EntityFx);
+
+                    ParticleClipRegions.EnsureLoaded(gfc);
+                    return index;
+                });
+            }
+            return worldPtfxIndex.IsCompletedSuccessfully ? worldPtfxIndex.Result : null;
+        }
+
+        // entityfx.dat ENTITYFX_AMBIENT_PTFX section: whitespace-separated rows "TAG PTFX_ASSET FX_NAME IGNORE_ROT ...",
+        // '#' comments. Tags are looked up per fx type in the game, so only the ambient section is read.
+        internal static void ParseEntityFx(string? text, Dictionary<string, (string Asset, string Fx, bool IgnoreRotation)> dict)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            bool ambient = false;
+            foreach (var rawline in text.Split('\n'))
+            {
+                var line = rawline;
+                int c = line.IndexOf('#');
+                if (c >= 0) line = line[..c];
+                var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0) continue;
+                if (parts[0] == "ENTITYFX_AMBIENT_PTFX_START") { ambient = true; continue; }
+                if (parts[0] == "ENTITYFX_AMBIENT_PTFX_END") { ambient = false; continue; }
+                if (!ambient || (parts.Length < 3)) continue;
+                bool ignoreRot = (parts.Length > 3) && (parts[3] != "0");
+                dict[parts[0].ToLowerInvariant()] = (parts[1].ToLowerInvariant(), parts[2].ToLowerInvariant(), ignoreRot);
+            }
+        }
+
+        // Sprite pass for the world particle extensions. Call AFTER RenderQueued().
+        public void RenderWorldParticleFxSprites()
+        {
+            foreach (var fx in worldParticleFx.Values)
+            {
+                if (!fx.Culled) RenderParticleEffect(fx.Inst);
             }
         }
 
@@ -4400,10 +4699,18 @@ namespace CodeWalker.Rendering
                 {
                     var hash = light.TextureHash.Hash;
                     light.ProjectedTexture = drawable.ShaderGroup?.TextureDictionary?.Lookup(hash);
+                    light.ProjectedTexture ??= extraTexDict?.Lookup(hash);
                     if ((light.ProjectedTexture == null) && (rndbl.SDtxds != null))
                     {
-                        foreach (var txd in rndbl.SDtxds)
+                        for (int j = 0; j < rndbl.SDtxds.Length; j++)
                         {
+                            var txd = rndbl.SDtxds[j];
+                            if (!txd.Loaded)
+                            {
+                                var retryHash = txd.Key.Hash != 0 ? txd.Key.Hash : (txd.RpfFileEntry?.ShortNameHash ?? 0);
+                                txd = gameFileCache.GetYtd(retryHash) ?? txd;
+                                rndbl.SDtxds[j] = txd;
+                            }
                             light.ProjectedTexture = txd.Loaded ? txd.TextureDict?.Lookup(hash) : null;
                             if (light.ProjectedTexture != null) break;
                         }

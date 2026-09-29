@@ -15,13 +15,16 @@ namespace CodeWalker.Rendering
     public enum ParticleBlendMode { Normal = 0, Additive = 1, Composite = 2 }
     public enum ParticleDrawMode { Sprite = 0, Model = 1, Trail = 2 }
 
-    // Per-instance billboard data uploaded to the GPU (must match ParticleVS.hlsl, 64 bytes).
+    // Per-instance billboard data uploaded to the GPU (must match ParticleVS.hlsl, 80 bytes). Right/Up are the
+    // sprite's world-space half-extent axes, built on the CPU like ptxDrawInterface::BatchSprite.
     public struct ParticleInstance
     {
         public Vector3 Position;
-        public float Rotation;
-        public Vector2 Size;     //half-width, half-height (world units)
-        public Vector2 Pad0;
+        public float Pad0;
+        public Vector3 Right;    //world axis * half-width (rotation applied)
+        public float Pad1;
+        public Vector3 Up;       //world axis * half-height (rotation applied)
+        public float Pad2;
         public Vector4 UVRect;   //xy = uv min, zw = uv max
         public Vector4 Colour;   //rgba 0..1
     }
@@ -85,11 +88,24 @@ namespace CodeWalker.Rendering
         // effect loops; spawned children play once. Origin is the world position a child was spawned at; particles
         // in that child spawn relative to it. One spawn level only (children don't spawn grandchildren), as the game.
         public Vector3 Origin;
+        public Quaternion Orientation = Quaternion.Identity; //world rotation of the spawn/target domains (world-placed effects)
+        // ptxEffectInst m_vRGBATint (SetColourTint/SetAlphaTint): RGB applies where the colour behaviour has
+        // RGBCanTint, alpha always (ptxu_Colour).
+        public Vector4 UserTint = Vector4.One;
         public List<ParticleEffectInst> ChildEffects { get; } = new List<ParticleEffectInst>();
         public bool IsSpawnedChild { get; private set; }
         bool loop = true;
         bool finished;
         readonly GameFileCache? gfc;
+
+        // Per-emitter live-particle cap (0 = the emitter default). Lowered for world placement where many effects
+        // run at once; inherited by spawned child effects.
+        public int ParticleCap
+        {
+            get => particleCap;
+            set { particleCap = value; foreach (var e in Emitters) e.CapParticles(value); }
+        }
+        int particleCap;
         const int MaxChildEffects = 96;
 
         private readonly Random rnd = new Random(0x50544658); //"PTFX"
@@ -227,20 +243,27 @@ namespace CodeWalker.Rendering
             };
 
             // apply the spawner's random scalars (rmptfx m_spawnedEffectScalars)
-            float durScale = RandSpawnScalar(spawner?.DurationScalarMin ?? 0f, spawner?.DurationScalarMax ?? 0f);
-            float rateScale = RandSpawnScalar(spawner?.PlaybackRateScalarMin ?? 0f, spawner?.PlaybackRateScalarMax ?? 0f);
-            float zoomScale = RandSpawnScalar(spawner?.ZoomScalarMin ?? 0f, spawner?.ZoomScalarMax ?? 0f);
+            // each scalar only applies when its ptxSpawnedEffectScalarFlags bit is set (0 duration, 1 playback rate,
+            // 2 colour tint, 3 zoom); an inactive scalar leaves the child at 1x
+            uint flags = spawner?.FlagsMin ?? 0;
+            float durScale = ((flags & 1) != 0) ? RandSpawnScalar(spawner!.DurationScalarMin, spawner.DurationScalarMax) : 1f;
+            float rateScale = ((flags & 2) != 0) ? RandSpawnScalar(spawner!.PlaybackRateScalarMin, spawner.PlaybackRateScalarMax) : 1f;
+            float zoomScale = ((flags & 8) != 0) ? RandSpawnScalar(spawner!.ZoomScalarMin, spawner.ZoomScalarMax) : 1f;
 
             child.Duration = Math.Max(0.05f, child.Duration * durScale);
             // InheritsPointLife overrides the child duration with the particle's remaining life (rmptfx SetOOLife)
             if ((spawner?.InheritsPointLife ?? 0) != 0 && particleRemainingLife > 0.01f) child.Duration = particleRemainingLife;
             child.PlaybackRateScalar *= rateScale;
-            child.spawnZoomScale = zoomScale;
+            //ptxeffectspawning: the child gets the parent's USER zoom (here folded into spawnZoomScale) times the spawner
+            //zoom - not the parent rule's own zoom
+            child.spawnZoomScale = zoomScale * spawnZoomScale;
+            if (particleCap > 0) child.ParticleCap = particleCap;
+            child.UserTint = UserTint; //ptxeffectspawning copies the colour + alpha tint to spawned effects
 
             ChildEffects.Add(child);
         }
 
-        float spawnZoomScale = 1f; //extra zoom applied to a spawned child (folds into its CurrentZoom)
+        internal float spawnZoomScale = 1f; //extra zoom applied to a spawned child (folds into its CurrentZoom)
 
         static float RandSpawnScalar(float min, float max)
         {
@@ -313,6 +336,26 @@ namespace CodeWalker.Rendering
         ParticleBehaviourDampening? dampBeh;
         ParticleBehaviourVelocity? velBeh;
         ParticleBehaviourAnimateTexture? animBeh;
+        ParticleBehaviourSprite? spriteBeh;
+        ParticleBehaviourNoise? noiseBeh;
+        readonly Random noiseRnd = new Random(0x4E4F4953); //"NOIS"
+
+        static Vector3 RandSigned(Random r) => new Vector3((float)(r.NextDouble() * 2.0 - 1.0), (float)(r.NextDouble() * 2.0 - 1.0), (float)(r.NextDouble() * 2.0 - 1.0));
+
+        // ptxu_Noise::ChangeSpace: 0 world, 1 effect matrix, 2 emitter (creation domain world matrix)
+        Vector3 NoiseSpace(Vector3 v)
+        {
+            switch (noiseBeh?.ReferenceSpace ?? 0)
+            {
+                case 1: return effectOrientation.IsIdentity ? v : Vector3.Transform(v, effectOrientation);
+                case 2: return CreationDomainRotWld(v);
+                default: return v;
+            }
+        }
+        ParticleBehaviourModel? modelBeh;
+
+        // ptxd_Model m_cameraShrink: models closer than this distance to the camera shrink (scale = dist/shrink)
+        public float ModelCameraShrink => modelBeh?.CameraShrink ?? 0f;
 
         ParticleKeyframeProp? kfSpawnRate, kfParticleLife, kfSpeedScalar, kfSizeScalar, kfAccnScalar, kfDampScalar;
 
@@ -322,6 +365,15 @@ namespace CodeWalker.Rendering
         float effectZoom = 1f;         //effect-rule zoom (ZoomScalar/ZoomLevel), multiplies particle size each frame
         ParticleEffectInst? ownerEffect; //owning effect inst, for EffectSpawner child spawning + world origin
         Vector3 effectOrigin;           //world position of the owning effect (children spawn relative to it)
+        Quaternion effectOrientation = Quaternion.Identity;
+        Vector4 userTint = Vector4.One;
+        float lastEmitRatio;
+        Matrix creationRotWld = Matrix.Identity;
+
+        // ptxd_Sprite alignment: 0 camera, 1 velocity, 2 world, 3 effect, 4 emitter (world/effect/emitter align the
+        // sprite normal to SpriteAlignAxis). SpriteAlignAxis is already in world space.
+        public int SpriteAlignmentMode => spriteBeh?.AlignmentMode ?? 0;
+        public Vector3 SpriteAlignAxis { get; private set; } = Vector3.UnitZ;
         ParticleEffectSpawner? atRatioSpawner;   //EffectSpawnerAtRatio (if it names a child effect)
         ParticleEffectRule? atRatioChildRule;    //resolved child effect rule to spawn at the trigger ratio
         int atlasCols = 1, atlasRows = 1, atlasFrames = 1;
@@ -484,6 +536,9 @@ namespace CodeWalker.Rendering
                     case ParticleBehaviourDampening d: dampBeh = dampBeh ?? d; break;
                     case ParticleBehaviourVelocity v: velBeh = velBeh ?? v; break;
                     case ParticleBehaviourAnimateTexture t: animBeh = animBeh ?? t; break;
+                    case ParticleBehaviourSprite sp: spriteBeh = spriteBeh ?? sp; break;
+                    case ParticleBehaviourModel md: modelBeh = modelBeh ?? md; break;
+                    case ParticleBehaviourNoise nz: noiseBeh = noiseBeh ?? nz; break;
                 }
             }
         }
@@ -584,6 +639,11 @@ namespace CodeWalker.Rendering
             atlasFrames = frames;
         }
 
+        public void CapParticles(int max)
+        {
+            if ((max > 0) && (max < maxParticles)) maxParticles = max; //spawn is then rate-limited to ~cap/life
+        }
+
         public void Reset()
         {
             Particles.Clear();
@@ -599,13 +659,18 @@ namespace CodeWalker.Rendering
             effectZoom = (effect?.CurrentZoom ?? 1f);
             ownerEffect = effect;
             effectOrigin = effect?.Origin ?? Vector3.Zero;
-            UpdateParticles(effectRatio, dt);
+            effectOrientation = effect?.Orientation ?? Quaternion.Identity;
+            userTint = effect?.UserTint ?? Vector4.One;
 
             float start = Event?.StartRatio ?? 0f;
             float end = Event?.EndRatio ?? 1f;
             if (end <= start) end = 1f;
             bool active = (effectRatio >= start) && (effectRatio <= end);
             float emitRatio = (end > start) ? Clamp01((effectRatio - start) / (end - start)) : 0f;
+            lastEmitRatio = emitRatio;
+
+            UpdateFrameTransforms();
+            UpdateParticles(effectRatio, dt);
 
             if (!active)
             {
@@ -672,14 +737,13 @@ namespace CodeWalker.Rendering
                 var wmax = ParticleKeyframeEval.Query(sizeBeh.WhdMaxKFP, nt, Vector4.One);
                 whd = LerpChannels(wmin, wmax, p.RandSize);
             }
-            whd *= p.SizeScalar;  // sizeScalar = emitterSizeScalar/100 * emitterZoom
+            whd *= p.SizeScalar;  // sizeScalar = emitterSizeScalar/100 * emitterZoom (per channel)
             whd *= effectZoom;    // effect-rule zoom (ZoomScalarKFP * ZoomLevel), time-varying over effect life
             if (DrawMode == ParticleDrawMode.Model)
             {
-                p.ModelScale = new Vector3(
-                    (whd.X > 1e-4f) ? whd.X : 1f,
-                    (whd.Y > 1e-4f) ? whd.Y : 1f,
-                    (whd.Z > 1e-4f) ? whd.Z : 1f);
+                // the final WHD is the model's target SIZE in metres; the renderer divides by the drawable's bbox
+                // (ptxd_Model: Scale(dims / bbSize)). Clamp only to avoid a degenerate matrix.
+                p.ModelScale = new Vector3(Math.Max(whd.X, 1e-4f), Math.Max(whd.Y, 1e-4f), Math.Max(whd.Z, 1e-4f));
             }
             else
             {
@@ -699,6 +763,8 @@ namespace CodeWalker.Rendering
                 }
                 rgba *= p.Tint;
                 rgba *= effectTint;
+                if (colourBeh.RGBCanTint != 0) { rgba.X *= userTint.X; rgba.Y *= userTint.Y; rgba.Z *= userTint.Z; }
+                rgba.W *= userTint.W;
                 col = rgba;
             }
             // Emissive intensity (ptxu_Colour:m_emissiveIntensityKFP): in-game this drives a SEPARATE additive
@@ -761,7 +827,10 @@ namespace CodeWalker.Rendering
                 p.Age += pdt;
                 if (p.Age >= p.Life)
                 {
-                    Particles.RemoveAt(i);
+                    //swap-remove: order doesn't matter (alpha sprites are depth-sorted at render time)
+                    int last = Particles.Count - 1;
+                    Particles[i] = Particles[last];
+                    Particles.RemoveAt(last);
                     continue;
                 }
                 float nt = (p.Life > 0f) ? (p.Age / p.Life) : 0f;
@@ -773,7 +842,12 @@ namespace CodeWalker.Rendering
                     var amax = ParticleKeyframeEval.Query(accelBeh.XYZMaxKFP, nt, Vector4.Zero);
                     Vector3 a = LerpXYZ(amin, amax, p.RandAccel);
                     a *= p.AccnScalar;
-                    if (accelBeh.EnableGravity != 0) a.Z -= 9.81f;
+                    if (accelBeh.IsAffectedByZoom != 0) a *= effectZoom * emitterZoom;
+                    //reference space 0=world, 1=effect matrix, 2=emitter (creation domain world matrix)
+                    if (accelBeh.ReferenceSpace == 1) { if (!effectOrientation.IsIdentity) a = Vector3.Transform(a, effectOrientation); }
+                    else if (accelBeh.ReferenceSpace == 2) a = CreationDomainRotWld(a);
+                    //ptxu_Acceleration: gravity SCALES z by g (authored z is in units of g), it doesn't add -g
+                    if (accelBeh.EnableGravity != 0) a.Z *= 9.81f;
                     p.Velocity += a * pdt;
                 }
 
@@ -788,6 +862,34 @@ namespace CodeWalker.Rendering
                         Math.Max(0f, 1f - damp.Y * pdt),
                         Math.Max(0f, 1f - damp.Z * pdt));
                     p.Velocity = new Vector3(p.Velocity.X * velScale.X, p.Velocity.Y * velScale.Y, p.Velocity.Z * velScale.Z);
+                }
+
+                // ptxu_Noise: random signed jitter on position and velocity, scaled by dt (e.g. flies swarming)
+                if (noiseBeh != null)
+                {
+                    var pn = LerpXYZ(ParticleKeyframeEval.Query(noiseBeh.PosNoiseMinKFP, nt, Vector4.Zero), ParticleKeyframeEval.Query(noiseBeh.PosNoiseMaxKFP, nt, Vector4.Zero), p.RandNoise);
+                    var vn = LerpXYZ(ParticleKeyframeEval.Query(noiseBeh.VelNoiseMinKFP, nt, Vector4.Zero), ParticleKeyframeEval.Query(noiseBeh.VelNoiseMaxKFP, nt, Vector4.Zero), p.RandNoise);
+                    if (pn != Vector3.Zero)
+                    {
+                        p.Position += NoiseSpace(RandSigned(noiseRnd) * pn * pdt);
+                    }
+                    if (vn != Vector3.Zero)
+                    {
+                        var n = NoiseSpace(RandSigned(noiseRnd) * vn * pdt);
+                        if (noiseBeh.KeepConstantSpeed != 0)
+                        {
+                            //turn the velocity but keep its speed (no change when nearly at rest)
+                            float speed = p.Velocity.Length();
+                            if (speed > 0.001f)
+                            {
+                                p.Velocity = Vector3.Normalize(p.Velocity + n) * speed;
+                            }
+                        }
+                        else
+                        {
+                            p.Velocity += n;
+                        }
+                    }
                 }
 
                 // velocity -> position (only when the rule has a velocity behaviour, as the game does)
@@ -836,26 +938,49 @@ namespace CodeWalker.Rendering
             p.Age = 0f;
             p.PlaybackRate = effectPlaybackRate; //effect PlaybackRateScalar - scales this particle's movement + aging
 
-            // creation domain: spawn position
-            Vector3 pos = SampleDomain(EmitterRule?.CreationDomainObj, emitRatio, rnd);
+            // ptxDomainInst::Update scales domain position + sizes by finalZoom * emitter zoomScalar (so the
+            // target domain - and with it the velocity - scales too)
+            float domainScale = effectZoom * emitterZoom;
 
-            // target domain: velocity direction
+            // creation domain (ptxEmitterInst point spawn): random point in domain-local space -> world
+            var creation = EmitterRule?.CreationDomainObj;
+            Vector3 posLcl = SampleDomain(creation, emitRatio, rnd) * domainScale;
+            Vector3 pos = effectOrigin + CreationLclToWld(posLcl);
+
+            // target domain: random point -> world (GetTargetDomainLclToWldMtx), velocity = target - point (or -
+            // effect pos when point-relative), scaled by the emitter speed
             float speed = ParticleKeyframeEval.QueryRanged(kfSpeedScalar, emitRatio, 0f, 0f, (float)rnd.NextDouble());
             Vector3 vel = Vector3.Zero;
             var target = EmitterRule?.TargetDomainObj;
             if (target != null)
             {
-                Vector3 tpos = SampleDomain(target, emitRatio, rnd);
-                vel = (target.IsPointRelative != 0) ? tpos : (tpos - pos);
-                vel *= speed;
+                Vector3 tLcl = SampleDomain(target, emitRatio, rnd) * domainScale;
+                Vector3 tWld;
+                if (target.IsWorldSpace != 0)
+                {
+                    tWld = effectOrigin + tLcl; //world-space: effect translation only
+                }
+                else if (target.IsCreationRelative != 0)
+                {
+                    //through the creation domain's world matrix (its local rotation + position, then lcl->wld)
+                    var cdomPos = ParticleKeyframeEval.Query(creation?.PositionKFP, emitRatio, Vector4.Zero);
+                    Vector3 tc = Vector3.TransformNormal(tLcl, DomainRotation(creation, emitRatio)) + new Vector3(cdomPos.X, cdomPos.Y, cdomPos.Z) * domainScale;
+                    tWld = effectOrigin + CreationLclToWld(tc);
+                }
+                else
+                {
+                    tWld = effectOrigin + (effectOrientation.IsIdentity ? tLcl : Vector3.Transform(tLcl, effectOrientation));
+                }
+                vel = ((target.IsPointRelative != 0) ? (tWld - effectOrigin) : (tWld - pos)) * speed;
             }
 
-            p.Position = effectOrigin + pos; //effectOrigin is non-zero for spawned child effects (world placement)
+            p.Position = pos; //effectOrigin is non-zero for world-placed and spawned child effects
             p.Velocity = vel;
 
             // per-emitter scalars (queried at emit time, randomised in min/max band)
-            float sizeScalarPct = Math.Max(0f, ParticleKeyframeEval.QueryRanged(kfSizeScalar, emitRatio, 100f, 100f, (float)rnd.NextDouble()));
-            p.SizeScalar = (sizeScalarPct / 100f) * emitterZoom;
+            // ptxu_Size: the emitter size scalar is a per-channel W/H/D(/W) multiplier (value * 0.01), NOT a min/max band
+            var sizeScalarPct = ParticleKeyframeEval.Query(kfSizeScalar, emitRatio, new Vector4(100f));
+            p.SizeScalar = Vector4.Max(sizeScalarPct, Vector4.Zero) * (0.01f * emitterZoom);
             p.AccnScalar = ParticleKeyframeEval.QueryRanged(kfAccnScalar, emitRatio, 100f, 100f, (float)rnd.NextDouble()) / 100f;
             p.DampScalar = ParticleKeyframeEval.QueryRanged(kfDampScalar, emitRatio, 100f, 100f, (float)rnd.NextDouble()) / 100f;
             p.BaseSize = new Vector2(0.25f, 0.25f);
@@ -865,6 +990,7 @@ namespace CodeWalker.Rendering
             p.RandColour = RandVec4(rnd);
             p.RandAccel = (float)rnd.NextDouble();
             p.RandDamp = (float)rnd.NextDouble();
+            p.RandNoise = (float)rnd.NextDouble();
             p.Tint = ColourTint(rnd);
 
             // rotation: random initial angle (degrees -> radians); RandRot biases the over-life angle curve
@@ -884,7 +1010,14 @@ namespace CodeWalker.Rendering
                 // give models a random initial orientation + spin so they don't all face the same way
                 p.ModelYaw = (float)(rnd.NextDouble() * Math.PI * 2.0);
                 p.ModelPitch = (float)(rnd.NextDouble() * Math.PI * 2.0);
-                p.ModelScale = new Vector3(Math.Max(0.01f, p.SizeScalar)); //avoid a zero-scale first frame
+                p.ModelScale = new Vector3(0.01f); //overwritten by EvaluateVisuals below
+            }
+
+            // ptxd_Sprite flip chances (ptxDrawInterface::DrawSprites: flip = rand <= chance)
+            if (spriteBeh != null)
+            {
+                p.FlipU = (spriteBeh.FlipChanceU > 0f) && ((float)rnd.NextDouble() <= spriteBeh.FlipChanceU);
+                p.FlipV = (spriteBeh.FlipChanceV > 0f) && ((float)rnd.NextDouble() <= spriteBeh.FlipChanceV);
             }
 
             // initial atlas frame: each particle picks a random cell in [TexFrameIDMin, TexFrameIDMax]
@@ -949,15 +1082,45 @@ namespace CodeWalker.Rendering
                     }
             }
 
-            // apply domain rotation (euler radians)
-            var rotv = ParticleKeyframeEval.Query(dom.RotationKFP, t, Vector4.Zero);
-            if ((rotv.X != 0f) || (rotv.Y != 0f) || (rotv.Z != 0f))
-            {
-                var q = Quaternion.RotationYawPitchRoll(rotv.Z, rotv.Y, rotv.X);
-                local = Vector3.Transform(local, q);
-            }
+            // apply the domain's local rotation (ptxDomainInst::GetMtxLcl)
+            return center + Vector3.TransformNormal(local, DomainRotation(dom, t));
+        }
 
-            return center + local;
+        // ptxDomainInst::GetMtxLcl rotation: Mat34VFromEulersXYZ(rot * DtoR) - the KFP holds DEGREES, applied X then
+        // Y then Z (R = Rz*Ry*Rx). Row-vector SharpDX matrix, so use with Vector3.TransformNormal.
+        static Matrix DomainRotation(ParticleDomain? dom, float t)
+        {
+            if (dom == null) return Matrix.Identity;
+            var r = ParticleKeyframeEval.Query(dom.RotationKFP, t, Vector4.Zero);
+            if ((r.X == 0f) && (r.Y == 0f) && (r.Z == 0f)) return Matrix.Identity;
+            return Matrix.RotationX(r.X * DegToRad) * Matrix.RotationY(r.Y * DegToRad) * Matrix.RotationZ(r.Z * DegToRad);
+        }
+
+        // ptxEmitterInst::GetCreationDomainLclToWldMtx: the effect matrix, but rotation-free for world-space domains.
+        Vector3 CreationLclToWld(Vector3 v)
+        {
+            bool worldSpace = (EmitterRule?.CreationDomainObj?.IsWorldSpace ?? 0) != 0;
+            return (worldSpace || effectOrientation.IsIdentity) ? v : Vector3.Transform(v, effectOrientation);
+        }
+
+        // 3x3 of ptxEmitterInst::GetCreationDomainMtxWld (domain local rotation, then creation lcl->wld): the
+        // emitter reference space for accelerations and emitter-aligned sprites. Cached per frame in Update.
+        Vector3 CreationDomainRotWld(Vector3 v) => Vector3.TransformNormal(v, creationRotWld);
+
+        void UpdateFrameTransforms()
+        {
+            bool worldSpace = (EmitterRule?.CreationDomainObj?.IsWorldSpace ?? 0) != 0;
+            creationRotWld = DomainRotation(EmitterRule?.CreationDomainObj, lastEmitRatio);
+            if (!worldSpace && !effectOrientation.IsIdentity) creationRotWld *= Matrix.RotationQuaternion(effectOrientation);
+
+            // ptxDrawInterface::DrawSprites align axis: normalised, then through the effect matrix (Effect) or the
+            // creation domain world matrix (Emitter); World uses it as-is
+            int mode = SpriteAlignmentMode;
+            Vector3 axis = spriteBeh?.AlignAxis ?? Vector3.UnitZ;
+            axis = (axis.LengthSquared() > 1e-12f) ? Vector3.Normalize(axis) : Vector3.UnitZ;
+            if ((mode == 3) && !effectOrientation.IsIdentity) axis = Vector3.Transform(axis, effectOrientation);
+            else if (mode == 4) axis = Vector3.Normalize(CreationDomainRotWld(axis));
+            SpriteAlignAxis = axis;
         }
 
         static float SignedRangedHollow(float outer, float inner, Random rnd)
@@ -1042,7 +1205,7 @@ namespace CodeWalker.Rendering
         public float PlaybackRate;  //scales this particle's movement + aging (effect PlaybackRateScalar)
 
         public Vector2 BaseSize;
-        public float SizeScalar;
+        public Vector4 SizeScalar; //emitter size scalar (W,H,D per channel) * emitter zoom
         public float AccnScalar;
         public float DampScalar;
         public Vector2 Size;       //current half-extents
@@ -1053,6 +1216,7 @@ namespace CodeWalker.Rendering
         public float RandRot;
         public int InitFrame;
         public Vector4 UVRect;
+        public bool FlipU, FlipV;
 
         public int DrawableIndex;  //model particles
         public float ModelYaw;
@@ -1063,5 +1227,6 @@ namespace CodeWalker.Rendering
         public Vector4 RandColour; //per-channel colour bias
         public float RandAccel;
         public float RandDamp;
+        public float RandNoise;  //per-particle bias for the noise min/max lerp
     }
 }

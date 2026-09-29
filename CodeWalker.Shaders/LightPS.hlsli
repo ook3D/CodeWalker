@@ -227,7 +227,8 @@ float4 DeferredLight(float3 camRel, float3 norm, float4 diffuse, float4 specular
         {
             float cosOuter = cos(InstConeOuterAngle);
             float t = cosOuter / sqrt(max(1.0 - cosOuter * cosOuter, 1e-6));
-            uv = saturate(tex.xy * (0.5 * t / max(tex.z, 1e-6)) + 0.5);
+            // tex.z uses -InstDirection, so surfaces inside the cone have negative depth.
+            uv = saturate(tex.xy * (0.5 * t / max(-tex.z, 1e-6)) + 0.5);
         }
         else
         {

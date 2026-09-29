@@ -152,6 +152,7 @@ namespace CodeWalker
             this.NearClipUpDown = new System.Windows.Forms.NumericUpDown();
             this.label31 = new System.Windows.Forms.Label();
             this.HDTexturesCheckBox = new System.Windows.Forms.CheckBox();
+            this.RenderParticlesCheckBox = new System.Windows.Forms.CheckBox();
             this.WireframeCheckBox = new System.Windows.Forms.CheckBox();
             this.RenderModeComboBox = new System.Windows.Forms.ComboBox();
             this.label11 = new System.Windows.Forms.Label();
@@ -1825,6 +1826,7 @@ namespace CodeWalker
             this.OptionsRenderTabPage.Controls.Add(this.NearClipUpDown);
             this.OptionsRenderTabPage.Controls.Add(this.label31);
             this.OptionsRenderTabPage.Controls.Add(this.HDTexturesCheckBox);
+            this.OptionsRenderTabPage.Controls.Add(this.RenderParticlesCheckBox);
             this.OptionsRenderTabPage.Controls.Add(this.WireframeCheckBox);
             this.OptionsRenderTabPage.Controls.Add(this.RenderModeComboBox);
             this.OptionsRenderTabPage.Controls.Add(this.label11);
@@ -1917,6 +1919,19 @@ namespace CodeWalker
             this.label31.TabIndex = 58;
             this.label31.Text = "Near Clip:";
             // 
+            // RenderParticlesCheckBox
+            //
+            this.RenderParticlesCheckBox.AutoSize = true;
+            this.RenderParticlesCheckBox.Checked = true;
+            this.RenderParticlesCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.RenderParticlesCheckBox.Location = new System.Drawing.Point(10, 254);
+            this.RenderParticlesCheckBox.Name = "RenderParticlesCheckBox";
+            this.RenderParticlesCheckBox.Size = new System.Drawing.Size(103, 17);
+            this.RenderParticlesCheckBox.TabIndex = 58;
+            this.RenderParticlesCheckBox.Text = "Render particles";
+            this.RenderParticlesCheckBox.UseVisualStyleBackColor = true;
+            this.RenderParticlesCheckBox.CheckedChanged += new System.EventHandler(this.RenderParticlesCheckBox_CheckedChanged);
+            //
             // HDTexturesCheckBox
             // 
             this.HDTexturesCheckBox.AutoSize = true;
@@ -4021,6 +4036,7 @@ namespace CodeWalker
         private System.Windows.Forms.ToolStripMenuItem ToolbarSelectOcclusionButton;
         private System.Windows.Forms.CheckBox CarGeneratorsCheckBox;
         private System.Windows.Forms.CheckBox HDTexturesCheckBox;
+        private System.Windows.Forms.CheckBox RenderParticlesCheckBox;
         private System.Windows.Forms.NumericUpDown FarClipUpDown;
         private System.Windows.Forms.Label label32;
         private System.Windows.Forms.NumericUpDown NearClipUpDown;
