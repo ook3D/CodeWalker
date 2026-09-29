@@ -59,7 +59,7 @@ namespace CodeWalker.Rendering
         public Vector3 InstCullingPlaneNormal;
         public float InstCullingPlaneOffset;
         public uint InstCullingPlaneEnable;
-        public uint InstUnused1;
+        public uint InstTextureEnable;
         public uint InstUnused2;
         public uint InstUnused3;
     }
@@ -537,6 +537,7 @@ namespace CodeWalker.Rendering
 
             context.PixelShader.SetShaderResources(0, GBuffers.DepthSRV);
             context.PixelShader.SetShaderResources(2, GBuffers.SRVs);
+            context.PixelShader.SetSampler(0, SampleStateLinear);
 
 
             for (int i = 0; i < lights.Count; i++)
@@ -573,6 +574,10 @@ namespace CodeWalker.Rendering
                 LightInstVars.Vars.InstType = (uint)rl.Type;
                 LightInstVars.Vars.InstCullingPlaneOffset = rl.CullingPlaneOffset;
                 LightInstVars.Vars.InstCullingPlaneEnable = ((rl.Flags & 0x40000) != 0) ? 1u : 0u;
+                var ptex = rl.RenderableProjectedTexture;
+                bool useTexture = (ptex != null) && ptex.IsLoaded && (ptex.ShaderResourceView != null);
+                LightInstVars.Vars.InstTextureEnable = useTexture ? 1u : 0u;
+                if (useTexture) ptex!.SetPSResource(context, 7);
                 LightInstVars.Update(context);
                 LightInstVars.SetVSCBuffer(context, 1);
                 LightInstVars.SetPSCBuffer(context, 2);

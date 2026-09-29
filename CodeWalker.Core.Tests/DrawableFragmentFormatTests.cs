@@ -55,6 +55,15 @@ public class DrawableFragmentFormatTests
     }
 
     [Fact]
+    public void BoneXmlFlagsExportLegacyNames()
+    {
+        var bone = new crBoneData { Name = "b", Dofs = crBoneDataDofs.ROTATION | crBoneDataDofs.TRANSLATION | crBoneDataDofs.HAS_CHILD };
+        var sb = new System.Text.StringBuilder();
+        bone.WriteXml(sb, 0);
+        Assert.Contains("<Flags>RotX, RotY, RotZ, TransX, TransY, TransZ, Unk0</Flags>", sb.ToString());
+    }
+
+    [Fact]
     public void BoneIdMapEntryMatchesNativeFieldLayout()
     {
         var original = new atMapEntry

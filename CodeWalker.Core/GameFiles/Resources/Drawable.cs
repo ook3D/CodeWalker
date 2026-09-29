@@ -2105,7 +2105,8 @@ namespace CodeWalker.GameFiles
             YdrXml.ValueTag(sb, indent, "MirrorIndex", MirrorIndex.ToString());
             YdrXml.ValueTag(sb, indent, "ParentIndex", ParentIndex.ToString());
             YdrXml.ValueTag(sb, indent, "SiblingIndex", NextIndex.ToString());
-            YdrXml.StringTag(sb, indent, "Flags", Dofs.ToString());
+            //write the legacy names so Sollumz / older CW can read it back; ReadXml accepts both
+            YdrXml.StringTag(sb, indent, "Flags", ((crBoneDataDofsLegacy)Dofs).ToString());
             YdrXml.SelfClosingTag(sb, indent, "Translation " + FloatUtil.GetVector3XmlString(DefaultTranslation));
             YdrXml.SelfClosingTag(sb, indent, "Rotation " + FloatUtil.GetVector4XmlString(DefaultRotation.ToVector4()));
             YdrXml.SelfClosingTag(sb, indent, "Scale " + FloatUtil.GetVector3XmlString(DefaultScale));

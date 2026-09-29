@@ -41,7 +41,7 @@ cbuffer PSLightInstVars : register(b2)
     float3 InstCullingPlaneNormal;
     float InstCullingPlaneOffset;
     uint InstCullingPlaneEnable;
-    uint InstUnused1;
+    uint InstTextureEnable;
     uint InstUnused2;
     uint InstUnused3;
 }
@@ -63,6 +63,8 @@ struct LODLight
 };
 
 StructuredBuffer<LODLight> LODLights : register(t6);
+Texture2D ProjectedTex : register(t7);
+SamplerState ProjectedSS : register(s0);
 
 
 
@@ -212,6 +214,28 @@ float4 DeferredLight(float3 camRel, float3 norm, float4 diffuse, float4 specular
     float3 ldir = srpos / ldist;
     float pclit = saturate(dot(ldir, norm));
     float lamt = 1;
+
+    if (InstTextureEnable == 1) //projected texture, as in the game's point.fxh/spot.fxh
+    {
+        float3 lightToSurface = -ldir;
+        float3 tex = float3(
+            dot(cross(-InstDirection, InstTangentX), lightToSurface),
+            dot(InstTangentX, lightToSurface),
+            dot(-InstDirection, lightToSurface));
+        float2 uv;
+        if (InstType == 2)
+        {
+            float cosOuter = cos(InstConeOuterAngle);
+            float t = cosOuter / sqrt(max(1.0 - cosOuter * cosOuter, 1e-6));
+            uv = saturate(tex.xy * (0.5 * t / max(tex.z, 1e-6)) + 0.5);
+        }
+        else
+        {
+            uv = tex.xy / max(1.0 - tex.z, 1e-6) * 0.5 + 0.5; //paraboloid
+        }
+        float3 texColour = ProjectedTex.SampleLevel(ProjectedSS, uv, 0).rgb;
+        lcol *= MaterialDiffuseColour(texColour);
+    }
     
     if (InstType == 1)//point (sphere)
     {

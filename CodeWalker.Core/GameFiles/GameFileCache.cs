@@ -2332,6 +2332,23 @@ namespace CodeWalker.GameFiles
         }
 
 
+        public void Reload()
+        {
+            //rescans the game folder from disk and rebuilds all dictionaries, picking up any changed files.
+            lock (updateSyncRoot)
+            {
+                Clear();
+                if (!PreloadedMode)
+                {
+                    ArchiveManager.Init(GTAFolder, GTAGen9, UpdateStatus, ErrorLog);
+                }
+                InitGlobalAsync(UpdateStatus is null ? null : new Progress<string>(UpdateStatus), CancellationToken.None).GetAwaiter().GetResult();
+                InitDlcAsync(UpdateStatus is null ? null : new Progress<string>(UpdateStatus), CancellationToken.None).GetAwaiter().GetResult();
+                IsInited = true;
+            }
+        }
+
+
         private void ClearCachedMaps()
         {
             if (AllYmapsDict != null)

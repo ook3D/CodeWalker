@@ -2083,24 +2083,16 @@ namespace CodeWalker.GameFiles
         }
 
 
-        //encryption types that WriteHeader can write back as-is. OPEN needs a mod loader (OpenIV.asi /
-        //OpenRPF.asi) to load in game; NG is what the game itself uses, so NG archives are left alone.
-        //AES and NONE still get converted to OPEN.
-        public static bool IsEditableEncryption(RpfEncryption encryption)
-        {
-            return (encryption == RpfEncryption.OPEN) || (encryption == RpfEncryption.NG);
-        }
-
         public static bool IsValidEncryption(RpfFile? file, bool recursive = false)
         {
             if (file == null) return false;
 
-            if (!IsEditableEncryption(file.Encryption)) return false;
+            if (file.Encryption != RpfEncryption.OPEN) return false;
 
             var parent = file.Parent;
             while (parent != null)
             {
-                if (!IsEditableEncryption(parent.Encryption)) return false;
+                if (parent.Encryption != RpfEncryption.OPEN) return false;
                 parent = parent.Parent;
             }
 
@@ -2111,7 +2103,7 @@ namespace CodeWalker.GameFiles
                 {
                     var child = stack.Pop();
                     if (child == null) continue;
-                    if (!IsEditableEncryption(child.Encryption))
+                    if (child.Encryption != RpfEncryption.OPEN)
                     {
                         return false;
                     }
@@ -2132,7 +2124,8 @@ namespace CodeWalker.GameFiles
         {
             if (file == null) return false;
 
-            //OPEN and NG are both writable, so only AES/NONE archives get converted (to OPEN).
+            //currently assumes OPEN is the valid encryption type.
+            //TODO: support other encryption types!
 
             var files = new List<RpfFile>();
             if (recursive && (file.Children != null))
@@ -2142,7 +2135,7 @@ namespace CodeWalker.GameFiles
                 {
                     var child = stack.Pop();
                     if (child == null) continue;
-                    if (!IsEditableEncryption(child.Encryption))
+                    if (child.Encryption != RpfEncryption.OPEN)
                     {
                         files.Add(child);
                     }
@@ -2156,17 +2149,20 @@ namespace CodeWalker.GameFiles
                 }
                 files.Reverse();//the list is in parent>child order, needs to be in child>parent order here
             }
+            var needsupd = (files.Count > 0);
             var f = file;
             while (f != null)
             {
-                //only archives that can't be written back as-is get converted - changing one doesn't
-                //change its size, so untouched ancestors don't need rewriting.
-                if (!IsEditableEncryption(f.Encryption))
+                if (f.Encryption != RpfEncryption.OPEN)
                 {
                     if ((confirm != null) && !confirm(f))
                     {
                         return false;
                     }
+                    needsupd = true;
+                }
+                if (needsupd)
+                {
                     files.Add(f);
                 }
                 f = f.Parent;

@@ -149,6 +149,18 @@ float4 main(VS_OUTPUT input) : SV_TARGET
     }
 
     c.a = (AlphaMode == 3) ? 1.0 : saturate(c.a);
-    if (IsDecal == 3) c.a = 0;
+    if (IsDecal == 3) //normal_only: no gbuffer to write normals into, so approximate with the shading change the decal normal causes
+    {
+        float4 vc0 = ApplyEntityAmbient(input.Colour0);
+        float3 decalLit = FullLighting(1, spec, norm, vc0, materialLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
+        float3 baseLit = FullLighting(1, 0, normalize(input.Normal), vc0, materialLights, EnableShadows, input.Shadows.x, input.LightShadow, parallaxSelfShadow);
+        float lum = dot(decalLit, float3(0.299, 0.587, 0.114));
+        float baseLum = max(dot(baseLit, float3(0.299, 0.587, 0.114)), 0.001);
+        float ratio = lum / baseLum;
+        float a = c.a * input.Colour0.a;
+        if (RenderMode != 0) a = 0;
+        //blending black darkens the surface below by exactly the ratio, blending white approximates brightening
+        c = (ratio < 1) ? float4(0, 0, 0, (1 - ratio) * a) : float4(1, 1, 1, saturate(ratio - 1) * a);
+    }
     return c;
 }

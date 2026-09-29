@@ -4392,6 +4392,32 @@ namespace CodeWalker.Rendering
             }
 
 
+            foreach (var light in rndbl.Lights)
+            {
+                //projected light textures come from the entity's txd hierarchy, same as the drawable's own textures
+                if (light.TextureHash == 0) continue;
+                if (light.ProjectedTexture == null)
+                {
+                    var hash = light.TextureHash.Hash;
+                    light.ProjectedTexture = drawable.ShaderGroup?.TextureDictionary?.Lookup(hash);
+                    if ((light.ProjectedTexture == null) && (rndbl.SDtxds != null))
+                    {
+                        foreach (var txd in rndbl.SDtxds)
+                        {
+                            light.ProjectedTexture = txd.Loaded ? txd.TextureDict?.Lookup(hash) : null;
+                            if (light.ProjectedTexture != null) break;
+                        }
+                    }
+                    if (light.ProjectedTexture == null)
+                    {
+                        var ytd = gameFileCache.TryGetTextureDictForTexture(hash);
+                        light.ProjectedTexture = ((ytd != null) && ytd.Loaded) ? ytd.TextureDict?.Lookup(hash) : null;
+                    }
+                }
+                light.RenderableProjectedTexture = (light.ProjectedTexture != null) ? renderableCache.GetRenderableTexture(light.ProjectedTexture) : null;
+            }
+
+
             rndbl.AllTexturesLoaded = alltexsloaded;
 
 

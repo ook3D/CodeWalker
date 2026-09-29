@@ -49,6 +49,7 @@ namespace CodeWalker
             this.ViewWorldTabPage = new System.Windows.Forms.TabPage();
             this.EnableModsCheckBox = new System.Windows.Forms.CheckBox();
             this.EnableFiveMResourcesCheckBox = new System.Windows.Forms.CheckBox();
+            this.ReloadGameFileCacheButton = new System.Windows.Forms.Button();
             this.HideNorthYanktonCheckBox = new System.Windows.Forms.CheckBox();
             this.HideCayoPericoCheckBox = new System.Windows.Forms.CheckBox();
             this.InfiniteOceanCheckBox = new System.Windows.Forms.CheckBox();
@@ -573,6 +574,7 @@ namespace CodeWalker
             this.ViewWorldTabPage.Controls.Add(this.InfiniteOceanCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.HideNorthYanktonCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.EnableModsCheckBox);
+            this.ViewWorldTabPage.Controls.Add(this.ReloadGameFileCacheButton);
             this.ViewWorldTabPage.Controls.Add(this.EnableFiveMResourcesCheckBox);
             this.ViewWorldTabPage.Controls.Add(this.label30);
             this.ViewWorldTabPage.Controls.Add(this.DlcLevelComboBox);
@@ -607,6 +609,16 @@ namespace CodeWalker
             this.EnableModsCheckBox.Text = "Enable Mods";
             this.EnableModsCheckBox.UseVisualStyleBackColor = true;
             this.EnableModsCheckBox.CheckedChanged += new System.EventHandler(this.EnableModsCheckBox_CheckedChanged);
+            //
+            // ReloadGameFileCacheButton
+            //
+            this.ReloadGameFileCacheButton.Location = new System.Drawing.Point(6, 456);
+            this.ReloadGameFileCacheButton.Name = "ReloadGameFileCacheButton";
+            this.ReloadGameFileCacheButton.Size = new System.Drawing.Size(88, 23);
+            this.ReloadGameFileCacheButton.TabIndex = 70;
+            this.ReloadGameFileCacheButton.Text = "Reload cache";
+            this.ReloadGameFileCacheButton.UseVisualStyleBackColor = true;
+            this.ReloadGameFileCacheButton.Click += new System.EventHandler(this.ReloadGameFileCacheButton_Click);
             //
             // EnableFiveMResourcesCheckBox
             //
@@ -3957,6 +3969,7 @@ namespace CodeWalker
         private ReadOnlyPropertyGrid SelExtensionPropertyGrid;
         private System.Windows.Forms.CheckBox EnableModsCheckBox;
         private System.Windows.Forms.CheckBox EnableFiveMResourcesCheckBox;
+        private System.Windows.Forms.Button ReloadGameFileCacheButton;
         private System.Windows.Forms.CheckBox HideNorthYanktonCheckBox;
         private System.Windows.Forms.CheckBox HideCayoPericoCheckBox;
         private System.Windows.Forms.CheckBox InfiniteOceanCheckBox;

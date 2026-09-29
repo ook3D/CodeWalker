@@ -1596,6 +1596,8 @@ namespace CodeWalker.Rendering
         public uint TimeFlags;
         public uint Flags;
         public MetaHash TextureHash;
+        public Texture? ProjectedTexture;
+        public RenderableTexture? RenderableProjectedTexture;
 
         public bool IsActive(float hour)
         {
@@ -1627,6 +1629,11 @@ namespace CodeWalker.Rendering
             CullingPlaneOffset = l.CullingPlaneOffset;
             TimeFlags = l.TimeFlags;
             Flags = l.Flags;
+            if (TextureHash != l.ProjectedTextureKey)
+            {
+                ProjectedTexture = null;
+                RenderableProjectedTexture = null;
+            }
             TextureHash = l.ProjectedTextureKey;
         }
     }

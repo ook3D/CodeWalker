@@ -2392,11 +2392,7 @@ namespace CodeWalker
 
             if (rpf == null) return false;
 
-            if (RpfFile.IsValidEncryption(rpf, recursive))
-            {
-                StartNGEncryptTablesBuild(rpf);
-                return true;//it's already valid...
-            }
+            if (RpfFile.IsValidEncryption(rpf, recursive)) return true;//it's already valid...
 
             var msgr = recursive ? "(including all its parents and children) " : "";
             var msg1 = $"Are you sure you want to change this archive {msgr}to OPEN encryption?";
@@ -2419,25 +2415,6 @@ namespace CodeWalker
             }
 
             return RpfFile.EnsureValidEncryption(rpf, recursive ? null : confirm, recursive);
-        }
-
-        private void StartNGEncryptTablesBuild(RpfFile rpf)
-        {
-            //writing an NG archive's header means re-encrypting it. The NG encryption tables load from
-            //the Keys\ cache in well under a second, but take about a minute to derive the first time.
-            //Kick that off as soon as we know an NG archive is being edited - EncryptNG waits on the
-            //same lock, so a save that beats it just blocks until it's done.
-            if (GTA5Keys.NGEncryptTablesReady) return;
-            for (var f = rpf; f != null; f = f.Parent)
-            {
-                if (f.Encryption != RpfEncryption.NG) continue;
-                Task.Run(() =>
-                {
-                    try { GTA5Keys.EnsureNGEncryptTables(UpdateStatus); }
-                    catch (Exception ex) { UpdateStatus("Error building NG encryption tables: " + ex.Message); }
-                });
-                return;
-            }
         }
 
 
@@ -3053,7 +3030,7 @@ namespace CodeWalker
             if (OpenFileDialog.ShowDialog(this) != DialogResult.OK) return;
             ImportXml(OpenFileDialog.FileNames, false, null);//already checked encryption before the file dialog...
         }
-        private void ImportXml(string[] fpaths, bool checkEncryption = true, Dictionary<string, RpfDirectoryEntry>? dirdict = null)
+        private async void ImportXml(string[] fpaths, bool checkEncryption = true, Dictionary<string, RpfDirectoryEntry>? dirdict = null)
         {
             if (!EditMode) return;
             if (CurrentFolder == null || CurrentFolder.IsSearchResults) return;
@@ -3065,36 +3042,10 @@ namespace CodeWalker
                 if (!EnsureRpfValidEncryption() && (CurrentFolder.RpfFolder != null)) return;
             }
 
-            using var progress = new Form
-            {
-                Text = "Import XML",
-                ClientSize = new Size(520, 95),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                StartPosition = FormStartPosition.CenterParent,
-                MaximizeBox = false,
-                MinimizeBox = false,
-                ControlBox = false
-            };
-            var status = new Label { Left = 15, Top = 15, Width = 490, Height = 30, AutoEllipsis = true };
-            progress.Controls.Add(status);
-            progress.Controls.Add(new ProgressBar
-            {
-                Left = 15, Top = 55, Width = 490, Height = 20,
-                Style = ProgressBarStyle.Marquee
-            });
-            IProgress<string> importStatus = new Progress<string>(text => status.Text = text);
-            var importing = true;
-            progress.FormClosing += (s, e) => e.Cancel = importing;
-            progress.Shown += async (s, e) =>
-            {
-                try { await ImportFiles(); }
-                finally
-                {
-                    importing = false;
-                    progress.Close();
-                }
-            };
-            progress.ShowDialog(this);
+            Enabled = false;
+            try { await ImportFiles(); }
+            finally { Enabled = true; }
+            UpdateStatus("XML import complete.");
             RefreshMainListView();
 
             async Task ImportFiles()
@@ -3115,7 +3066,7 @@ namespace CodeWalker
 
                         if (!fnamel.EndsWith(".xml"))
                         {
-                            MessageBox.Show(progress, fname + ": Not an XML file!", "Cannot import XML");
+                            MessageBox.Show(this, fname + ": Not an XML file!", "Cannot import XML");
                             continue;
                         }
 
@@ -3126,7 +3077,7 @@ namespace CodeWalker
                             //the user has selected import XML option, but this file is just an ordinary XML file.
                             //import this file directly instead of attempting XML conversion.
 
-                            status.Text = "Reading " + fname + "...";
+                            UpdateStatus("Reading " + fname + "...");
                             data = await File.ReadAllBytesAsync(fpath);
 
                         }
@@ -3141,7 +3092,7 @@ namespace CodeWalker
                             fpathin = Path.Combine(Path.GetDirectoryName(fpathin) ?? string.Empty, Path.GetFileNameWithoutExtension(fpathin));
 
                             var doc = new XmlDocument();
-                            status.Text = "Converting " + fname + "...";
+                            UpdateStatus("Converting " + fname + "...");
                             string text = await File.ReadAllTextAsync(fpath);
                             if (!string.IsNullOrEmpty(text))
                             {
@@ -3163,24 +3114,16 @@ namespace CodeWalker
                                     rpffldr = dirdict[fpath];
                                 }
 
-                                status.Text = "Writing " + fname + " to archive...";
                                 await Task.Run(() =>
                                 {
-                                    for (var archive = rpffldr.File; archive != null; archive = archive.Parent)
-                                    {
-                                        if (archive.Encryption != RpfEncryption.NG) continue;
-                                        importStatus.Report("Preparing archive encryption...");
-                                        GTA5Keys.EnsureNGEncryptTables(importStatus.Report);
-                                        break;
-                                    }
-                                    importStatus.Report("Writing " + fname + " to archive...");
+                                    UpdateStatus("Writing " + fname + " to archive...");
                                     RpfFile.CreateFile(rpffldr, fname, data);
                                 });
                             }
                             else if (!string.IsNullOrEmpty(CurrentFolder.FullPath))
                             {
                                 var outfpath = Path.Combine(CurrentFolder.FullPath, fname);
-                                status.Text = "Writing " + fname + "...";
+                                UpdateStatus("Writing " + fname + "...");
                                 await File.WriteAllBytesAsync(outfpath, data);
                                 CurrentFolder.EnsureFile(outfpath);
 
@@ -3190,13 +3133,13 @@ namespace CodeWalker
                         }
                         else
                         {
-                            MessageBox.Show(progress, fname + ": Schema not supported.", "Cannot import " + XmlMeta.GetXMLFormatName(mformat));
+                            MessageBox.Show(this, fname + ": Schema not supported.", "Cannot import " + XmlMeta.GetXMLFormatName(mformat));
                         }
 
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(progress, ex.Message, "Unable to import file");
+                        MessageBox.Show(this, ex.Message, "Unable to import file");
                     }
 
                 }

@@ -7389,6 +7389,46 @@ namespace CodeWalker
         }
 
 
+        private void ReloadGameFileCacheButton_Click(object sender, EventArgs e)
+        {
+            if (!initialised) return;
+            Cursor = Cursors.WaitCursor;
+            ReloadGameFileCacheButton.Enabled = false;
+            Task.Run(() =>
+            {
+                string? error = null;
+                try
+                {
+                    lock (Renderer.RenderSyncRoot)
+                    {
+                        gameFileCache.Reload();
+                        UpdateDlcListComboBox(gameFileCache.DlcNameList);
+                        LoadWorld();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    error = ex.Message;
+                }
+                try
+                {
+                    Invoke(new Action(() =>
+                    {
+                        Cursor = Cursors.Default;
+                        ReloadGameFileCacheButton.Enabled = true;
+                        if (error != null)
+                        {
+                            MessageBox.Show($"Error reloading game file cache: {error}");
+                        }
+                    }));
+                }
+                catch (ObjectDisposedException) { }
+                catch (Win32Exception) { }
+                catch (InvalidOperationException) { }
+            });
+        }
+
+
         private void ContentThread()
         {
             //main content loading thread.

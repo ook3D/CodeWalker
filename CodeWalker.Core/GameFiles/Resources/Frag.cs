@@ -751,6 +751,13 @@ namespace CodeWalker.GameFiles
                 }
             }
 
+            //grmMatrixSet::m_IsSkinned - legacy vehicles have 1, every vanilla gen9 frag has 0.
+            //leaving it at 1 makes vehicle mod parts (which are bone-local) render offset/floating.
+            if (BoneTransforms != null)
+            {
+                BoneTransforms.Unknown_12h = 0;
+            }
+
             void ensure(FragPhysicsLOD? lod)
             {
                 var children = lod?.Children?.data_items;
