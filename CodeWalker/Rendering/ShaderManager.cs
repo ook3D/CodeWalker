@@ -22,6 +22,7 @@ namespace CodeWalker.Rendering
         private readonly GpuVarsBuffer<Vector4> entityAmbient;
 
         public bool wireframe = Settings.Default.Wireframe;
+        public bool renderfog = Settings.Default.RenderFog;
         RasterizerState rsSolid;
         RasterizerState rsWireframe;
         RasterizerState rsSolidDblSided;
@@ -770,7 +771,7 @@ namespace CodeWalker.Rendering
 
             RenderAlphaMaterials(context);
 
-            if (HDR != null)
+            if (renderfog && HDR != null)
             {
                 context.Rasterizer.State = rsSolid;
                 context.OutputMerger.DepthStencilState = dsDisableAll;

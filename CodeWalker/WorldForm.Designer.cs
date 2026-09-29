@@ -153,6 +153,7 @@ namespace CodeWalker
             this.label31 = new System.Windows.Forms.Label();
             this.HDTexturesCheckBox = new System.Windows.Forms.CheckBox();
             this.RenderParticlesCheckBox = new System.Windows.Forms.CheckBox();
+            this.RenderFogCheckBox = new System.Windows.Forms.CheckBox();
             this.WireframeCheckBox = new System.Windows.Forms.CheckBox();
             this.RenderModeComboBox = new System.Windows.Forms.ComboBox();
             this.label11 = new System.Windows.Forms.Label();
@@ -1827,6 +1828,7 @@ namespace CodeWalker
             this.OptionsRenderTabPage.Controls.Add(this.label31);
             this.OptionsRenderTabPage.Controls.Add(this.HDTexturesCheckBox);
             this.OptionsRenderTabPage.Controls.Add(this.RenderParticlesCheckBox);
+            this.OptionsRenderTabPage.Controls.Add(this.RenderFogCheckBox);
             this.OptionsRenderTabPage.Controls.Add(this.WireframeCheckBox);
             this.OptionsRenderTabPage.Controls.Add(this.RenderModeComboBox);
             this.OptionsRenderTabPage.Controls.Add(this.label11);
@@ -1919,6 +1921,19 @@ namespace CodeWalker
             this.label31.TabIndex = 58;
             this.label31.Text = "Near Clip:";
             // 
+            // RenderFogCheckBox
+            //
+            this.RenderFogCheckBox.AutoSize = true;
+            this.RenderFogCheckBox.Checked = true;
+            this.RenderFogCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.RenderFogCheckBox.Location = new System.Drawing.Point(10, 277);
+            this.RenderFogCheckBox.Name = "RenderFogCheckBox";
+            this.RenderFogCheckBox.Size = new System.Drawing.Size(79, 17);
+            this.RenderFogCheckBox.TabIndex = 59;
+            this.RenderFogCheckBox.Text = "Render fog";
+            this.RenderFogCheckBox.UseVisualStyleBackColor = true;
+            this.RenderFogCheckBox.CheckedChanged += new System.EventHandler(this.RenderFogCheckBox_CheckedChanged);
+            //
             // RenderParticlesCheckBox
             //
             this.RenderParticlesCheckBox.AutoSize = true;
@@ -4037,6 +4052,7 @@ namespace CodeWalker
         private System.Windows.Forms.CheckBox CarGeneratorsCheckBox;
         private System.Windows.Forms.CheckBox HDTexturesCheckBox;
         private System.Windows.Forms.CheckBox RenderParticlesCheckBox;
+        private System.Windows.Forms.CheckBox RenderFogCheckBox;
         private System.Windows.Forms.NumericUpDown FarClipUpDown;
         private System.Windows.Forms.Label label32;
         private System.Windows.Forms.NumericUpDown NearClipUpDown;
