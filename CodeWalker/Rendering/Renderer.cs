@@ -1034,8 +1034,9 @@ namespace CodeWalker.Rendering
             }
             var ty = Vector3.Normalize(Vector3.Cross(dir, tx));
             var extent = light.Falloff;
-            var innerAngle = Math.Min(light.ConeInnerAngle, light.ConeOuterAngle) * 0.01745329f;
-            var outerAngle = Math.Max(light.ConeInnerAngle, light.ConeOuterAngle) * 0.01745329f; //pi/180
+            var outerDeg = Math.Clamp(light.ConeOuterAngle, 1.0f, 89.0f); //as CLightSource::SetSpotlight
+            var innerAngle = Math.Max(Math.Min(light.ConeInnerAngle, outerDeg - 1.0f), 1.0f) * 0.01745329f;
+            var outerAngle = outerDeg * 0.01745329f; //pi/180
             var type = light.Type;
             switch (type)
             {

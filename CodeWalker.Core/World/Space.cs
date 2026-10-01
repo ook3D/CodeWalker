@@ -2028,6 +2028,11 @@ namespace CodeWalker.World
                 var c = Children[i];
                 if (c != null)
                 {
+                    if (c.Items!.Count == Items.Count) //no progress (NaN/inverted extents) - splitting again would recurse forever
+                    {
+                        Children = null;
+                        return;
+                    }
                     c.TrySplit(threshold);
                 }
             }
@@ -2227,6 +2232,11 @@ namespace CodeWalker.World
                 var c = Children[i];
                 if (c != null)
                 {
+                    if (c.Items!.Count == Items.Count) //no progress (NaN/inverted extents) - splitting again would recurse forever
+                    {
+                        Children = null;
+                        return;
+                    }
                     c.TrySplit(threshold);
                 }
             }

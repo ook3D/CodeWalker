@@ -1622,8 +1622,10 @@ namespace CodeWalker.Rendering
             Intensity = l.Intensity;
             Falloff = l.Falloff;
             FalloffExponent = l.FalloffExponent;
-            ConeInnerAngle = Math.Min(l.ConeInnerAngle, l.ConeOuterAngle) * 0.01745329f; //is this right??
-            ConeOuterAngle = Math.Max(l.ConeInnerAngle, l.ConeOuterAngle) * 0.01745329f; //pi/180
+            //clamped as in CLightSource::SetSpotlight - outer >90 deg folds the cone volume inside out
+            var outer = Math.Clamp(l.ConeOuterAngle, 1.0f, 89.0f);
+            ConeInnerAngle = Math.Max(Math.Min(l.ConeInnerAngle, outer - 1.0f), 1.0f) * 0.01745329f;
+            ConeOuterAngle = outer * 0.01745329f; //pi/180
             CapsuleExtent = l.Extents;
             CullingPlaneNormal = l.CullingPlaneNormal;
             CullingPlaneOffset = l.CullingPlaneOffset;
