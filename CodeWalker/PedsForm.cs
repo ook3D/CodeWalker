@@ -836,27 +836,29 @@ namespace CodeWalker
 
 
 
-        private void LoadClipDict(string name)
+        private int clipDictLoadVersion;
+
+        private async void LoadClipDict(string name)
         {
+            int version = ++clipDictLoadVersion;
             var ycdhash = JenkHash.GenHashLowerInvariant(name);
             var ycd = GameFileCache.GetYcd(ycdhash);
 
-            // Start async loading on background thread
-            Task.Run(async () =>
+            // Poll without blocking the UI thread; the ycd is loaded by the content thread
+            for (int i = 0; i < 1000 && ycd != null && !ycd.Loaded; i++)
             {
-                const int maxWaitMs = 5000;
-                const int checkIntervalMs = 5;
-                var startTime = DateTime.UtcNow;
+                await Task.Delay(10);
+                if (IsDisposed || version != clipDictLoadVersion) return;
+                ycd = GameFileCache.GetYcd(ycdhash);//keeps the request alive in the content queue
+            }
 
-                while ((ycd != null) && (!ycd.Loaded) && (DateTime.UtcNow - startTime).TotalMilliseconds < maxWaitMs)
-                {
-                    await Task.Delay(checkIntervalMs);
-                    ycd = GameFileCache.GetYcd(ycdhash);
-                }
+            if (ycd != null && !ycd.Loaded)
+            {
+                UpdateStatus("Unable to load clip dictionary " + name);
+                ycd = null;
+            }
 
-                // Update UI on main thread
-                BeginInvoke(new Action(() => PopulateClipComboBox(ycd)));
-            });
+            PopulateClipComboBox(ycd);
         }
 
         private void PopulateClipComboBox(YcdFile? ycd)
