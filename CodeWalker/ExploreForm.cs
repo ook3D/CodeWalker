@@ -313,12 +313,11 @@ namespace CodeWalker
         }
         public GameFileCache GetFileCache()
         {
-            lock (FileCacheSyncRoot)
+            if (!FileCache.IsInited)
             {
-                if (FileCache.IsInited) return FileCache;
+                InitFileCache(); //not inited yet - start it (InitFileCache guards against double init)
             }
-            InitFileCache(); //if we got here, it's not inited yet - init it!
-            return FileCache; //return it even though it's probably not inited yet..
+            return FileCache; //return it even though it may not be inited yet..
         }
 
         private void InitFileTypes()

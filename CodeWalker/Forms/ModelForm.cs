@@ -148,6 +148,7 @@ namespace CodeWalker.Forms
         bool MrfPlaybackLooped = true;
         bool MrfTimeScrolling;
         bool SuppressClipSelection;
+        private int clipDictLoadVersion;
         bool SuppressMrfNodeSelection;
         long MrfNextTimeUiUpdate;
         TabPage? MrfTabPage;
@@ -1454,6 +1455,7 @@ namespace CodeWalker.Forms
                 return;
             }
 
+            clipDictLoadVersion++;
             Ycd = ycd;
             SuppressClipSelection = true;
             ClipDictComboBox.Text = ycdName;
@@ -2028,17 +2030,25 @@ namespace CodeWalker.Forms
 
 
 
-        private void LoadClipDict(string name)
+        private async void LoadClipDict(string name)
         {
             if (gameFileCache == null) return;
             if (!gameFileCache.IsInited) return;//what to do here? wait for it..?
 
+            int version = ++clipDictLoadVersion;
             var ycdhash = JenkHash.GenHashLowerInvariant(name);
             var ycd = gameFileCache.GetYcd(ycdhash);
-            while ((ycd != null) && (!ycd.Loaded))
+            for (int i = 0; i < 1000 && ycd != null && !ycd.Loaded; i++)
             {
-                Thread.Sleep(1);//kinda hacky
-                ycd = gameFileCache.GetYcd(ycdhash);
+                await Task.Delay(10);
+                if (IsDisposed || version != clipDictLoadVersion) return;
+                ycd = gameFileCache.GetYcd(ycdhash);//keeps the request alive in the content queue
+            }
+
+            if (ycd != null && !ycd.Loaded)
+            {
+                UpdateStatus("Unable to load clip dictionary " + name);
+                ycd = null;
             }
 
             Ycd = ycd;
