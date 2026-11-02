@@ -714,6 +714,19 @@ namespace CodeWalker.GameFiles
         }
 
 
+        private static void NullEmptyBlocks(IList<IResourceBlock> blocks, IResourceBlock rootBlock, bool gen9)
+        {
+            foreach (var block in blocks)
+            {
+                if ((block == null) || (block == rootBlock)) continue;
+                var len = gen9 ? block.BlockLength_Gen9 : block.BlockLength;
+                if (len == 0)
+                {
+                    block.FilePosition = 0;
+                }
+            }
+        }
+
         public static byte[] Build(ResourceFileBase fileBase, int version, bool compress = true, bool gen9 = false)
         {
 
@@ -743,6 +756,18 @@ namespace CodeWalker.GameFiles
             fileBase.FilePagesInfo.SystemPagesCount = (byte)systemPageFlags.Count;
             fileBase.FilePagesInfo.GraphicsPagesCount = (byte)graphicsPageFlags.Count;
 
+            //an empty (zero-length) block holds no data, but the packers still give it a position - often the very end
+            //of a full page, i.e. 0x50000000|segmentSize. Any pointer to it then points one byte past the segment and the
+            //game/FiveM rejects the file ("Invalid fixup, address is neither virtual nor physical"). Many structures now
+            //default their arrays to [] instead of null, so GetReferences emits such blocks (e.g. FragDrawable FragMatrices,
+            //FragPhysicsLOD UnknownData1/2). Rockstar stores empty arrays as a null pointer with count 0, so null them here.
+            //Layout of all non-empty blocks is untouched (positions were assigned above, before this step).
+            if (!(fileBase is Meta))
+            {
+                NullEmptyBlocks(systemBlocks, fileBase, gen9);
+                NullEmptyBlocks(graphicBlocks, fileBase, gen9);
+            }
+
 
             using var systemStream = new MemoryStream();
             using var graphicsStream = new MemoryStream();
@@ -752,6 +777,7 @@ namespace CodeWalker.GameFiles
             resourceWriter.Position = 0x50000000;
             foreach (var block in systemBlocks)
             {
+                if (block.FilePosition == 0) continue;//nulled empty block, nothing to write
                 resourceWriter.Position = block.FilePosition;
 
                 var pos_before = resourceWriter.Position;
@@ -768,6 +794,7 @@ namespace CodeWalker.GameFiles
             resourceWriter.Position = 0x60000000;
             foreach (var block in graphicBlocks)
             {
+                if (block.FilePosition == 0) continue;//nulled empty block, nothing to write
                 resourceWriter.Position = block.FilePosition;
 
                 var pos_before = resourceWriter.Position;
