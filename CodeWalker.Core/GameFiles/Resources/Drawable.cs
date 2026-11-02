@@ -1398,22 +1398,28 @@ namespace CodeWalker.GameFiles
             var list = new List<IResourceBlock>();
             if (BoneIdTable != null) list.Add(BoneIdTable);
             if (Bones != null) list.Add(Bones);
-            if (CumulativeInverseTransforms != null)
+            // Empty arrays must stay null pointers: a zero-length block is placed at the end of the
+            // segment, and a pointer to the segment end fails the game's fixup ("Invalid fixup").
+            CumulativeInverseTransformsBlock = null;
+            DefaultTransformsBlock = null;
+            ParentIndicesBlock = null;
+            ChildParentIndicesBlock = null;
+            if (CumulativeInverseTransforms?.Length > 0)
             {
                 CumulativeInverseTransformsBlock = new ResourceSystemStructBlock<Matrix>(CumulativeInverseTransforms);
                 list.Add(CumulativeInverseTransformsBlock);
             }
-            if (DefaultTransforms != null)
+            if (DefaultTransforms?.Length > 0)
             {
                 DefaultTransformsBlock = new ResourceSystemStructBlock<Matrix>(DefaultTransforms);
                 list.Add(DefaultTransformsBlock);
             }
-            if (ParentIndices != null)
+            if (ParentIndices?.Length > 0)
             {
                 ParentIndicesBlock = new ResourceSystemStructBlock<short>(ParentIndices);
                 list.Add(ParentIndicesBlock);
             }
-            if (ChildParentIndices != null)
+            if (ChildParentIndices?.Length > 0)
             {
                 ChildParentIndicesBlock = new ResourceSystemStructBlock<ushort>(ChildParentIndices);
                 list.Add(ChildParentIndicesBlock);
