@@ -77,6 +77,12 @@ namespace CodeWalker
 
         Ped SelectedPed = new();
 
+        //the selected clip runs on its own clock (render thread), so it starts at frame 0 when picked
+        ClipMapEntry? PlayingClip;
+        double ClipPlayTime;
+        volatile bool RestartClip;
+        volatile bool LoopClip = true;
+
 
         ComboBox[] ComponentComboBoxes = [];
         public class ComponentComboItem
@@ -241,6 +247,8 @@ namespace CodeWalker
 
                 Renderer.SelectedDrawable = null;// SelectedItem.Drawable;
 
+
+                UpdateClipPlayback(elapsed);
 
                 Renderer.RenderPed(SelectedPed);
 
@@ -897,6 +905,41 @@ namespace CodeWalker
             ClipMapEntry? cme = null;
             SelectedPed.Ycd?.ClipMap?.TryGetValue(cliphash, out cme);
             SelectedPed.AnimClip = cme;
+            RestartClip = true;
+        }
+
+        private void UpdateClipPlayback(float elapsed)
+        {
+            //the renderer's clock runs from app start, so a non-looped clip picked later would only
+            //show its last frame. Drive the clip through OverridePlayTime from a clock that restarts
+            //whenever the clip changes (clip, clip dict or ped selection).
+            var cme = SelectedPed.AnimClip;
+            if (RestartClip || !ReferenceEquals(cme, PlayingClip))
+            {
+                if ((PlayingClip != null) && !ReferenceEquals(cme, PlayingClip))
+                {
+                    PlayingClip.OverridePlayTime = false;
+                }
+                PlayingClip = cme;
+                ClipPlayTime = 0.0;
+                RestartClip = false;
+            }
+            else
+            {
+                ClipPlayTime += elapsed;
+            }
+
+            if (cme == null) return;
+
+            //not looping: the clip's own flags decide, so a non-looped clip plays once and holds its last frame
+            var duration = cme.Clip?.GetDuration() ?? 0.0f;
+            if (LoopClip && (duration > 0.0f))
+            {
+                ClipPlayTime %= duration;
+            }
+
+            cme.OverridePlayTime = true;
+            cme.PlayTime = (float)ClipPlayTime;
         }
 
 
@@ -1634,6 +1677,11 @@ namespace CodeWalker
         private void EnableRootMotionCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             SelectedPed.EnableRootMotion = EnableRootMotionCheckBox.Checked;
+        }
+
+        private void LoopClipCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            LoopClip = LoopClipCheckBox.Checked;
         }
     }
 }

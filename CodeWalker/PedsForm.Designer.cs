@@ -77,6 +77,7 @@
             this.StatsUpdateTimer = new System.Windows.Forms.Timer(this.components);
             this.ToolsPedTabPage = new System.Windows.Forms.TabPage();
             this.EnableRootMotionCheckBox = new System.Windows.Forms.CheckBox();
+            this.LoopClipCheckBox = new System.Windows.Forms.CheckBox();
             this.label23 = new System.Windows.Forms.Label();
             this.label22 = new System.Windows.Forms.Label();
             this.ClipComboBox = new System.Windows.Forms.ComboBox();
@@ -657,6 +658,7 @@
             // 
             // ToolsPedTabPage
             // 
+            this.ToolsPedTabPage.Controls.Add(this.LoopClipCheckBox);
             this.ToolsPedTabPage.Controls.Add(this.EnableRootMotionCheckBox);
             this.ToolsPedTabPage.Controls.Add(this.label23);
             this.ToolsPedTabPage.Controls.Add(this.label22);
@@ -707,7 +709,20 @@
             this.EnableRootMotionCheckBox.Text = "Enable root motion";
             this.EnableRootMotionCheckBox.UseVisualStyleBackColor = true;
             this.EnableRootMotionCheckBox.CheckedChanged += new System.EventHandler(this.EnableRootMotionCheckBox_CheckedChanged);
-            // 
+            //
+            // LoopClipCheckBox
+            //
+            this.LoopClipCheckBox.AutoSize = true;
+            this.LoopClipCheckBox.Checked = true;
+            this.LoopClipCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.LoopClipCheckBox.Location = new System.Drawing.Point(174, 503);
+            this.LoopClipCheckBox.Name = "LoopClipCheckBox";
+            this.LoopClipCheckBox.Size = new System.Drawing.Size(50, 17);
+            this.LoopClipCheckBox.TabIndex = 33;
+            this.LoopClipCheckBox.Text = "Loop";
+            this.LoopClipCheckBox.UseVisualStyleBackColor = true;
+            this.LoopClipCheckBox.CheckedChanged += new System.EventHandler(this.LoopClipCheckBox_CheckedChanged);
+            //
             // label23
             // 
             this.label23.AutoSize = true;
@@ -1197,5 +1212,6 @@
         private System.Windows.Forms.ComboBox ClipDictComboBox;
         private System.Windows.Forms.Label label23;
         private System.Windows.Forms.CheckBox EnableRootMotionCheckBox;
+        private System.Windows.Forms.CheckBox LoopClipCheckBox;
     }
 }

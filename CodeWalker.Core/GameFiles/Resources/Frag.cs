@@ -1671,10 +1671,10 @@ namespace CodeWalker.GameFiles
         {
             public byte Start1 { get; set; }
             public byte End1 { get; set; }
-            public byte[]? Data1 { get; set; } = [];
+            public byte[]? Data1 { get; set; }
             public byte Start2 { get; set; }
             public byte End2 { get; set; }
-            public byte[]? Data2 { get; set; } = [];
+            public byte[]? Data2 { get; set; }
 
             public uint DataLength
             {
