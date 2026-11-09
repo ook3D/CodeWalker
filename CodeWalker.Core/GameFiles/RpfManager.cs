@@ -38,6 +38,12 @@ namespace CodeWalker.GameFiles
 
         public volatile bool IsInited = false;
 
+        /// <summary>
+        /// When set, Init(folder) builds the base JenkIndex on a background thread instead of inline. Name lookups
+        /// (JenkIndex.GetString/TryGetString) wait until it has finished, so they never see a partial index.
+        /// </summary>
+        public bool BuildJenkIndexInBackground { get; set; }
+
         public static bool IsGen9 { get; set; } //not ideal for this to be static, but it's most convenient for ResourceData
 
         //enhanced (gen9) installs use "onigiri" as the mods folder instead of "mods"
@@ -52,7 +58,9 @@ namespace CodeWalker.GameFiles
 
             string replpath = folder + "\\";
             var sopt = rootOnly ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
+            StartupTimer.Mark("RpfManager.Init: start");
             string[] allfiles = Directory.GetFiles(folder, "*.rpf", sopt);
+            StartupTimer.Mark("RpfManager.Init: directory enumeration done (" + allfiles.Length + " rpfs)");
 
             BaseRpfs = new();
             ModRpfs = new();
@@ -111,6 +119,7 @@ namespace CodeWalker.GameFiles
                         errorLog(rpfpath + ": " + ex.ToString());
                     }
                 });
+            StartupTimer.Mark("RpfManager.Init: parallel ScanStructure done");
 
             //Add to the dictionaries sequentially, in the original discovery order, to preserve
             //deterministic override behaviour between base/mod/dlc archives.
@@ -119,15 +128,27 @@ namespace CodeWalker.GameFiles
                 if (rf == null) continue; //excluded, corrupted, or failed to scan
                 AddRpfFile(rf, false, false);
             }
+            StartupTimer.Mark("RpfManager.Init: serial AddRpfFile loop done");
 
             ScanLooseModFiles(folder);
+            StartupTimer.Mark("RpfManager.Init: ScanLooseModFiles done");
 
             ScanExtraFolders(updateStatus);
+            StartupTimer.Mark("RpfManager.Init: ScanExtraFolders done");
 
             if (buildIndex)
             {
                 updateStatus("Building jenkindex...");
-                BuildBaseJenkIndex();
+                if (BuildJenkIndexInBackground)
+                {
+                    JenkIndex.BuildInBackground(CollectBaseJenkIndexNames);
+                    StartupTimer.Mark("RpfManager.Init: BuildBaseJenkIndex started in background");
+                }
+                else
+                {
+                    BuildBaseJenkIndex();
+                    StartupTimer.Mark("RpfManager.Init: BuildBaseJenkIndex done");
+                }
             }
 
             updateStatus("Scan complete");
@@ -138,6 +159,7 @@ namespace CodeWalker.GameFiles
         public void Init(List<RpfFile> allRpfs, bool gen9, Action<string>? updateStatus = null, Action<string>? errorLog = null)
         {
             //fast init used by RPF explorer's File cache
+            StartupTimer.Mark("RpfManager.Init(list): start");
             UpdateStatus = updateStatus ?? (_ => { });
             ErrorLog = errorLog ?? (_ => { });
             AllRpfs = new(allRpfs);
@@ -167,9 +189,12 @@ namespace CodeWalker.GameFiles
             //The explorer supplies its already-scanned archives, but FiveM resources are loose files
             //and therefore aren't in that list. Include the configured resource folders here as well,
             //so model previews can resolve external YTDs and other companion assets.
+            StartupTimer.Mark("RpfManager.Init(list): dict fill done");
             ScanExtraFolders(UpdateStatus);
+            StartupTimer.Mark("RpfManager.Init(list): ScanExtraFolders done");
 
             BuildBaseJenkIndex();
+            StartupTimer.Mark("RpfManager.Init(list): BuildBaseJenkIndex done");
 
             IsInited = true;
         }
@@ -283,7 +308,11 @@ namespace CodeWalker.GameFiles
                     var dev = rel.Substring(0, sep);
                     if (dev == "common" || dev == "platform" || dev == "dlcpacks") tail = rel.Substring(sep + 1);
                 }
-                var entry = CreateLooseEntry(f, ModsFolderPrefix + rel);
+                var entry = CreateLooseEntry(f, ModsFolderPrefix + rel, out bool escrowed);
+                if (escrowed)
+                {
+                    EscrowedFileCount++;
+                }
                 if (entry?.File == null) continue;
                 if (!byName.TryGetValue(entry.NameLower, out var list)) byName[entry.NameLower] = list = new();
                 list.Add((tail, entry));
@@ -331,6 +360,20 @@ namespace CodeWalker.GameFiles
             };
         }
 
+        //Same entries, in the same order, as EnumerateExtraFolderEntries(root, includeDirectories: true), with each
+        //entry's kind from the enumeration itself.
+        public static IEnumerable<(string path, bool isDirectory)> EnumerateExtraFolderEntryKinds(string root)
+        {
+            return new FileSystemEnumerable<(string path, bool isDirectory)>(root,
+                (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.IsDirectory),
+                new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0, IgnoreInaccessible = false })
+            {
+                ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory ||
+                    !ExtraExcludedFolders.Contains(entry.FileName.ToString()),
+                ShouldRecursePredicate = (ref FileSystemEntry entry) => !ExtraExcludedFolders.Contains(entry.FileName.ToString())
+            };
+        }
+
         private void ScanExtraFolders(Action<string> updateStatus)
         {
             foreach (var extrafolder in ExtraFolders)
@@ -352,13 +395,34 @@ namespace CodeWalker.GameFiles
                     continue;
                 }
 
+                var candidates = new List<string>(files.Length);
                 foreach (var f in files)
                 {
                     var name = System.IO.Path.GetFileName(f);
                     if (!ExtraFileExtensions.Contains(System.IO.Path.GetExtension(f)) &&
                         !name.EndsWith("gtxd.meta", StringComparison.OrdinalIgnoreCase) &&
                         !name.Equals("vehicles.meta", StringComparison.OrdinalIgnoreCase)) continue;
-                    var entry = CreateLooseEntry(f, ExtraFolderPrefix + f.Substring(root.Length + 1).ToLowerInvariant());
+                    candidates.Add(f);
+                }
+
+                //Every candidate needs its 16-byte header read (FXAP escrow check, RSC7 flags). Resource folders hold
+                //tens of thousands of files, so open them in parallel; registration below stays sequential in
+                //enumeration order, so the entries and their override order are exactly as before.
+                var entries = new RpfFileEntry?[candidates.Count];
+                int escrowed = 0;
+                Parallel.For(0, candidates.Count, i =>
+                {
+                    var f = candidates[i];
+                    entries[i] = CreateLooseEntry(f, ExtraFolderPrefix + f.Substring(root.Length + 1).ToLowerInvariant(), out bool isEscrowed);
+                    if (isEscrowed)
+                    {
+                        Interlocked.Increment(ref escrowed);
+                    }
+                });
+                EscrowedFileCount += escrowed;
+
+                foreach (var entry in entries)
+                {
                     if (entry?.File == null) continue;
                     EntryDict[entry.Path] = entry;
                     RpfDict[entry.File.Path] = entry.File;
@@ -373,22 +437,25 @@ namespace CodeWalker.GameFiles
             }
         }
 
-        private RpfFileEntry? CreateLooseEntry(string filepath, string relpath)
+        //Thread-safe (touches no manager state): ScanExtraFolders calls it in parallel.
+        private static RpfFileEntry? CreateLooseEntry(string filepath, string relpath, out bool escrowed)
         {
+            escrowed = false;
             try
             {
-                var fi = new FileInfo(filepath);
-                var rpf = new LooseRpfFile(fi.Name, relpath, fi.Length) { FilePath = filepath };
+                var fileName = System.IO.Path.GetFileName(filepath);
 
                 //resource files (ytd/ymt/etc) need a resource entry carrying the RSC7 page flags
                 RpfFileEntry entry;
+                long length;
                 Span<byte> hdr = stackalloc byte[16];
-                using (var fs = fi.OpenRead())
+                using (var handle = File.OpenHandle(filepath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    var magic = fs.Read(hdr) == 16 ? BitConverter.ToUInt32(hdr) : 0;
+                    length = RandomAccess.GetLength(handle); //from the open handle - saves a separate path lookup per file
+                    var magic = RandomAccess.Read(handle, hdr, 0) == 16 ? BitConverter.ToUInt32(hdr) : 0;
                     if (magic == 0x50415846) //FXAP - fivem asset escrow, the content is encrypted and unreadable
                     {
-                        EscrowedFileCount++;
+                        escrowed = true;
                         return null;
                     }
                     if (magic == 0x37435352) //RSC7
@@ -397,17 +464,18 @@ namespace CodeWalker.GameFiles
                         {
                             SystemFlags = BitConverter.ToUInt32(hdr.Slice(8)),
                             GraphicsFlags = BitConverter.ToUInt32(hdr.Slice(12)),
-                            FileSize = (uint)fi.Length,
+                            FileSize = (uint)length,
                         };
                     }
                     else
                     {
-                        entry = new RpfBinaryFileEntry { FileSize = (uint)fi.Length, FileUncompressedSize = (uint)fi.Length };
+                        entry = new RpfBinaryFileEntry { FileSize = (uint)length, FileUncompressedSize = (uint)length };
                     }
                 }
 
+                var rpf = new LooseRpfFile(fileName, relpath, length) { FilePath = filepath };
                 entry.File = rpf;
-                entry.Name = fi.Name;
+                entry.Name = fileName;
                 entry.NameLower = entry.Name.ToLowerInvariant();
                 entry.Path = relpath;
                 entry.NameHash = JenkHash.GenHash(entry.NameLower);
@@ -655,22 +723,79 @@ namespace CodeWalker.GameFiles
         public void BuildBaseJenkIndex()
         {
             JenkIndex.Clear();
+            var parts = CollectBaseJenkIndexNames();
+            int total = 0;
+            foreach (var list in parts)
+            {
+                total += list.Count;
+            }
+            JenkIndex.EnsureCapacity(total);
+            foreach (var list in parts)
+            {
+                JenkIndex.EnsureRange(list);
+            }
+            StartupTimer.Mark("BuildBaseJenkIndex: index filled");
+        }
 
-            //Build the index in parallel: each RPF is hashed into a thread-local dictionary (no shared
-            //lock on the hot path), then bulk-merged into the global JenkIndex once per partition. The
-            //string-building and hashing - the expensive part - all run concurrently.
-            Parallel.ForEach(AllRpfs,
-                () => new Dictionary<uint, string>(),
-                (file, state, localIndex) =>
+        //The base index's names in the order a sequential build adds them (the first name wins a hash collision):
+        //every archive's names in archive order, then "00".."99", then strings.dat/strings.txt.
+        //Reads only AllRpfs and the archives, so it can run on any thread.
+        private List<IReadOnlyList<KeyValuePair<uint, string>>> CollectBaseJenkIndexNames()
+        {
+            //strings.dat (millions of names) is read, decompressed and hashed on another thread while the archive
+            //entries are processed below; its names are still added last, as before.
+            var stringsTask = Task.Run(LoadJenkStringsFile);
+
+            //Each archive's names are hashed in parallel into its own list, then merged in archive order. Merging in
+            //order gives the same index as a sequential build (the first name wins a hash collision), every run.
+            var rpfs = AllRpfs;
+            var perRpf = new List<KeyValuePair<uint, string>>?[rpfs.Count];
+            Parallel.For(0, rpfs.Count, rpfIndex =>
                 {
+                    var file = rpfs[rpfIndex];
+                    var localIndex = new List<KeyValuePair<uint, string>>();
                     void Ens(string s)
                     {
                         uint h = JenkHash.GenHash(s);
-                        if (h != 0) localIndex.TryAdd(h, s);
+                        if (h != 0)
+                        {
+                            localIndex.Add(new KeyValuePair<uint, string>(h, s));
+                        }
                     }
-                    var sb = new StringBuilder();
                     try
                     {
+                        //an archive can hold many name tables (one is known to hold millions of names): extract and
+                        //decode them in parallel up front, then add each one's names at its place in the entry order
+                        Dictionary<RpfEntry, List<KeyValuePair<uint, string>>?>? nameTables = null;
+                        var tableEntries = new List<RpfBinaryFileEntry>();
+                        foreach (RpfEntry entry in file.AllEntries)
+                        {
+                            var nlow = entry.NameLower;
+                            if (!string.IsNullOrEmpty(nlow) && nlow.EndsWith(".nametable") && (entry is RpfBinaryFileEntry binfe))
+                            {
+                                tableEntries.Add(binfe);
+                            }
+                        }
+                        if (tableEntries.Count > 0)
+                        {
+                            var tableNames = new List<KeyValuePair<uint, string>>?[tableEntries.Count];
+                            Parallel.For(0, tableEntries.Count, t =>
+                            {
+                                byte[]? data = file.ExtractFile(tableEntries[t]); //never throws - returns null on failure
+                                if (data != null)
+                                {
+                                    var names = new List<KeyValuePair<uint, string>>();
+                                    AddNameTableNames(data, names);
+                                    tableNames[t] = names;
+                                }
+                            });
+                            nameTables = new Dictionary<RpfEntry, List<KeyValuePair<uint, string>>?>(tableEntries.Count);
+                            for (int t = 0; t < tableEntries.Count; t++)
+                            {
+                                nameTables[tableEntries[t]] = tableNames[t];
+                            }
+                        }
+
                         Ens(file.Name);
                         foreach (RpfEntry entry in file.AllEntries)
                         {
@@ -715,36 +840,10 @@ namespace CodeWalker.GameFiles
                             }
                             if (nlow.EndsWith(".nametable"))
                             {
-                                RpfBinaryFileEntry? binfe = entry as RpfBinaryFileEntry;
-                                if (binfe != null)
+                                if ((nameTables != null) && nameTables.TryGetValue(entry, out var names) && (names != null))
                                 {
-                                    byte[]? data = file.ExtractFile(binfe);
-                                    if (data != null)
-                                    {
-                                        sb.Clear();
-                                        for (int i = 0; i < data.Length; i++)
-                                        {
-                                            byte c = data[i];
-                                            if (c == 0)
-                                            {
-                                                string str = sb.ToString();
-                                                if (!string.IsNullOrEmpty(str))
-                                                {
-                                                    string strl = str.ToLowerInvariant();
-                                                    //Ens(str);
-                                                    Ens(strl);
-                                                }
-                                                sb.Clear();
-                                            }
-                                            else
-                                            {
-                                                sb.Append((char)c);
-                                            }
-                                        }
-                                    }
+                                    localIndex.AddRange(names);
                                 }
-                                else
-                                { }
                             }
                         }
                     }
@@ -752,31 +851,125 @@ namespace CodeWalker.GameFiles
                     {
                         //failing silently!! not so good really
                     }
-                    return localIndex;
-                },
-                localIndex => JenkIndex.EnsureRange(localIndex));
+                    perRpf[rpfIndex] = localIndex;
+                });
+            StartupTimer.Mark("BuildBaseJenkIndex: parallel pass done");
 
-            for (int i = 0; i < 100; i++)
+            var parts = new List<IReadOnlyList<KeyValuePair<uint, string>>>(perRpf.Length + 2);
+            foreach (var list in perRpf)
             {
-                JenkIndex.Ensure(i.ToString("00"));
+                if (list != null)
+                {
+                    parts.Add(list);
+                }
             }
 
+            var numbers = new List<KeyValuePair<uint, string>>(100);
+            for (int i = 0; i < 100; i++)
+            {
+                var str = i.ToString("00");
+                numbers.Add(new KeyValuePair<uint, string>(JenkHash.GenHash(str), str));
+            }
+            parts.Add(numbers);
 
+            try
+            {
+                parts.Add(stringsTask.Result);
+            }
+            catch (Exception ex)
+            {
+                //only the strings file is lost - the archive names above are still indexed
+                ErrorLog("Error loading the Jenkins hash strings file: " + (ex is AggregateException ae ? ae.GetBaseException() : ex));
+            }
+            StartupTimer.Mark("BuildBaseJenkIndex: strings file loaded");
+            return parts;
+        }
+
+        //A .nametable is a list of zero-terminated single-byte names; each one is indexed lower-cased. Some archives
+        //carry millions of them, so the table is split into chunks at terminators and decoded in parallel, then
+        //appended in table order. Same output as decoding it byte by byte: each byte maps to the char of the same
+        //value (Latin-1), invariant lower-casing is per char, empty names and a trailing unterminated name are skipped.
+        private static void AddNameTableNames(byte[] data, List<KeyValuePair<uint, string>> output)
+        {
+            int chunkCount = Math.Max(1, Math.Min(Environment.ProcessorCount * 4, data.Length / (64 * 1024)));
+            var bounds = new int[chunkCount + 1];
+            for (int c = 1; c < chunkCount; c++)
+            {
+                int pos = Math.Max(bounds[c - 1], (int)((long)data.Length * c / chunkCount));
+                int z = (pos < data.Length) ? Array.IndexOf(data, (byte)0, pos) : -1;
+                bounds[c] = (z < 0) ? data.Length : z + 1; //each chunk starts right after a terminator
+            }
+            bounds[chunkCount] = data.Length;
+
+            var parts = new List<KeyValuePair<uint, string>>[chunkCount];
+            Parallel.For(0, chunkCount, c =>
+            {
+                var part = new List<KeyValuePair<uint, string>>();
+                int start = bounds[c];
+                int end = bounds[c + 1];
+                while (start < end)
+                {
+                    int z = Array.IndexOf(data, (byte)0, start, end - start);
+                    if (z < 0)
+                    {
+                        break; //no terminator: the old decoder never emitted a trailing unterminated name
+                    }
+                    int len = z - start;
+                    if (len > 0)
+                    {
+                        string strl = string.Create(len, (data, start), static (dst, st) =>
+                        {
+                            var src = st.data.AsSpan(st.start, dst.Length);
+                            for (int i = 0; i < dst.Length; i++)
+                            {
+                                dst[i] = char.ToLowerInvariant((char)src[i]);
+                            }
+                        });
+                        uint h = JenkHash.GenHash(strl);
+                        if (h != 0)
+                        {
+                            part.Add(new KeyValuePair<uint, string>(h, strl));
+                        }
+                    }
+                    start = z + 1;
+                }
+                parts[c] = part;
+            });
+            foreach (var part in parts)
+            {
+                output.AddRange(part);
+            }
+        }
+
+        //strings.dat (gzip) or strings.txt next to the exe, as (hash, name) pairs in file order - blank lines,
+        //comment lines and zero hashes dropped, the same filtering JenkIndex.Ensure applied to each line.
+        private static List<KeyValuePair<uint, string>> LoadJenkStringsFile()
+        {
             var dir = AppContext.BaseDirectory;
-            
+
             // Try strings.dat (gzip compressed) first, fallback to strings.txt
             var datPath = Path.Combine(dir, "strings.dat");
             var txtPath = Path.Combine(dir, "strings.txt");
-            
-            string[]? lines = null;
-            
+
             if (File.Exists(datPath))
             {
                 try
                 {
+                    byte[] text;
                     using (var fileStream = File.OpenRead(datPath))
                     using (var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress))
-                    using (var reader = new StreamReader(gzipStream, Encoding.UTF8))
+                    using (var ms = new MemoryStream())
+                    {
+                        gzipStream.CopyTo(ms);
+                        text = ms.ToArray();
+                    }
+                    var parsed = ParseJenkStringLines(text);
+                    if (parsed != null)
+                    {
+                        return parsed;
+                    }
+                    //unusual encoding marker: let StreamReader handle it exactly as before
+                    using (var reader = new StreamReader(new MemoryStream(text), Encoding.UTF8))
                     {
                         var linesList = new List<string>();
                         string? line;
@@ -784,32 +977,111 @@ namespace CodeWalker.GameFiles
                         {
                             linesList.Add(line);
                         }
-                        lines = linesList.ToArray();
+                        return FilterJenkStringLines(linesList);
                     }
                 }
                 catch
                 {
                     // If decompression fails, fall back to strings.txt
-                    lines = null;
-                }
-            }
-            
-            if (lines == null && File.Exists(txtPath))
-            {
-                lines = File.ReadAllLines(txtPath);
-            }
-            
-            if (lines != null)
-            {
-                foreach (var line in lines)
-                {
-                    var str = line?.Trim();
-                    if (string.IsNullOrEmpty(str)) continue;
-                    if (str.StartsWith("//")) continue;
-                    JenkIndex.Ensure(str);
                 }
             }
 
+            if (File.Exists(txtPath))
+            {
+                return FilterJenkStringLines(File.ReadAllLines(txtPath));
+            }
+            return new List<KeyValuePair<uint, string>>();
+        }
+
+        private static List<KeyValuePair<uint, string>> FilterJenkStringLines(IEnumerable<string?> lines)
+        {
+            var result = new List<KeyValuePair<uint, string>>();
+            foreach (var line in lines)
+            {
+                var str = line?.Trim();
+                if (string.IsNullOrEmpty(str))
+                {
+                    continue;
+                }
+                if (str.StartsWith("//"))
+                {
+                    continue;
+                }
+                uint hash = JenkHash.GenHash(str);
+                if (hash == 0)
+                {
+                    continue;
+                }
+                result.Add(new KeyValuePair<uint, string>(hash, str));
+            }
+            return result;
+        }
+
+        //Splits UTF-8 text into lines like StreamReader.ReadLine (\r, \n and \r\n all end a line; a UTF-8 byte order
+        //mark is skipped) and filters/hashes them like FilterJenkStringLines - in parallel chunks, results in line
+        //order. Line breaks are ASCII bytes that never occur inside a multi-byte UTF-8 sequence, so decoding line by
+        //line gives the same strings as decoding the whole stream. Returns null for UTF-16/32 byte order marks.
+        private static List<KeyValuePair<uint, string>>? ParseJenkStringLines(byte[] text)
+        {
+            int begin = 0;
+            if ((text.Length >= 3) && (text[0] == 0xEF) && (text[1] == 0xBB) && (text[2] == 0xBF))
+            {
+                begin = 3;
+            }
+            else if ((text.Length >= 2) && (((text[0] == 0xFF) && (text[1] == 0xFE)) || ((text[0] == 0xFE) && (text[1] == 0xFF))))
+            {
+                return null;
+            }
+
+            int chunkCount = Math.Max(1, Math.Min(Environment.ProcessorCount * 4, (text.Length - begin) / (256 * 1024)));
+            var bounds = new int[chunkCount + 1];
+            bounds[0] = begin;
+            for (int c = 1; c < chunkCount; c++)
+            {
+                int pos = Math.Max(bounds[c - 1], begin + (int)((long)(text.Length - begin) * c / chunkCount));
+                int nl = (pos < text.Length) ? Array.IndexOf(text, (byte)'\n', pos) : -1;
+                bounds[c] = (nl < 0) ? text.Length : nl + 1; //chunks start right after a \n, so no line is split
+            }
+            bounds[chunkCount] = text.Length;
+
+            var parts = new List<KeyValuePair<uint, string>>[chunkCount];
+            Parallel.For(0, chunkCount, c =>
+            {
+                var part = new List<KeyValuePair<uint, string>>();
+                int start = bounds[c];
+                int end = bounds[c + 1];
+                while (start < end)
+                {
+                    int stop = text.AsSpan(start, end - start).IndexOfAny((byte)'\r', (byte)'\n');
+                    int lineEnd = (stop < 0) ? end : start + stop;
+                    if (lineEnd > start)
+                    {
+                        var str = Encoding.UTF8.GetString(text, start, lineEnd - start).Trim();
+                        if ((str.Length > 0) && !str.StartsWith("//"))
+                        {
+                            uint hash = JenkHash.GenHash(str);
+                            if (hash != 0)
+                            {
+                                part.Add(new KeyValuePair<uint, string>(hash, str));
+                            }
+                        }
+                    }
+                    start = lineEnd + 1; //empty segments (eg between \r and \n) are blank lines, which are skipped
+                }
+                parts[c] = part;
+            });
+
+            int total = 0;
+            foreach (var part in parts)
+            {
+                total += part.Count;
+            }
+            var result = new List<KeyValuePair<uint, string>>(total);
+            foreach (var part in parts)
+            {
+                result.AddRange(part);
+            }
+            return result;
         }
 
     }

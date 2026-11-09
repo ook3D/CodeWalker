@@ -21,6 +21,13 @@
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Startup parses thousands of archives and files in parallel; with workstation GC those phases are GC-bound.
+         Server GC (dynamically sized heaps in .NET 9) measured ~1 s faster World/Explorer startup at similar memory. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\CodeWalker\CodeWalker.csproj" />
   </ItemGroup>

@@ -239,9 +239,84 @@ namespace CodeWalker.GameFiles
     {
         public static Dictionary<uint, string> Index = new();
         private static readonly System.Threading.Lock syncRoot = new();
+        private static volatile System.Threading.ManualResetEventSlim? pendingBuild; //unset while a background build runs
+
+        /// <summary>The exception that made the last BuildInBackground fail, if any (null after a successful build).</summary>
+        public static Exception? BackgroundBuildError { get; private set; }
+
+        /// <summary>
+        /// Clears the index and rebuilds it on a background thread from the given names (in priority order: the first
+        /// name wins a hash). Names added with Ensure meanwhile are kept, behind the built names - the same result as
+        /// building first and calling Ensure afterwards. Lookups wait for the build to finish.
+        /// </summary>
+        public static void BuildInBackground(Func<List<IReadOnlyList<KeyValuePair<uint, string>>>> collect)
+        {
+            Clear();
+            BackgroundBuildError = null;
+            var gate = new System.Threading.ManualResetEventSlim(false);
+            pendingBuild = gate;
+            var thread = new System.Threading.Thread(() =>
+            {
+                try
+                {
+                    var parts = collect();
+                    int total = 0;
+                    foreach (var part in parts)
+                    {
+                        total += part.Count;
+                    }
+                    var built = new Dictionary<uint, string>(total);
+                    foreach (var part in parts)
+                    {
+                        for (int i = 0; i < part.Count; i++)
+                        {
+                            var kvp = part[i];
+                            if (kvp.Key != 0)
+                            {
+                                built.TryAdd(kvp.Key, kvp.Value);
+                            }
+                        }
+                    }
+                    lock (syncRoot)
+                    {
+                        foreach (var kvp in Index)
+                        {
+                            built.TryAdd(kvp.Key, kvp.Value);
+                        }
+                        Index = built;
+                    }
+                    StartupTimer.Mark("JenkIndex: background build done");
+                }
+                catch (Exception ex)
+                {
+                    //keep whatever was added with Ensure - same as the inline build failing
+                    BackgroundBuildError = ex;
+                }
+                finally
+                {
+                    gate.Set();
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "JenkIndex build",
+            };
+            thread.Start();
+        }
+
+        /// <summary>Waits for a background build started by BuildInBackground, if one is running.</summary>
+        public static void WaitForBuild()
+        {
+            var gate = pendingBuild;
+            if ((gate != null) && !gate.IsSet)
+            {
+                gate.Wait();
+            }
+        }
 
         public static void Clear()
         {
+            WaitForBuild();
             lock (syncRoot)
             {
                 Index.Clear();
@@ -271,8 +346,34 @@ namespace CodeWalker.GameFiles
             }
         }
 
+        public static void EnsureCapacity(int capacity)
+        {
+            lock (syncRoot)
+            {
+                Index.EnsureCapacity(capacity);
+            }
+        }
+
+        public static void EnsureRange(IReadOnlyList<KeyValuePair<uint, string>> items)
+        {
+            //ordered bulk add: first-write-wins in list order, exactly like calling Ensure for each item in turn
+            lock (syncRoot)
+            {
+                Index.EnsureCapacity(Index.Count + items.Count);
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var kvp = items[i];
+                    if (kvp.Key != 0)
+                    {
+                        Index.TryAdd(kvp.Key, kvp.Value);
+                    }
+                }
+            }
+        }
+
         public static string GetString(uint hash)
         {
+            WaitForBuild();
             string? res;
             lock (syncRoot)
             {
@@ -285,6 +386,7 @@ namespace CodeWalker.GameFiles
         }
         public static string TryGetString(uint hash)
         {
+            WaitForBuild();
             string? res;
             lock (syncRoot)
             {
@@ -298,6 +400,7 @@ namespace CodeWalker.GameFiles
 
         public static string[] GetAllStrings()
         {
+            WaitForBuild();
             string[]? res = null;
             lock (syncRoot)
             {

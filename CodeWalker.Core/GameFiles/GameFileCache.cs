@@ -93,23 +93,82 @@ namespace CodeWalker.GameFiles
 
         public Dictionary<uint, World.TimecycleMod> TimeCycleModsDict = new();
 
-        public Dictionary<MetaHash, VehicleInitData> VehiclesInitDict { get; set; } = new();
-        public Dictionary<MetaHash, CPedModelInfo__InitData> PedsInitDict { get; set; } = new();
-        public Dictionary<MetaHash, PedFile> PedVariationsDict { get; set; } = new();
-        public Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> PedDrawableDicts { get; set; } = new();
-        public Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> PedTextureDicts { get; set; } = new();
-        public Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> PedClothDicts { get; set; } = new();
+        //Vehicle, ped and audio data can be loaded after Init (see DeferNonEssentialData). Every getter below waits
+        //for that load to finish, so callers always see the complete data, never an empty or partial set.
+        public Dictionary<MetaHash, VehicleInitData> VehiclesInitDict { get { WaitForDeferredData(); return vehiclesInitDict; } set { vehiclesInitDict = value; } }
+        public Dictionary<MetaHash, CPedModelInfo__InitData> PedsInitDict { get { WaitForDeferredData(); return pedsInitDict; } set { pedsInitDict = value; } }
+        public Dictionary<MetaHash, PedFile> PedVariationsDict { get { WaitForDeferredData(); return pedVariationsDict; } set { pedVariationsDict = value; } }
+        public Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> PedDrawableDicts { get { WaitForDeferredData(); return pedDrawableDicts; } set { pedDrawableDicts = value; } }
+        public Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> PedTextureDicts { get { WaitForDeferredData(); return pedTextureDicts; } set { pedTextureDicts = value; } }
+        public Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> PedClothDicts { get { WaitForDeferredData(); return pedClothDicts; } set { pedClothDicts = value; } }
+        private Dictionary<MetaHash, VehicleInitData> vehiclesInitDict = new();
+        private Dictionary<MetaHash, CPedModelInfo__InitData> pedsInitDict = new();
+        private Dictionary<MetaHash, PedFile> pedVariationsDict = new();
+        private Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> pedDrawableDicts = new();
+        private Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> pedTextureDicts = new();
+        private Dictionary<MetaHash, Dictionary<MetaHash, RpfFileEntry>> pedClothDicts = new();
 
 
-        public List<RelFile> AudioDatRelFiles = new();
-        public Dictionary<MetaHash, RelData> AudioConfigDict = new();
-        public Dictionary<MetaHash, RelData> AudioSpeechDict = new();
-        public Dictionary<MetaHash, RelData> AudioSynthsDict = new();
-        public Dictionary<MetaHash, RelData> AudioMixersDict = new();
-        public Dictionary<MetaHash, RelData> AudioCurvesDict = new();
-        public Dictionary<MetaHash, RelData> AudioCategsDict = new();
-        public Dictionary<MetaHash, RelData> AudioSoundsDict = new();
-        public Dictionary<MetaHash, RelData> AudioGameDict = new();
+        public List<RelFile> AudioDatRelFiles { get { WaitForDeferredData(); return audioDatRelFiles; } set { audioDatRelFiles = value; } }
+        public Dictionary<MetaHash, RelData> AudioConfigDict { get { WaitForDeferredData(); return audioConfigDict; } set { audioConfigDict = value; } }
+        public Dictionary<MetaHash, RelData> AudioSpeechDict { get { WaitForDeferredData(); return audioSpeechDict; } set { audioSpeechDict = value; } }
+        public Dictionary<MetaHash, RelData> AudioSynthsDict { get { WaitForDeferredData(); return audioSynthsDict; } set { audioSynthsDict = value; } }
+        public Dictionary<MetaHash, RelData> AudioMixersDict { get { WaitForDeferredData(); return audioMixersDict; } set { audioMixersDict = value; } }
+        public Dictionary<MetaHash, RelData> AudioCurvesDict { get { WaitForDeferredData(); return audioCurvesDict; } set { audioCurvesDict = value; } }
+        public Dictionary<MetaHash, RelData> AudioCategsDict { get { WaitForDeferredData(); return audioCategsDict; } set { audioCategsDict = value; } }
+        public Dictionary<MetaHash, RelData> AudioSoundsDict { get { WaitForDeferredData(); return audioSoundsDict; } set { audioSoundsDict = value; } }
+        public Dictionary<MetaHash, RelData> AudioGameDict { get { WaitForDeferredData(); return audioGameDict; } set { audioGameDict = value; } }
+        private List<RelFile> audioDatRelFiles = new();
+        private Dictionary<MetaHash, RelData> audioConfigDict = new();
+        private Dictionary<MetaHash, RelData> audioSpeechDict = new();
+        private Dictionary<MetaHash, RelData> audioSynthsDict = new();
+        private Dictionary<MetaHash, RelData> audioMixersDict = new();
+        private Dictionary<MetaHash, RelData> audioCurvesDict = new();
+        private Dictionary<MetaHash, RelData> audioCategsDict = new();
+        private Dictionary<MetaHash, RelData> audioSoundsDict = new();
+        private Dictionary<MetaHash, RelData> audioGameDict = new();
+
+        /// <summary>
+        /// Set before the first Init to leave the vehicle, ped and audio data - nothing needed to show and stream the
+        /// map - out of Init. The caller must then run LoadDeferredData (on a background thread). Until it has
+        /// finished, reading any of that data blocks until it is loaded. Reload/DLC/mod changes always load it inline.
+        /// </summary>
+        public bool DeferNonEssentialData { get; set; }
+        private volatile ManualResetEventSlim? deferredDataPending; //non-null and unset while the deferred load is outstanding
+
+        public void WaitForDeferredData()
+        {
+            var pending = deferredDataPending;
+            if ((pending != null) && !pending.IsSet)
+            {
+                pending.Wait();
+            }
+        }
+
+        /// <summary>Releases anyone waiting for the deferred data without loading it (used when startup is abandoned).</summary>
+        public void AbandonDeferredData()
+        {
+            deferredDataPending?.Set();
+        }
+
+        /// <summary>Loads what Init deferred (vehicles, peds, audio). No-op if nothing was deferred.</summary>
+        public void LoadDeferredData()
+        {
+            var pending = deferredDataPending;
+            if ((pending == null) || pending.IsSet)
+            {
+                return;
+            }
+            try
+            {
+                IProgress<string>? status = UpdateStatus != null ? new Progress<string>(UpdateStatus) : null;
+                InitDeferrableAsync(status, CancellationToken.None).GetAwaiter().GetResult();
+            }
+            finally
+            {
+                pending.Set(); //also on failure, so readers can never hang
+            }
+        }
 
 
 
@@ -209,9 +268,12 @@ namespace CodeWalker.GameFiles
                                    .Select(f => f.Trim()).Where(f => f.Length > 0)
                                    .Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                     EnableMods = EnableMods,
+                    //with deferral on, the name index builds while the rest loads (lookups wait for it)
+                    BuildJenkIndexInBackground = DeferNonEssentialData,
                 };
 
                 ArchiveManager.Init(GTAFolder, GTAGen9, UpdateStatus, ErrorLog);
+                ArchiveManager.BuildJenkIndexInBackground = false; //reloads rebuild it inline, as before
 
                 IProgress<string>? statusProgress = null;
                 if (UpdateStatus != null)
@@ -228,13 +290,18 @@ namespace CodeWalker.GameFiles
                     InitGlobalAsync(null, CancellationToken.None).GetAwaiter().GetResult();
                 }
 
+                bool defer = DeferNonEssentialData;
+                if (defer)
+                {
+                    deferredDataPending = new ManualResetEventSlim(false);
+                }
                 if (statusProgress != null)
                 {
-                    InitDlcAsync(statusProgress, CancellationToken.None).GetAwaiter().GetResult();
+                    InitDlcAsync(statusProgress, CancellationToken.None, includeDeferrable: !defer).GetAwaiter().GetResult();
                 }
                 else
                 {
-                    InitDlcAsync(null, CancellationToken.None).GetAwaiter().GetResult();
+                    InitDlcAsync(null, CancellationToken.None, includeDeferrable: !defer).GetAwaiter().GetResult();
                 }
                 //RE_Testing();
             }
@@ -335,7 +402,7 @@ namespace CodeWalker.GameFiles
             await PhaseAsync(status, ct, "Building global dictionaries...", InitGlobalDicts);
         }
 
-        private async Task InitDlcAsync(IProgress<string>? status, CancellationToken ct)
+        private async Task InitDlcAsync(IProgress<string>? status, CancellationToken ct, bool includeDeferrable = true)
         {
             await PhaseAsync(status, ct, "Building DLC List...", InitDlcList);
             await PhaseAsync(status, ct, "Building active RPF dictionary...", InitActiveMapRpfFiles);
@@ -345,6 +412,13 @@ namespace CodeWalker.GameFiles
             await PhaseAsync(status, ct, "Loading cache...", InitMapCaches);
             await PhaseAsync(status, ct, "Loading archetypes...", InitArchetypeDicts);
             await PhaseAsync(status, ct, "Loading strings...", InitStringDicts);
+            if (includeDeferrable)
+            {
+                await InitDeferrableAsync(status, ct);
+            }
+        }
+        private async Task InitDeferrableAsync(IProgress<string>? status, CancellationToken ct)
+        {
             await PhaseAsync(status, ct, "Loading vehicles...", InitVehicles);
             await PhaseAsync(status, ct, "Loading peds...", InitPeds);
             await PhaseAsync(status, ct, "Loading audio...", InitAudio);
@@ -1470,6 +1544,9 @@ namespace CodeWalker.GameFiles
             AllManifests = [];
             hdtexturelookup = new();
             IEnumerable<RpfFile> rpfs = PreloadedMode ? AllRpfs : (IEnumerable<RpfFile>)ActiveMapRpfFiles.Values;
+
+            //Thousands of manifests: parse them in parallel, then register them in the original order below.
+            var ymfEntries = new List<RpfEntry>();
             foreach (RpfFile file in rpfs)
             {
                 if (file.AllEntries == null) continue;
@@ -1477,35 +1554,57 @@ namespace CodeWalker.GameFiles
                 {
                     if (entry.Name.EndsWith(".ymf"))
                     {
-                        try
-                        {
-                            UpdateStatus?.Invoke(entry.Path);
-                            YmfFile? ymffile = ArchiveManager.GetFile<YmfFile>(entry);
-                            if (ymffile != null)
-                            {
-                                AllManifests.Add(ymffile);
-                                if (ymffile.HDTxdAssetBindings != null)
-                                {
-                                    for (int i = 0; i < ymffile.HDTxdAssetBindings.Length; i++)
-                                    {
-                                        var b = ymffile.HDTxdAssetBindings[i];
-                                        var targetasset = JenkHash.GenHash(b.targetAsset.ToString().ToLowerInvariant());
-                                        var hdtxd = JenkHash.GenHash(b.HDTxd.ToString().ToLowerInvariant());
-                                        hdtexturelookup[targetasset] = hdtxd;
-                                    }
-                                }
+                        ymfEntries.Add(entry);
+                    }
+                }
+            }
+            var ymfFiles = new YmfFile?[ymfEntries.Count];
+            var ymfErrors = new Exception?[ymfEntries.Count];
+            Parallel.For(0, ymfEntries.Count, i =>
+            {
+                try
+                {
+                    ymfFiles[i] = ArchiveManager.GetFile<YmfFile>(ymfEntries[i]);
+                }
+                catch (Exception ex)
+                {
+                    ymfErrors[i] = ex;
+                }
+            });
 
+            for (int ymfIndex = 0; ymfIndex < ymfEntries.Count; ymfIndex++)
+            {
+                var entry = ymfEntries[ymfIndex];
+                try
+                {
+                    UpdateStatus?.Invoke(entry.Path);
+                    if (ymfErrors[ymfIndex] is { } loadError)
+                    {
+                        ErrorLog?.Invoke(entry.Path + "\n" + loadError.ToString()); //as the catch below would have logged it
+                        continue;
+                    }
+                    YmfFile? ymffile = ymfFiles[ymfIndex];
+                    if (ymffile != null)
+                    {
+                        AllManifests.Add(ymffile);
+                        if (ymffile.HDTxdAssetBindings != null)
+                        {
+                            for (int i = 0; i < ymffile.HDTxdAssetBindings.Length; i++)
+                            {
+                                var b = ymffile.HDTxdAssetBindings[i];
+                                var targetasset = JenkHash.GenHash(b.targetAsset.ToString().ToLowerInvariant());
+                                var hdtxd = JenkHash.GenHash(b.HDTxd.ToString().ToLowerInvariant());
+                                hdtexturelookup[targetasset] = hdtxd;
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            string errstr = entry.Path + "\n" + ex.ToString();
-                            ErrorLog?.Invoke(errstr);
-                        }
+
                     }
-
                 }
-
+                catch (Exception ex)
+                {
+                    string errstr = entry.Path + "\n" + ex.ToString();
+                    ErrorLog?.Invoke(errstr);
+                }
             }
         }
 
@@ -1552,6 +1651,20 @@ namespace CodeWalker.GameFiles
                 CollectTxdEntries(DlcActiveRpfs);
             }
 
+            //the two resident texture dictionaries are big and independent of the parse below: load them alongside it
+            YtdFile? LoadResidentYtd(string name)
+            {
+                if (GetYtdEntry(JenkHash.GenHash(name)) is { } ytdentry)
+                {
+                    YtdFile ytd = new(ytdentry);
+                    LoadFile(ytd);
+                    return ytd;
+                }
+                return null;
+            }
+            var mapdetailTask = Task.Run(() => LoadResidentYtd("mapdetail"));
+            var vehshareTask = Task.Run(() => LoadResidentYtd("vehshare"));
+
             var txdRels = new Dictionary<string, string>?[txdEntries.Count];
             Parallel.For(0, txdEntries.Count, i =>
             {
@@ -1584,18 +1697,14 @@ namespace CodeWalker.GameFiles
 
 
 
-            //ensure resident global texture dicts:
-            if (GetYtdEntry(JenkHash.GenHash("mapdetail")) is { } entry1)
+            //ensure resident global texture dicts (lookups added in the same order as before: mapdetail, then vehshare):
+            if (mapdetailTask.GetAwaiter().GetResult() is { } ytd1)
             {
-                YtdFile ytd1 = new(entry1);
-                LoadFile(ytd1);
                 AddTextureLookups(ytd1);
             }
 
-            if (GetYtdEntry(JenkHash.GenHash("vehshare")) is { } entry2)
+            if (vehshareTask.GetAwaiter().GetResult() is { } ytd2)
             {
-                YtdFile ytd2 = new(entry2);
-                LoadFile(ytd2);
                 AddTextureLookups(ytd2);
             }
 

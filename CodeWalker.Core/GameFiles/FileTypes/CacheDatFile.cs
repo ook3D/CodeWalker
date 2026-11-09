@@ -808,6 +808,16 @@ namespace CodeWalker.GameFiles
 
         public MapDataStoreNode()
         { }
+        public MapDataStoreNode(in CMapData mapdata)
+        {
+            Name = mapdata.name;
+            ParentName = mapdata.parent;
+            ContentFlags = mapdata.contentFlags;
+            streamingExtentsMin = mapdata.streamingExtentsMin;
+            streamingExtentsMax = mapdata.streamingExtentsMax;
+            entitiesExtentsMin = mapdata.entitiesExtentsMin;
+            entitiesExtentsMax = mapdata.entitiesExtentsMax;
+        }
         public MapDataStoreNode(YmapFile ymap)
         {
             Name = ymap._CMapData.name;

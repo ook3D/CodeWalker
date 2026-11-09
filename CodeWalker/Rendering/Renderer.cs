@@ -203,9 +203,12 @@ namespace CodeWalker.Rendering
 
         public void DeviceCreated(Device device, int width, int height)
         {
+            StartupTimer.Mark("Renderer.DeviceCreated start");
             currentdevice = device;
 
+            StartupTimer.Mark("before ShaderManager");
             shaders = new ShaderManager(device, dxman);
+            StartupTimer.Mark("after ShaderManager ctor");
             shaders.OnWindowResize(width, height); //init the buffers
 
             renderableCache.OnDeviceCreated(device);
@@ -214,6 +217,7 @@ namespace CodeWalker.Rendering
 
 
             markerquad = new UnitQuad(device);
+            StartupTimer.Mark("Renderer.DeviceCreated end");
 
         }
 
@@ -3950,7 +3954,7 @@ namespace CodeWalker.Rendering
             if ((carhash == 0) && (modelSetHash != 0))
             {
                 //find the pop group... and choose a vehicle..
-                var stypes = Scenarios.ScenarioTypes;
+                var stypes = Scenarios.TryGetScenarioTypes();
                 if (stypes != null)
                 {
                     var modelset = stypes.GetVehicleModelSet(modelSetHash);
@@ -3997,7 +4001,7 @@ namespace CodeWalker.Rendering
             if ((modelSetHash != 0) && (modelSetHash != 493038497)) // "none"
             {
                 // Get ped model from the model set
-                var stypes = Scenarios.ScenarioTypes;
+                var stypes = Scenarios.TryGetScenarioTypes();
                 if (stypes != null)
                 {
                     var modelset = stypes.GetPedModelSet(modelSetHash);
@@ -4064,7 +4068,7 @@ namespace CodeWalker.Rendering
 
                 if (point?.Type != null)
                 {
-                    var stypes = Scenarios.ScenarioTypes;
+                    var stypes = Scenarios.TryGetScenarioTypes();
                     List<string>? clipSetNames = null;
 
                     // Get the scenario type name for sitting detection

@@ -18,7 +18,51 @@ namespace CodeWalker.World
         public Timecycle? Timecycle { get; set; }
         public GameFileCache? GameFileCache { get; set; }
 
-        public static ScenarioTypes? ScenarioTypes { get; set; }
+        //While a deferred load is pending (see MarkScenarioTypesPending), reading this waits until the types have been
+        //assigned, instead of returning null to a caller that would then silently carry on without them.
+        public static ScenarioTypes? ScenarioTypes
+        {
+            get
+            {
+                var pending = scenarioTypesPending;
+                if ((pending != null) && !pending.IsSet)
+                {
+                    pending.Wait();
+                }
+                return scenarioTypes;
+            }
+            set
+            {
+                scenarioTypes = value;
+                ReleaseScenarioTypesPending();
+            }
+        }
+        private static ScenarioTypes? scenarioTypes;
+
+        /// <summary>Non-blocking variant of ScenarioTypes for render/UI threads: null while the deferred load is still pending.</summary>
+        public static ScenarioTypes? TryGetScenarioTypes()
+        {
+            var pending = scenarioTypesPending;
+            if ((pending != null) && !pending.IsSet)
+            {
+                return null;
+            }
+            return scenarioTypes;
+        }
+
+        private static volatile System.Threading.ManualResetEventSlim? scenarioTypesPending;
+
+        /// <summary>Call before loading scenarios in the background: ScenarioTypes readers then wait for them.</summary>
+        public static void MarkScenarioTypesPending()
+        {
+            scenarioTypesPending = new System.Threading.ManualResetEventSlim(false);
+        }
+
+        /// <summary>Releases waiting readers (also called when assigned). The background loader calls it when done, even on failure.</summary>
+        public static void ReleaseScenarioTypesPending()
+        {
+            scenarioTypesPending?.Set();
+        }
 
         public List<YmtFile> ScenarioRegions { get; set; } = new();
 
@@ -53,6 +97,8 @@ namespace CodeWalker.World
             var manifestymt = rpfman.GetFile<YmtFile>(manifestfilename);
             if ((manifestymt != null) && (manifestymt.CScenarioPointManifest != null))
             {
+                //resolve the file names in order, load the region ymts in parallel, then add them in order
+                var regionLoaders = new List<Func<YmtFile?>>();
                 foreach (var region in manifestymt.CScenarioPointManifest.RegionDefs)
                 {
                     string regionfilename = region.Name.ToString() + ".ymt"; //JenkIndex lookup... ymt should have already loaded path strings into it! maybe change this...
@@ -64,13 +110,10 @@ namespace CodeWalker.World
                     {
                         usefilename = basefilename;
                     }
-                    var regionymt = rpfman.GetFile<YmtFile>(usefilename);
-
-                    if (regionymt == null)
-                    {
-                        regionymt = rpfman.GetFile<YmtFile>(basefilename);
-                    }
-
+                    regionLoaders.Add(() => rpfman.GetFile<YmtFile>(usefilename) ?? rpfman.GetFile<YmtFile>(basefilename));
+                }
+                foreach (var regionymt in LoadRegionsInOrder(regionLoaders))
+                {
                     if (regionymt != null)
                     {
                         var sregion = regionymt.ScenarioRegion;
@@ -115,6 +158,7 @@ namespace CodeWalker.World
                     }
                 }
 
+                Dictionary<string, List<RpfFileEntry>>? entriesByName = null;
                 foreach (var rpf in rpfFilesToScan)
                 {
                     if (rpf?.AllEntries == null) continue;
@@ -179,6 +223,7 @@ namespace CodeWalker.World
 
                                     if (regionDefs != null && regionDefs.Length > 0)
                                     {
+                                        var regionLoaders = new List<Func<YmtFile?>>();
                                         foreach (var region in regionDefs)
                                         {
                                             string originalName = region.Name.ToString();
@@ -206,34 +251,32 @@ namespace CodeWalker.World
 
                                             string regionfilenameLower = regionfilename.ToLowerInvariant();
 
-                                            // Search for the region file across ALL RPFs (including parent DLC RPFs)
-                                            YmtFile? regionymt = null;
-                                            bool found = false;
-
-                                            foreach (var searchRpf in rpfFilesToScan)
+                                            // Search for the region file across ALL RPFs (including parent DLC RPFs).
+                                            // The name index lists the candidates in the same rpf/entry order a full
+                                            // scan would visit them, so the first valid match is the same file.
+                                            entriesByName ??= BuildEntryNameIndex(rpfFilesToScan);
+                                            entriesByName.TryGetValue(regionfilenameLower, out var candidates);
+                                            regionLoaders.Add(() =>
                                             {
-                                                if (searchRpf?.AllEntries == null) continue;
-
-                                                foreach (var regionEntry in searchRpf.AllEntries)
+                                                if (candidates != null)
                                                 {
-                                                    if (regionEntry is RpfFileEntry regionFentry && regionFentry.NameLower == regionfilenameLower)
+                                                    foreach (var regionFentry in candidates)
                                                     {
-                                                        regionymt = rpfman.GetFile<YmtFile>(regionFentry);
-                                                        if (regionymt != null)
+                                                        var regionymt = rpfman.GetFile<YmtFile>(regionFentry);
+                                                        if (regionymt?.ScenarioRegion != null)
                                                         {
-                                                            var sregion = regionymt.ScenarioRegion;
-                                                            if (sregion != null)
-                                                            {
-                                                                ScenarioRegions.Add(regionymt);
-                                                                found = true;
-                                                                regionymt = null; // Mark as handled
-                                                                break;
-                                                            }
+                                                            return regionymt; // Found it, stop searching
                                                         }
                                                     }
                                                 }
-
-                                                if (found) break; // Found it, stop searching
+                                                return null;
+                                            });
+                                        }
+                                        foreach (var regionymt in LoadRegionsInOrder(regionLoaders))
+                                        {
+                                            if (regionymt != null)
+                                            {
+                                                ScenarioRegions.Add(regionymt);
                                             }
                                         }
                                     }
@@ -251,6 +294,60 @@ namespace CodeWalker.World
             Inited = true;
         }
 
+
+        //Runs the region loaders in parallel (the ymt loads are the cost) and yields their results in input order.
+        //A loader that threw rethrows when its turn comes, after the earlier results - the same point at which the
+        //sequential loop it replaces would have stopped.
+        private static IEnumerable<YmtFile?> LoadRegionsInOrder(List<Func<YmtFile?>> loaders)
+        {
+            var results = new YmtFile?[loaders.Count];
+            var errors = new Exception?[loaders.Count];
+            Parallel.For(0, loaders.Count, i =>
+            {
+                try
+                {
+                    results[i] = loaders[i]();
+                }
+                catch (Exception ex)
+                {
+                    errors[i] = ex;
+                }
+            });
+            for (int i = 0; i < loaders.Count; i++)
+            {
+                if (errors[i] != null)
+                {
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(errors[i]!).Throw();
+                }
+                yield return results[i];
+            }
+        }
+
+        //file name -> file entries with that name, in rpf order then entry order
+        private static Dictionary<string, List<RpfFileEntry>> BuildEntryNameIndex(IEnumerable<RpfFile> rpfs)
+        {
+            var index = new Dictionary<string, List<RpfFileEntry>>();
+            foreach (var rpf in rpfs)
+            {
+                if (rpf?.AllEntries == null)
+                {
+                    continue;
+                }
+                foreach (var entry in rpf.AllEntries)
+                {
+                    if ((entry is RpfFileEntry fentry) && (fentry.NameLower != null))
+                    {
+                        if (!index.TryGetValue(fentry.NameLower, out var list))
+                        {
+                            list = new List<RpfFileEntry>(1);
+                            index[fentry.NameLower] = list;
+                        }
+                        list.Add(fentry);
+                    }
+                }
+            }
+            return index;
+        }
 
         public static void EnsureScenarioTypes(GameFileCache gfc)
         {

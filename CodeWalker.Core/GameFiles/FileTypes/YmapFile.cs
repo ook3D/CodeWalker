@@ -83,6 +83,30 @@ namespace CodeWalker.GameFiles
             Loaded = true;
         }
 
+        //Reads only the CMapData header of a resource (RSC7 meta) ymap - what the map data store needs at startup -
+        //with the same JenkIndex side effect as Load, but without building entities, lights, grass etc.
+        //Returns false for anything Load would handle differently (non-resource ymaps).
+        internal static bool TryLoadMapDataHeader(byte[] data, RpfFileEntry entry, out CMapData mapdata)
+        {
+            mapdata = default;
+            if (entry is not RpfResourceFileEntry resentry)
+            {
+                return false;
+            }
+            ResourceDataReader rd = new(resentry, data);
+            var meta = rd.ReadRequiredBlock<Meta>();
+            mapdata = MetaTypes.GetTypedData<CMapData>(meta, MetaName.CMapData);
+            var strings = MetaTypes.GetStrings(meta);
+            if (strings != null)
+            {
+                foreach (string str in strings)
+                {
+                    JenkIndex.Ensure(str);
+                }
+            }
+            return true;
+        }
+
         public void Load(byte[] data, RpfFileEntry entry)
         {
             Name = entry.Name;

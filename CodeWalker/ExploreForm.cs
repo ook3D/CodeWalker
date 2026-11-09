@@ -228,6 +228,7 @@ namespace CodeWalker
         private void Init()
         {
             //called from ExploreForm_Load
+            StartupTimer.Mark("Explorer Init start");
 
             InitFileTypes();
 
@@ -253,7 +254,10 @@ namespace CodeWalker
                     return;
                 }
 
+                StartupTimer.Mark("Explorer keys loaded");
+
                 RefreshMainTreeView();
+                StartupTimer.Mark("EXPLORER_TREE_READY");
 
                 UpdateStatus("Scan complete.");
 
@@ -290,9 +294,11 @@ namespace CodeWalker
                     {
                         if (!FileCache.IsInited)
                         {
+                            StartupTimer.Mark("InitFileCache start");
                             UpdateStatus("Loading file cache...");
                             var allRpfs = AllRpfs;
                             FileCache.Init(UpdateStatus, UpdateErrorLog, allRpfs); //inits main dicts and archetypes only...
+                            StartupTimer.Mark("FileCache.Init(list) done");
 
                             UpdateStatus("Loading materials...");
                             BoundsMaterialTypes.Init(FileCache);
@@ -301,6 +307,11 @@ namespace CodeWalker
                             Scenarios.EnsureScenarioTypes(FileCache);
 
                             UpdateStatus("File cache loaded.");
+                            StartupTimer.Mark("EXPLORER_CACHE_READY");
+                            if (StartupFingerprint.Enabled)
+                            {
+                                StartupFingerprint.Dump("explorer", FileCache, null, DescribeExplorerTree());
+                            }
                         }
                     }
                 }
@@ -311,6 +322,47 @@ namespace CodeWalker
                 }
             });
         }
+        private Dictionary<string, string> DescribeExplorerTree()
+        {
+            //startup fingerprint of the explorer's tree model (folders, files, archives) - see StartupFingerprint
+            var folders = new List<string>();
+            var files = new List<string>();
+            void Walk(MainTreeFolder? f)
+            {
+                if (f == null)
+                {
+                    return;
+                }
+                folders.Add(f.Path + "|" + f.FullPath + "|" + f.Name + "|" + (f.RpfFile?.Path ?? "") + "|" + (f.RpfFolder?.Path ?? "") + "|" + (f.Children?.Count ?? 0) + "|" + (f.Files?.Count ?? 0) + "|" + (f.Parent?.Path ?? "<none>"));
+                if (f.Files != null)
+                {
+                    foreach (var file in f.Files)
+                    {
+                        files.Add(f.Path + ">" + file);
+                    }
+                }
+                if (f.Children != null)
+                {
+                    foreach (var c in f.Children)
+                    {
+                        Walk(c);
+                    }
+                }
+            }
+            Walk(RootFolder);
+            foreach (var extra in ExtraRootFolders)
+            {
+                Walk(extra);
+            }
+            return new Dictionary<string, string>
+            {
+                ["Explorer.Folders"] = StartupFingerprint.SetHash(folders),
+                ["Explorer.Files"] = StartupFingerprint.SetHash(files),
+                ["Explorer.AllRpfs[ordered]"] = StartupFingerprint.ListHash(AllRpfs.Select(r => r.Path + "|" + r.FilePath)),
+                ["Explorer.ExtraRoots[ordered]"] = StartupFingerprint.ListHash(ExtraRootFolders.Select(r => r.FullPath)),
+            };
+        }
+
         public GameFileCache GetFileCache()
         {
             if (!FileCache.IsInited)
@@ -452,6 +504,9 @@ namespace CodeWalker
 
 
 
+        private volatile string pendingStatusText = string.Empty;
+        private int statusUpdatePending; //0 = no marshal in flight, 1 = one queued
+
         public void UpdateStatus(string text)
         {
             try
@@ -459,7 +514,22 @@ namespace CodeWalker
                 if (IsDisposed || IsHandleCreated == false) return;
                 if (InvokeRequired)
                 {
-                    BeginInvoke(new Action(() => { UpdateStatus(text); }));
+                    //Coalesce (as WorldForm does): the tree scan reports every file and archive from worker threads.
+                    //One BeginInvoke each floods the UI queue, and the tree's own Invoke calls then wait behind tens
+                    //of thousands of label updates. Keep at most one marshal in flight; it shows the latest text.
+                    pendingStatusText = text;
+                    if (Interlocked.Exchange(ref statusUpdatePending, 1) == 0)
+                    {
+                        BeginInvoke(new Action(() =>
+                        {
+                            Interlocked.Exchange(ref statusUpdatePending, 0);
+                            if (IsDisposed)
+                            {
+                                return;
+                            }
+                            StatusLabel.Text = pendingStatusText;
+                        }));
+                    }
                 }
                 else
                 {
@@ -472,12 +542,17 @@ namespace CodeWalker
         }
         public void UpdateErrorLog(string text)
         {
+            StartupFingerprint.NoteError(text);
+            UpdateErrorLogDisplay(text);
+        }
+        private void UpdateErrorLogDisplay(string text)
+        {
             try
             {
                 if (IsDisposed || IsHandleCreated == false) return;
                 if (InvokeRequired)
                 {
-                    BeginInvoke(new Action(() => { UpdateErrorLog(text); }));
+                    BeginInvoke(new Action(() => { UpdateErrorLogDisplay(text); }));
                 }
                 else
                 {
@@ -799,6 +874,7 @@ namespace CodeWalker
             RootFolder = root;
 
             RefreshMainTreeViewRoot(root);
+            StartupTimer.Mark("Explorer: main root scan+tree done");
 
 
             var remFolders = new List<MainTreeFolder>();
@@ -810,6 +886,7 @@ namespace CodeWalker
                 if (Directory.Exists(extraroot.FullPath))
                 {
                     RefreshMainTreeViewRoot(extraroot, true);
+                    StartupTimer.Mark("Explorer: extra root done: " + extraroot.FullPath);
                 }
                 else
                 {
@@ -832,17 +909,50 @@ namespace CodeWalker
             var allRpfs = new List<RpfFile>();
             var fullPath = f.FullPath;
             var subPath = f.Path;
+            //(path, is file). Resource folders hold tens of thousands of entries: take the kind from the enumeration
+            //instead of a File.Exists call per entry.
             var allpaths = GetFiveMFolders().Contains(fullPath, StringComparer.OrdinalIgnoreCase)
-                ? RpfManager.EnumerateExtraFolderEntries(fullPath, includeDirectories: true).ToArray()
-                : Directory.GetFileSystemEntries(fullPath, "*", SearchOption.AllDirectories);
+                ? RpfManager.EnumerateExtraFolderEntryKinds(fullPath).Select(e => (path: e.path, isFile: !e.isDirectory)).ToArray()
+                : Directory.GetFileSystemEntries(fullPath, "*", SearchOption.AllDirectories).Select(p => (path: p, isFile: File.Exists(p))).ToArray(); //could be a folder
+            StartupTimer.Mark("Explorer: enumerated " + allpaths.Length + " entries under " + fullPath);
             var nodes = new Dictionary<string, MainTreeFolder>();
 
-            foreach (var path in allpaths)
+            //Scan the archives in parallel up front (each scan opens its own stream and only touches its own RpfFile),
+            //then build the tree from them in the original order below.
+            var rpfIndices = new List<int>();
+            for (int i = 0; i < allpaths.Length; i++)
             {
+                if (allpaths[i].isFile && allpaths[i].path.ToLowerInvariant().EndsWith(".rpf"))
+                {
+                    rpfIndices.Add(i);
+                }
+            }
+            var scannedRpfs = new Dictionary<int, (RpfFile? rpf, Exception? error)>(rpfIndices.Count);
+            var scanResults = new (RpfFile? rpf, Exception? error)[rpfIndices.Count];
+            Parallel.For(0, rpfIndices.Count, r =>
+            {
+                var path = allpaths[rpfIndices[r]].path;
+                try
+                {
+                    RpfFile scanrpf = new(path, path.Replace(fullPath, ""));
+                    scanrpf.ScanStructure(UpdateStatus, UpdateErrorLog);
+                    scanResults[r] = (scanrpf, null);
+                }
+                catch (Exception ex)
+                {
+                    scanResults[r] = (null, ex);
+                }
+            });
+            for (int r = 0; r < rpfIndices.Count; r++)
+            {
+                scannedRpfs[rpfIndices[r]] = scanResults[r];
+            }
+
+            for (int pathIndex = 0; pathIndex < allpaths.Length; pathIndex++)
+            {
+                var (path, isFile) = allpaths[pathIndex];
                 var relpath = path.Replace(fullPath, "");
                 var filepathl = path.ToLowerInvariant();
-
-                var isFile = File.Exists(path); //could be a folder
 
                 UpdateStatus("Scanning " + relpath + "...");
 
@@ -882,11 +992,13 @@ namespace CodeWalker
                 {
                     if (filepathl.EndsWith(".rpf")) //add RPF nodes
                     {
-                        RpfFile rpf = new(path, relpath);
+                        var (rpf, scanError) = scannedRpfs[pathIndex];
+                        if (scanError != null)
+                        {
+                            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(scanError).Throw(); //as if thrown here, like before
+                        }
 
-                        rpf.ScanStructure(UpdateStatus, UpdateErrorLog);
-
-                        if (rpf.LastException != null) //incase of corrupted rpf (or renamed NG encrypted RPF)
+                        if (rpf!.LastException != null) //incase of corrupted rpf (or renamed NG encrypted RPF)
                         {
                             continue;
                         }
@@ -924,6 +1036,7 @@ namespace CodeWalker
             }
 
 
+            StartupTimer.Mark("Explorer: entry loop done for " + fullPath);
             AddMainTreeViewRoot(f);
 
             if (f.Children != null)
@@ -1056,9 +1169,17 @@ namespace CodeWalker
                     string n = f.Name;
                     var root = f.Parent?.TreeNode;
 
-                    RecurseAddMainTreeViewNodes(f, root);
+                    MainTreeView.BeginUpdate(); //a resource folder adds thousands of nodes - repaint once at the end
+                    try
+                    {
+                        RecurseAddMainTreeViewNodes(f, root);
 
-                    root?.Expand();
+                        root?.Expand();
+                    }
+                    finally
+                    {
+                        MainTreeView.EndUpdate();
+                    }
                 }
             }
             catch (ObjectDisposedException) { }
@@ -3870,6 +3991,7 @@ namespace CodeWalker
 
         private void ExploreForm_Load(object sender, EventArgs e)
         {
+            StartupTimer.Mark("ExploreForm_Load start");
             Init();
         }
 

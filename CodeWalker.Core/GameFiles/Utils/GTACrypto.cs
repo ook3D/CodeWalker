@@ -114,15 +114,23 @@ namespace CodeWalker.GameFiles
             var keyuints = new uint[key.Length / 4];
             Buffer.BlockCopy(key, 0, keyuints, 0, key.Length);
 
-            // Reuse a single buffer for block operations to avoid allocations in the loop
-            var encryptedBlock = new byte[16];
+            //Same rounds as DecryptNGBlock, but in place on the stack: the per-block path allocates ~4 KB of small
+            //arrays per 16-byte block, which made every archive TOC read and encrypted-file extract GC-bound.
+            var tables = GTA5Keys.PC_NG_DECRYPT_TABLES;
+            Span<byte> block = stackalloc byte[16];
             int blockCount = data.Length / 16;
             for (int blockIndex = 0; blockIndex < blockCount; blockIndex++)
             {
                 int offset = 16 * blockIndex;
-                Array.Copy(data, offset, encryptedBlock, 0, 16);
-                var decryptedBlock = DecryptNGBlock(encryptedBlock, keyuints);
-                Array.Copy(decryptedBlock, 0, decryptedData, offset, 16);
+                data.AsSpan(offset, 16).CopyTo(block);
+                DecryptNGRoundA(block, keyuints, 0, tables[0]);
+                DecryptNGRoundA(block, keyuints, 1, tables[1]);
+                for (int k = 2; k <= 15; k++)
+                {
+                    DecryptNGRoundB(block, keyuints, k, tables[k]);
+                }
+                DecryptNGRoundA(block, keyuints, 16, tables[16]);
+                block.CopyTo(decryptedData.AsSpan(offset, 16));
             }
 
             if (data.Length % 16 != 0)
@@ -132,6 +140,30 @@ namespace CodeWalker.GameFiles
             }
 
             return decryptedData;
+        }
+
+        //in-place variants of DecryptNGRoundA/B (round index r selects the 4 subkey uints)
+        private static void DecryptNGRoundA(Span<byte> d, uint[] key, int r, uint[][] table)
+        {
+            uint x1 = table[0][d[0]] ^ table[1][d[1]] ^ table[2][d[2]] ^ table[3][d[3]] ^ key[4 * r + 0];
+            uint x2 = table[4][d[4]] ^ table[5][d[5]] ^ table[6][d[6]] ^ table[7][d[7]] ^ key[4 * r + 1];
+            uint x3 = table[8][d[8]] ^ table[9][d[9]] ^ table[10][d[10]] ^ table[11][d[11]] ^ key[4 * r + 2];
+            uint x4 = table[12][d[12]] ^ table[13][d[13]] ^ table[14][d[14]] ^ table[15][d[15]] ^ key[4 * r + 3];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d, x1);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d.Slice(4), x2);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d.Slice(8), x3);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d.Slice(12), x4);
+        }
+        private static void DecryptNGRoundB(Span<byte> d, uint[] key, int r, uint[][] table)
+        {
+            uint x1 = table[0][d[0]] ^ table[7][d[7]] ^ table[10][d[10]] ^ table[13][d[13]] ^ key[4 * r + 0];
+            uint x2 = table[1][d[1]] ^ table[4][d[4]] ^ table[11][d[11]] ^ table[14][d[14]] ^ key[4 * r + 1];
+            uint x3 = table[2][d[2]] ^ table[5][d[5]] ^ table[8][d[8]] ^ table[15][d[15]] ^ key[4 * r + 2];
+            uint x4 = table[3][d[3]] ^ table[6][d[6]] ^ table[9][d[9]] ^ table[12][d[12]] ^ key[4 * r + 3];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d, x1);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d.Slice(4), x2);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d.Slice(8), x3);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(d.Slice(12), x4);
         }
 
         public static byte[] DecryptNGBlock(byte[] data, uint[] key)

@@ -18,6 +18,7 @@ static class Program
         static void Main(string[] args)
         {
 
+            StartupTimer.Mark("Main start");
             bool menumode = false;
             bool explorermode = false;
             bool projectmode = false;
@@ -65,6 +66,7 @@ static class Program
                 MessageBox.Show("Could not load CodeWalker because no valid GTA 5 folder was selected. CodeWalker will now exit.", "GTA 5 Folder Not Found", MessageBoxButtons.OK, MessageBoxIcon.Stop);
                 return;
             }
+            StartupTimer.Mark("before Application.Run");
 #if !DEBUG
             try
             {

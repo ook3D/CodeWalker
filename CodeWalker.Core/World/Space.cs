@@ -60,31 +60,37 @@ namespace CodeWalker.World
             updateStatus("Scanning manifests...");
 
             InitManifestData();
+            StartupTimer.Mark("Space.Init: InitManifestData done");
 
 
             updateStatus("Scanning caches...");
 
             InitCacheData();
+            StartupTimer.Mark("Space.Init: InitCacheData done");
 
 
             updateStatus("Building map data store...");
 
             InitMapDataStore();
+            StartupTimer.Mark("Space.Init: InitMapDataStore done");
 
 
             updateStatus("Building bounds store...");
 
             InitBoundsStore();
+            StartupTimer.Mark("Space.Init: InitBoundsStore done");
 
 
             updateStatus("Loading paths...");
 
             InitNodeGrid();
+            StartupTimer.Mark("Space.Init: InitNodeGrid done");
 
 
             updateStatus("Loading nav meshes...");
 
             InitNavGrid();
+            StartupTimer.Mark("Space.Init: InitNavGrid done");
 
 
             Inited = true;
@@ -360,15 +366,84 @@ namespace CodeWalker.World
                     }
                 }
 
-                // Process uncached entries
-                foreach (var (entry, isYmap, isExtra) in uncachedEntries)
+                // Load and parse the uncached files in parallel - with FiveM resource folders this is thousands
+                // of ymaps and ybns, and loading them one by one dominated startup. Only the few values the
+                // registration below needs are kept (not the parsed files), and registration itself stays
+                // sequential in the original order, so the override/diagnostic behaviour is unchanged.
+                var loaded = new UncachedMapFile?[uncachedEntries.Count];
+                var archiveManager = ArchiveManager;
+                Parallel.For(0, uncachedEntries.Count, i =>
                 {
+                    var (entry, isYmap, _) = uncachedEntries[i];
                     try
                     {
                         if (isYmap)
                         {
-                            var ymap = ArchiveManager.GetFile<YmapFile>(entry);
-                            if (ymap != null)
+                            //only the CMapData header is needed here - a full ymap parse (entities, lod lights,
+                            //grass) of every resource ymap costs gigabytes of allocations. Falls back to the
+                            //full load for anything the header read doesn't handle, so the outcome is the same.
+                            var fentry = entry as RpfFileEntry;
+                            var data = (fentry is RpfResourceFileEntry) ? fentry.File?.ExtractFile(fentry) : null;
+                            bool headerOk = false;
+                            CMapData mapdata = default;
+                            if (data != null)
+                            {
+                                try
+                                {
+                                    headerOk = YmapFile.TryLoadMapDataHeader(data, fentry!, out mapdata);
+                                }
+                                catch
+                                {
+                                    headerOk = false;
+                                }
+                            }
+                            if (headerOk)
+                            {
+                                loaded[i] = new UncachedMapFile(mapdata.name, mapdata.parent,
+                                    new MapDataStoreNode(mapdata) { Name = entry.ShortNameHash }, null);
+                            }
+                            else if ((data != null) || !(fentry is RpfResourceFileEntry))
+                            {
+                                var ymap = archiveManager.GetFile<YmapFile>(entry);
+                                if (ymap != null)
+                                {
+                                    loaded[i] = new UncachedMapFile(ymap._CMapData.name, ymap._CMapData.parent,
+                                        new MapDataStoreNode(ymap) { Name = entry.ShortNameHash }, null);
+                                }
+                            }
+                        }
+                        else if (TryReadYbnBox(entry, out var bmin, out var bmax))
+                        {
+                            loaded[i] = new UncachedMapFile(default, default, null, new BoundsStoreItem { Name = new MetaHash(entry.ShortNameHash), Min = bmin, Max = bmax, Layer = 0 });
+                        }
+                        else
+                        {
+                            var ybn = archiveManager.GetFile<YbnFile>(entry);
+                            if (ybn?.Bounds != null)
+                            {
+                                loaded[i] = new UncachedMapFile(default, default, null, new BoundsStoreItem(ybn.Bounds) { Name = new MetaHash(entry.ShortNameHash) });
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Silently continue on file loading errors to maintain robustness
+                    }
+                });
+
+                // Process uncached entries
+                for (int i = 0; i < uncachedEntries.Count; i++)
+                {
+                    var (entry, isYmap, isExtra) = uncachedEntries[i];
+                    var file = loaded[i];
+                    if (file == null)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        if (isYmap)
+                        {
                             {
                                 //A DLC map changeset swapped this ymap's variant out (eg the vanilla id2_* set
                                 //under mpheist) and its LOD parent went with it, but a mods/extra folder still
@@ -376,7 +451,7 @@ namespace CodeWalker.World
                                 //of the replacement variant's chain. Only skip when the parent really is gone -
                                 //a resource that ships a whole self-consistent set (eg the vw_lodlights pair)
                                 //supplies its own parent and stays.
-                                var pymap = ymap._CMapData.parent;
+                                var pymap = file.Parent;
                                 if ((pymap != 0) && GameFileCache.DisabledYmaps.Contains(entry.ShortNameHash)
                                     && !GameFileCache.YmapDict.ContainsKey(pymap))
                                 {
@@ -390,29 +465,28 @@ namespace CodeWalker.World
                                 //their file name - common in FiveM resources built from vanilla ymaps -
                                 //would otherwise replace the cached node of that name, wiping out its
                                 //child list and breaking the LOD hierarchy chain for the real ymap.
-                                var dsn = new MapDataStoreNode(ymap) { Name = entry.ShortNameHash };
+                                var dsn = file.Node!;
                                 if (dsn.Name != 0)
                                     nodedict[dsn.Name] = dsn;
 
                                 //only worth reporting for mod/resource ymaps - the game ships plenty of vanilla
                                 //ymaps whose internal name doesn't match the file, and those work fine
-                                if (isExtra && (ymap._CMapData.name != entry.ShortNameHash))
+                                if (isExtra && (file.MapName != entry.ShortNameHash))
                                 {
-                                    LodDiag.Report(entry.Path + ": CMapData.name is '" + ymap._CMapData.name.ToString() + "' but the file is named '" + entry.GetShortNameLower() + "'. Anything referencing it as a LOD parent uses the file name, so the internal name must match.");
+                                    LodDiag.Report(entry.Path + ": CMapData.name is '" + file.MapName.ToString() + "' but the file is named '" + entry.GetShortNameLower() + "'. Anything referencing it as a LOD parent uses the file name, so the internal name must match.");
                                 }
-                                if ((ymap._CMapData.parent != 0) && !GameFileCache.YmapDict.ContainsKey(ymap._CMapData.parent))
+                                if ((file.Parent != 0) && !GameFileCache.YmapDict.ContainsKey(file.Parent))
                                 {
-                                    LodDiag.Report(entry.Path + ": LOD parent '" + ymap._CMapData.parent.ToString() + "' doesn't exist - its LOD chain stops here.");
+                                    LodDiag.Report(entry.Path + ": LOD parent '" + file.Parent.ToString() + "' doesn't exist - its LOD chain stops here.");
                                 }
                             }
                         }
                         else
                         {
-                            var ybn = ArchiveManager.GetFile<YbnFile>(entry);
-                            if (ybn?.Bounds != null)
+                            var item = file.Bounds;
+                            if (item != null)
                             {
-                                var ehash = new MetaHash(entry.ShortNameHash);
-                                var item = new BoundsStoreItem(ybn.Bounds) { Name = ehash };
+                                var ehash = item.Name;
                                 var key = new SpaceBoundsKey(ehash, item.Min);
                                 boundsdict[key] = item;
                                 usedboundsdict[ehash] = item;
@@ -426,6 +500,92 @@ namespace CodeWalker.World
                 }
             }
         }
+
+        //The bounds store only needs a ybn's root bounding box, which sits in the phBound header at the very start
+        //of the resource's system data (BoxMax at 0x20, BoxMin at 0x30 - see Bounds.Read). FiveM resource folders and
+        //mod packs bring thousands of uncached ybns, often several MB of collision each, so inflate just that header
+        //instead of decompressing and parsing the whole collision mesh. Anything unexpected (encrypted entry, not
+        //enough data, unsupported type, any error) returns false and the caller does the full load instead.
+        private static bool TryReadYbnBox(RpfEntry entry, out Vector3 min, out Vector3 max)
+        {
+            min = default;
+            max = default;
+            if ((entry is not RpfResourceFileEntry resentry) || (entry.File == null))
+            {
+                return false;
+            }
+            try
+            {
+                System.IO.Stream compressed;
+                if (entry.File is LooseRpfFile loose)
+                {
+                    if (string.IsNullOrEmpty(loose.FilePath))
+                    {
+                        return false;
+                    }
+                    var fs = new System.IO.FileStream(loose.FilePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read, 4096);
+                    try
+                    {
+                        Span<byte> rsc = stackalloc byte[16];
+                        if ((fs.Read(rsc) != 16) || (BitConverter.ToUInt32(rsc) != 0x37435352)) //RSC7 header, as LooseRpfFile.ExtractFile expects
+                        {
+                            fs.Dispose();
+                            return false;
+                        }
+                    }
+                    catch
+                    {
+                        fs.Dispose();
+                        throw;
+                    }
+                    compressed = fs;
+                }
+                else
+                {
+                    //inside an archive: same location RpfFile.ExtractFileResource reads (after the 16-byte header);
+                    //encrypted entries would need the whole entry decrypted first, so leave those to the full load
+                    if (resentry.IsEncrypted || (resentry.FileSize <= 0x10))
+                    {
+                        return false;
+                    }
+                    var prefix = new byte[Math.Min(resentry.FileSize - 0x10, 16384u)];
+                    using (var fs = new System.IO.FileStream(entry.File.GetPhysicalFilePath(), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read, 4096))
+                    {
+                        fs.Position = entry.File.StartPos + ((long)resentry.FileOffset * 512) + 0x10;
+                        fs.ReadExactly(prefix);
+                    }
+                    compressed = new System.IO.MemoryStream(prefix);
+                }
+                using (compressed)
+                using (var ds = new System.IO.Compression.DeflateStream(compressed, System.IO.Compression.CompressionMode.Decompress))
+                {
+                    Span<byte> hdr = stackalloc byte[0x3C];
+                    ds.ReadExactly(hdr);
+                    if (Bounds.Create((BoundsType)hdr[0x10]) == null)
+                    {
+                        return false; //unsupported type - the full load rejects these
+                    }
+                    var f = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>(hdr);
+                    max = new Vector3(f[0x20 / 4], f[0x24 / 4], f[0x28 / 4]);
+                    min = new Vector3(f[0x30 / 4], f[0x34 / 4], f[0x38 / 4]);
+                    //a garbage box (non-finite or inverted) means the header isn't what we assumed: let the full load decide
+                    if (!float.IsFinite(min.X) || !float.IsFinite(min.Y) || !float.IsFinite(min.Z) ||
+                        !float.IsFinite(max.X) || !float.IsFinite(max.Y) || !float.IsFinite(max.Z) ||
+                        (min.X > max.X) || (min.Y > max.Y) || (min.Z > max.Z))
+                    {
+                        return false;
+                    }
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        //What InitCacheData keeps of an uncached ymap/ybn after the parallel load.
+        private sealed record UncachedMapFile(MetaHash MapName, MetaHash Parent, MapDataStoreNode? Node, BoundsStoreItem? Bounds);
 
         private void InitMapDataStore()
         {
@@ -499,6 +659,8 @@ namespace CodeWalker.World
             Vector3 corner = new(-8192, -8192, -2048);
             Vector3 cellsize = new(512, 512, 4096);
 
+            //the ynd loads are independent: run them in parallel, then fill the grid in the original cell order
+            var cellLoads = new List<(int x, int y, uint fnhash, RpfFileEntry fentry)>();
             for (int x = 0; x < NodeGrid.CellCountX; x++)
             {
                 for (int y = 0; y < NodeGrid.CellCountY; y++)
@@ -506,98 +668,124 @@ namespace CodeWalker.World
                     var cell = NodeGrid.Cells[x, y];
                     string fname = "nodes" + cell.ID + ".ynd";
                     uint fnhash = JenkHash.GenHash(fname);
-                    RpfFileEntry? fentry = null;
-                    if (yndentries.TryGetValue(fnhash, out fentry))
+                    if (yndentries.TryGetValue(fnhash, out var fentry))
                     {
-                        cell.Ynd = rpfman.GetFile<YndFile>(fentry);
-                        if (cell.Ynd == null) continue;
-                        cell.Ynd.BBMin = corner + (cellsize * new Vector3(x, y, 0));
-                        cell.Ynd.BBMax = cell.Ynd.BBMin + cellsize;
-                        cell.Ynd.CellX = x;
-                        cell.Ynd.CellY = y;
-                        cell.Ynd.Loaded = true;
-
-                        AllYnds[fnhash] = cell.Ynd;
-
-
-                        #region node flags test
-
-                        //if (cell.Ynd == null) continue;
-                        //if (cell.Ynd.NodeDictionary == null) continue;
-                        //if (cell.Ynd.NodeDictionary.Nodes == null) continue;
-                        //var na = cell.Ynd.NodeDictionary.Nodes;
-
-                        //for (int i = 0; i < na.Length; i++)
-                        //{
-                        //    var node = na[i];
-
-                        //    int nodetype = node.Unk25Type & 7;
-                        //    int linkcount = node.Unk25Type >> 3;
-                        //    int nxtlink = node.LinkID + linkcount;
-                        //    if (i < na.Length - 1)
-                        //    {
-                        //        var nxtnode = na[i + 1];
-                        //        if (nxtnode.LinkID != nxtlink)
-                        //        { }
-                        //    }
-                        //    else
-                        //    {
-                        //        if (nxtlink != cell.Ynd.NodeDictionary.LinksCount)
-                        //        { }
-                        //    }
-
-                        //    switch (node.Flags0)
-                        //    {
-                        //        case 0:
-                        //        case 1:
-                        //        case 2:
-                        //        case 8:
-                        //        case 10:
-                        //        case 32:
-                        //        case 34:
-                        //        case 35:
-                        //        case 40:
-                        //        case 42:
-                        //        case 66:
-                        //        case 98:
-                        //        case 129:
-                        //        case 130:
-                        //        case 162:
-                        //        case 194:
-                        //        case 226:
-                        //            break;
-                        //        default:
-                        //            break;
-                        //    }
-                        //    switch (node.Flags1)
-                        //    {
-                        //        case 0:
-                        //        case 1:
-                        //        case 2:
-                        //        case 3:
-                        //        case 4:
-                        //        case 16:
-                        //        case 80:
-                        //        case 112:
-                        //        case 120:
-                        //        case 121:
-                        //        case 122:
-                        //        case 128:
-                        //        case 129:
-                        //        case 136:
-                        //        case 144:
-                        //        case 152:
-                        //        case 160:
-                        //            break;
-                        //        default:
-                        //            break;
-                        //    }
-
-                        //}
-                        #endregion
-
+                        cellLoads.Add((x, y, fnhash, fentry));
                     }
                 }
+            }
+            var loadedYnds = new YndFile?[cellLoads.Count];
+            var loadErrors = new Exception?[cellLoads.Count];
+            Parallel.For(0, cellLoads.Count, i =>
+            {
+                try
+                {
+                    loadedYnds[i] = rpfman.GetFile<YndFile>(cellLoads[i].fentry);
+                }
+                catch (Exception ex)
+                {
+                    loadErrors[i] = ex;
+                }
+            });
+
+            for (int i = 0; i < cellLoads.Count; i++)
+            {
+                var (x, y, fnhash, _) = cellLoads[i];
+                var cell = NodeGrid.Cells[x, y];
+                if (loadErrors[i] != null)
+                {
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(loadErrors[i]!).Throw(); //same point the sequential load would have thrown
+                }
+                cell.Ynd = loadedYnds[i];
+                if (cell.Ynd == null)
+                {
+                    continue;
+                }
+                cell.Ynd.BBMin = corner + (cellsize * new Vector3(x, y, 0));
+                cell.Ynd.BBMax = cell.Ynd.BBMin + cellsize;
+                cell.Ynd.CellX = x;
+                cell.Ynd.CellY = y;
+                cell.Ynd.Loaded = true;
+
+                AllYnds[fnhash] = cell.Ynd;
+
+
+                #region node flags test
+
+                //if (cell.Ynd == null) continue;
+                //if (cell.Ynd.NodeDictionary == null) continue;
+                //if (cell.Ynd.NodeDictionary.Nodes == null) continue;
+                //var na = cell.Ynd.NodeDictionary.Nodes;
+
+                //for (int i = 0; i < na.Length; i++)
+                //{
+                //    var node = na[i];
+
+                //    int nodetype = node.Unk25Type & 7;
+                //    int linkcount = node.Unk25Type >> 3;
+                //    int nxtlink = node.LinkID + linkcount;
+                //    if (i < na.Length - 1)
+                //    {
+                //        var nxtnode = na[i + 1];
+                //        if (nxtnode.LinkID != nxtlink)
+                //        { }
+                //    }
+                //    else
+                //    {
+                //        if (nxtlink != cell.Ynd.NodeDictionary.LinksCount)
+                //        { }
+                //    }
+
+                //    switch (node.Flags0)
+                //    {
+                //        case 0:
+                //        case 1:
+                //        case 2:
+                //        case 8:
+                //        case 10:
+                //        case 32:
+                //        case 34:
+                //        case 35:
+                //        case 40:
+                //        case 42:
+                //        case 66:
+                //        case 98:
+                //        case 129:
+                //        case 130:
+                //        case 162:
+                //        case 194:
+                //        case 226:
+                //            break;
+                //        default:
+                //            break;
+                //    }
+                //    switch (node.Flags1)
+                //    {
+                //        case 0:
+                //        case 1:
+                //        case 2:
+                //        case 3:
+                //        case 4:
+                //        case 16:
+                //        case 80:
+                //        case 112:
+                //        case 120:
+                //        case 121:
+                //        case 122:
+                //        case 128:
+                //        case 129:
+                //        case 136:
+                //        case 144:
+                //        case 152:
+                //        case 160:
+                //            break;
+                //        default:
+                //            break;
+                //    }
+
+                //}
+                #endregion
+
             }
 
             //join the dots....

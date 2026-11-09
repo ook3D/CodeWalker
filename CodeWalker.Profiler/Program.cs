@@ -16,6 +16,11 @@ static class Profiler
 
     static int Main(string[] args)
     {
+        if (args.Length > 1 && args[0] == "--world")
+        {
+            return RunWorld(args);
+        }
+
         Folder = args.FirstOrDefault(a => Directory.Exists(a))
                  ?? @"C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V";
         Folder = Folder.TrimEnd('\\');
@@ -48,6 +53,97 @@ static class Profiler
         Environment.SetEnvironmentVariable("CW_SCAN_DOP", null);
         MeasureFullInit();
 
+        return 0;
+    }
+
+    // Headless replica of WorldForm's ContentThread + LoadWorld for a user configuration, used to
+    // iterate on startup changes and to dump the CW_FINGERPRINT correctness fingerprint.
+    // Usage: --world <gtafolder> [--dlc <name>] [--mods] [--extra <folders;...>]
+    static int RunWorld(string[] args)
+    {
+        string GetArg(string name)
+        {
+            int i = Array.IndexOf(args, name);
+            return (i >= 0 && i + 1 < args.Length) ? args[i + 1] : null;
+        }
+        var folder = args[1].TrimEnd('\\');
+        var gen9 = File.Exists(Path.Combine(folder, "gta5_enhanced.exe")) &&
+                   !File.Exists(Path.Combine(folder, "gta5.exe")); //same detection as Main, which returns before computing Gen9 for --world
+        var dlc = GetArg("--dlc") ?? "";
+        var mods = args.Contains("--mods");
+        var extra = GetArg("--extra") ?? "";
+        var headers = new HashSet<string>
+        {
+            "Building jenkindex...", "Building global dictionaries...", "Building DLC List...", "Building active RPF dictionary...",
+            "Building map dictionaries...", "Loading manifests...", "Loading global texture list...", "Loading cache...",
+            "Loading archetypes...", "Loading strings...", "Loading vehicles...", "Loading peds...", "Loading audio...", "Scan complete"
+        };
+        Action<string> status = s =>
+        {
+            if (s != null && headers.Contains(s))
+            {
+                CodeWalker.StartupTimer.Mark("status: " + s);
+            }
+        };
+        Action<string> error = e => CodeWalker.StartupFingerprint.NoteError(e);
+
+        CodeWalker.StartupTimer.Mark("Main start");
+        GTA5Keys.LoadFromPath(folder, gen9, null);
+        CodeWalker.StartupTimer.Mark("keys loaded");
+        var gfc = new GameFileCache(2147483648, 10.0, folder, gen9, dlc, mods, "Installers;_CommonRedist")
+        {
+            ExtraFolders = extra,
+            EnableFiveMResources = true,
+            LoadAudio = true,
+            LoadPeds = true,
+            LoadVehicles = true,
+        };
+        gfc.DeferNonEssentialData = !args.Contains("--nodefer");
+        gfc.Init(status, error);
+        CodeWalker.StartupTimer.Mark("gameFileCache.Init done");
+
+        var timecycle = new CodeWalker.World.Timecycle();
+        var weather = new CodeWalker.World.Weather();
+        var clouds = new CodeWalker.World.Clouds();
+        var water = new CodeWalker.World.Water();
+        var trains = new CodeWalker.World.Trains();
+        var scenarios = new CodeWalker.World.Scenarios();
+        var popzones = new CodeWalker.World.PopZones();
+        var heightmaps = new CodeWalker.World.Heightmaps();
+        var watermaps = new CodeWalker.World.Watermaps();
+        var audiozones = new CodeWalker.World.AudioZones();
+        var space = new CodeWalker.World.Space();
+        Action<string> ns = _ => { };
+
+        timecycle.UseModdedData = false;
+        timecycle.Init(gfc, ns);
+        CodeWalker.StartupTimer.Mark("LoadWorld: timecycles done");
+        BoundsMaterialTypes.Init(gfc);
+        weather.Init(gfc, ns, timecycle);
+        clouds.Init(gfc, ns, weather);
+        water.Init(gfc, ns);
+        trains.Init(gfc, ns);
+        CodeWalker.StartupTimer.Mark("LoadWorld: trains done");
+        popzones.Init(gfc, ns);
+        heightmaps.Init(gfc, ns);
+        watermaps.Init(gfc, ns);
+        space.Init(gfc, ns);
+        CodeWalker.StartupTimer.Mark("WORLD_USABLE");
+        // same order as WorldForm.LoadDeferredWorld
+        gfc.LoadDeferredData();
+        CodeWalker.StartupTimer.Mark("Deferred: game file cache data done");
+        audiozones.Init(gfc, ns);
+        CodeWalker.StartupTimer.Mark("LoadWorld: audiozones done");
+        scenarios.Init(gfc, ns, timecycle);
+        CodeWalker.StartupTimer.Mark("LoadWorld: scenarios done");
+        JenkIndex.WaitForBuild();
+        CodeWalker.StartupTimer.Mark("INITIALISED");
+
+        CodeWalker.StartupFingerprint.Dump("world", gfc, space,
+            CodeWalker.StartupFingerprint.DescribeWorld(timecycle, weather, clouds, water, trains, scenarios, popzones, heightmaps, watermaps, audiozones));
+        CodeWalker.StartupTimer.Mark("fingerprint done");
+        GC.Collect();
+        Console.WriteLine("Managed heap after load: " + (GC.GetTotalMemory(true) / (1024 * 1024)) + " MB, working set " + (Environment.WorkingSet / (1024 * 1024)) + " MB");
         return 0;
     }
 

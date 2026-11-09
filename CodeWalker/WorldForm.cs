@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
@@ -2422,7 +2422,9 @@ namespace CodeWalker
 
         public WorldForm()
         {
+            StartupTimer.Mark("WorldForm ctor start");
             InitializeComponent();
+            StartupTimer.Mark("WorldForm InitializeComponent done");
 
             var originalLighting = new CheckBox
             {
@@ -2453,6 +2455,7 @@ namespace CodeWalker
             initedOk = Renderer.Init();
 
             GTAFolder.UpdateEnhancedFormTitle(this);
+            StartupTimer.Mark("WorldForm ctor end");
         }
 
 
@@ -2611,6 +2614,7 @@ namespace CodeWalker
             new Thread(new ThreadStart(ContentThread)).Start();
 
             frametimer.Start();
+            StartupTimer.Mark("InitScene end");
         }
         public void CleanupScene()
         {
@@ -2643,6 +2647,12 @@ namespace CodeWalker
             frametimer.Restart();
 
             if (pauserendering) return;
+
+            if (initialised && !firstFrameMarked)
+            {
+                firstFrameMarked = true;
+                StartupTimer.Mark("first RenderScene after INITIALISED");
+            }
 
             GameFileCache.BeginFrame();
 
@@ -4525,15 +4535,18 @@ namespace CodeWalker
 
         public void UpdateAudioPlacementGraphics(RelFile rel)
         {
+            deferredWorldLoaded.Wait(); //audio zones may still be building in the background
             audiozones.PlacementsDict.Remove(rel); //should cause a rebuild to add/remove items
         }
         public void RemoveAudioShorelineGraphics(AudioPlacement audio)
         {
+            deferredWorldLoaded.Wait();
             if (audiozones.PlacementsDict.TryGetValue(audio.RelFile, out var placements))
                 audiozones.PlacementsDict[audio.RelFile] = placements.Where(p => p.Shoreline != audio.Shoreline).ToArray();
         }
         public AudioPlacement? GetAudioPlacement(RelFile rel, Dat151RelData reldata)
         {
+            deferredWorldLoaded.Wait();
             var placement = audiozones.FindPlacement(rel, reldata);
             if (placement == null)
             {
@@ -7112,6 +7125,20 @@ namespace CodeWalker
             }
             ToolbarProjectWindowButton.Checked = true;
         }
+        //Every route into the project window goes through here: it reads vehicle/ped/audio/scenario data, so it
+        //must wait for the deferred load (hotkeys and menu items stay reachable while the buttons are disabled).
+        [MemberNotNullWhen(true, nameof(ProjectForm))]
+        private bool TryShowProjectForm()
+        {
+            if (!deferredWorldLoaded.IsSet)
+            {
+                UpdateStatus("The project window is available once the world has finished loading");
+                return false;
+            }
+            ShowProjectForm();
+            return true;
+        }
+
         public void OnProjectFormClosed()
         {
             ProjectForm = null;
@@ -7179,7 +7206,71 @@ namespace CodeWalker
         }
 
 
-        private void LoadWorld()
+        //Loads what LoadWorld(deferExtras: true) left out, after the map is already usable: the game file cache's
+        //deferred vehicle/ped/audio data, then the audio zones (built from that audio data) and scenarios.
+        //Their consumers check audiozones.Inited / scenarios.Inited, which stay false until each is fully loaded.
+        private void LoadDeferredWorld()
+        {
+#if !DEBUG
+            try
+            {
+#endif
+                gameFileCache.LoadDeferredData();
+                StartupTimer.Mark("Deferred: game file cache data done");
+#if !DEBUG
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading vehicle, ped or audio data: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+#endif
+            LoadAudioZones();
+            LoadScenarios();
+            JenkIndex.WaitForBuild(); //the name index builds in the background too (see RpfManager.BuildJenkIndexInBackground)
+            if (JenkIndex.BackgroundBuildError != null)
+            {
+                LogError($"Error building the name index: {JenkIndex.BackgroundBuildError}");
+            }
+            UpdateStatus("World loaded");
+        }
+
+        private void LoadScenarios()
+        {
+#if !DEBUG
+            try
+            {
+#endif
+                UpdateStatus("Loading scenarios...");
+                scenarios.Init(gameFileCache, UpdateStatus, timecycle);
+                StartupTimer.Mark("LoadWorld: scenarios done");
+#if !DEBUG
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading scenarios: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+#endif
+        }
+
+        private void LoadAudioZones()
+        {
+#if !DEBUG
+            try
+            {
+#endif
+                UpdateStatus("Loading audio zones...");
+                audiozones.Init(gameFileCache, UpdateStatus);
+                StartupTimer.Mark("LoadWorld: audiozones done");
+#if !DEBUG
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading audio zones: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+#endif
+        }
+
+        private void LoadWorld(bool deferExtras = false)
         {
 
 #if !DEBUG
@@ -7190,6 +7281,7 @@ namespace CodeWalker
                 timecycle.UseModdedData = !Settings.Default.UseOriginalLighting;
                 timecycle.Init(gameFileCache, UpdateStatus);
                 timecycle.SetTime(Renderer.timeofday);
+                StartupTimer.Mark("LoadWorld: timecycles done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7201,6 +7293,7 @@ namespace CodeWalker
 #endif
                 UpdateStatus("Loading materials...");
                 BoundsMaterialTypes.Init(gameFileCache);
+                StartupTimer.Mark("LoadWorld: materials done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7213,6 +7306,7 @@ namespace CodeWalker
                 UpdateStatus("Loading weather...");
                 weather.Init(gameFileCache, UpdateStatus, timecycle);
                 UpdateWeatherTypesComboBox(weather);
+                StartupTimer.Mark("LoadWorld: weather done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7225,6 +7319,7 @@ namespace CodeWalker
                 UpdateStatus("Loading clouds...");
                 clouds.Init(gameFileCache, UpdateStatus, weather);
                 UpdateCloudTypesComboBox(clouds);
+                StartupTimer.Mark("LoadWorld: clouds done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7236,6 +7331,7 @@ namespace CodeWalker
 #endif
                 UpdateStatus("Loading water...");
                 water.Init(gameFileCache, UpdateStatus);
+                StartupTimer.Mark("LoadWorld: water done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7247,28 +7343,25 @@ namespace CodeWalker
 #endif
                 UpdateStatus("Loading trains...");
                 trains.Init(gameFileCache, UpdateStatus);
+                StartupTimer.Mark("LoadWorld: trains done");
 #if !DEBUG
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading trains: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            try
-            {
 #endif
-                UpdateStatus("Loading scenarios...");
-                scenarios.Init(gameFileCache, UpdateStatus, timecycle);
-#if !DEBUG
-            }
-            catch (Exception ex)
+            if (!deferExtras)
             {
-                MessageBox.Show($"Error loading scenarios: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadScenarios();
             }
+#if !DEBUG
             try
             {
 #endif
                 UpdateStatus("Loading popzones...");
                 popzones.Init(gameFileCache, UpdateStatus);
+                StartupTimer.Mark("LoadWorld: popzones done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7280,6 +7373,7 @@ namespace CodeWalker
 #endif
                 UpdateStatus("Loading heightmaps...");
                 heightmaps.Init(gameFileCache, UpdateStatus);
+                StartupTimer.Mark("LoadWorld: heightmaps done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7291,28 +7385,25 @@ namespace CodeWalker
 #endif
                 UpdateStatus("Loading watermaps...");
                 watermaps.Init(gameFileCache, UpdateStatus);
+                StartupTimer.Mark("LoadWorld: watermaps done");
 #if !DEBUG
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading watermaps: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            try
-            {
 #endif
-                UpdateStatus("Loading audio zones...");
-                audiozones.Init(gameFileCache, UpdateStatus);
-#if !DEBUG
-            }
-            catch (Exception ex)
+            if (!deferExtras)
             {
-                MessageBox.Show($"Error loading audio zones: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadAudioZones();
             }
+#if !DEBUG
             try
             {
 #endif
                 UpdateStatus("Loading world...");
                 space.Init(gameFileCache, UpdateStatus);
+                StartupTimer.Mark("LoadWorld: space.Init done");
 #if !DEBUG
             }
             catch (Exception ex)
@@ -7320,7 +7411,10 @@ namespace CodeWalker
                 MessageBox.Show($"Error loading world: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 #endif
-            UpdateStatus("World loaded");
+            if (!deferExtras)
+            {
+                UpdateStatus("World loaded");
+            }
 
         }
 
@@ -7438,6 +7532,7 @@ namespace CodeWalker
         {
             //main content loading thread.
             running = true;
+            StartupTimer.Mark("ContentThread start");
 
             UpdateStatus("Scanning...");
 
@@ -7459,7 +7554,13 @@ namespace CodeWalker
                 return;
             }
 
-            gameFileCache.Init(UpdateStatus, LogError);
+            StartupTimer.Mark("keys loaded");
+            //vehicles/peds/audio aren't needed to show and stream the map: load them after the window is usable
+            //(readers of that data wait for it - see GameFileCache.DeferNonEssentialData)
+            gameFileCache.DeferNonEssentialData = true;
+            Scenarios.MarkScenarioTypesPending(); //scenarios load in the background too: ScenarioTypes readers wait for them
+            gameFileCache.Init(UpdateStatusMarked, LogError);
+            StartupTimer.Mark("gameFileCache.Init done");
 
             UpdateDlcListComboBox(gameFileCache.DlcNameList);
 
@@ -7470,22 +7571,58 @@ namespace CodeWalker
             try
             {
 #endif
-                LoadWorld();
+                LoadWorld(deferExtras: true);
 #if !DEBUG
             }
             catch (Exception ex)
             {
+                deferredWorldLoaded.Set();
+                Scenarios.ReleaseScenarioTypesPending();
+                gameFileCache.AbandonDeferredData();
                 MessageBox.Show($"Failed to load world: {ex.Message}");
                 Close();
                 return;
             }
 #endif
 
+            //The map can be shown and streamed from here on. Vehicles, peds, audio, audio zones and scenarios
+            //finish loading in the background; DLC/mod switching and reloads stay disabled (initialised) until then.
+            StartupTimer.Mark("WORLD_USABLE");
 
+            Task.Run(() =>
+            {
+                bool deferredLoaded = false;
+                try
+                {
+                    LoadDeferredWorld();
+                    deferredLoaded = true;
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Error loading vehicle, ped, audio, audio zone or scenario data: {ex}");
+#if DEBUG
+                    if (Debugger.IsAttached)
+                    {
+                        Debugger.Break();
+                    }
+#endif
+                }
+                finally
+                {
+                    Scenarios.ReleaseScenarioTypesPending(); //never leave readers waiting, even if loading failed
+                    deferredWorldLoaded.Set();
+                    initialised = true;
+                    EnableDLCModsUI();
+                    EnableDeferredDataUI();
+                }
 
-            initialised = true;
-
-            EnableDLCModsUI();
+                if (deferredLoaded)
+                {
+                    StartupTimer.Mark("INITIALISED");
+                    StartupFingerprint.Dump("world", gameFileCache, space,
+                        StartupFingerprint.DescribeWorld(timecycle, weather, clouds, water, trains, scenarios, popzones, heightmaps, watermaps, audiozones));
+                }
+            });
 
 
             Task.Run(() => {
@@ -7540,6 +7677,27 @@ namespace CodeWalker
         }
 
 
+
+        private bool firstFrameMarked;
+
+        //unset while LoadDeferredWorld runs after startup (see ContentThread)
+        private readonly ManualResetEventSlim deferredWorldLoaded = new(false);
+
+        private static readonly HashSet<string> StartupPhaseHeaders = new HashSet<string>
+        {
+            "Building jenkindex...", "Building global dictionaries...", "Building DLC List...", "Building active RPF dictionary...",
+            "Building map dictionaries...", "Loading manifests...", "Loading global texture list...", "Loading cache...",
+            "Loading archetypes...", "Loading strings...", "Loading vehicles...", "Loading peds...", "Loading audio...", "Scan complete"
+        };
+
+        private void UpdateStatusMarked(string text)
+        {
+            if (text != null && StartupPhaseHeaders.Contains(text))
+            {
+                StartupTimer.Mark("status: " + text);
+            }
+            UpdateStatus(text);
+        }
 
         private volatile string pendingStatusText = string.Empty;
         private int statusUpdatePending; //0 = no marshal in flight, 1 = one queued
@@ -7688,13 +7846,18 @@ namespace CodeWalker
 
         private void LogError(string text)
         {
+            StartupFingerprint.NoteError(text);
+            LogErrorDisplay(text);
+        }
+        private void LogErrorDisplay(string text)
+        {
             try
             {
                 if (IsDisposed || IsHandleCreated == false) return;
                 if (InvokeRequired)
                 {
                     // Rendering can log while holding locks needed by the UI thread.
-                    BeginInvoke(new Action(() => { LogError(text); }));
+                    BeginInvoke(new Action(() => { LogErrorDisplay(text); }));
                 }
                 else
                 {
@@ -8205,14 +8368,33 @@ namespace CodeWalker
                 }
                 else
                 {
+                    ToolsMenuBinarySearch.Enabled = true;
+                    ToolsMenuJenkInd.Enabled = true;
+                }
+            }
+            catch (ObjectDisposedException) { }
+            catch (Win32Exception) { }
+            catch (InvalidOperationException) { }
+        }
+        //The tools that read vehicle/ped/audio/scenario data (project window, cutscene viewer, audio explorer)
+        //are enabled once the deferred load has finished - see ContentThread.
+        private void EnableDeferredDataUI()
+        {
+            try
+            {
+                if (IsDisposed || IsHandleCreated == false) return;
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(() => { EnableDeferredDataUI(); }));
+                }
+                else
+                {
                     ToolbarNewButton.Enabled = true;
                     ToolbarOpenButton.Enabled = true;
                     ToolbarProjectWindowButton.Enabled = true;
                     ToolsMenuProjectWindow.Enabled = true;
                     ToolsMenuCutsceneViewer.Enabled = true;
                     ToolsMenuAudioExplorer.Enabled = true;
-                    ToolsMenuBinarySearch.Enabled = true;
-                    ToolsMenuJenkInd.Enabled = true;
                 }
             }
             catch (ObjectDisposedException) { }
@@ -8335,7 +8517,10 @@ namespace CodeWalker
 
         private void New()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
 
             if (ProjectForm.IsProjectLoaded)
             {
@@ -8348,42 +8533,66 @@ namespace CodeWalker
         }
         private void NewProject()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.NewProject();
         }
         private void NewYmap()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.NewYmap();
         }
         private void NewYtyp()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.NewYtyp();
         }
         private void NewYbn()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.NewYbn();
         }
         private void NewYnd()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.NewYnd();
         }
         private void NewTrainTrack()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.NewTrainTrack();
         }
         private void NewScenario()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.NewScenario();
         }
         private void Open()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
 
             if (ProjectForm.IsProjectLoaded)
             {
@@ -8396,17 +8605,26 @@ namespace CodeWalker
         }
         private void OpenProject()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.OpenProject();
         }
         private void OpenFiles()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.OpenFiles();
         }
         private void OpenFolder()
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
             ProjectForm.OpenFolder();
         }
         private void Save()
@@ -9337,7 +9555,9 @@ namespace CodeWalker
 
         private void WorldForm_Load(object sender, EventArgs e)
         {
+            StartupTimer.Mark("WorldForm_Load start");
             Init();
+            StartupTimer.Mark("WorldForm_Load end");
         }
 
         private void WorldForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -10324,7 +10544,10 @@ namespace CodeWalker
 
         private void ToolsMenuProjectWindow_Click(object sender, EventArgs e)
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
         }
 
         private void ToolsMenuCutsceneViewer_Click(object sender, EventArgs e)
@@ -11171,7 +11394,10 @@ namespace CodeWalker
 
         private void ToolbarProjectWindowButton_Click(object sender, EventArgs e)
         {
-            ShowProjectForm();
+            if (!TryShowProjectForm())
+            {
+                return;
+            }
         }
 
         private void ToolbarAddItemButton_Click(object sender, EventArgs e)
